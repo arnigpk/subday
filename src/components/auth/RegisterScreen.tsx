@@ -71,8 +71,9 @@ export function RegisterScreen({ onComplete, onSwitchToLogin }: RegisterScreenPr
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (code.length < 4) {
+  const handleVerifyCode = async (codeToVerify?: string) => {
+    const verifyCode = codeToVerify || code;
+    if (verifyCode.length < 4) {
       toast.error('Введи 4-значный код');
       return;
     }
@@ -82,7 +83,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin }: RegisterScreenPr
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { 
           phone: formattedPhone, 
-          code,
+          code: verifyCode,
           isRegistration: true,
           name: name.trim()
         }
@@ -188,9 +189,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin }: RegisterScreenPr
                     setCode(newCode);
                     // Auto-submit when 4 digits entered
                     if (newCode.length === 4 && !isLoading) {
-                      setTimeout(() => {
-                        handleVerifyCode();
-                      }, 100);
+                      handleVerifyCode(newCode);
                     }
                   }}
                   className="input-field w-full text-2xl text-center tracking-[0.5em]"
