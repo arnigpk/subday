@@ -1,13 +1,42 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { userData } from '@/data/mockData';
 import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
+
+interface Profile {
+  name: string | null;
+  phone: string;
+  city: string | null;
+}
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('name, phone, city')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (data) {
+          setProfile(data);
+        } else if (error) {
+          console.error('Error fetching profile:', error);
+        }
+      }
+      setIsLoading(false);
+    };
+    
+    fetchProfile();
+  }, []);
   
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -15,7 +44,7 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: 'Город', value: userData.city },
+    { icon: MapPin, label: 'Город', value: profile?.city || 'Алматы' },
     { icon: Bell, label: 'Уведомления', value: 'Включены' },
     { icon: HelpCircle, label: 'Помощь', action: true },
     { icon: FileText, label: 'Условия', action: true },
@@ -33,23 +62,32 @@ export default function ProfilePage() {
               <User size={32} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-foreground">{userData.name}</h2>
-              <p className="text-muted-foreground">{userData.phone}</p>
+              {isLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-6 w-32 bg-muted rounded mb-1" />
+                  <div className="h-4 w-24 bg-muted rounded" />
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                  <p className="text-muted-foreground">{profile?.phone || ''}</p>
+                </>
+              )}
             </div>
           </div>
           
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">{userData.totalCups}</p>
+              <p className="text-2xl font-black text-foreground">0</p>
               <p className="text-xs text-muted-foreground">Напитков</p>
             </div>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">{userData.currentStreak}</p>
+              <p className="text-2xl font-black text-foreground">0</p>
               <p className="text-xs text-muted-foreground">Стрик</p>
             </div>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">{userData.bonusPoints}</p>
+              <p className="text-2xl font-black text-foreground">0</p>
               <p className="text-xs text-muted-foreground">Баллы</p>
             </div>
           </div>

@@ -10,26 +10,20 @@ function generateOTP(): string {
 }
 
 function formatPhone(phone: string): string {
-  // Убираем все кроме цифр
   let digits = phone.replace(/\D/g, '')
-  
-  // Если начинается с 8, заменяем на 7
   if (digits.startsWith('8') && digits.length === 11) {
     digits = '7' + digits.slice(1)
   }
-  
-  // Добавляем + если нет
   return '+' + digits
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { phone } = await req.json()
+    const { phone, isRegistration } = await req.json()
 
     if (!phone) {
       return new Response(
@@ -40,7 +34,6 @@ Deno.serve(async (req) => {
 
     const formattedPhone = formatPhone(phone)
     
-    // Валидация номера (казахстанский формат)
     if (!/^\+7[0-9]{10}$/.test(formattedPhone)) {
       return new Response(
         JSON.stringify({ error: 'Неверный формат номера. Используй +7XXXXXXXXXX' }),
@@ -53,19 +46,39 @@ Deno.serve(async (req) => {
     const smscLogin = Deno.env.get('SMSC_LOGIN')!
     const smscPassword = Deno.env.get('SMSC_PASSWORD')!
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
-    // Генерируем OTP
+    // Check if user exists
+    const { data: existingUsers } = await supabase.auth.admin.listUsers()
+    const existingUser = existingUsers?.users?.find(u => u.phone === formattedPhone)
+
+    if (isRegistration && existingUser) {
+      return new Response(
+        JSON.stringify({ error: 'Этот номер уже зарегистрирован. Войдите в аккаунт' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!isRegistration && !existingUser) {
+      return new Response(
+        JSON.stringify({ error: 'Аккаунт не найден. Сначала зарегистрируйтесь' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const code = generateOTP()
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5 минут
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
-    // Удаляем старые коды для этого номера
     await supabase
       .from('otp_codes')
       .delete()
       .eq('phone', formattedPhone)
 
-    // Сохраняем новый код
     const { error: insertError } = await supabase
       .from('otp_codes')
       .insert({
@@ -82,14 +95,13 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Отправляем SMS через SMSC.kz
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)
     smsUrl.searchParams.set('psw', smscPassword)
     smsUrl.searchParams.set('phones', formattedPhone)
     smsUrl.searchParams.set('mes', message)
-    smsUrl.searchParams.set('fmt', '3') // JSON response
+    smsUrl.searchParams.set('fmt', '3')
     smsUrl.searchParams.set('charset', 'utf-8')
 
     console.log(`Sending SMS to ${formattedPhone}`)
