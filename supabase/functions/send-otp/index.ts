@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     if (!isRegistration && !existingUser) {
       return new Response(
-        JSON.stringify({ error: 'Аккаунт не найден. Сначала зарегистрируйтесь' }),
+        JSON.stringify({ error: 'Зарегистрируйтесь, пожалуйста, для входа' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
