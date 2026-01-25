@@ -120,9 +120,10 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
-      // Login flow - find user and create session
+      // Login flow - find user by email pattern
+      const emailPattern = `${formattedPhone.replace('+', '')}@phone.subday.app`
       const { data: existingUsers } = await supabase.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find(u => u.phone === formattedPhone)
+      const existingUser = existingUsers?.users?.find(u => u.email === emailPattern)
 
       if (!existingUser) {
         return new Response(

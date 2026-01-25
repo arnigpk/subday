@@ -53,9 +53,10 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Check if user exists
+    // Check if user exists by email pattern (more reliable than phone field)
+    const emailPattern = `${formattedPhone.replace('+', '')}@phone.subday.app`
     const { data: existingUsers } = await supabase.auth.admin.listUsers()
-    const existingUser = existingUsers?.users?.find(u => u.phone === formattedPhone)
+    const existingUser = existingUsers?.users?.find(u => u.email === emailPattern)
 
     if (isRegistration && existingUser) {
       return new Response(
