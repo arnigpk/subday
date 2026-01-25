@@ -43,6 +43,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           city: string | null
           created_at: string
           id: string
@@ -52,6 +53,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           city?: string | null
           created_at?: string
           id?: string
@@ -61,11 +63,93 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           city?: string | null
           created_at?: string
           id?: string
           name?: string | null
           phone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      redemptions: {
+        Row: {
+          created_at: string
+          drink_name: string
+          drink_type: string
+          id: string
+          redeemed_at: string
+          shop_id: string | null
+          shop_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          drink_name: string
+          drink_type: string
+          id?: string
+          redeemed_at?: string
+          shop_id?: string | null
+          shop_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          drink_name?: string
+          drink_type?: string
+          id?: string
+          redeemed_at?: string
+          shop_id?: string | null
+          shop_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          bonus_points: number
+          coffee_remaining: number
+          coffee_total: number
+          created_at: string
+          current_streak: number
+          drinks_remaining: number
+          drinks_total: number
+          id: string
+          last_redemption_date: string | null
+          max_streak: number
+          total_cups: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bonus_points?: number
+          coffee_remaining?: number
+          coffee_total?: number
+          created_at?: string
+          current_streak?: number
+          drinks_remaining?: number
+          drinks_total?: number
+          id?: string
+          last_redemption_date?: string | null
+          max_streak?: number
+          total_cups?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bonus_points?: number
+          coffee_remaining?: number
+          coffee_total?: number
+          created_at?: string
+          current_streak?: number
+          drinks_remaining?: number
+          drinks_total?: number
+          id?: string
+          last_redemption_date?: string | null
+          max_streak?: number
+          total_cups?: number
           updated_at?: string
           user_id?: string
         }

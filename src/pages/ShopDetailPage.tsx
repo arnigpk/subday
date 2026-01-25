@@ -1,11 +1,13 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { coffeeShops, userData } from '@/data/mockData';
+import { coffeeShops } from '@/data/mockData';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Clock, MapPin, Coffee, Droplets } from 'lucide-react';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 export default function ShopDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { stats } = useUserStatsContext();
   
   const shop = coffeeShops.find(s => s.id === id);
   
@@ -20,7 +22,7 @@ export default function ShopDetailPage() {
   }
   
   const handleRedeem = () => {
-    navigate('/redeem', { state: { shop } });
+    navigate('/redeem', { state: { shop, drinkType: 'coffee', drinkName: 'Капучино' } });
   };
   
   return (
@@ -75,7 +77,7 @@ export default function ShopDetailPage() {
                   <span className="font-semibold text-foreground">Кофе</span>
                 </div>
                 <p className="text-2xl font-black text-foreground">
-                  {userData.coffeeRemaining}
+                  {stats.coffeeRemaining}
                   <span className="text-sm text-muted-foreground font-medium ml-1">осталось</span>
                 </p>
               </div>
@@ -86,7 +88,7 @@ export default function ShopDetailPage() {
                   <span className="font-semibold text-foreground">Напитки</span>
                 </div>
                 <p className="text-2xl font-black text-foreground">
-                  {userData.drinksRemaining}
+                  {stats.drinksRemaining}
                   <span className="text-sm text-muted-foreground font-medium ml-1">осталось</span>
                 </p>
               </div>
@@ -109,10 +111,15 @@ export default function ShopDetailPage() {
           <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <button 
               onClick={handleRedeem}
-              disabled={!shop.isOpen}
+              disabled={!shop.isOpen || (stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0)}
               className="btn-accent w-full text-lg disabled:opacity-50"
             >
-              {shop.isOpen ? 'Забрать здесь' : 'Кофейня закрыта'}
+              {!shop.isOpen 
+                ? 'Кофейня закрыта' 
+                : (stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0)
+                  ? 'Нет доступных напитков'
+                  : 'Забрать здесь'
+              }
             </button>
           </div>
         </div>
