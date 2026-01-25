@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { OnboardingScreen } from "@/components/auth/OnboardingScreen";
+import { AuthScreen } from "@/components/auth/AuthScreen";
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
 import PackageDetailPage from "./pages/PackageDetailPage";
@@ -26,7 +26,6 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -34,7 +33,6 @@ const App = () => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
@@ -47,7 +45,6 @@ const App = () => {
     // Session will be updated via onAuthStateChange
   };
   
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -61,7 +58,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Sonner />
-          <OnboardingScreen onComplete={handleAuthComplete} />
+          <AuthScreen onComplete={handleAuthComplete} />
         </TooltipProvider>
       </QueryClientProvider>
     );
