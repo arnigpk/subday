@@ -2,9 +2,12 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { userData } from '@/data/mockData';
 import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -83,9 +86,23 @@ export default function ProfilePage() {
           </div>
           
           {/* Logout */}
-          <button className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <button 
+            onClick={async () => {
+              setIsLoggingOut(true);
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                toast.error('Ошибка выхода');
+                setIsLoggingOut(false);
+              } else {
+                toast.success('До скорого!');
+              }
+            }}
+            disabled={isLoggingOut}
+            className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
+            style={{ animationDelay: '0.2s' }}
+          >
             <LogOut size={20} />
-            <span className="font-medium">Выйти</span>
+            <span className="font-medium">{isLoggingOut ? 'Выходим...' : 'Выйти'}</span>
           </button>
           
           {/* Version */}

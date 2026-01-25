@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 import { OnboardingScreen } from "@/components/auth/OnboardingScreen";
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
@@ -20,19 +22,45 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('subday_auth') === 'true';
-  });
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setIsLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   
   const handleAuthComplete = () => {
-    localStorage.setItem('subday_auth', 'true');
-    setIsAuthenticated(true);
+    // Session will be updated via onAuthStateChange
   };
   
-  if (!isAuthenticated) {
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Загрузка...</div>
+      </div>
+    );
+  }
+  
+  if (!session) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <Sonner />
           <OnboardingScreen onComplete={handleAuthComplete} />
         </TooltipProvider>
       </QueryClientProvider>
