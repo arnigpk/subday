@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Coffee, Droplets } from 'lucide-react';
 import { TabSwitcher } from '../ui/TabSwitcher';
-import { userData } from '@/data/mockData';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 const tabs = [
   { id: 'coffee', label: 'Кофе' },
@@ -10,11 +10,32 @@ const tabs = [
 
 export function BalanceCard() {
   const [activeTab, setActiveTab] = useState('coffee');
+  const { stats, isLoading } = useUserStatsContext();
   
   const isCoffee = activeTab === 'coffee';
-  const remaining = isCoffee ? userData.coffeeRemaining : userData.drinksRemaining;
-  const total = isCoffee ? userData.coffeeTotal : userData.drinksTotal;
-  const percentage = (remaining / total) * 100;
+  const remaining = isCoffee ? stats.coffeeRemaining : stats.drinksRemaining;
+  const total = isCoffee ? stats.coffeeTotal : stats.drinksTotal;
+  const percentage = total > 0 ? (remaining / total) * 100 : 0;
+  
+  if (isLoading) {
+    return (
+      <div className="card-static animate-slide-up">
+        <div className="animate-pulse">
+          <div className="h-10 bg-muted rounded-xl mb-4" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-muted" />
+              <div>
+                <div className="h-4 w-16 bg-muted rounded mb-2" />
+                <div className="h-10 w-24 bg-muted rounded" />
+              </div>
+            </div>
+            <div className="w-16 h-16 rounded-full bg-muted" />
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="card-static animate-slide-up">

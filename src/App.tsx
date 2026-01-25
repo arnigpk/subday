@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
 import PackageDetailPage from "./pages/PackageDetailPage";
@@ -69,21 +70,23 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/packages" element={<PackagesPage />} />
-            <Route path="/packages/:id" element={<PackageDetailPage />} />
-            <Route path="/shops" element={<ShopsPage />} />
-            <Route path="/shops/:id" element={<ShopDetailPage />} />
-            <Route path="/redeem" element={<RedeemPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/streaks" element={<StreaksPage />} />
-            <Route path="/bonuses" element={<BonusesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <UserStatsProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/packages" element={<PackagesPage />} />
+              <Route path="/packages/:id" element={<PackageDetailPage />} />
+              <Route path="/shops" element={<ShopsPage />} />
+              <Route path="/shops/:id" element={<ShopDetailPage />} />
+              <Route path="/redeem" element={<RedeemPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/streaks" element={<StreaksPage />} />
+              <Route path="/bonuses" element={<BonusesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </UserStatsProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

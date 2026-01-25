@@ -3,10 +3,14 @@ import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
 import { QuickActions } from '@/components/home/QuickActions';
 import { NearbyShops } from '@/components/home/NearbyShops';
-import { userData } from '@/data/mockData';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import logo from '@/assets/logo.png';
 
 export default function HomePage() {
+  const { profile, isLoading } = useUserStatsContext();
+  
+  const displayName = profile?.name?.split(' ')[0] || 'Гость';
+  
   return (
     <AppLayout>
       <div className="safe-area-top">
@@ -14,7 +18,11 @@ export default function HomePage() {
         <div className="px-4 py-4 flex items-center justify-between">
           <div>
             <p className="text-muted-foreground text-sm">Привет,</p>
-            <h1 className="text-xl font-bold text-foreground">{userData.name} 👋</h1>
+            {isLoading ? (
+              <div className="h-7 w-24 bg-muted rounded animate-pulse" />
+            ) : (
+              <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
+            )}
           </div>
           <div className="w-10 h-10">
             <img src={logo} alt="subday" className="w-full h-full object-contain" />

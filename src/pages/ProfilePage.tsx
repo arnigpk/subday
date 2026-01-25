@@ -1,50 +1,84 @@
+import { useState, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
-
-interface Profile {
-  name: string | null;
-  phone: string;
-  city: string | null;
-}
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('name, phone, city')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (data) {
-          setProfile(data);
-        } else if (error) {
-          console.error('Error fetching profile:', error);
-        }
-      }
-      setIsLoading(false);
-    };
-    
-    fetchProfile();
-  }, []);
+  const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   
   const toggleTheme = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle('dark');
   };
   
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Пожалуйста, выберите изображение');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Файл слишком большой (максимум 5МБ)');
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+      
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+      
+      // Update profile
+      const success = await updateAvatar(publicUrl);
+      
+      if (success) {
+        toast.success('Фото обновлено!');
+        refetch();
+      } else {
+        throw new Error('Failed to update avatar');
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Ошибка загрузки фото');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
   const menuItems = [
-    { icon: MapPin, label: 'Город', value: profile?.city || 'Алматы' },
+    { icon: MapPin, label: 'Город', value: profile?.city || 'Атырау' },
     { icon: Bell, label: 'Уведомления', value: 'Включены' },
     { icon: HelpCircle, label: 'Помощь', action: true },
     { icon: FileText, label: 'Условия', action: true },
@@ -58,8 +92,33 @@ export default function ProfilePage() {
           
           {/* User card */}
           <div className="card-static flex items-center gap-4 mb-6 animate-slide-up">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <User size={32} className="text-primary" />
+            <div className="relative">
+              <Avatar className="w-16 h-16 rounded-2xl">
+                {profile?.avatarUrl ? (
+                  <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" />
+                ) : null}
+                <AvatarFallback className="bg-primary/10 rounded-2xl">
+                  <User size={32} className="text-primary" />
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={handleAvatarClick}
+                disabled={isUploading}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center shadow-lg"
+              >
+                {isUploading ? (
+                  <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera size={14} className="text-accent-foreground" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
             <div>
               {isLoading ? (
@@ -79,16 +138,16 @@ export default function ProfilePage() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">0</p>
-              <p className="text-xs text-muted-foreground">Напитков</p>
+              <p className="text-2xl font-black text-foreground">{stats.totalCups}</p>
+              <p className="text-xs text-muted-foreground">Выпито</p>
             </div>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">0</p>
-              <p className="text-xs text-muted-foreground">Стрик</p>
+              <p className="text-2xl font-black text-foreground">{stats.currentStreak}</p>
+              <p className="text-xs text-muted-foreground">Дней подряд</p>
             </div>
             <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">0</p>
-              <p className="text-xs text-muted-foreground">Баллы</p>
+              <p className="text-2xl font-black text-foreground">{stats.bonusPoints}</p>
+              <p className="text-xs text-muted-foreground">Бонусов</p>
             </div>
           </div>
           
