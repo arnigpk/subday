@@ -156,7 +156,7 @@ export function OnboardingScreen({
           {step === 'phone' ? <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Введите ваш номер   
+                  Введите ваш номер👇   
                 </label>
                 <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full text-lg" autoComplete="tel" />
               </div>
