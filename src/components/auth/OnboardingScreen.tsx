@@ -1,29 +1,141 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
+import { toast } from '@/components/ui/sonner';
 
 export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
+  const [formattedPhone, setFormattedPhone] = useState('');
   
-  const handleSendCode = () => {
-    if (phone.length >= 10) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setStep('code');
-      }, 800);
+  const formatPhoneInput = (value: string) => {
+    // Убираем все кроме цифр
+    let digits = value.replace(/\D/g, '');
+    
+    // Ограничиваем до 11 цифр
+    if (digits.length > 11) {
+      digits = digits.slice(0, 11);
+    }
+    
+    // Форматируем для отображения
+    if (digits.length === 0) return '';
+    if (digits.length <= 1) return `+${digits}`;
+    if (digits.length <= 4) return `+${digits.slice(0, 1)} ${digits.slice(1)}`;
+    if (digits.length <= 7) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4)}`;
+    if (digits.length <= 9) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
+  };
+  
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setPhone(formatted);
+  };
+  
+  const handleSendCode = async () => {
+    const digits = phone.replace(/\D/g, '');
+    
+    if (digits.length < 11) {
+      toast.error('Введи полный номер телефона');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: { phone: digits }
+      });
+      
+      if (error) {
+        console.error('Send OTP error:', error);
+        toast.error('Ошибка отправки кода');
+        return;
+      }
+      
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+      
+      setFormattedPhone(data.phone);
+      setStep('code');
+      toast.success('Код отправлен!');
+      
+    } catch (err) {
+      console.error('Error sending code:', err);
+      toast.error('Ошибка отправки');
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const handleVerifyCode = () => {
-    if (code.length === 4) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
+  const handleVerifyCode = async () => {
+    if (code.length < 4) {
+      toast.error('Введи 4-значный код');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { phone: formattedPhone, code }
+      });
+      
+      if (error) {
+        console.error('Verify OTP error:', error);
+        toast.error('Ошибка проверки кода');
+        return;
+      }
+      
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+      
+      if (data.session) {
+        // Устанавливаем сессию
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token
+        });
+        
+        toast.success('Добро пожаловать!');
         onComplete();
-      }, 800);
+      } else {
+        toast.error('Ошибка авторизации');
+      }
+      
+    } catch (err) {
+      console.error('Error verifying code:', err);
+      toast.error('Ошибка проверки');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleResendCode = async () => {
+    setCode('');
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: { phone: formattedPhone }
+      });
+      
+      if (error || data.error) {
+        toast.error('Ошибка повторной отправки');
+        return;
+      }
+      
+      toast.success('Код отправлен повторно!');
+      
+    } catch (err) {
+      toast.error('Ошибка отправки');
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -53,14 +165,15 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
                   type="tel"
                   placeholder="+7 7XX XXX XX XX"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={handlePhoneChange}
                   className="input-field w-full text-lg"
+                  autoComplete="tel"
                 />
               </div>
               
               <button
                 onClick={handleSendCode}
-                disabled={phone.length < 10 || isLoading}
+                disabled={phone.replace(/\D/g, '').length < 11 || isLoading}
                 className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Отправляем...' : 'Погнали'}
@@ -74,14 +187,16 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   placeholder="0000"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.slice(0, 4))}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   className="input-field w-full text-2xl text-center tracking-[0.5em]"
                   maxLength={4}
+                  autoComplete="one-time-code"
                 />
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Отправили на {phone}
+                  Отправили на {formattedPhone}
                 </p>
               </div>
               
@@ -93,12 +208,25 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
                 {isLoading ? 'Проверяем...' : 'Войти'}
               </button>
               
-              <button
-                onClick={() => setStep('phone')}
-                className="btn-secondary w-full"
-              >
-                Изменить номер
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setStep('phone');
+                    setCode('');
+                  }}
+                  className="btn-secondary flex-1"
+                  disabled={isLoading}
+                >
+                  Изменить номер
+                </button>
+                <button
+                  onClick={handleResendCode}
+                  className="btn-secondary flex-1"
+                  disabled={isLoading}
+                >
+                  Отправить снова
+                </button>
+              </div>
             </>
           )}
         </div>
