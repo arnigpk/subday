@@ -186,7 +186,16 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                   inputMode="numeric"
                   placeholder="0000"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={(e) => {
+                    const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setCode(newCode);
+                    // Auto-submit when 4 digits entered
+                    if (newCode.length === 4 && !isLoading) {
+                      setTimeout(() => {
+                        handleVerifyCode();
+                      }, 100);
+                    }
+                  }}
                   className="input-field w-full text-2xl text-center tracking-[0.5em]"
                   maxLength={4}
                   autoComplete="one-time-code"
@@ -196,13 +205,12 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                 </p>
               </div>
               
-              <button
-                onClick={handleVerifyCode}
-                disabled={code.length < 4 || isLoading}
-                className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Проверяем...' : 'Войти'}
-              </button>
+              {isLoading && (
+                <div className="flex items-center justify-center py-3">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-2 text-muted-foreground">Проверяем...</span>
+                </div>
+              )}
               
               <div className="flex gap-2">
                 <button
