@@ -147,7 +147,10 @@ export function OnboardingScreen({
         <p className="text-muted-foreground text-center mb-8 animate-slide-up" style={{
         animationDelay: '0.1s'
       }}>
-          Specialty Coffee & HoReCa   
+          Specialty Coffee & HoReCa Subscriptions
+
+
+    
         </p>
         
         <div className="w-full max-w-sm space-y-4 animate-slide-up" style={{
