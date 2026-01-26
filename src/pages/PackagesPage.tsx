@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Coffee, Zap, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -22,13 +22,13 @@ const tabs = [
 ];
 
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('ru-RU').format(price) + ' тг';
+  return new Intl.NumberFormat('ru-RU').format(price);
 };
 
-const getBadge = (cupsCount: number): string | null => {
-  if (cupsCount >= 300) return 'Максимум';
-  if (cupsCount >= 40) return 'Выгодно';
-  if (cupsCount >= 25) return 'Хит';
+const getBadgeInfo = (cupsCount: number): { text: string; icon: typeof Sparkles; gradient: string } | null => {
+  if (cupsCount >= 300) return { text: 'Максимум', icon: Crown, gradient: 'from-amber-500 to-orange-500' };
+  if (cupsCount >= 40) return { text: 'Выгодно', icon: Zap, gradient: 'from-accent to-lime-500' };
+  if (cupsCount >= 25) return { text: 'Хит', icon: Sparkles, gradient: 'from-accent to-emerald-500' };
   return null;
 };
 
@@ -41,6 +41,10 @@ const getPeriod = (days: number): string => {
 const getOriginalPrice = (cups: number, type: string): number => {
   const pricePerCup = type === 'coffee' ? 1500 : 1200;
   return cups * pricePerCup;
+};
+
+const getSavingsPercent = (original: number, current: number): number => {
+  return Math.round(((original - current) / original) * 100);
 };
 
 export default function PackagesPage() {
@@ -75,7 +79,10 @@ export default function PackagesPage() {
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
-          <h1 className="text-2xl font-black text-foreground mb-4">Подписки</h1>
+          <div className="mb-6">
+            <h1 className="text-3xl font-black text-foreground tracking-tight">Подписки</h1>
+            <p className="text-sm text-muted-foreground mt-1">Выбери свой идеальный план</p>
+          </div>
           
           <TabSwitcher
             tabs={tabs}
@@ -87,19 +94,22 @@ export default function PackagesPage() {
           {isLoading ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="card-base h-40 animate-pulse bg-muted" />
+                <div key={i} className="card-base h-48 animate-pulse bg-muted rounded-2xl" />
               ))}
             </div>
           ) : filteredSubscriptions.length === 0 ? (
             <div className="text-center py-12">
+              <Coffee className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">Нет доступных подписок</p>
             </div>
           ) : (
             <div className="space-y-4">
               {filteredSubscriptions.map((sub, index) => {
-                const badge = getBadge(sub.cups_count);
+                const badgeInfo = getBadgeInfo(sub.cups_count);
                 const period = getPeriod(sub.duration_days);
                 const originalPrice = getOriginalPrice(sub.cups_count, sub.type);
+                const savingsPercent = getSavingsPercent(originalPrice, sub.price);
+                const BadgeIcon = badgeInfo?.icon || Sparkles;
                 
                 return (
                   <Link
@@ -108,43 +118,64 @@ export default function PackagesPage() {
                     className="block animate-slide-up"
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <div className="card-interactive relative overflow-hidden">
-                      {badge && (
-                        <div className="absolute top-3 right-3">
-                          <span className="badge-accent flex items-center gap-1">
-                            <Sparkles size={12} />
-                            {badge}
+                    <div className="card-interactive relative overflow-hidden group">
+                      {/* Background accent */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* Badge */}
+                      {badgeInfo && (
+                        <div className="absolute top-4 right-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${badgeInfo.gradient} shadow-lg`}>
+                            <BadgeIcon size={12} />
+                            {badgeInfo.text}
                           </span>
                         </div>
                       )}
                       
-                      <div className="pr-20">
-                        <h3 className="text-xl font-bold text-foreground mb-1">
-                          {sub.name}
-                        </h3>
-                        {sub.description && (
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {sub.description}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-black text-foreground">
-                            {formatPrice(sub.price)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            /{period}
-                          </span>
-                          {originalPrice > sub.price && (
-                            <span className="text-sm text-muted-foreground line-through">
-                              {formatPrice(originalPrice)}
-                            </span>
+                      <div className="relative">
+                        {/* Title section */}
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Coffee size={18} className="text-accent" />
+                            <h3 className="text-xl font-black text-foreground tracking-tight">
+                              {sub.name}
+                            </h3>
+                          </div>
+                          {sub.description && (
+                            <p className="text-sm text-muted-foreground leading-relaxed pl-6">
+                              {sub.description}
+                            </p>
                           )}
                         </div>
-                      </div>
-                      
-                      <div className="mt-4">
-                        <button className="btn-primary w-full text-sm">
+                        
+                        {/* Price section */}
+                        <div className="mb-5">
+                          <div className="flex items-end gap-2">
+                            <span className="text-3xl font-black text-foreground tracking-tight">
+                              {formatPrice(sub.price)}
+                            </span>
+                            <span className="text-lg font-medium text-muted-foreground mb-0.5">
+                              тг
+                            </span>
+                            <span className="text-sm text-muted-foreground mb-1">
+                              / {period}
+                            </span>
+                          </div>
+                          
+                          {originalPrice > sub.price && (
+                            <div className="flex items-center gap-3 mt-2">
+                              <span className="text-sm text-muted-foreground line-through decoration-destructive/50">
+                                {formatPrice(originalPrice)} тг
+                              </span>
+                              <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                                −{savingsPercent}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* CTA Button */}
+                        <button className="btn-primary w-full font-bold tracking-wide">
                           Оформить
                         </button>
                       </div>
@@ -154,6 +185,13 @@ export default function PackagesPage() {
               })}
             </div>
           )}
+          
+          {/* Bottom info */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              Отмена подписки в любой момент
+            </p>
+          </div>
         </div>
       </div>
     </AppLayout>
