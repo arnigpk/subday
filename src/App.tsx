@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
 import PackageDetailPage from "./pages/PackageDetailPage";
@@ -23,10 +24,13 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
+  const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
+  
+  const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
   // Минимальное время показа прелоадера (1.5 секунды)
   useEffect(() => {
@@ -35,6 +39,56 @@ const App = () => {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+  
+  // Telegram Mini App auto-login
+  useEffect(() => {
+    if (!isTelegramReady || telegramAuthAttempted) return;
+    
+    const attemptTelegramAuth = async () => {
+      if (!isTelegramMiniApp) {
+        console.log('Not a Telegram Mini App, skipping auto-login');
+        setTelegramAuthAttempted(true);
+        return;
+      }
+      
+      const initData = getInitData();
+      if (!initData) {
+        console.log('No initData available');
+        setTelegramAuthAttempted(true);
+        return;
+      }
+      
+      console.log('Attempting Telegram Mini App auto-login...');
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('telegram-miniapp-auth', {
+          body: { initData }
+        });
+        
+        if (error) {
+          console.error('Telegram Mini App auth error:', error);
+          setTelegramAuthAttempted(true);
+          return;
+        }
+        
+        if (data?.session) {
+          console.log('Telegram Mini App auto-login successful');
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token
+          });
+        } else if (data?.error) {
+          console.error('Auth error:', data.error);
+        }
+      } catch (err) {
+        console.error('Telegram auth error:', err);
+      }
+      
+      setTelegramAuthAttempted(true);
+    };
+    
+    attemptTelegramAuth();
+  }, [isTelegramReady, isTelegramMiniApp, getInitData, telegramAuthAttempted]);
   
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -52,7 +106,9 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
   
-  const isLoading = isAuthLoading || !isPreloaderDone;
+  // Wait for both auth loading and telegram auth attempt (if applicable)
+  const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
+  const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
   
   const handleAuthComplete = () => {
     // Session will be updated via onAuthStateChange
@@ -72,37 +128,41 @@ const App = () => {
   
   if (!session) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Sonner />
-          <AuthScreen onComplete={handleAuthComplete} />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <>
+        <Sonner />
+        <AuthScreen onComplete={handleAuthComplete} />
+      </>
     );
   }
   
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+    <UserStatsProvider>
+      <BrowserRouter>
         <Toaster />
         <Sonner />
-        <UserStatsProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/packages" element={<PackagesPage />} />
-              <Route path="/packages/:id" element={<PackageDetailPage />} />
-              <Route path="/shops" element={<ShopsPage />} />
-              <Route path="/shops/:id" element={<ShopDetailPage />} />
-              <Route path="/redeem" element={<RedeemPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/streaks" element={<StreaksPage />} />
-              <Route path="/bonuses" element={<BonusesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </UserStatsProvider>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/packages/:id" element={<PackageDetailPage />} />
+          <Route path="/shops" element={<ShopsPage />} />
+          <Route path="/shops/:id" element={<ShopDetailPage />} />
+          <Route path="/redeem" element={<RedeemPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/streaks" element={<StreaksPage />} />
+          <Route path="/bonuses" element={<BonusesPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </UserStatsProvider>
+  );
+};
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
