@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.telegram-auth]
 verify_jwt = false
+
+[functions.telegram-generate-code]
+verify_jwt = false
+
+[functions.telegram-verify-code]
+verify_jwt = false
