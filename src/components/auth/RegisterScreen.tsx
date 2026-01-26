@@ -6,10 +6,11 @@ import { toast } from '@/components/ui/sonner';
 interface RegisterScreenProps {
   onComplete: () => void;
   onSwitchToLogin: () => void;
+  initialPhone?: string;
 }
 
-export function RegisterScreen({ onComplete, onSwitchToLogin }: RegisterScreenProps) {
-  const [phone, setPhone] = useState('');
+export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' }: RegisterScreenProps) {
+  const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'code'>('form');
