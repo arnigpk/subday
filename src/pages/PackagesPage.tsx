@@ -79,9 +79,9 @@ export default function PackagesPage() {
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
-          <div className="mb-6">
-            <h1 className="text-3xl font-black text-foreground tracking-tight">Подписки</h1>
-            <p className="text-sm text-muted-foreground mt-1">Выбери свой идеальный план</p>
+          <div className="mb-5">
+            <h1 className="text-2xl font-black text-foreground tracking-tight">Подписки</h1>
+            <p className="text-xs text-muted-foreground mt-1">Выбери свой идеальный план</p>
           </div>
           
           <TabSwitcher
@@ -134,40 +134,40 @@ export default function PackagesPage() {
                       
                       <div className="relative">
                         {/* Title section */}
-                        <div className="mb-4">
+                        <div className="mb-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <Coffee size={18} className="text-accent" />
-                            <h3 className="text-xl font-black text-foreground tracking-tight">
+                            <Coffee size={14} className="text-accent" />
+                            <h3 className="text-lg font-bold text-foreground tracking-tight">
                               {sub.name}
                             </h3>
                           </div>
                           {sub.description && (
-                            <p className="text-sm text-muted-foreground leading-relaxed pl-6">
+                            <p className="text-xs text-muted-foreground leading-relaxed pl-5">
                               {sub.description}
                             </p>
                           )}
                         </div>
                         
                         {/* Price section */}
-                        <div className="mb-5">
-                          <div className="flex items-end gap-2">
-                            <span className="text-3xl font-black text-foreground tracking-tight">
+                        <div className="mb-4">
+                          <div className="flex items-end gap-1.5">
+                            <span className="text-2xl font-black text-foreground tracking-tight">
                               {formatPrice(sub.price)}
                             </span>
-                            <span className="text-lg font-medium text-muted-foreground mb-0.5">
+                            <span className="text-sm font-medium text-muted-foreground mb-0.5">
                               тг
                             </span>
-                            <span className="text-sm text-muted-foreground mb-1">
+                            <span className="text-xs text-muted-foreground mb-0.5">
                               / {period}
                             </span>
                           </div>
                           
                           {originalPrice > sub.price && (
-                            <div className="flex items-center gap-3 mt-2">
-                              <span className="text-sm text-muted-foreground line-through decoration-destructive/50">
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-xs text-muted-foreground line-through decoration-destructive/50">
                                 {formatPrice(originalPrice)} тг
                               </span>
-                              <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                              <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
                                 −{savingsPercent}%
                               </span>
                             </div>
@@ -175,7 +175,7 @@ export default function PackagesPage() {
                         </div>
                         
                         {/* CTA Button */}
-                        <button className="btn-primary w-full font-bold tracking-wide">
+                        <button className="btn-primary w-full text-sm font-semibold">
                           Оформить
                         </button>
                       </div>
