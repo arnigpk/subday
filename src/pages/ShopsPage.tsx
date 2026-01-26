@@ -1,15 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { coffeeShops } from '@/data/mockData';
-import { Star, Clock, MapPin, Navigation } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Star, Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
+
+interface Shop {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  working_hours: string | null;
+  is_active: boolean;
+}
 
 const filters = [
   { id: 'all', label: 'Все' },
   { id: 'open', label: 'Открыто' },
-  { id: 'nearby', label: 'Рядом' },
-  { id: 'top', label: 'Топ' },
 ];
 
 // Component to display shop status with real-time check
@@ -28,19 +35,40 @@ function ShopStatusBadge({ openHours }: { openHours: string }) {
 
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
-  
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchShops();
+  }, []);
+
+  const fetchShops = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setShops(data || []);
+    } catch (error) {
+      console.error('Error fetching shops:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Add real-time open status to shops
   const shopsWithStatus = useMemo(() => {
-    return coffeeShops.map(shop => ({
+    return shops.map(shop => ({
       ...shop,
-      isCurrentlyOpen: isShopOpen(shop.openHours),
+      isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
     }));
-  }, []);
+  }, [shops]);
   
   const filteredShops = shopsWithStatus.filter(shop => {
     if (activeFilter === 'open') return shop.isCurrentlyOpen;
-    if (activeFilter === 'nearby') return parseFloat(shop.distance) < 1;
-    if (activeFilter === 'top') return shop.rating >= 4.8;
     return true;
   });
   
@@ -77,7 +105,11 @@ export default function ShopsPage() {
           </div>
           
           {/* Shops list */}
-          {filteredShops.length > 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : filteredShops.length > 0 ? (
             <div className="space-y-3">
               {filteredShops.map((shop, index) => (
                 <Link
@@ -95,20 +127,22 @@ export default function ShopsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                            <span className="text-sm font-semibold text-foreground">{shop.rating}</span>
-                          </div>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground truncate">{shop.address}</p>
+                        {shop.address && (
+                          <p className="text-sm text-muted-foreground truncate">{shop.address}</p>
+                        )}
                         
                         <div className="flex items-center gap-4 mt-2">
-                          <div className="flex items-center gap-1">
-                            <Navigation size={12} className="text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">{shop.distance}</span>
-                          </div>
-                          <ShopStatusBadge openHours={shop.openHours} />
+                          {shop.city && (
+                            <div className="flex items-center gap-1">
+                              <Navigation size={12} className="text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">{shop.city}</span>
+                            </div>
+                          )}
+                          {shop.working_hours && (
+                            <ShopStatusBadge openHours={shop.working_hours} />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -119,8 +153,8 @@ export default function ShopsPage() {
           ) : (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">🔍</div>
-              <p className="text-lg font-semibold text-foreground mb-2">Рядом пусто</p>
-              <p className="text-sm text-muted-foreground">Но ты не сдавайся, расширь поиск</p>
+              <p className="text-lg font-semibold text-foreground mb-2">Нет кофеен</p>
+              <p className="text-sm text-muted-foreground">Попробуйте изменить фильтр</p>
             </div>
           )}
         </div>
