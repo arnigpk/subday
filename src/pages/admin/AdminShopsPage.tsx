@@ -25,6 +25,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
 
 interface Shop {
   id: string;
@@ -34,6 +35,7 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   created_at: string;
+  logo_url: string | null;
 }
 
 export default function AdminShopsPage() {
@@ -48,6 +50,7 @@ export default function AdminShopsPage() {
     city: 'Атырау',
     working_hours: '09:00-21:00',
     is_active: true,
+    logo_url: null as string | null,
   });
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export default function AdminShopsPage() {
       city: 'Атырау',
       working_hours: '09:00-21:00',
       is_active: true,
+      logo_url: null,
     });
     setIsDialogOpen(true);
   };
@@ -91,6 +95,7 @@ export default function AdminShopsPage() {
       city: shop.city || 'Атырау',
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
+      logo_url: shop.logo_url,
     });
     setIsDialogOpen(true);
   };
@@ -111,6 +116,7 @@ export default function AdminShopsPage() {
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
+            logo_url: formData.logo_url,
           })
           .eq('id', editingShop.id);
 
@@ -125,6 +131,7 @@ export default function AdminShopsPage() {
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
+            logo_url: formData.logo_url,
           });
 
         if (error) throw error;
@@ -193,14 +200,20 @@ export default function AdminShopsPage() {
             <Card key={shop.id} className={!shop.is_active ? 'opacity-50' : ''}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Coffee className="w-5 h-5 text-primary" />
-                      {shop.name}
-                    </CardTitle>
-                    {!shop.is_active && (
-                      <span className="text-xs text-muted-foreground">Неактивна</span>
+                  <div className="flex items-center gap-3">
+                    {shop.logo_url ? (
+                      <img src={shop.logo_url} alt={shop.name} className="w-10 h-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                        <Coffee className="w-5 h-5 text-primary" />
+                      </div>
                     )}
+                    <div>
+                      <CardTitle className="text-lg">{shop.name}</CardTitle>
+                      {!shop.is_active && (
+                        <span className="text-xs text-muted-foreground">Неактивна</span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -289,6 +302,11 @@ export default function AdminShopsPage() {
                 placeholder="09:00-21:00"
               />
             </div>
+            <ShopLogoUpload
+              currentLogoUrl={formData.logo_url}
+              onLogoChange={(url) => setFormData({ ...formData, logo_url: url })}
+              shopId={editingShop?.id}
+            />
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"
