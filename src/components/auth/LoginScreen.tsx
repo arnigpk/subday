@@ -50,34 +50,50 @@ export function LoginScreen({
         }
       });
       
-      // Проверяем ошибку от edge function (может быть в error.message или error.context)
+      // Проверяем ошибку от edge function
       if (error) {
-        console.error('Send OTP error:', error);
-        // Пытаемся извлечь сообщение об ошибке из контекста
-        const errorMessage = error.message || '';
-        const contextBody = (error as any).context?.body;
+        console.log('Send OTP error object:', JSON.stringify(error, null, 2));
         
-        // Парсим JSON из тела ответа, если есть
-        let parsedError = null;
-        if (contextBody) {
+        // Пробуем разные способы получить сообщение об ошибке
+        let errorText = '';
+        
+        // 1. Проверяем error.message (часто содержит JSON)
+        if (error.message) {
           try {
-            parsedError = JSON.parse(contextBody);
+            // Иногда message содержит JSON строку
+            const parsed = JSON.parse(error.message);
+            errorText = parsed.error || '';
           } catch {
-            // Не удалось распарсить
+            errorText = error.message;
           }
         }
         
-        // Проверяем, это ли ошибка "не зарегистрирован"
-        if (parsedError?.error?.includes('Зарегистрируйтесь') || 
-            parsedError?.error?.includes('не найден') ||
-            errorMessage.includes('Зарегистрируйтесь') ||
-            errorMessage.includes('не найден')) {
+        // 2. Проверяем context.body (для FunctionsHttpError)
+        const ctx = (error as any).context;
+        if (ctx?.body) {
+          try {
+            const parsed = JSON.parse(ctx.body);
+            errorText = parsed.error || errorText;
+          } catch {
+            // body не JSON
+          }
+        }
+        
+        // 3. Проверяем context.json (альтернативный формат)
+        if (ctx?.json?.error) {
+          errorText = ctx.json.error;
+        }
+        
+        console.log('Extracted error text:', errorText);
+        
+        // Проверяем, нужна ли регистрация
+        if (errorText.includes('Зарегистрируйтесь') || errorText.includes('не найден')) {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
           onSwitchToRegister(phone);
           return;
         }
         
-        toast.error(parsedError?.error || 'Ошибка отправки кода');
+        toast.error(errorText || 'Ошибка отправки кода');
         return;
       }
       
