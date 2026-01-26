@@ -1,229 +1,191 @@
 
-# Telegram Mini App с автоматическим входом в subday
+
+# Подготовка к созданию subday-admin
 
 ## Обзор
 
-Создание Telegram Mini App, при открытии которого пользователь автоматически авторизуется на сайте subday без ввода каких-либо данных. Telegram передаёт информацию о пользователе через `initData`, которую мы валидируем на бэкенде и создаём/авторизуем пользователя.
+Подготовим базу данных для админ-дашборда, добавив систему ролей и обновив RLS политики. После этого ты создашь новый проект в Lovable.
 
-## Как это будет работать
+## Шаг 1: Изменения в базе данных (текущий проект)
 
-```text
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Пользователь  │────▶│  Telegram Mini   │────▶│    subday.app   │
-│   в Telegram    │     │   App открыт     │     │   автологин     │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-         │                       │                        │
-         │    1. Открывает       │                        │
-         │       Mini App        │                        │
-         │──────────────────────▶│                        │
-         │                       │                        │
-         │                       │  2. Telegram передаёт  │
-         │                       │     initData (user_id, │
-         │                       │     имя, username)     │
-         │                       │───────────────────────▶│
-         │                       │                        │
-         │                       │  3. Бэкенд проверяет   │
-         │                       │     подпись initData   │
-         │                       │◀───────────────────────│
-         │                       │                        │
-         │                       │  4. Возвращает session │
-         │                       │◀───────────────────────│
-         │                       │                        │
-         │                       │  5. Пользователь       │
-         │                       │     авторизован!       │
-         │◀──────────────────────│◀───────────────────────│
+### Новые объекты:
+
+**1. Enum для ролей**
+```sql
+CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'partner');
 ```
 
-## Что нужно сделать
+**2. Таблица user_roles**
+- `user_id` — ссылка на пользователя
+- `role` — роль (admin/moderator/partner)
+- `shop_id` — для партнёров: привязка к конкретной кофейне
 
-### 1. Настроить бота для Mini App
+**3. Функции безопасности**
+- `has_role(user_id, role)` — проверка наличия роли
+- `get_partner_shop_id(user_id)` — получение shop_id партнёра
 
-В @BotFather для вашего бота @subday_lgbot:
-- Отправить `/newapp` и следовать инструкциям
-- Указать URL: `https://vhod.lovable.app` (ваш продакшен URL)
-- Добавить короткое имя (например: `subday`)
+**4. RLS политики**
+- Админы и модераторы видят все профили и redemptions
+- Партнёры видят только redemptions своей кофейни
 
-После этого Mini App будет доступен по ссылке: `https://t.me/subday_lgbot/subday`
+### Обновление существующих политик:
 
-### 2. Подключить Telegram WebApp SDK
+| Таблица | Новая политика |
+|---------|----------------|
+| profiles | Админы/модераторы видят всех |
+| user_stats | Админы/модераторы видят всех |
+| redemptions | Админы/модераторы видят все, партнёры — только свою кофейню |
 
-Добавить скрипт Telegram в `index.html` для получения данных пользователя.
+## Шаг 2: Назначение админа
 
-### 3. Создать edge function для авто-логина
+После миграции добавлю твой аккаунт как админа. Для этого мне нужен твой `user_id` из текущей авторизации, или ты сможешь добавить его вручную.
 
-Новая функция `telegram-miniapp-auth`:
-- Получает `initData` от фронтенда
-- Криптографически проверяет подпись (HMAC-SHA-256)
-- Извлекает данные пользователя (telegram_id, имя, фото)
-- Создаёт/находит пользователя в базе
-- Возвращает сессию Supabase
+## Шаг 3: Создание нового проекта (твои действия)
 
-### 4. Обновить фронтенд
+1. Открой https://lovable.dev
+2. Нажми "New Project"
+3. Назови его `subday-admin`
+4. После создания — напиши мне, я помогу подключить к существующей базе
 
-Изменить `App.tsx`:
-- Определять, запущено ли приложение внутри Telegram
-- Если да — автоматически отправлять `initData` на бэкенд
-- Получать сессию и логинить пользователя
-- Никаких экранов авторизации не показывать
+## Шаг 4: Что будет в subday-admin
 
-### 5. Адаптировать UI для Telegram
+### Страницы:
+- `/` — Дашборд с метриками
+- `/users` — Таблица пользователей с поиском и фильтрами
+- `/history` — Все redemptions с фильтрами
+- `/shops` — Статистика по кофейням
+- `/settings` — Управление ролями
 
-- Использовать тему Telegram (светлая/тёмная)
-- Настроить кнопку "Назад" через `BackButton`
-- Убрать лишние элементы навигации
+### Функциональность по ролям:
 
----
+| Функция | Admin | Moderator | Partner |
+|---------|-------|-----------|---------|
+| Все метрики | да | да | нет |
+| Все пользователи | да | да | нет |
+| Все redemptions | да | да | нет |
+| Своя кофейня | да | да | да |
+| Изменение баланса | да | да | нет |
+| Управление ролями | да | нет | нет |
 
-## Технические детали
+### Технологии:
+- React + TypeScript + Tailwind (как в subday)
+- shadcn/ui компоненты
+- Recharts для графиков
+- TanStack Table для таблиц
 
-### Файлы для изменения/создания
+## Техническая секция
 
-| Файл | Действие |
-|------|----------|
-| `index.html` | Добавить Telegram WebApp SDK |
-| `src/App.tsx` | Добавить логику определения Mini App и авто-логина |
-| `src/hooks/useTelegramWebApp.ts` | Новый хук для работы с Telegram SDK |
-| `supabase/functions/telegram-miniapp-auth/index.ts` | Новая edge function |
-| `supabase/config.toml` | Добавить новую функцию |
+### SQL миграция для текущего проекта:
 
-### Структура initData от Telegram
+```sql
+-- 1. Enum для ролей
+CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'partner');
 
-```text
-query_id=AAHdF6IQ...
-&user={"id":279058397,"first_name":"Иван","last_name":"Петров","username":"ivan","language_code":"ru"}
-&auth_date=1662771648
-&hash=c501b71e775f74ce10e377dea85a7ea24ecd640b223ea86dfe453e0eaed2e2b2
+-- 2. Таблица ролей
+CREATE TABLE public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  role app_role NOT NULL,
+  shop_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (user_id, role)
+);
+
+-- 3. RLS для user_roles
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- 4. Функция проверки роли (security definer)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
+RETURNS BOOLEAN
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  )
+$$;
+
+-- 5. Функция получения shop_id партнёра
+CREATE OR REPLACE FUNCTION public.get_partner_shop_id(_user_id UUID)
+RETURNS TEXT
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT shop_id FROM public.user_roles
+  WHERE user_id = _user_id AND role = 'partner'
+  LIMIT 1
+$$;
+
+-- 6. Политика: только админы видят таблицу ролей
+CREATE POLICY "Admins can view all roles"
+ON public.user_roles FOR SELECT
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can manage roles"
+ON public.user_roles FOR ALL
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- 7. Обновление политик для profiles
+CREATE POLICY "Admins can view all profiles"
+ON public.profiles FOR SELECT
+TO authenticated
+USING (
+  auth.uid() = user_id OR 
+  public.has_role(auth.uid(), 'admin') OR 
+  public.has_role(auth.uid(), 'moderator')
+);
+
+CREATE POLICY "Admins can update any profile"
+ON public.profiles FOR UPDATE
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- 8. Обновление политик для user_stats
+CREATE POLICY "Admins can view all stats"
+ON public.user_stats FOR SELECT
+TO authenticated
+USING (
+  auth.uid() = user_id OR 
+  public.has_role(auth.uid(), 'admin') OR 
+  public.has_role(auth.uid(), 'moderator')
+);
+
+CREATE POLICY "Admins can update any stats"
+ON public.user_stats FOR UPDATE
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- 9. Обновление политик для redemptions
+CREATE POLICY "Admins can view all redemptions"
+ON public.redemptions FOR SELECT
+TO authenticated
+USING (
+  auth.uid() = user_id OR 
+  public.has_role(auth.uid(), 'admin') OR 
+  public.has_role(auth.uid(), 'moderator') OR
+  (public.has_role(auth.uid(), 'partner') AND shop_id = public.get_partner_shop_id(auth.uid()))
+);
 ```
 
-### Алгоритм валидации подписи
+### Подключение нового проекта к базе:
 
-1. Извлечь `hash` из initData
-2. Отсортировать остальные параметры по алфавиту
-3. Объединить в строку формата `key=value\nkey2=value2`
-4. Создать секретный ключ: `HMAC-SHA256("WebAppData", BOT_TOKEN)`
-5. Вычислить хеш: `HMAC-SHA256(secret_key, data_check_string)`
-6. Сравнить вычисленный хеш с полученным
+В новом проекте нужно будет:
+1. Зайти в Settings проекта
+2. Выбрать "Connectors" → "Supabase"
+3. Ввести данные текущего проекта:
+   - URL: из переменной VITE_SUPABASE_URL
+   - Anon Key: из переменной VITE_SUPABASE_PUBLISHABLE_KEY
 
-### Логика авторизации
+## Порядок действий
 
-```text
-initData получен
-       │
-       ▼
-Валидация подписи ─── Неверная ──▶ Ошибка
-       │
-       │ Верная
-       ▼
-Проверка auth_date ─── Истёк ──▶ Ошибка
-       │
-       │ Актуален
-       ▼
-Поиск пользователя по telegram_id
-       │
-       ├── Найден ──▶ signIn ──▶ Вернуть session
-       │
-       └── Не найден ──▶ createUser ──▶ signIn ──▶ Вернуть session
-```
+1. **Сейчас** — Я применю миграцию базы данных
+2. **После миграции** — Ты скажешь мне свой user_id или email для назначения админом
+3. **Потом** — Ты создашь новый проект в Lovable
+4. **Далее** — Я реализую UI дашборда в новом проекте
 
-### Секреты
-
-Используется существующий секрет `TELEGRAM_BOT_TOKEN` — никаких новых секретов не требуется.
-
-### Типы TypeScript для Telegram WebApp
-
-```typescript
-interface TelegramWebApp {
-  initData: string;
-  initDataUnsafe: {
-    user?: {
-      id: number;
-      first_name: string;
-      last_name?: string;
-      username?: string;
-      language_code?: string;
-      is_premium?: boolean;
-      photo_url?: string;
-    };
-    auth_date: number;
-    hash: string;
-  };
-  ready: () => void;
-  expand: () => void;
-  close: () => void;
-  BackButton: {
-    show: () => void;
-    hide: () => void;
-    onClick: (callback: () => void) => void;
-  };
-  themeParams: {
-    bg_color?: string;
-    text_color?: string;
-    hint_color?: string;
-    button_color?: string;
-    button_text_color?: string;
-  };
-}
-```
-
-### Пример edge function (ключевые части)
-
-```typescript
-// Валидация подписи
-async function validateTelegramWebAppData(initData: string, botToken: string): Promise<boolean> {
-  const params = new URLSearchParams(initData);
-  const hash = params.get('hash');
-  params.delete('hash');
-  
-  const dataCheckArr = Array.from(params.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${value}`);
-  const dataCheckString = dataCheckArr.join('\n');
-  
-  // secret_key = HMAC-SHA256("WebAppData", bot_token)
-  const encoder = new TextEncoder();
-  const secretKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode('WebAppData'),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const secretData = await crypto.subtle.sign('HMAC', secretKey, encoder.encode(botToken));
-  
-  // hash = HMAC-SHA256(secret_key, data_check_string)
-  const dataKey = await crypto.subtle.importKey(
-    'raw',
-    secretData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', dataKey, encoder.encode(dataCheckString));
-  
-  const calculatedHash = Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  
-  return calculatedHash === hash;
-}
-```
-
-## Поведение приложения
-
-### При открытии из Telegram Mini App:
-1. Показывается прелоадер
-2. Автоматически отправляется initData на бэкенд
-3. Пользователь сразу попадает на главную страницу
-4. Экран авторизации **не показывается**
-
-### При открытии в обычном браузере:
-1. Показывается прелоадер
-2. Показывается стандартный экран авторизации (SMS/Telegram)
-3. Поведение не меняется
-
-## Ограничения и особенности
-
-- Mini App работает только внутри Telegram
-- initData действителен ~24 часа (проверяем auth_date)
-- Фото профиля доступно только для Premium пользователей или если явно разрешено
-- Кнопка "Назад" управляется через Telegram API
