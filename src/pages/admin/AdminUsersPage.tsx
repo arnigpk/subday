@@ -27,8 +27,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { AppRole } from '@/hooks/useAdminAuth';
+
+type UserRole = AppRole | 'user';
 
 interface UserWithStats {
   user_id: string;
@@ -41,6 +44,9 @@ interface UserWithStats {
   drinks_remaining: number;
   total_cups: number;
   current_streak: number;
+  role?: UserRole;
+  role_id?: string;
+  shop_id?: string | null;
 }
 
 interface SubscriptionType {
@@ -50,7 +56,19 @@ interface SubscriptionType {
   cups_count: number;
 }
 
+interface Shop {
+  id: string;
+  name: string;
+}
+
 const PAGE_SIZE = 20;
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  user: 'Пользователь',
+  admin: 'Администратор',
+  moderator: 'Модератор',
+  partner: 'Партнёр',
+};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
@@ -60,6 +78,7 @@ export default function AdminUsersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [editingUser, setEditingUser] = useState<UserWithStats | null>(null);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -67,12 +86,15 @@ export default function AdminUsersPage() {
     is_blocked: false,
     coffee_remaining: 0,
     drinks_remaining: 0,
+    role: 'user' as UserRole,
+    shop_id: '',
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
     fetchSubscriptionTypes();
+    fetchShops();
   }, [page, search]);
 
   const fetchSubscriptionTypes = async () => {
@@ -81,6 +103,15 @@ export default function AdminUsersPage() {
       .select('id, name, type, cups_count')
       .eq('is_active', true);
     if (data) setSubscriptionTypes(data);
+  };
+
+  const fetchShops = async () => {
+    const { data } = await supabase
+      .from('shops')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('sort_order');
+    if (data) setShops(data);
   };
 
   const fetchUsers = async () => {
@@ -108,21 +139,36 @@ export default function AdminUsersPage() {
       }
 
       const userIds = profiles.map(p => p.user_id);
-      const { data: stats } = await supabase
-        .from('user_stats')
-        .select('user_id, coffee_remaining, drinks_remaining, total_cups, current_streak')
-        .in('user_id', userIds);
+      
+      // Fetch stats and roles in parallel
+      const [statsResult, rolesResult] = await Promise.all([
+        supabase
+          .from('user_stats')
+          .select('user_id, coffee_remaining, drinks_remaining, total_cups, current_streak')
+          .in('user_id', userIds),
+        supabase
+          .from('user_roles')
+          .select('id, user_id, role, shop_id')
+          .in('user_id', userIds)
+      ]);
 
-      const statsMap = new Map(stats?.map(s => [s.user_id, s]) || []);
+      const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
+      const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
 
-      const usersWithStats: UserWithStats[] = profiles.map(profile => ({
-        ...profile,
-        is_blocked: profile.is_blocked || false,
-        coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
-        drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
-        total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
-        current_streak: statsMap.get(profile.user_id)?.current_streak || 0,
-      }));
+      const usersWithStats: UserWithStats[] = profiles.map(profile => {
+        const roleData = rolesMap.get(profile.user_id);
+        return {
+          ...profile,
+          is_blocked: profile.is_blocked || false,
+          coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
+          drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
+          total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
+          current_streak: statsMap.get(profile.user_id)?.current_streak || 0,
+          role: (roleData?.role as UserRole) || 'user',
+          role_id: roleData?.id,
+          shop_id: roleData?.shop_id,
+        };
+      });
 
       setUsers(usersWithStats);
     } catch (error) {
@@ -141,6 +187,8 @@ export default function AdminUsersPage() {
       is_blocked: user.is_blocked,
       coffee_remaining: user.coffee_remaining,
       drinks_remaining: user.drinks_remaining,
+      role: user.role || 'user',
+      shop_id: user.shop_id || '',
     });
     setSelectedSubscription('');
   };
@@ -171,6 +219,41 @@ export default function AdminUsersPage() {
         .eq('user_id', editingUser.user_id);
 
       if (statsError) throw statsError;
+
+      // Handle role update
+      const previousRole = editingUser.role || 'user';
+      const newRole = formData.role;
+
+      if (previousRole !== newRole) {
+        if (previousRole !== 'user' && editingUser.role_id) {
+          // Delete existing role
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('id', editingUser.role_id);
+        }
+
+        if (newRole !== 'user') {
+          // Insert new role
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: editingUser.user_id,
+              role: newRole,
+              shop_id: newRole === 'partner' ? formData.shop_id || null : null,
+            });
+
+          if (roleError) throw roleError;
+        }
+      } else if (newRole === 'partner' && formData.shop_id !== editingUser.shop_id) {
+        // Update shop_id for partner
+        if (editingUser.role_id) {
+          await supabase
+            .from('user_roles')
+            .update({ shop_id: formData.shop_id || null })
+            .eq('id', editingUser.role_id);
+        }
+      }
 
       toast({ title: 'Пользователь обновлён' });
       setEditingUser(null);
@@ -303,6 +386,14 @@ export default function AdminUsersPage() {
                         <TableCell className="text-center">{user.drinks_remaining}</TableCell>
                         <TableCell className="text-center">{user.total_cups}</TableCell>
                         <TableCell>
+                          {user.role && user.role !== 'user' && (
+                            <div className="flex items-center gap-1 mb-1">
+                              <Shield className="w-3 h-3 text-primary" />
+                              <span className="text-xs text-primary font-medium">
+                                {ROLE_LABELS[user.role]}
+                              </span>
+                            </div>
+                          )}
                           {user.is_blocked ? (
                             <span className="text-destructive text-sm">Заблокирован</span>
                           ) : (
@@ -421,6 +512,45 @@ export default function AdminUsersPage() {
                   onChange={(e) => setFormData({ ...formData, drinks_remaining: parseInt(e.target.value) || 0 })}
                 />
               </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <Label>Роль пользователя</Label>
+              <Select 
+                value={formData.role} 
+                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Пользователь</SelectItem>
+                  <SelectItem value="admin">Администратор</SelectItem>
+                  <SelectItem value="moderator">Модератор</SelectItem>
+                  <SelectItem value="partner">Партнёр</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {formData.role === 'partner' && (
+                <div className="mt-3">
+                  <Label>Привязка к кофейне</Label>
+                  <Select 
+                    value={formData.shop_id} 
+                    onValueChange={(v) => setFormData({ ...formData, shop_id: v })}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Выберите кофейню" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shops.map(shop => (
+                        <SelectItem key={shop.id} value={shop.id}>
+                          {shop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
