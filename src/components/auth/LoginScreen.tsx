@@ -7,7 +7,6 @@ interface LoginScreenProps {
   onComplete: () => void;
   onSwitchToRegister: (phone?: string) => void;
 }
-
 export function LoginScreen({
   onComplete,
   onSwitchToRegister
@@ -49,14 +48,14 @@ export function LoginScreen({
           isRegistration: false
         }
       });
-      
+
       // Проверяем ошибку от edge function
       if (error) {
         console.log('Send OTP error object:', JSON.stringify(error, null, 2));
-        
+
         // Пробуем разные способы получить сообщение об ошибке
         let errorText = '';
-        
+
         // 1. Проверяем error.message (часто содержит JSON)
         if (error.message) {
           try {
@@ -67,7 +66,7 @@ export function LoginScreen({
             errorText = error.message;
           }
         }
-        
+
         // 2. Проверяем context.body (для FunctionsHttpError)
         const ctx = (error as any).context;
         if (ctx?.body) {
@@ -78,25 +77,22 @@ export function LoginScreen({
             // body не JSON
           }
         }
-        
+
         // 3. Проверяем context.json (альтернативный формат)
         if (ctx?.json?.error) {
           errorText = ctx.json.error;
         }
-        
         console.log('Extracted error text:', errorText);
-        
+
         // Проверяем, нужна ли регистрация
         if (errorText.includes('Зарегистрируйтесь') || errorText.includes('не найден')) {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
           onSwitchToRegister(phone);
           return;
         }
-        
         toast.error(errorText || 'Ошибка отправки кода');
         return;
       }
-      
       if (data?.error) {
         // Если пользователь не зарегистрирован - автоматически переходим на регистрацию
         if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
@@ -268,7 +264,7 @@ export function LoginScreen({
           <TelegramLoginButton botName="subday_lgbot" onSuccess={onComplete} />
         </div>
         
-        <p className="text-xs text-muted-foreground text-center">Продолжая пользоваться приложением, Данабек соглашается отсосать Ануару!!!</p>
+        <p className="text-xs text-muted-foreground text-center">Продолжая пользоваться приложением, вы соглашаетесь с офертой.</p>
       </div>
     </div>;
 }
