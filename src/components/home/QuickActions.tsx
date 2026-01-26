@@ -8,7 +8,7 @@ export function QuickActions() {
   const actions = [
     {
       icon: MapPin,
-      label: 'Кофейни рядом',
+      label: 'Рядом',
       path: '/shops',
       color: 'bg-primary/10 text-primary',
     },
