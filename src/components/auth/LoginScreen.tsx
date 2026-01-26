@@ -49,12 +49,39 @@ export function LoginScreen({
           isRegistration: false
         }
       });
+      
+      // Проверяем ошибку от edge function (может быть в error.message или error.context)
       if (error) {
         console.error('Send OTP error:', error);
-        toast.error('Ошибка отправки кода');
+        // Пытаемся извлечь сообщение об ошибке из контекста
+        const errorMessage = error.message || '';
+        const contextBody = (error as any).context?.body;
+        
+        // Парсим JSON из тела ответа, если есть
+        let parsedError = null;
+        if (contextBody) {
+          try {
+            parsedError = JSON.parse(contextBody);
+          } catch {
+            // Не удалось распарсить
+          }
+        }
+        
+        // Проверяем, это ли ошибка "не зарегистрирован"
+        if (parsedError?.error?.includes('Зарегистрируйтесь') || 
+            parsedError?.error?.includes('не найден') ||
+            errorMessage.includes('Зарегистрируйтесь') ||
+            errorMessage.includes('не найден')) {
+          toast.info('Зарегистрируйтесь, пожалуйста 👋');
+          onSwitchToRegister(phone);
+          return;
+        }
+        
+        toast.error(parsedError?.error || 'Ошибка отправки кода');
         return;
       }
-      if (data.error) {
+      
+      if (data?.error) {
         // Если пользователь не зарегистрирован - автоматически переходим на регистрацию
         if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
