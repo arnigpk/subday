@@ -218,7 +218,7 @@ export function LoginScreen({
           <TelegramLoginButton botName="subday_lgbot" onSuccess={onComplete} />
         </div>
         
-        <p className="text-xs text-muted-foreground text-center">Продолжая пользоваться приложением, ты соглашаешься отсосать Ануару!!!</p>
+        <p className="text-xs text-muted-foreground text-center">Продолжая пользоваться приложением, Данабек соглашается отсосать Ануару!!!</p>
       </div>
     </div>;
 }
