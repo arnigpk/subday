@@ -3,6 +3,7 @@ import { coffeeShops } from '@/data/mockData';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Clock, MapPin, Coffee, Droplets } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { useShopStatus } from '@/utils/shopHours';
 
 export default function ShopDetailPage() {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export default function ShopDetailPage() {
   const { stats } = useUserStatsContext();
   
   const shop = coffeeShops.find(s => s.id === id);
+  const shopStatus = useShopStatus(shop?.openHours || '');
   
   if (!shop) {
     return (
@@ -51,9 +53,14 @@ export default function ShopDetailPage() {
                 <Star size={18} className="text-yellow-500 fill-yellow-500" />
                 <span className="font-bold text-foreground">{shop.rating}</span>
               </div>
-              <div className={`flex items-center gap-1 ${shop.isOpen ? 'text-accent' : 'text-destructive'}`}>
+              <div className={`flex items-center gap-1 ${shopStatus.isOpen ? 'text-accent' : 'text-destructive'}`}>
                 <Clock size={18} />
-                <span className="font-medium">{shop.isOpen ? 'Открыто' : 'Закрыто'}</span>
+                <span className="font-medium">
+                  {shopStatus.isOpen 
+                    ? `Открыто до ${shopStatus.closesAt}` 
+                    : `Закрыто · откроется в ${shopStatus.opensAt}`
+                  }
+                </span>
               </div>
             </div>
             
@@ -111,10 +118,10 @@ export default function ShopDetailPage() {
           <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <button 
               onClick={handleRedeem}
-              disabled={!shop.isOpen || (stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0)}
+              disabled={!shopStatus.isOpen || (stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0)}
               className="btn-accent w-full text-lg disabled:opacity-50"
             >
-              {!shop.isOpen 
+              {!shopStatus.isOpen 
                 ? 'Кофейня закрыта' 
                 : (stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0)
                   ? 'Нет доступных напитков'
