@@ -3,7 +3,7 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
+import { Check, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 
@@ -198,11 +198,6 @@ export default function PartnerScanPage() {
               <p className="text-2xl font-black text-accent">Успешно!</p>
               <p className="text-muted-foreground">{result.message}</p>
               
-              <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-2">
-                <Sparkles size={16} />
-                +10 бонусов клиенту
-              </div>
-              
               <div className="mt-4 p-4 bg-secondary rounded-xl space-y-2 text-left">
                 {result.customerName && (
                   <div>
@@ -214,12 +209,6 @@ export default function PartnerScanPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Напиток</p>
                     <p className="font-semibold text-foreground">{result.drinkName}</p>
-                  </div>
-                )}
-                {result.remaining !== undefined && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Осталось у клиента</p>
-                    <p className="font-semibold text-foreground">{result.remaining} напитков</p>
                   </div>
                 )}
               </div>
