@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import preloader from '@/assets/preloader.gif';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,8 +49,12 @@ const App = () => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Загрузка...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <img 
+          src={preloader} 
+          alt="Loading" 
+          className="w-40 h-40 object-contain"
+        />
       </div>
     );
   }
