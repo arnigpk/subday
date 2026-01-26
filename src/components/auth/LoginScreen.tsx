@@ -3,19 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
-
 interface LoginScreenProps {
   onComplete: () => void;
   onSwitchToRegister: () => void;
 }
-
-export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps) {
+export function LoginScreen({
+  onComplete,
+  onSwitchToRegister
+}: LoginScreenProps) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
-
   const formatPhoneInput = (value: string) => {
     let digits = value.replace(/\D/g, '');
     if (digits.length > 11) {
@@ -28,24 +28,26 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
     if (digits.length <= 9) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
     return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
   };
-
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhoneInput(e.target.value));
   };
-
   const handleSendCode = async () => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 11) {
       toast.error('Введи полный номер телефона');
       return;
     }
-
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: digits, isRegistration: false }
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('send-otp', {
+        body: {
+          phone: digits,
+          isRegistration: false
+        }
       });
-
       if (error) {
         console.error('Send OTP error:', error);
         toast.error('Ошибка отправки кода');
@@ -55,7 +57,6 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         toast.error(data.error);
         return;
       }
-
       setFormattedPhone(data.phone);
       setStep('code');
       toast.success('Код отправлен!');
@@ -66,24 +67,24 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       setIsLoading(false);
     }
   };
-
   const handleVerifyCode = async (codeToVerify?: string) => {
     const verifyCode = codeToVerify || code;
     if (verifyCode.length < 4) {
       toast.error('Введи 4-значный код');
       return;
     }
-
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { 
-          phone: formattedPhone, 
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('verify-otp', {
+        body: {
+          phone: formattedPhone,
           code: verifyCode,
           isRegistration: false
         }
       });
-
       if (error) {
         console.error('Verify OTP error:', error);
         toast.error('Ошибка проверки кода');
@@ -93,7 +94,6 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         toast.error(data.error);
         return;
       }
-
       if (data.session) {
         await supabase.auth.setSession({
           access_token: data.session.access_token,
@@ -111,13 +111,18 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       setIsLoading(false);
     }
   };
-
   const handleResendCode = async () => {
     setCode('');
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: formattedPhone, isRegistration: false }
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('send-otp', {
+        body: {
+          phone: formattedPhone,
+          isRegistration: false
+        }
       });
       if (error || data.error) {
         toast.error('Ошибка повторной отправки');
@@ -130,109 +135,72 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
+  return <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-28 h-28 mb-6 animate-pop">
           <img src={logo} alt="subday" className="w-full h-full object-contain" />
         </div>
         
-        <h1 className="text-3xl font-black text-foreground mb-2 animate-slide-up">
-          subday
-        </h1>
-        <p className="text-muted-foreground text-center mb-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        
+        <p className="text-muted-foreground text-center mb-8 animate-slide-up" style={{
+        animationDelay: '0.1s'
+      }}>
           Specialty Coffee & HoReCa Subscriptions
         </p>
         
-        <div className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          {step === 'phone' ? (
-            <>
+        <div className="w-full max-w-sm space-y-4 animate-slide-up" style={{
+        animationDelay: '0.2s'
+      }}>
+          {step === 'phone' ? <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
                   Введите ваш номер👇
                 </label>
-                <input
-                  type="tel"
-                  placeholder="+7 7XX XXX XX XX"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  className="input-field w-full text-lg"
-                  autoComplete="tel"
-                />
+                <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full text-lg" autoComplete="tel" />
               </div>
               
-              <button
-                onClick={handleSendCode}
-                disabled={phone.replace(/\D/g, '').length < 11 || isLoading}
-                className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <button onClick={handleSendCode} disabled={phone.replace(/\D/g, '').length < 11 || isLoading} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isLoading ? 'Отправляем...' : 'Войти'}
               </button>
               
-              <button
-                onClick={onSwitchToRegister}
-                className="btn-secondary w-full"
-              >
+              <button onClick={onSwitchToRegister} className="btn-secondary w-full">
                 Нет аккаунта? Регистрация
               </button>
-            </>
-          ) : (
-            <>
+            </> : <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
                   Код из SMS
                 </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="0000"
-                  value={code}
-                  onChange={(e) => {
-                    const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    setCode(newCode);
-                    // Auto-submit when 4 digits entered
-                    if (newCode.length === 4 && !isLoading) {
-                      handleVerifyCode(newCode);
-                    }
-                  }}
-                  className="input-field w-full text-2xl text-center tracking-[0.5em]"
-                  maxLength={4}
-                  autoComplete="one-time-code"
-                />
+                <input type="text" inputMode="numeric" placeholder="0000" value={code} onChange={e => {
+              const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
+              setCode(newCode);
+              // Auto-submit when 4 digits entered
+              if (newCode.length === 4 && !isLoading) {
+                handleVerifyCode(newCode);
+              }
+            }} className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code" />
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   Отправили на {formattedPhone}
                 </p>
               </div>
               
-              {isLoading && (
-                <div className="flex items-center justify-center py-3">
+              {isLoading && <div className="flex items-center justify-center py-3">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <span className="ml-2 text-muted-foreground">Проверяем...</span>
-                </div>
-              )}
+                </div>}
               
               <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setStep('phone');
-                    setCode('');
-                  }}
-                  className="btn-secondary flex-1"
-                  disabled={isLoading}
-                >
+                <button onClick={() => {
+              setStep('phone');
+              setCode('');
+            }} className="btn-secondary flex-1" disabled={isLoading}>
                   Изменить номер
                 </button>
-                <button
-                  onClick={handleResendCode}
-                  className="btn-secondary flex-1"
-                  disabled={isLoading}
-                >
+                <button onClick={handleResendCode} className="btn-secondary flex-1" disabled={isLoading}>
                   Отправить снова
                 </button>
               </div>
-            </>
-          )}
+            </>}
         </div>
       </div>
       
@@ -247,16 +215,12 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         </div>
         
         <div className="w-full max-w-sm mx-auto">
-          <TelegramLoginButton 
-            botName="subday_lgbot" 
-            onSuccess={onComplete}
-          />
+          <TelegramLoginButton botName="subday_lgbot" onSuccess={onComplete} />
         </div>
         
         <p className="text-xs text-muted-foreground text-center">
           Продолжая, ты соглашаешься с условиями использования
         </p>
       </div>
-    </div>
-  );
+    </div>;
 }
