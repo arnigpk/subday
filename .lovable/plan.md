@@ -1,191 +1,186 @@
 
+# План создания партнёрского дашборда
 
-# Подготовка к созданию subday-admin
+## Обзор задачи
 
-## Обзор
+Создаём отдельную панель управления для партнёров (владельцев кофеен) по адресу `/partner`. Партнёр сможет:
+- Видеть статистику своей кофейни
+- Сканировать QR-коды клиентов для списания напитков
+- Просматривать историю покупок только своей кофейни
+- Управлять баристами (добавлять сотрудников с правами на сканирование)
 
-Подготовим базу данных для админ-дашборда, добавив систему ролей и обновив RLS политики. После этого ты создашь новый проект в Lovable.
+## Ключевые требования безопасности
 
-## Шаг 1: Изменения в базе данных (текущий проект)
+1. **Изоляция данных**: Партнёр видит только данные своей кофейни (привязка через `shop_id` в `user_roles`)
+2. **Валидация QR**: При сканировании проверяется, что `shopId` в QR совпадает с `shop_id` партнёра
+3. **Роль баристы**: Новая роль `barista` с минимальными правами (только сканирование)
 
-### Новые объекты:
+## Структура изменений
 
-**1. Enum для ролей**
+### Часть 1: База данных
+
+**Добавление роли `barista`**
+
 ```sql
-CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'partner');
+-- Расширяем enum app_role
+ALTER TYPE app_role ADD VALUE 'barista';
+
+-- Обновляем RLS политики для redemptions
+-- Бариста могут вставлять redemptions для своего shop_id
+CREATE POLICY "Baristas can insert redemptions for their shop" ON redemptions
+  FOR INSERT WITH CHECK (
+    has_role(auth.uid(), 'barista') AND 
+    shop_id = get_partner_shop_id(auth.uid())
+  );
 ```
 
-**2. Таблица user_roles**
-- `user_id` — ссылка на пользователя
-- `role` — роль (admin/moderator/partner)
-- `shop_id` — для партнёров: привязка к конкретной кофейне
+### Часть 2: Edge Function для сканирования QR
 
-**3. Функции безопасности**
-- `has_role(user_id, role)` — проверка наличия роли
-- `get_partner_shop_id(user_id)` — получение shop_id партнёра
+Создаём `partner-scan-qr` функцию которая:
+- Принимает данные из отсканированного QR
+- Валидирует принадлежность QR к нужной кофейне
+- Проверяет баланс пользователя
+- Выполняет списание напитка
+- Создаёт запись в `redemptions`
 
-**4. RLS политики**
-- Админы и модераторы видят все профили и redemptions
-- Партнёры видят только redemptions своей кофейни
+```text
+Поток работы:
+┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
+│  Сканер     │────>│ partner-scan-qr  │────>│  Database   │
+│  (камера)   │     │  Edge Function   │     │ (RLS check) │
+└─────────────┘     └──────────────────┘     └─────────────┘
+                            │
+                            ▼
+                    Проверки:
+                    • shopId совпадает?
+                    • Баланс > 0?
+                    • QR не просрочен?
+```
 
-### Обновление существующих политик:
+### Часть 3: Компоненты партнёрского кабинета
 
-| Таблица | Новая политика |
-|---------|----------------|
-| profiles | Админы/модераторы видят всех |
-| user_stats | Админы/модераторы видят всех |
-| redemptions | Админы/модераторы видят все, партнёры — только свою кофейню |
+**Структура файлов:**
 
-## Шаг 2: Назначение админа
+```
+src/
+├── components/
+│   └── partner/
+│       ├── PartnerLayout.tsx      # Обёртка с навигацией
+│       ├── PartnerProtectedRoute.tsx  # Защита роутов
+│       └── QRScanner.tsx          # Компонент сканера
+├── pages/
+│   └── partner/
+│       ├── PartnerDashboard.tsx   # Главная со статистикой
+│       ├── PartnerScanPage.tsx    # Страница сканирования
+│       ├── PartnerHistoryPage.tsx # История покупок
+│       └── PartnerStaffPage.tsx   # Управление баристами
+└── hooks/
+    └── usePartnerAuth.ts          # Хук для partner/barista
+```
 
-После миграции добавлю твой аккаунт как админа. Для этого мне нужен твой `user_id` из текущей авторизации, или ты сможешь добавить его вручную.
+### Часть 4: Детали реализации
 
-## Шаг 3: Создание нового проекта (твои действия)
+#### 4.1 PartnerDashboard (Статистика)
 
-1. Открой https://lovable.dev
-2. Нажми "New Project"
-3. Назови его `subday-admin`
-4. После создания — напиши мне, я помогу подключить к существующей базе
+| Метрика | Описание |
+|---------|----------|
+| Сегодня | Количество redemptions за текущий день |
+| За неделю | Redemptions за последние 7 дней |
+| Популярный напиток | Самый частый drink_name |
+| Часы пик | Время наибольшей активности |
 
-## Шаг 4: Что будет в subday-admin
+#### 4.2 QR Сканер
 
-### Страницы:
-- `/` — Дашборд с метриками
-- `/users` — Таблица пользователей с поиском и фильтрами
-- `/history` — Все redemptions с фильтрами
-- `/shops` — Статистика по кофейням
-- `/settings` — Управление ролями
+- Используем библиотеку `html5-qrcode` для работы с камерой
+- Парсим JSON из QR и валидируем структуру
+- Отправляем данные в Edge Function
+- Показываем результат (успех/ошибка)
 
-### Функциональность по ролям:
+**Валидация QR:**
+```text
+1. Проверить type === 'subday_redeem'
+2. Проверить shopId === partner.shopId
+3. Проверить timestamp < 5 минут назад
+4. Вызвать Edge Function для списания
+```
 
-| Функция | Admin | Moderator | Partner |
-|---------|-------|-----------|---------|
-| Все метрики | да | да | нет |
-| Все пользователи | да | да | нет |
-| Все redemptions | да | да | нет |
-| Своя кофейня | да | да | да |
-| Изменение баланса | да | да | нет |
-| Управление ролями | да | нет | нет |
+#### 4.3 История покупок
 
-### Технологии:
-- React + TypeScript + Tailwind (как в subday)
-- shadcn/ui компоненты
-- Recharts для графиков
-- TanStack Table для таблиц
+Отображает таблицу с полями:
+- **Имя клиента** (из profiles по user_id)
+- **Время** (redeemed_at)
+- **Напиток** (drink_name)
 
-## Техническая секция
+Фильтрация автоматически по `shop_id` партнёра через RLS.
 
-### SQL миграция для текущего проекта:
+#### 4.4 Управление баристами
+
+- Поиск пользователя по телефону
+- Назначение роли `barista` с привязкой к shop_id
+- Список текущих бариста с возможностью удаления
+- Бариста получают доступ только к странице сканирования
+
+### Часть 5: Навигация и роутинг
+
+**Новые маршруты в App.tsx:**
+
+```text
+/partner           → PartnerDashboard (partner, barista)
+/partner/scan      → PartnerScanPage (partner, barista)  
+/partner/history   → PartnerHistoryPage (partner only)
+/partner/staff     → PartnerStaffPage (partner only)
+```
+
+**Меню для партнёра:**
+- Дашборд
+- Сканер QR
+- История
+- Сотрудники
+
+**Меню для баристы:**
+- Сканер QR (единственный пункт)
+
+## Технические детали
+
+### Зависимости
+
+```json
+{
+  "html5-qrcode": "^2.3.8"
+}
+```
+
+### RLS политики
 
 ```sql
--- 1. Enum для ролей
-CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'partner');
+-- Партнёры и бариста могут видеть redemptions своей кофейни
+-- (уже есть в текущей политике через get_partner_shop_id)
 
--- 2. Таблица ролей
-CREATE TABLE public.user_roles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
-  role app_role NOT NULL,
-  shop_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (user_id, role)
-);
-
--- 3. RLS для user_roles
-ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
--- 4. Функция проверки роли (security definer)
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
-RETURNS BOOLEAN
-LANGUAGE SQL STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role = _role
-  )
-$$;
-
--- 5. Функция получения shop_id партнёра
-CREATE OR REPLACE FUNCTION public.get_partner_shop_id(_user_id UUID)
-RETURNS TEXT
-LANGUAGE SQL STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
+-- Новая функция для получения shop_id бариста
+CREATE OR REPLACE FUNCTION public.get_barista_shop_id(_user_id uuid)
+RETURNS text AS $$
   SELECT shop_id FROM public.user_roles
-  WHERE user_id = _user_id AND role = 'partner'
+  WHERE user_id = _user_id AND role IN ('partner', 'barista')
   LIMIT 1
-$$;
-
--- 6. Политика: только админы видят таблицу ролей
-CREATE POLICY "Admins can view all roles"
-ON public.user_roles FOR SELECT
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can manage roles"
-ON public.user_roles FOR ALL
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
--- 7. Обновление политик для profiles
-CREATE POLICY "Admins can view all profiles"
-ON public.profiles FOR SELECT
-TO authenticated
-USING (
-  auth.uid() = user_id OR 
-  public.has_role(auth.uid(), 'admin') OR 
-  public.has_role(auth.uid(), 'moderator')
-);
-
-CREATE POLICY "Admins can update any profile"
-ON public.profiles FOR UPDATE
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
--- 8. Обновление политик для user_stats
-CREATE POLICY "Admins can view all stats"
-ON public.user_stats FOR SELECT
-TO authenticated
-USING (
-  auth.uid() = user_id OR 
-  public.has_role(auth.uid(), 'admin') OR 
-  public.has_role(auth.uid(), 'moderator')
-);
-
-CREATE POLICY "Admins can update any stats"
-ON public.user_stats FOR UPDATE
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
--- 9. Обновление политик для redemptions
-CREATE POLICY "Admins can view all redemptions"
-ON public.redemptions FOR SELECT
-TO authenticated
-USING (
-  auth.uid() = user_id OR 
-  public.has_role(auth.uid(), 'admin') OR 
-  public.has_role(auth.uid(), 'moderator') OR
-  (public.has_role(auth.uid(), 'partner') AND shop_id = public.get_partner_shop_id(auth.uid()))
-);
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 ```
 
-### Подключение нового проекта к базе:
+### Обработка ошибок сканирования
 
-В новом проекте нужно будет:
-1. Зайти в Settings проекта
-2. Выбрать "Connectors" → "Supabase"
-3. Ввести данные текущего проекта:
-   - URL: из переменной VITE_SUPABASE_URL
-   - Anon Key: из переменной VITE_SUPABASE_PUBLISHABLE_KEY
+| Код ошибки | Сообщение пользователю |
+|------------|------------------------|
+| WRONG_SHOP | "Этот QR принадлежит другой кофейне" |
+| NO_BALANCE | "У клиента закончились напитки" |
+| EXPIRED_QR | "QR-код просрочен, попросите обновить" |
+| INVALID_QR | "Неверный формат QR-кода" |
+| ALREADY_USED | "Этот QR уже был использован" |
 
-## Порядок действий
+## Порядок реализации
 
-1. **Сейчас** — Я применю миграцию базы данных
-2. **После миграции** — Ты скажешь мне свой user_id или email для назначения админом
-3. **Потом** — Ты создашь новый проект в Lovable
-4. **Далее** — Я реализую UI дашборда в новом проекте
-
+1. **Миграция БД**: Добавить роль `barista`, обновить RLS
+2. **Edge Function**: Создать `partner-scan-qr`
+3. **Хук авторизации**: `usePartnerAuth.ts`
+4. **Layout и защита**: `PartnerLayout.tsx`, `PartnerProtectedRoute.tsx`
+5. **Страницы**: Dashboard → Scan → History → Staff
+6. **Роутинг**: Добавить маршруты в App.tsx
+7. **Тестирование**: Проверить изоляцию данных между кофейнями
