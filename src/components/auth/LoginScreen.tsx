@@ -248,8 +248,8 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         
         <button
           onClick={() => {
-            toast.info('Для входа через Telegram свяжитесь с @subday_bot');
-            window.open('https://t.me/subday_bot', '_blank');
+            toast.info('Для входа через Telegram свяжитесь с @subday_lgbot');
+            window.open('https://t.me/subday_lgbot', '_blank');
           }}
           className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
         >
