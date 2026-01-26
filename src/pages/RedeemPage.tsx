@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, QrCode, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles } from 'lucide-react';
 import { coffeeShops } from '@/data/mockData';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import { supabase } from '@/integrations/supabase/client';
 
 type RedeemStatus = 'ready' | 'scanning' | 'success' | 'error';
 
@@ -13,6 +15,7 @@ export default function RedeemPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   
   const { stats, redeemDrink } = useUserStatsContext();
   
@@ -21,6 +24,34 @@ export default function RedeemPage() {
   const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Капучино' : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
+
+  // Get user ID for QR code
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+      }
+    });
+  }, []);
+
+  // Generate unique QR code data
+  const qrCodeData = useMemo(() => {
+    if (!userId) return null;
+    
+    const timestamp = Date.now();
+    const data = {
+      type: 'subday_redeem',
+      userId: userId,
+      shopId: shop.id,
+      shopName: shop.name,
+      drinkType: drinkType,
+      drinkName: drinkName,
+      timestamp: timestamp,
+      remaining: remaining,
+    };
+    
+    return JSON.stringify(data);
+  }, [userId, shop.id, shop.name, drinkType, drinkName, remaining]);
   
   const handleScan = async () => {
     if (remaining <= 0) {
@@ -68,8 +99,19 @@ export default function RedeemPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
             <div className="text-center animate-slide-up">
-              <div className="w-64 h-64 bg-card rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent animate-pulse-glow">
-                <QrCode size={180} className="text-foreground" />
+              <div className="w-64 h-64 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-4">
+                {qrCodeData ? (
+                  <QRCodeSVG 
+                    value={qrCodeData}
+                    size={220}
+                    level="M"
+                    includeMargin={false}
+                    bgColor="white"
+                    fgColor="black"
+                  />
+                ) : (
+                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                )}
               </div>
               <p className="text-lg font-bold text-foreground mb-2">Код готов</p>
               <p className="text-muted-foreground mb-2">Покажи бариста для сканирования</p>
