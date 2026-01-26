@@ -13,6 +13,39 @@ function formatPhone(phone: string): string {
   return '+' + digits
 }
 
+async function sendLoginNotification(
+  phone: string,
+  name: string | null,
+  isNewUser: boolean
+): Promise<void> {
+  const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN')
+  const chatId = Deno.env.get('NOTIFICATION_CHAT_ID')
+  
+  if (!notificationBotToken || !chatId) {
+    console.log('Notification bot not configured')
+    return
+  }
+
+  const action = isNewUser ? '🆕 Новая регистрация' : '🔑 Вход'
+  const nameText = name || 'не указано'
+  const message = `${action} через SMS\n\n👤 Имя: ${nameText}\n📞 Телефон: ${phone}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`
+
+  try {
+    await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML'
+      })
+    })
+    console.log('Login notification sent')
+  } catch (error) {
+    console.error('Failed to send notification:', error)
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -106,6 +139,9 @@ Deno.serve(async (req) => {
         console.error('Profile creation error:', profileError)
       }
 
+      // Send notification for new user
+      await sendLoginNotification(formattedPhone, name, true)
+      
       // Delete used OTP
       await supabase
         .from('otp_codes')
@@ -152,6 +188,16 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // Get user profile for notification
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', existingUser.id)
+        .single()
+
+      // Send login notification
+      await sendLoginNotification(formattedPhone, profile?.name || null, false)
 
       // Delete used OTP
       await supabase

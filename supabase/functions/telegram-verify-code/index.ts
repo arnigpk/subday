@@ -6,6 +6,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function sendLoginNotification(
+  displayName: string,
+  telegramUsername: string | null,
+  isNewUser: boolean
+): Promise<void> {
+  const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
+  const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+  
+  if (!notificationBotToken || !chatId) {
+    console.log('Notification bot not configured');
+    return;
+  }
+
+  const action = isNewUser ? '🆕 Новая регистрация' : '🔑 Вход';
+  const usernameText = telegramUsername ? `@${telegramUsername}` : 'нет username';
+  const message = `${action} через Telegram\n\n👤 Имя: ${displayName}\n📱 Telegram: ${usernameText}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML'
+      })
+    });
+    console.log('Login notification sent');
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+  }
+}
+
 async function downloadAndUploadAvatar(
   supabase: any,
   telegramAvatarUrl: string,
@@ -109,6 +142,9 @@ serve(async (req) => {
     if (signInData?.session) {
       console.log('User signed in via Telegram code:', telegramId);
       
+      // Send login notification
+      await sendLoginNotification(displayName, authCode.username, false);
+      
       // Update avatar if available and user exists
       if (authCode.photo_url) {
         const permanentAvatarUrl = await downloadAndUploadAvatar(
@@ -205,6 +241,9 @@ serve(async (req) => {
         );
       }
 
+      // Send notification for new user
+      await sendLoginNotification(displayName, authCode.username, true);
+      
       // Clean up old codes
       await supabase
         .from('telegram_auth_codes')
