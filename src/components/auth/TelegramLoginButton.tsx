@@ -82,7 +82,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             maxLength={6}
           />
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Отправьте /login боту @{botName}
+            Подтверди код из бота @{botName}
           </p>
         </div>
 
