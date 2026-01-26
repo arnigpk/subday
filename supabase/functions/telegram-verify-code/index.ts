@@ -6,6 +6,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function downloadAndUploadAvatar(
+  supabase: any,
+  telegramAvatarUrl: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    console.log('Downloading avatar from:', telegramAvatarUrl);
+    
+    // Download the image from Telegram
+    const response = await fetch(telegramAvatarUrl);
+    if (!response.ok) {
+      console.error('Failed to download avatar:', response.status);
+      return null;
+    }
+    
+    const imageBlob = await response.blob();
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Upload to Supabase Storage
+    const filePath = `${userId}/avatar.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, uint8Array, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    console.log('Avatar uploaded successfully:', publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -63,6 +109,22 @@ serve(async (req) => {
     if (signInData?.session) {
       console.log('User signed in via Telegram code:', telegramId);
       
+      // Update avatar if available and user exists
+      if (authCode.photo_url) {
+        const permanentAvatarUrl = await downloadAndUploadAvatar(
+          supabase,
+          authCode.photo_url,
+          signInData.session.user.id
+        );
+        
+        if (permanentAvatarUrl) {
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: permanentAvatarUrl })
+            .eq('user_id', signInData.session.user.id);
+        }
+      }
+      
       // Clean up old codes
       await supabase
         .from('telegram_auth_codes')
@@ -96,13 +158,23 @@ serve(async (req) => {
         );
       }
 
-      // Create profile
+      // Download and upload avatar to storage
+      let permanentAvatarUrl: string | null = null;
+      if (signUpData.user && authCode.photo_url) {
+        permanentAvatarUrl = await downloadAndUploadAvatar(
+          supabase,
+          authCode.photo_url,
+          signUpData.user.id
+        );
+      }
+
+      // Create profile with permanent avatar URL
       if (signUpData.user) {
         await supabase.from('profiles').insert({
           user_id: signUpData.user.id,
           phone: `+telegram_${telegramId}`,
           name: displayName,
-          avatar_url: authCode.photo_url || null,
+          avatar_url: permanentAvatarUrl,
         });
 
         // Create initial user stats
