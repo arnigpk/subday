@@ -14,7 +14,7 @@ export function QuickActions() {
     },
     {
       icon: Package,
-      label: 'Мои пакеты',
+      label: 'Подписки',
       path: '/packages',
       color: 'bg-accent/10 text-accent',
     },
