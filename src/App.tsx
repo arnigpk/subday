@@ -28,11 +28,11 @@ const App = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   
-  // Минимальное время показа прелоадера (1 секунда)
+  // Минимальное время показа прелоадера (1.5 секунды)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
-    }, 1000);
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
   
