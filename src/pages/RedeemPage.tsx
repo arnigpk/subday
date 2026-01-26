@@ -8,6 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
+import { useVibration } from '@/hooks/useVibration';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export default function RedeemPage() {
   
   const { stats, refetch } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
+  const { vibrateSuccess } = useVibration();
   
   // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
@@ -61,11 +63,12 @@ export default function RedeemPage() {
       setStatus('success');
       setShowConfetti(true);
       playSuccessSound();
+      vibrateSuccess();
       refetch();
       
       setTimeout(() => setShowConfetti(false), 2000);
     }, 500);
-  }, [refetch, playSuccessSound]);
+  }, [refetch, playSuccessSound, vibrateSuccess]);
 
   // Get user ID and last redemption for QR code
   useEffect(() => {
@@ -254,6 +257,7 @@ export default function RedeemPage() {
     setStatus('success');
     setShowConfetti(true);
     playSuccessSound();
+    vibrateSuccess();
     refetch();
     setTimeout(() => setShowConfetti(false), 2000);
   };
