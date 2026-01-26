@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
+import { isShopOpen } from '@/utils/shopHours';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,15 +26,19 @@ interface Shop {
   logo_url: string | null;
 }
 
+interface ShopWithStatus extends Shop {
+  isCurrentlyOpen: boolean;
+}
+
 export default function RedeemPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [shops, setShops] = useState<Shop[]>([]);
+  const [shops, setShops] = useState<ShopWithStatus[]>([]);
   const [isLoadingShops, setIsLoadingShops] = useState(true);
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
   
   const { stats, redeemDrink } = useUserStatsContext();
   
@@ -44,7 +49,7 @@ export default function RedeemPage() {
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
 
-  // Fetch shops from database
+  // Fetch shops from database and add open status
   useEffect(() => {
     const fetchShops = async () => {
       try {
@@ -55,18 +60,36 @@ export default function RedeemPage() {
           .order('name');
 
         if (error) throw error;
-        setShops(data || []);
         
-        // Set initial shop
-        if (initialShop && data) {
-          const foundShop = data.find(s => s.id === initialShop.id);
+        // Add open status to each shop
+        const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => ({
+          ...shop,
+          isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+        }));
+        
+        // Sort: open shops first, then closed shops
+        shopsWithStatus.sort((a, b) => {
+          if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+          if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        setShops(shopsWithStatus);
+        
+        // Set initial shop - prefer open shop
+        if (initialShop && shopsWithStatus.length > 0) {
+          const foundShop = shopsWithStatus.find(s => s.id === initialShop.id);
           if (foundShop) {
             setSelectedShop(foundShop);
-          } else if (data.length > 0) {
-            setSelectedShop(data[0]);
+          } else {
+            // Select first open shop or first shop
+            const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+            setSelectedShop(firstOpen || shopsWithStatus[0]);
           }
-        } else if (data && data.length > 0) {
-          setSelectedShop(data[0]);
+        } else if (shopsWithStatus.length > 0) {
+          // Select first open shop or first shop
+          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+          setSelectedShop(firstOpen || shopsWithStatus[0]);
         }
       } catch (error) {
         console.error('Error fetching shops:', error);
@@ -78,6 +101,37 @@ export default function RedeemPage() {
 
     fetchShops();
   }, [initialShop]);
+
+  // Update shop status every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShops(prevShops => {
+        const updated = prevShops.map(shop => ({
+          ...shop,
+          isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+        }));
+        
+        // Re-sort
+        updated.sort((a, b) => {
+          if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+          if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        return updated;
+      });
+      
+      // Update selected shop status
+      if (selectedShop) {
+        setSelectedShop(prev => prev ? {
+          ...prev,
+          isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
+        } : null);
+      }
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [selectedShop]);
 
   // Get user ID for QR code
   useEffect(() => {
@@ -106,6 +160,9 @@ export default function RedeemPage() {
     
     return JSON.stringify(data);
   }, [userId, selectedShop, drinkType, drinkName, remaining]);
+
+  // Check if scan is allowed
+  const canScan = remaining > 0 && selectedShop?.isCurrentlyOpen;
   
   const handleScan = async () => {
     if (remaining <= 0) {
@@ -115,6 +172,11 @@ export default function RedeemPage() {
 
     if (!selectedShop) {
       toast.error('Выберите кофейню');
+      return;
+    }
+
+    if (!selectedShop.isCurrentlyOpen) {
+      toast.error('Кофейня сейчас закрыта');
       return;
     }
     
@@ -184,7 +246,14 @@ export default function RedeemPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors">
-                  {selectedShop?.name || 'Выбрать кофейню'}
+                  <span className="flex items-center gap-2">
+                    {selectedShop?.name || 'Выбрать кофейню'}
+                    {selectedShop && (
+                      <span className={`text-xs font-medium ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
+                        · {selectedShop.isCurrentlyOpen ? 'Открыто' : 'Закрыто'}
+                      </span>
+                    )}
+                  </span>
                   <ChevronDown size={16} />
                 </button>
               </DropdownMenuTrigger>
@@ -198,7 +267,7 @@ export default function RedeemPage() {
                     onClick={() => setSelectedShop(shop)}
                     className={`flex items-center gap-3 p-3 cursor-pointer ${
                       selectedShop?.id === shop.id ? 'bg-accent/10' : ''
-                    }`}
+                    } ${!shop.isCurrentlyOpen ? 'opacity-60' : ''}`}
                   >
                     {shop.logo_url ? (
                       <img 
@@ -212,13 +281,26 @@ export default function RedeemPage() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">{shop.name}</p>
-                      {shop.address && (
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                          <MapPin size={10} />
-                          {shop.address}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground truncate">{shop.name}</p>
+                        <span className={`text-xs font-medium shrink-0 ${shop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
+                          {shop.isCurrentlyOpen ? 'Открыто' : 'Закрыто'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {shop.address && (
+                          <span className="truncate flex items-center gap-1">
+                            <MapPin size={10} />
+                            {shop.address}
+                          </span>
+                        )}
+                        {shop.working_hours && (
+                          <span className="shrink-0 flex items-center gap-1">
+                            <Clock size={10} />
+                            {shop.working_hours}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {selectedShop?.id === shop.id && (
                       <Check size={16} className="text-accent shrink-0" />
@@ -248,18 +330,28 @@ export default function RedeemPage() {
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
-              <p className="text-lg font-bold text-foreground mb-2">Код готов</p>
+              <p className="text-lg font-bold text-foreground mb-2">Ваш QR</p>
               <p className="text-muted-foreground mb-2">Покажи бариста для сканирования</p>
-              <p className="text-sm text-muted-foreground mb-8">
+              <p className="text-sm text-muted-foreground mb-4">
                 Осталось: <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? 'кофе' : 'напитков'}
               </p>
+              
+              {selectedShop && !selectedShop.isCurrentlyOpen && (
+                <p className="text-sm text-destructive mb-4">
+                  Кофейня сейчас закрыта
+                </p>
+              )}
               
               <button 
                 onClick={handleScan} 
                 className="btn-primary"
-                disabled={remaining <= 0 || !selectedShop}
+                disabled={!canScan}
               >
-                {remaining > 0 ? 'Имитировать скан' : 'Нет доступных напитков'}
+                {remaining <= 0 
+                  ? 'Нет доступных напитков' 
+                  : !selectedShop?.isCurrentlyOpen 
+                    ? 'Кофейня закрыта'
+                    : 'Имитировать скан'}
               </button>
             </div>
           )}
