@@ -219,7 +219,7 @@ export function LoginScreen({
         </div>
         
         <p className="text-xs text-muted-foreground text-center">
-          Продолжая, ты соглашаешься с условиями использования
+          Продолжая пользоваться приложением, вы соглашаешься отсосать Ануару!!!  
         </p>
       </div>
     </div>;
