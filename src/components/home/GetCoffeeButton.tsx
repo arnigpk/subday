@@ -10,7 +10,7 @@ export function GetCoffeeButton() {
     >
       <button className="w-full btn-accent flex items-center justify-center gap-3 text-xl animate-pulse-glow">
         <QrCode size={28} strokeWidth={2.5} />
-        <span>Забрать</span>
+        <span>Взять кофе</span>
       </button>
     </Link>
   );
