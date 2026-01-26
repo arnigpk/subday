@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock } from 'lucide-react';
@@ -39,8 +39,9 @@ export default function RedeemPage() {
   const [shops, setShops] = useState<ShopWithStatus[]>([]);
   const [isLoadingShops, setIsLoadingShops] = useState(true);
   const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
+  const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
   
-  const { stats, redeemDrink } = useUserStatsContext();
+  const { stats, refetch } = useUserStatsContext();
   
   // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
@@ -48,6 +49,75 @@ export default function RedeemPage() {
   const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Капучино' : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
+
+  // Handle successful redemption from realtime
+  const handleRealtimeRedemption = useCallback(() => {
+    setStatus('scanning');
+    
+    // Short delay to show scanning state
+    setTimeout(() => {
+      setStatus('success');
+      setShowConfetti(true);
+      refetch();
+      
+      setTimeout(() => setShowConfetti(false), 2000);
+    }, 500);
+  }, [refetch]);
+
+  // Get user ID and last redemption for QR code
+  useEffect(() => {
+    const initUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        
+        // Get the last redemption ID to ignore it in realtime
+        const { data: lastRedemption } = await supabase
+          .from('redemptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (lastRedemption) {
+          setLastRedemptionId(lastRedemption.id);
+        }
+      }
+    };
+    
+    initUser();
+  }, []);
+
+  // Subscribe to realtime redemptions
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel('user-redemptions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'redemptions',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('New redemption detected:', payload);
+          // Only trigger if this is a new redemption (not the last one we knew about)
+          if (payload.new && payload.new.id !== lastRedemptionId) {
+            handleRealtimeRedemption();
+            setLastRedemptionId(payload.new.id as string);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, lastRedemptionId, handleRealtimeRedemption]);
 
   // Fetch shops from database and add open status
   useEffect(() => {
@@ -133,15 +203,6 @@ export default function RedeemPage() {
     return () => clearInterval(interval);
   }, [selectedShop]);
 
-  // Get user ID for QR code
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserId(user.id);
-      }
-    });
-  }, []);
-
   // Generate unique QR code data
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop) return null;
@@ -161,10 +222,11 @@ export default function RedeemPage() {
     return JSON.stringify(data);
   }, [userId, selectedShop, drinkType, drinkName, remaining]);
 
-  // Check if scan is allowed
+  // Check if scan is allowed (for simulation only in dev)
   const canScan = remaining > 0 && selectedShop?.isCurrentlyOpen;
   
-  const handleScan = async () => {
+  // Simulation function for testing (kept for development purposes)
+  const handleSimulateScan = async () => {
     if (remaining <= 0) {
       toast.error('У вас закончились напитки в пакете');
       return;
@@ -185,17 +247,11 @@ export default function RedeemPage() {
     // Simulate scanning delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Actually redeem the drink
-    const success = await redeemDrink(selectedShop.name, selectedShop.id, drinkName, drinkType);
-    
-    if (success) {
-      setStatus('success');
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
-    } else {
-      setStatus('error');
-      toast.error('Ошибка при получении напитка');
-    }
+    // For simulation, directly update stats (in real usage, partner scan triggers this)
+    setStatus('success');
+    setShowConfetti(true);
+    refetch();
+    setTimeout(() => setShowConfetti(false), 2000);
   };
   
   const goHome = () => {
@@ -343,7 +399,7 @@ export default function RedeemPage() {
               )}
               
               <button 
-                onClick={handleScan} 
+                onClick={handleSimulateScan}
                 className="btn-primary"
                 disabled={!canScan}
               >
