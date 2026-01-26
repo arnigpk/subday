@@ -54,7 +54,18 @@ export function LoginScreen({
         return;
       }
       if (data.error) {
-        toast.error(data.error);
+        // Если пользователь не зарегистрирован - показываем дружелюбный тост и переключаем на регистрацию
+        if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
+          toast.info('Зарегистрируйтесь, пожалуйста 👋', {
+            description: 'Этот номер ещё не зарегистрирован',
+            action: {
+              label: 'Регистрация',
+              onClick: onSwitchToRegister
+            }
+          });
+        } else {
+          toast.error(data.error);
+        }
         return;
       }
       setFormattedPhone(data.phone);
