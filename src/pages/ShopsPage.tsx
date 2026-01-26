@@ -49,7 +49,7 @@ export default function ShopsPage() {
         .from('shops')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       setShops(data || []);

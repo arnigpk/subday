@@ -119,6 +119,7 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
+          sort_order: number | null
           updated_at: string | null
           working_hours: string | null
         }
@@ -130,6 +131,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
+          sort_order?: number | null
           updated_at?: string | null
           working_hours?: string | null
         }
@@ -141,6 +143,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          sort_order?: number | null
           updated_at?: string | null
           working_hours?: string | null
         }
@@ -157,6 +160,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           price: number
+          sort_order: number | null
           type: string
           updated_at: string | null
         }
@@ -170,6 +174,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           price: number
+          sort_order?: number | null
           type: string
           updated_at?: string | null
         }
@@ -183,6 +188,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           price?: number
+          sort_order?: number | null
           type?: string
           updated_at?: string | null
         }

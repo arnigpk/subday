@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -26,6 +25,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableItem } from '@/components/admin/SortableItem';
 
 interface Shop {
   id: string;
@@ -36,6 +51,7 @@ interface Shop {
   is_active: boolean;
   created_at: string;
   logo_url: string | null;
+  sort_order: number;
 }
 
 export default function AdminShopsPage() {
@@ -53,6 +69,13 @@ export default function AdminShopsPage() {
     logo_url: null as string | null,
   });
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     fetchShops();
   }, []);
@@ -62,7 +85,7 @@ export default function AdminShopsPage() {
       const { data, error } = await supabase
         .from('shops')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       setShops(data || []);
@@ -71,6 +94,39 @@ export default function AdminShopsPage() {
       toast({ title: 'Ошибка загрузки кофеен', variant: 'destructive' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = shops.findIndex((s) => s.id === active.id);
+      const newIndex = shops.findIndex((s) => s.id === over.id);
+
+      const newOrder = arrayMove(shops, oldIndex, newIndex);
+      setShops(newOrder);
+
+      // Update sort_order in database
+      try {
+        const updates = newOrder.map((shop, index) => ({
+          id: shop.id,
+          sort_order: index + 1,
+        }));
+
+        for (const update of updates) {
+          await supabase
+            .from('shops')
+            .update({ sort_order: update.sort_order })
+            .eq('id', update.id);
+        }
+
+        toast({ title: 'Порядок сохранён' });
+      } catch (error) {
+        console.error('Error updating order:', error);
+        toast({ title: 'Ошибка сохранения порядка', variant: 'destructive' });
+        fetchShops();
+      }
     }
   };
 
@@ -123,6 +179,10 @@ export default function AdminShopsPage() {
         if (error) throw error;
         toast({ title: 'Кофейня обновлена' });
       } else {
+        const maxOrder = shops.length > 0 
+          ? Math.max(...shops.map(s => s.sort_order)) 
+          : 0;
+
         const { error } = await supabase
           .from('shops')
           .insert({
@@ -132,6 +192,7 @@ export default function AdminShopsPage() {
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
+            sort_order: maxOrder + 1,
           });
 
         if (error) throw error;
@@ -167,7 +228,10 @@ export default function AdminShopsPage() {
 
   return (
     <AdminLayout title="Кофейни">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-sm text-muted-foreground">
+          Перетащите карточки для изменения порядка
+        </p>
         <Button onClick={openCreateDialog}>
           <Plus className="w-4 h-4 mr-2" />
           Добавить кофейню
@@ -175,11 +239,11 @@ export default function AdminShopsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
               <CardContent className="p-6">
-                <div className="h-32 bg-muted animate-pulse rounded" />
+                <div className="h-20 bg-muted animate-pulse rounded" />
               </CardContent>
             </Card>
           ))}
@@ -195,66 +259,76 @@ export default function AdminShopsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {shops.map((shop) => (
-            <Card key={shop.id} className={!shop.is_active ? 'opacity-50' : ''}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {shop.logo_url ? (
-                      <img src={shop.logo_url} alt={shop.name} className="w-10 h-10 rounded-lg object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                        <Coffee className="w-5 h-5 text-primary" />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={shops.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-3">
+              {shops.map((shop) => (
+                <SortableItem key={shop.id} id={shop.id}>
+                  <Card className={!shop.is_active ? 'opacity-50' : ''}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          {shop.logo_url ? (
+                            <img src={shop.logo_url} alt={shop.name} className="w-12 h-12 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
+                              <Coffee className="w-6 h-6 text-primary" />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-semibold flex items-center gap-2">
+                              {shop.name}
+                              {!shop.is_active && (
+                                <span className="text-xs text-muted-foreground font-normal">(Неактивна)</span>
+                              )}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              {shop.address && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {shop.address}
+                                </span>
+                              )}
+                              {shop.working_hours && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {shop.working_hours}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(shop)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteShopId(shop.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                    <div>
-                      <CardTitle className="text-lg">{shop.name}</CardTitle>
-                      {!shop.is_active && (
-                        <span className="text-xs text-muted-foreground">Неактивна</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(shop)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteShopId(shop.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  {shop.address && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      <span>{shop.address}</span>
-                    </div>
-                  )}
-                  {shop.working_hours && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>{shop.working_hours}</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-2">
-                    Добавлена: {new Date(shop.created_at).toLocaleDateString('ru-RU')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </CardContent>
+                  </Card>
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Edit/Create Dialog */}
