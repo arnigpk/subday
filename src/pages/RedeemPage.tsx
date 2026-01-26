@@ -253,6 +253,7 @@ export default function RedeemPage() {
     // For simulation, directly update stats (in real usage, partner scan triggers this)
     setStatus('success');
     setShowConfetti(true);
+    playSuccessSound();
     refetch();
     setTimeout(() => setShowConfetti(false), 2000);
   };
