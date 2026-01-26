@@ -48,6 +48,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableItem } from '@/components/admin/SortableItem';
+import { getSubscriptionDurationDays, formatDurationLabel } from '@/utils/subscriptionDuration';
 
 interface SubscriptionType {
   id: string;
@@ -330,7 +331,7 @@ export default function AdminSubscriptionsPage() {
                             <div>
                               <h3 className="font-semibold">{sub.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'} • {sub.duration_days} дней
+                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'} • {formatDurationLabel(sub.duration_days)}
                               </p>
                             </div>
                           </div>
@@ -437,8 +438,18 @@ export default function AdminSubscriptionsPage() {
                   type="number"
                   min="1"
                   value={formData.cups_count}
-                  onChange={(e) => setFormData({ ...formData, cups_count: parseInt(e.target.value) || 1 })}
+                  onChange={(e) => {
+                    const cups = parseInt(e.target.value) || 1;
+                    setFormData({ 
+                      ...formData, 
+                      cups_count: cups,
+                      duration_days: getSubscriptionDurationDays(cups)
+                    });
+                  }}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  365+ = 1 год, иначе 30 дней
+                </p>
               </div>
               <div>
                 <Label htmlFor="price">Цена (₸)</Label>
@@ -452,14 +463,20 @@ export default function AdminSubscriptionsPage() {
               </div>
             </div>
             <div>
-              <Label htmlFor="duration_days">Срок действия (дней)</Label>
-              <Input
-                id="duration_days"
-                type="number"
-                min="1"
-                value={formData.duration_days}
-                onChange={(e) => setFormData({ ...formData, duration_days: parseInt(e.target.value) || 30 })}
-              />
+              <Label htmlFor="duration_days">Срок действия</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="duration_days"
+                  type="number"
+                  min="1"
+                  value={formData.duration_days}
+                  onChange={(e) => setFormData({ ...formData, duration_days: parseInt(e.target.value) || 30 })}
+                  className="flex-1"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {formatDurationLabel(formData.duration_days)}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch

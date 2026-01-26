@@ -3,6 +3,7 @@ import { Coffee, Droplets, Clock } from 'lucide-react';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { formatDurationLabel } from '@/utils/subscriptionDuration';
 
 const tabs = [
   { id: 'coffee', label: 'Кофе' },
@@ -27,6 +28,11 @@ export function BalanceCard() {
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
     if (days <= 0) return 'Истекла';
+    if (days >= 365) return '~1 год';
+    if (days >= 30) {
+      const months = Math.floor(days / 30);
+      return months === 1 ? '~1 месяц' : `~${months} мес.`;
+    }
     if (days === 1) return '1 день';
     if (days >= 2 && days <= 4) return `${days} дня`;
     return `${days} дней`;
@@ -126,7 +132,8 @@ export function BalanceCard() {
               <span className="ml-1">
                 (до {new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { 
                   day: 'numeric', 
-                  month: 'short' 
+                  month: 'short',
+                  year: daysRemaining > 30 ? 'numeric' : undefined
                 })})
               </span>
             )}
