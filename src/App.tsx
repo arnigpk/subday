@@ -60,11 +60,11 @@ const App = () => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
         <img 
           src={preloader} 
           alt="Loading" 
-          className="w-40 h-40 object-contain"
+          className="w-full h-full object-contain max-w-screen max-h-screen"
         />
       </div>
     );
