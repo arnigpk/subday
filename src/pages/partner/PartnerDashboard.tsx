@@ -10,6 +10,7 @@ import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
 
 interface Stats {
   today: number;
@@ -22,6 +23,7 @@ interface ShopData {
   name: string;
   address: string;
   working_hours: string;
+  logo_url: string | null;
 }
 
 export default function PartnerDashboard() {
@@ -49,7 +51,7 @@ export default function PartnerDashboard() {
         // Fetch shop data
         const { data: shop } = await supabase
           .from('shops')
-          .select('name, address, working_hours')
+          .select('name, address, working_hours, logo_url')
           .eq('id', shopId)
           .maybeSingle();
 
@@ -58,6 +60,7 @@ export default function PartnerDashboard() {
             name: shop.name,
             address: shop.address || '',
             working_hours: shop.working_hours || '09:00-21:00',
+            logo_url: shop.logo_url || null,
           });
         }
 
@@ -157,6 +160,7 @@ export default function PartnerDashboard() {
           name: editedShopData.name.trim(),
           address: editedShopData.address.trim(),
           working_hours: editedShopData.working_hours.trim(),
+          logo_url: editedShopData.logo_url,
         })
         .eq('id', shopId);
 
@@ -261,6 +265,13 @@ export default function PartnerDashboard() {
           <CardContent className="space-y-4">
             {isEditing && editedShopData ? (
               <>
+                <ShopLogoUpload
+                  currentLogoUrl={editedShopData.logo_url}
+                  onLogoChange={(url) => setEditedShopData({ ...editedShopData, logo_url: url })}
+                  shopId={shopId || undefined}
+                  label="Фото"
+                  maxSizeMb={10}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="shop-name">Название</Label>
                   <Input
@@ -301,7 +312,17 @@ export default function PartnerDashboard() {
               </>
             ) : (
               shopData && (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {shopData.logo_url && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Фото</p>
+                      <img
+                        src={shopData.logo_url}
+                        alt={shopData.name}
+                        className="w-16 h-16 rounded-lg object-cover border"
+                      />
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground">Название</p>
                     <p className="font-medium">{shopData.name}</p>

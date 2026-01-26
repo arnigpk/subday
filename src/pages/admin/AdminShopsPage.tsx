@@ -380,6 +380,8 @@ export default function AdminShopsPage() {
               currentLogoUrl={formData.logo_url}
               onLogoChange={(url) => setFormData({ ...formData, logo_url: url })}
               shopId={editingShop?.id}
+              label="Фото"
+              maxSizeMb={10}
             />
             <div className="flex items-center gap-2">
               <Switch
