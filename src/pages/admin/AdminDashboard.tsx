@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       color: 'text-blue-500'
     },
     { 
-      title: 'Выкупов сегодня', 
+      title: 'Сегодня', 
       value: stats.todayRedemptions, 
       icon: Coffee,
       color: 'text-green-500'
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
       {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle>Последние выкупы</CardTitle>
+          <CardTitle>История подписок</CardTitle>
         </CardHeader>
         <CardContent>
           {recentRedemptions.length === 0 ? (
