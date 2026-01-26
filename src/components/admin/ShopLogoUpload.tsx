@@ -9,9 +9,17 @@ interface ShopLogoUploadProps {
   currentLogoUrl: string | null;
   onLogoChange: (url: string | null) => void;
   shopId?: string;
+  label?: string;
+  maxSizeMb?: number;
 }
 
-export function ShopLogoUpload({ currentLogoUrl, onLogoChange, shopId }: ShopLogoUploadProps) {
+export function ShopLogoUpload({ 
+  currentLogoUrl, 
+  onLogoChange, 
+  shopId,
+  label = 'Фото',
+  maxSizeMb = 10
+}: ShopLogoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentLogoUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,9 +34,10 @@ export function ShopLogoUpload({ currentLogoUrl, onLogoChange, shopId }: ShopLog
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'Максимальный размер файла 2MB', variant: 'destructive' });
+    // Validate file size
+    const maxSizeBytes = maxSizeMb * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      toast({ title: `Максимальный размер файла ${maxSizeMb}MB`, variant: 'destructive' });
       return;
     }
 
@@ -54,7 +63,7 @@ export function ShopLogoUpload({ currentLogoUrl, onLogoChange, shopId }: ShopLog
 
       setPreviewUrl(publicUrl);
       onLogoChange(publicUrl);
-      toast({ title: 'Логотип загружен' });
+      toast({ title: 'Фото загружено' });
     } catch (error) {
       console.error('Error uploading logo:', error);
       toast({ title: 'Ошибка загрузки', variant: 'destructive' });
@@ -73,13 +82,13 @@ export function ShopLogoUpload({ currentLogoUrl, onLogoChange, shopId }: ShopLog
 
   return (
     <div className="space-y-2">
-      <Label>Логотип</Label>
+      <Label>{label}</Label>
       <div className="flex items-center gap-4">
         {previewUrl ? (
           <div className="relative">
             <img
               src={previewUrl}
-              alt="Логотип кофейни"
+              alt="Фото кофейни"
               className="w-16 h-16 rounded-lg object-cover border"
             />
             <button
@@ -124,6 +133,7 @@ export function ShopLogoUpload({ currentLogoUrl, onLogoChange, shopId }: ShopLog
               </>
             )}
           </Button>
+          <p className="text-xs text-muted-foreground mt-1">До {maxSizeMb} МБ</p>
         </div>
       </div>
     </div>
