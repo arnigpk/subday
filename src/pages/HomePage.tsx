@@ -47,7 +47,7 @@ export default function HomePage() {
                 onClick={handleAdminClick}
                 className="text-xs font-medium"
               >
-                ЛК
+                {isAdmin || role === 'moderator' ? 'Админка' : 'Кабинет'}
               </Button>
             )}
             <div className="w-20 h-20">
