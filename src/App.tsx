@@ -25,23 +25,34 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isPreloaderDone, setIsPreloaderDone] = useState(false);
+  
+  // Минимальное время показа прелоадера (3 секунды для полного цикла GIF)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPreloaderDone(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
   
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
-        setIsLoading(false);
+        setIsAuthLoading(false);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setIsLoading(false);
+      setIsAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+  
+  const isLoading = isAuthLoading || !isPreloaderDone;
   
   const handleAuthComplete = () => {
     // Session will be updated via onAuthStateChange
