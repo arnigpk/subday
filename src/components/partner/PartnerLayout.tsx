@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, QrCode, History, Users, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft } from 'lucide-react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,16 @@ interface PartnerLayoutProps {
 
 export function PartnerLayout({ children }: PartnerLayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isPartner, shopName } = usePartnerAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+  
+  const handleBackToApp = () => {
+    navigate('/');
   };
 
   // Navigation items - baristas only see scan
@@ -36,6 +41,13 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       <header className="bg-card border-b border-border px-4 py-3 safe-area-top">
         <div className="flex items-center justify-between">
           <div>
+            <button 
+              onClick={handleBackToApp}
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-sm mb-1"
+            >
+              <ChevronLeft size={16} />
+              <span>В приложение</span>
+            </button>
             <h1 className="text-lg font-bold text-foreground">
               {shopName || 'Партнёрский кабинет'}
             </h1>
