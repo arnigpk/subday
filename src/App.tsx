@@ -21,6 +21,12 @@ import StreaksPage from "./pages/StreaksPage";
 import BonusesPage from "./pages/BonusesPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminHistoryPage from "./pages/admin/AdminHistoryPage";
+import AdminShopsPage from "./pages/admin/AdminShopsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -151,6 +157,14 @@ const AppContent = () => {
           <Route path="/streaks" element={<StreaksPage />} />
           <Route path="/bonuses" element={<BonusesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
+          <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
+          <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
