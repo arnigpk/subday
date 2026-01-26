@@ -3,15 +3,25 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coffee, TrendingUp, Clock, Star, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from 'lucide-react';
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface Stats {
   today: number;
   week: number;
   popularDrink: string | null;
   peakHour: string | null;
+}
+
+interface ShopData {
+  name: string;
+  address: string;
+  working_hours: string;
 }
 
 export default function PartnerDashboard() {
@@ -23,14 +33,33 @@ export default function PartnerDashboard() {
     peakHour: null,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [shopData, setShopData] = useState<ShopData | null>(null);
+  const [editedShopData, setEditedShopData] = useState<ShopData | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!shopId || authLoading) return;
 
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
         const today = startOfDay(new Date()).toISOString();
         const weekAgo = subDays(new Date(), 7).toISOString();
+
+        // Fetch shop data
+        const { data: shop } = await supabase
+          .from('shops')
+          .select('name, address, working_hours')
+          .eq('id', shopId)
+          .maybeSingle();
+
+        if (shop) {
+          setShopData({
+            name: shop.name,
+            address: shop.address || '',
+            working_hours: shop.working_hours || '09:00-21:00',
+          });
+        }
 
         // Fetch today's redemptions
         const { count: todayCount } = await supabase
@@ -91,14 +120,58 @@ export default function PartnerDashboard() {
           peakHour,
         });
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    fetchData();
   }, [shopId, authLoading]);
+
+  const handleEditStart = () => {
+    setEditedShopData(shopData);
+    setIsEditing(true);
+  };
+
+  const handleEditCancel = () => {
+    setEditedShopData(null);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!shopId || !editedShopData) return;
+
+    // Validate working hours format
+    const hoursRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!hoursRegex.test(editedShopData.working_hours)) {
+      toast.error('Неверный формат времени работы. Используйте формат ЧЧ:ММ-ЧЧ:ММ');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('shops')
+        .update({
+          name: editedShopData.name.trim(),
+          address: editedShopData.address.trim(),
+          working_hours: editedShopData.working_hours.trim(),
+        })
+        .eq('id', shopId);
+
+      if (error) throw error;
+
+      setShopData(editedShopData);
+      setIsEditing(false);
+      toast.success('Данные кофейни обновлены');
+    } catch (error) {
+      console.error('Error updating shop:', error);
+      toast.error('Ошибка при сохранении');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -170,6 +243,82 @@ export default function PartnerDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Shop Settings */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Store size={18} />
+              Моя кофейня
+            </CardTitle>
+            {!isEditing && (
+              <Button variant="ghost" size="sm" onClick={handleEditStart}>
+                <Pencil size={16} className="mr-1" />
+                Изменить
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isEditing && editedShopData ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="shop-name">Название</Label>
+                  <Input
+                    id="shop-name"
+                    value={editedShopData.name}
+                    onChange={(e) => setEditedShopData({ ...editedShopData, name: e.target.value })}
+                    placeholder="Название кофейни"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shop-address">Адрес</Label>
+                  <Input
+                    id="shop-address"
+                    value={editedShopData.address}
+                    onChange={(e) => setEditedShopData({ ...editedShopData, address: e.target.value })}
+                    placeholder="ул. Примерная, 1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shop-hours">Время работы</Label>
+                  <Input
+                    id="shop-hours"
+                    value={editedShopData.working_hours}
+                    onChange={(e) => setEditedShopData({ ...editedShopData, working_hours: e.target.value })}
+                    placeholder="09:00-21:00"
+                  />
+                  <p className="text-xs text-muted-foreground">Формат: ЧЧ:ММ-ЧЧ:ММ</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={isSaving} className="flex-1">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
+                    Сохранить
+                  </Button>
+                  <Button variant="outline" onClick={handleEditCancel} disabled={isSaving}>
+                    <X size={16} />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              shopData && (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Название</p>
+                    <p className="font-medium">{shopData.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Адрес</p>
+                    <p className="font-medium">{shopData.address || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Время работы</p>
+                    <p className="font-medium">{shopData.working_hours}</p>
+                  </div>
+                </div>
+              )
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
