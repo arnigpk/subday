@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
+import { useSuccessSound } from '@/hooks/useSuccessSound';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ export default function RedeemPage() {
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
   
   const { stats, refetch } = useUserStatsContext();
+  const { playSuccessSound } = useSuccessSound();
   
   // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
@@ -58,11 +60,12 @@ export default function RedeemPage() {
     setTimeout(() => {
       setStatus('success');
       setShowConfetti(true);
+      playSuccessSound();
       refetch();
       
       setTimeout(() => setShowConfetti(false), 2000);
     }, 500);
-  }, [refetch]);
+  }, [refetch, playSuccessSound]);
 
   // Get user ID and last redemption for QR code
   useEffect(() => {

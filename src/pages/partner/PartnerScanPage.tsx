@@ -5,6 +5,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, X, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSuccessSound } from '@/hooks/useSuccessSound';
 
 type ScanStatus = 'ready' | 'scanning' | 'success' | 'error';
 
@@ -22,6 +23,7 @@ export default function PartnerScanPage() {
   const [status, setStatus] = useState<ScanStatus>('ready');
   const [result, setResult] = useState<ScanResult | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const { playSuccessSound } = useSuccessSound();
 
   const handleScan = async (qrData: string) => {
     if (isProcessing || !shopId) return;
@@ -123,6 +125,7 @@ export default function PartnerScanPage() {
         });
         setStatus('success');
         setShowConfetti(true);
+        playSuccessSound();
         setTimeout(() => setShowConfetti(false), 2000);
       }
     } catch (error) {
