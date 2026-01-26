@@ -28,11 +28,11 @@ const App = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   
-  // Минимальное время показа прелоадера (3 секунды для полного цикла GIF)
+  // Минимальное время показа прелоадера (1 секунда)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
-    }, 3000);
+    }, 1000);
     return () => clearTimeout(timer);
   }, []);
   
