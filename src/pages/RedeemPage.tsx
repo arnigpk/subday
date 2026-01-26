@@ -1,14 +1,29 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles } from 'lucide-react';
-import { coffeeShops } from '@/data/mockData';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type RedeemStatus = 'ready' | 'scanning' | 'success' | 'error';
+
+interface Shop {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  working_hours: string | null;
+  is_active: boolean;
+  logo_url: string | null;
+}
 
 export default function RedeemPage() {
   const location = useLocation();
@@ -16,14 +31,53 @@ export default function RedeemPage() {
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [isLoadingShops, setIsLoadingShops] = useState(true);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   
   const { stats, redeemDrink } = useUserStatsContext();
   
-  const shop = location.state?.shop || coffeeShops[0];
+  // Get initial shop from location state if provided
+  const initialShop = location.state?.shop;
   const drinkType = location.state?.drinkType || 'coffee';
   const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Капучино' : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
+
+  // Fetch shops from database
+  useEffect(() => {
+    const fetchShops = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) throw error;
+        setShops(data || []);
+        
+        // Set initial shop
+        if (initialShop && data) {
+          const foundShop = data.find(s => s.id === initialShop.id);
+          if (foundShop) {
+            setSelectedShop(foundShop);
+          } else if (data.length > 0) {
+            setSelectedShop(data[0]);
+          }
+        } else if (data && data.length > 0) {
+          setSelectedShop(data[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching shops:', error);
+        toast.error('Ошибка загрузки кофеен');
+      } finally {
+        setIsLoadingShops(false);
+      }
+    };
+
+    fetchShops();
+  }, [initialShop]);
 
   // Get user ID for QR code
   useEffect(() => {
@@ -36,14 +90,14 @@ export default function RedeemPage() {
 
   // Generate unique QR code data
   const qrCodeData = useMemo(() => {
-    if (!userId) return null;
+    if (!userId || !selectedShop) return null;
     
     const timestamp = Date.now();
     const data = {
       type: 'subday_redeem',
       userId: userId,
-      shopId: shop.id,
-      shopName: shop.name,
+      shopId: selectedShop.id,
+      shopName: selectedShop.name,
       drinkType: drinkType,
       drinkName: drinkName,
       timestamp: timestamp,
@@ -51,11 +105,16 @@ export default function RedeemPage() {
     };
     
     return JSON.stringify(data);
-  }, [userId, shop.id, shop.name, drinkType, drinkName, remaining]);
+  }, [userId, selectedShop, drinkType, drinkName, remaining]);
   
   const handleScan = async () => {
     if (remaining <= 0) {
       toast.error('У вас закончились напитки в пакете');
+      return;
+    }
+
+    if (!selectedShop) {
+      toast.error('Выберите кофейню');
       return;
     }
     
@@ -65,7 +124,7 @@ export default function RedeemPage() {
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     // Actually redeem the drink
-    const success = await redeemDrink(shop.name, shop.id, drinkName, drinkType);
+    const success = await redeemDrink(selectedShop.name, selectedShop.id, drinkName, drinkType);
     
     if (success) {
       setStatus('success');
@@ -80,6 +139,37 @@ export default function RedeemPage() {
   const goHome = () => {
     navigate('/');
   };
+
+  if (isLoadingShops) {
+    return (
+      <AppLayout hideNav>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (shops.length === 0) {
+    return (
+      <AppLayout hideNav>
+        <div className="min-h-screen safe-area-top safe-area-bottom flex flex-col">
+          <div className="px-4 py-4 flex items-center gap-3">
+            <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+              <ArrowLeft size={20} className="text-foreground" />
+            </Link>
+          </div>
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="text-center">
+              <div className="text-4xl mb-4">☕</div>
+              <p className="text-lg font-semibold text-foreground mb-2">Нет доступных кофеен</p>
+              <p className="text-sm text-muted-foreground">Попробуйте позже</p>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
   
   return (
     <AppLayout hideNav>
@@ -91,7 +181,52 @@ export default function RedeemPage() {
           </Link>
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">Забираешь в</p>
-            <h1 className="font-bold text-foreground">{shop.name}</h1>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors">
+                  {selectedShop?.name || 'Выбрать кофейню'}
+                  <ChevronDown size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                align="start" 
+                className="w-72 bg-card border border-border shadow-lg z-50"
+              >
+                {shops.map((shop) => (
+                  <DropdownMenuItem
+                    key={shop.id}
+                    onClick={() => setSelectedShop(shop)}
+                    className={`flex items-center gap-3 p-3 cursor-pointer ${
+                      selectedShop?.id === shop.id ? 'bg-accent/10' : ''
+                    }`}
+                  >
+                    {shop.logo_url ? (
+                      <img 
+                        src={shop.logo_url} 
+                        alt={shop.name} 
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-lg shrink-0">
+                        ☕
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground truncate">{shop.name}</p>
+                      {shop.address && (
+                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                          <MapPin size={10} />
+                          {shop.address}
+                        </p>
+                      )}
+                    </div>
+                    {selectedShop?.id === shop.id && (
+                      <Check size={16} className="text-accent shrink-0" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
@@ -122,7 +257,7 @@ export default function RedeemPage() {
               <button 
                 onClick={handleScan} 
                 className="btn-primary"
-                disabled={remaining <= 0}
+                disabled={remaining <= 0 || !selectedShop}
               >
                 {remaining > 0 ? 'Имитировать скан' : 'Нет доступных напитков'}
               </button>
