@@ -4,12 +4,27 @@ import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
 import { QuickActions } from '@/components/home/QuickActions';
 import { NearbyShops } from '@/components/home/NearbyShops';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
 
 export default function HomePage() {
   const { profile, isLoading } = useUserStatsContext();
+  const { role, isAdmin, isPartner } = useAdminAuth();
+  const navigate = useNavigate();
   
   const displayName = profile?.name?.split(' ')[0] || 'Гость';
+  
+  const showAdminButton = isAdmin || role === 'moderator' || isPartner;
+  
+  const handleAdminClick = () => {
+    if (isAdmin || role === 'moderator') {
+      navigate('/admin');
+    } else if (isPartner) {
+      navigate('/partner');
+    }
+  };
   
   return (
     <AppLayout>
@@ -24,8 +39,20 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
             )}
           </div>
-          <div className="w-20 h-20">
-            <img src={logo} alt="subday" className="w-full h-full object-contain" />
+          <div className="flex items-center gap-2">
+            {showAdminButton && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAdminClick}
+                className="text-xs font-medium"
+              >
+                ЛК
+              </Button>
+            )}
+            <div className="w-20 h-20">
+              <img src={logo} alt="subday" className="w-full h-full object-contain" />
+            </div>
           </div>
         </div>
         
