@@ -60,15 +60,19 @@ Deno.serve(async (req) => {
 
     if (isRegistration && existingUser) {
       return new Response(
+        // ВАЖНО: не используем 4xx для ожидаемых бизнес-ошибок,
+        // иначе клиент может показать RUNTIME_ERROR overlay.
         JSON.stringify({ error: 'Этот номер уже зарегистрирован. Войдите в аккаунт' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!isRegistration && !existingUser) {
       return new Response(
+        // ВАЖНО: не используем 4xx для ожидаемых бизнес-ошибок,
+        // иначе клиент может показать RUNTIME_ERROR overlay.
         JSON.stringify({ error: 'Зарегистрируйтесь, пожалуйста, для входа' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
