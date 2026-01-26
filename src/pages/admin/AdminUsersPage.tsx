@@ -54,6 +54,7 @@ interface SubscriptionType {
   name: string;
   type: string;
   cups_count: number;
+  duration_days: number;
 }
 
 interface Shop {
@@ -100,7 +101,7 @@ export default function AdminUsersPage() {
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
       .from('subscription_types')
-      .select('id, name, type, cups_count')
+      .select('id, name, type, cups_count, duration_days')
       .eq('is_active', true);
     if (data) setSubscriptionTypes(data);
   };
@@ -271,38 +272,49 @@ export default function AdminUsersPage() {
     if (!subType) return;
 
     try {
-      // Add subscription record
-      const { error: subError } = await supabase
-        .from('user_subscriptions')
-        .insert({
-          user_id: editingUser.user_id,
-          subscription_type_id: selectedSubscription,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        });
+      // Use the activate_subscription function for proper expiration handling
+      const { data, error } = await supabase.rpc('activate_subscription', {
+        _user_id: editingUser.user_id,
+        _subscription_type_id: selectedSubscription,
+      });
 
-      if (subError) throw subError;
+      if (error) throw error;
 
-      // Update user stats
-      const updateData: Record<string, number> = {};
-      if (subType.type === 'coffee') {
-        updateData.coffee_remaining = formData.coffee_remaining + subType.cups_count;
-        updateData.coffee_total = (editingUser.coffee_remaining || 0) + subType.cups_count;
-        setFormData(prev => ({ ...prev, coffee_remaining: updateData.coffee_remaining }));
-      } else {
-        updateData.drinks_remaining = formData.drinks_remaining + subType.cups_count;
-        updateData.drinks_total = (editingUser.drinks_remaining || 0) + subType.cups_count;
-        setFormData(prev => ({ ...prev, drinks_remaining: updateData.drinks_remaining }));
+      // Parse the response (it's a JSON object from the function)
+      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string } | null;
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Unknown error');
       }
 
-      const { error: statsError } = await supabase
-        .from('user_stats')
-        .update(updateData)
-        .eq('user_id', editingUser.user_id);
+      // Update local form state with new values
+      if (subType.type === 'coffee') {
+        setFormData(prev => ({ 
+          ...prev, 
+          coffee_remaining: result.cups_count || subType.cups_count,
+          coffee_total: result.cups_count || subType.cups_count 
+        }));
+      } else {
+        setFormData(prev => ({ 
+          ...prev, 
+          drinks_remaining: result.cups_count || subType.cups_count,
+          drinks_total: result.cups_count || subType.cups_count 
+        }));
+      }
 
-      if (statsError) throw statsError;
+      const expiresAt = result.expires_at ? new Date(result.expires_at) : new Date(Date.now() + subType.duration_days * 24 * 60 * 60 * 1000);
+      const formattedDate = expiresAt.toLocaleDateString('ru-RU', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
 
-      toast({ title: `Подписка "${subType.name}" добавлена` });
+      toast({ 
+        title: `Подписка "${subType.name}" активирована`,
+        description: `Действует до ${formattedDate}`
+      });
       setSelectedSubscription('');
+      fetchUsers();
     } catch (error) {
       console.error('Error adding subscription:', error);
       toast({ title: 'Ошибка добавления подписки', variant: 'destructive' });

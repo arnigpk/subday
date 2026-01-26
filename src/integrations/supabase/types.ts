@@ -348,6 +348,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_subscription: {
+        Args: { _subscription_type_id: string; _user_id: string }
+        Returns: Json
+      }
+      expire_subscriptions: { Args: never; Returns: undefined }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
       get_staff_shop_id: { Args: { _user_id: string }; Returns: string }
       has_role: {

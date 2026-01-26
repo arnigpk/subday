@@ -57,6 +57,13 @@ export function useUserStats() {
     
     setUserId(user.id);
 
+    // Check for expired subscriptions on app load (runs the DB function)
+    try {
+      await supabase.rpc('expire_subscriptions');
+    } catch (error) {
+      console.log('Subscription expiration check completed or skipped');
+    }
+
     // Fetch profile
     const { data: profileData } = await supabase
       .from('profiles')
@@ -81,15 +88,15 @@ export function useUserStats() {
       .maybeSingle();
 
     if (!statsData) {
-      // Create default stats for new user
+      // Create default stats for new user (no balance until subscription is purchased)
       const { data: newStats, error } = await supabase
         .from('user_stats')
         .insert({
           user_id: user.id,
-          coffee_remaining: 12,
-          coffee_total: 30,
-          drinks_remaining: 8,
-          drinks_total: 15,
+          coffee_remaining: 0,
+          coffee_total: 0,
+          drinks_remaining: 0,
+          drinks_total: 0,
           current_streak: 0,
           max_streak: 0,
           total_cups: 0,
