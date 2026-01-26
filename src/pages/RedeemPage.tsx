@@ -48,7 +48,7 @@ export default function RedeemPage() {
   // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
   const drinkType = location.state?.drinkType || 'coffee';
-  const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Капучино' : 'Матча латте');
+  const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Кофе' : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
 

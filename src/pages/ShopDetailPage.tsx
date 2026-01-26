@@ -80,7 +80,7 @@ export default function ShopDetailPage() {
           address: shop.address,
         }, 
         drinkType: 'coffee', 
-        drinkName: 'Капучино' 
+        drinkName: 'Кофе' 
       } 
     });
   };
