@@ -32,6 +32,44 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
   });
 }
 
+async function getTelegramAvatarUrl(botToken: string, userId: number): Promise<string | null> {
+  try {
+    // Get user profile photos
+    const photosResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${userId}&limit=1`
+    );
+    const photosData = await photosResponse.json();
+    
+    if (!photosData.ok || !photosData.result?.photos?.length) {
+      console.log('No profile photos found for user:', userId);
+      return null;
+    }
+
+    // Get the largest photo (last in array)
+    const photos = photosData.result.photos[0];
+    const largestPhoto = photos[photos.length - 1];
+    
+    // Get file path
+    const fileResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${largestPhoto.file_id}`
+    );
+    const fileData = await fileResponse.json();
+    
+    if (!fileData.ok || !fileData.result?.file_path) {
+      console.log('Could not get file path');
+      return null;
+    }
+
+    // Return the full URL to the file
+    const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
+    console.log('Got avatar URL for user:', userId);
+    return fileUrl;
+  } catch (error) {
+    console.error('Error getting avatar:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -61,6 +99,9 @@ serve(async (req) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+      // Get user's Telegram avatar
+      const avatarUrl = await getTelegramAvatarUrl(botToken, user.id);
+
       // Generate 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
@@ -71,7 +112,7 @@ serve(async (req) => {
         .delete()
         .eq('telegram_id', user.id.toString());
 
-      // Insert new code
+      // Insert new code with avatar URL
       const { error: insertError } = await supabase
         .from('telegram_auth_codes')
         .insert({
@@ -80,6 +121,7 @@ serve(async (req) => {
           first_name: user.first_name || null,
           last_name: user.last_name || null,
           username: user.username || null,
+          photo_url: avatarUrl,
           expires_at: expiresAt.toISOString(),
         });
 
@@ -89,7 +131,7 @@ serve(async (req) => {
         return new Response('OK', { status: 200 });
       }
 
-      console.log(`Generated code ${code} for user ${user.id}`);
+      console.log(`Generated code ${code} for user ${user.id}, avatar: ${avatarUrl ? 'yes' : 'no'}`);
 
       await sendTelegramMessage(
         botToken,
