@@ -107,6 +107,45 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_auth_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          photo_url: string | null
+          telegram_id: string
+          username: string | null
+          verified: boolean
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          photo_url?: string | null
+          telegram_id: string
+          username?: string | null
+          verified?: boolean
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          photo_url?: string | null
+          telegram_id?: string
+          username?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
       user_stats: {
         Row: {
           bonus_points: number
