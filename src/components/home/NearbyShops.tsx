@@ -28,7 +28,7 @@ export function NearbyShops() {
         .from('shops')
         .select('*')
         .eq('is_active', true)
-        .order('name')
+        .order('sort_order', { ascending: true })
         .limit(3);
 
       if (error) throw error;

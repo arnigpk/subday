@@ -73,7 +73,7 @@ export default function PackagesPage() {
         .from('subscription_types')
         .select('*')
         .eq('is_active', true)
-        .order('price', { ascending: true });
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       setSubscriptions(data || []);
