@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Coffee, GlassWater } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, Zap, Crown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface SubscriptionType {
@@ -42,8 +42,32 @@ interface SubscriptionType {
   price: number;
   duration_days: number;
   is_active: boolean;
+  badge: string | null;
   created_at: string;
 }
+
+const BADGE_OPTIONS = [
+  { value: '', label: 'Без бейджа', icon: null },
+  { value: 'Хит', label: 'Хит', icon: Sparkles },
+  { value: 'Выгодно', label: 'Выгодно', icon: Zap },
+  { value: 'Максимум', label: 'Максимум', icon: Crown },
+  { value: 'Новинка', label: 'Новинка', icon: Sparkles },
+];
+
+const getBadgeStyle = (badge: string | null) => {
+  switch (badge) {
+    case 'Максимум':
+      return 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
+    case 'Выгодно':
+      return 'bg-gradient-to-r from-green-500 to-lime-500 text-white';
+    case 'Хит':
+      return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white';
+    case 'Новинка':
+      return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+};
 
 export default function AdminSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
@@ -59,6 +83,7 @@ export default function AdminSubscriptionsPage() {
     price: 15000,
     duration_days: 30,
     is_active: true,
+    badge: '',
   });
 
   useEffect(() => {
@@ -92,6 +117,7 @@ export default function AdminSubscriptionsPage() {
       price: 15000,
       duration_days: 30,
       is_active: true,
+      badge: '',
     });
     setIsDialogOpen(true);
   };
@@ -106,6 +132,7 @@ export default function AdminSubscriptionsPage() {
       price: sub.price,
       duration_days: sub.duration_days,
       is_active: sub.is_active,
+      badge: sub.badge || '',
     });
     setIsDialogOpen(true);
   };
@@ -128,6 +155,7 @@ export default function AdminSubscriptionsPage() {
             price: formData.price,
             duration_days: formData.duration_days,
             is_active: formData.is_active,
+            badge: formData.badge || null,
           })
           .eq('id', editingSub.id);
 
@@ -144,6 +172,7 @@ export default function AdminSubscriptionsPage() {
             price: formData.price,
             duration_days: formData.duration_days,
             is_active: formData.is_active,
+            badge: formData.badge || null,
           });
 
         if (error) throw error;
@@ -225,8 +254,14 @@ export default function AdminSubscriptionsPage() {
                       )}
                       {sub.name}
                     </CardTitle>
+                    {sub.badge && (
+                      <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full mt-1 ${getBadgeStyle(sub.badge)}`}>
+                        <Sparkles size={10} />
+                        {sub.badge}
+                      </span>
+                    )}
                     {!sub.is_active && (
-                      <span className="text-xs text-muted-foreground">Неактивна</span>
+                      <span className="text-xs text-muted-foreground block mt-1">Неактивна</span>
                     )}
                   </div>
                   <div className="flex gap-1">
@@ -283,7 +318,7 @@ export default function AdminSubscriptionsPage() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Кофейный марафон"
+                placeholder="30 кофе"
               />
             </div>
             <div>
@@ -292,20 +327,40 @@ export default function AdminSubscriptionsPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="30 чашек кофе на месяц"
+                placeholder="Любой кофейный напиток каждый день"
               />
             </div>
-            <div>
-              <Label htmlFor="type">Тип</Label>
-              <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="coffee">Кофе</SelectItem>
-                  <SelectItem value="drinks">Напитки</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="type">Тип</Label>
+                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="coffee">Кофе</SelectItem>
+                    <SelectItem value="drinks">Напитки</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="badge">Бейдж</Label>
+                <Select value={formData.badge} onValueChange={(v) => setFormData({ ...formData, badge: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выбрать бейдж" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BADGE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value || 'none'}>
+                        <span className="flex items-center gap-2">
+                          {option.icon && <option.icon size={12} />}
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

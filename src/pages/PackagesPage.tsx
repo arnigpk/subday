@@ -14,6 +14,7 @@ interface SubscriptionType {
   price: number;
   duration_days: number;
   is_active: boolean;
+  badge: string | null;
 }
 
 const tabs = [
@@ -25,11 +26,21 @@ const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price);
 };
 
-const getBadgeInfo = (cupsCount: number): { text: string; icon: typeof Sparkles; gradient: string } | null => {
-  if (cupsCount >= 300) return { text: 'Максимум', icon: Crown, gradient: 'from-amber-500 to-orange-500' };
-  if (cupsCount >= 40) return { text: 'Выгодно', icon: Zap, gradient: 'from-accent to-lime-500' };
-  if (cupsCount >= 25) return { text: 'Хит', icon: Sparkles, gradient: 'from-accent to-emerald-500' };
-  return null;
+const getBadgeStyle = (badge: string | null): { icon: typeof Sparkles; gradient: string } | null => {
+  if (!badge) return null;
+  
+  switch (badge) {
+    case 'Максимум':
+      return { icon: Crown, gradient: 'from-amber-500 to-orange-500' };
+    case 'Выгодно':
+      return { icon: Zap, gradient: 'from-accent to-lime-500' };
+    case 'Хит':
+      return { icon: Sparkles, gradient: 'from-accent to-emerald-500' };
+    case 'Новинка':
+      return { icon: Sparkles, gradient: 'from-blue-500 to-cyan-500' };
+    default:
+      return { icon: Sparkles, gradient: 'from-accent to-primary' };
+  }
 };
 
 const getPeriod = (days: number): string => {
@@ -105,11 +116,11 @@ export default function PackagesPage() {
           ) : (
             <div className="space-y-4">
               {filteredSubscriptions.map((sub, index) => {
-                const badgeInfo = getBadgeInfo(sub.cups_count);
+                const badgeStyle = getBadgeStyle(sub.badge);
                 const period = getPeriod(sub.duration_days);
                 const originalPrice = getOriginalPrice(sub.cups_count, sub.type);
                 const savingsPercent = getSavingsPercent(originalPrice, sub.price);
-                const BadgeIcon = badgeInfo?.icon || Sparkles;
+                const BadgeIcon = badgeStyle?.icon || Sparkles;
                 
                 return (
                   <Link
@@ -122,12 +133,12 @@ export default function PackagesPage() {
                       {/* Background accent */}
                       <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       
-                      {/* Badge */}
-                      {badgeInfo && (
+                      {/* Badge from database */}
+                      {sub.badge && badgeStyle && (
                         <div className="absolute top-4 right-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${badgeInfo.gradient} shadow-lg`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${badgeStyle.gradient} shadow-lg`}>
                             <BadgeIcon size={12} />
-                            {badgeInfo.text}
+                            {sub.badge}
                           </span>
                         </div>
                       )}
