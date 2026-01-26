@@ -11,6 +11,7 @@ interface Shop {
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
+  logo_url: string | null;
 }
 
 export function NearbyShops() {
@@ -83,9 +84,13 @@ export function NearbyShops() {
               to={`/shops/${shop.id}`}
               className="card-interactive flex items-center gap-3"
             >
-              <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center text-2xl">
-                ☕
-              </div>
+              {shop.logo_url ? (
+                <img src={shop.logo_url} alt={shop.name} className="w-14 h-14 rounded-xl object-cover" />
+              ) : (
+                <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center text-2xl">
+                  ☕
+                </div>
+              )}
               
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">{shop.name}</p>

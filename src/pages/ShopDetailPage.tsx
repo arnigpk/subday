@@ -13,6 +13,7 @@ interface Shop {
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
+  logo_url: string | null;
 }
 
 export default function ShopDetailPage() {
@@ -97,9 +98,17 @@ export default function ShopDetailPage() {
         
         {/* Hero */}
         <div className="px-4 mb-6">
-          <div className="w-full h-48 rounded-2xl bg-secondary flex items-center justify-center text-6xl animate-pop">
-            ☕
-          </div>
+          {shop.logo_url ? (
+            <img 
+              src={shop.logo_url} 
+              alt={shop.name} 
+              className="w-full h-48 rounded-2xl object-cover animate-pop"
+            />
+          ) : (
+            <div className="w-full h-48 rounded-2xl bg-secondary flex items-center justify-center text-6xl animate-pop">
+              ☕
+            </div>
+          )}
         </div>
         
         {/* Info */}
