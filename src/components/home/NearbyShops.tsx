@@ -1,21 +1,67 @@
-import { ChevronRight, Star, Clock } from 'lucide-react';
+import { ChevronRight, Clock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { coffeeShops } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Shop {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  working_hours: string | null;
+  is_active: boolean;
+}
 
 export function NearbyShops() {
-  // Filter shops that are currently open based on real time
-  const nearbyShops = useMemo(() => {
-    return coffeeShops
-      .filter(shop => isShopOpen(shop.openHours))
-      .slice(0, 3);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchShops();
   }, []);
-  
-  // If no shops are open, show all shops but indicate they're closed
-  const shopsToShow = nearbyShops.length > 0 
-    ? nearbyShops 
-    : coffeeShops.slice(0, 3);
+
+  const fetchShops = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('is_active', true)
+        .order('name')
+        .limit(3);
+
+      if (error) throw error;
+      setShops(data || []);
+    } catch (error) {
+      console.error('Error fetching shops:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-foreground">Кофейни рядом</h2>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (shops.length === 0) {
+    return (
+      <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-foreground">Кофейни рядом</h2>
+        </div>
+        <p className="text-center text-muted-foreground py-4">Нет доступных кофеен</p>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
@@ -28,8 +74,8 @@ export function NearbyShops() {
       </div>
       
       <div className="space-y-2">
-        {shopsToShow.map((shop) => {
-          const isOpen = isShopOpen(shop.openHours);
+        {shops.map((shop) => {
+          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
           
           return (
             <Link
@@ -44,7 +90,7 @@ export function NearbyShops() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">{shop.name}</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-muted-foreground truncate">{shop.address}</p>
+                  <p className="text-sm text-muted-foreground truncate">{shop.address || shop.city}</p>
                   <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
                     · {isOpen ? 'Открыто' : 'Закрыто'}
                   </span>
@@ -52,11 +98,10 @@ export function NearbyShops() {
               </div>
               
               <div className="text-right">
-                <div className="flex items-center gap-1 text-sm font-medium text-foreground">
-                  <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                  {shop.rating}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock size={14} />
+                  {shop.working_hours || '—'}
                 </div>
-                <p className="text-xs text-muted-foreground">{shop.distance}</p>
               </div>
             </Link>
           );
