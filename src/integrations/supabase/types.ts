@@ -47,6 +47,7 @@ export type Database = {
           city: string | null
           created_at: string
           id: string
+          is_blocked: boolean | null
           name: string | null
           phone: string
           updated_at: string
@@ -57,6 +58,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           id?: string
+          is_blocked?: boolean | null
           name?: string | null
           phone: string
           updated_at?: string
@@ -67,6 +69,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           id?: string
+          is_blocked?: boolean | null
           name?: string | null
           phone?: string
           updated_at?: string
@@ -104,6 +107,78 @@ export type Database = {
           shop_id?: string | null
           shop_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      shops: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          working_hours: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          working_hours?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          working_hours?: string | null
+        }
+        Relationships: []
+      }
+      subscription_types: {
+        Row: {
+          created_at: string | null
+          cups_count: number
+          description: string | null
+          duration_days: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          price: number
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cups_count: number
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price: number
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cups_count?: number
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price?: number
+          type?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -217,6 +292,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          started_at: string | null
+          subscription_type_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          subscription_type_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          subscription_type_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_subscription_type_id_fkey"
+            columns: ["subscription_type_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

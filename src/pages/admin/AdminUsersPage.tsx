@@ -3,16 +3,32 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface UserWithStats {
   user_id: string;
@@ -20,10 +36,18 @@ interface UserWithStats {
   phone: string;
   city: string | null;
   created_at: string;
+  is_blocked: boolean;
   coffee_remaining: number;
   drinks_remaining: number;
   total_cups: number;
   current_streak: number;
+}
+
+interface SubscriptionType {
+  id: string;
+  name: string;
+  type: string;
+  cups_count: number;
 }
 
 const PAGE_SIZE = 20;
@@ -34,18 +58,37 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [editingUser, setEditingUser] = useState<UserWithStats | null>(null);
+  const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    city: '',
+    is_blocked: false,
+    coffee_remaining: 0,
+    drinks_remaining: 0,
+  });
+  const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
+    fetchSubscriptionTypes();
   }, [page, search]);
+
+  const fetchSubscriptionTypes = async () => {
+    const { data } = await supabase
+      .from('subscription_types')
+      .select('id, name, type, cups_count')
+      .eq('is_active', true);
+    if (data) setSubscriptionTypes(data);
+  };
 
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Get profiles with pagination
       let query = supabase
         .from('profiles')
-        .select('user_id, name, phone, city, created_at', { count: 'exact' });
+        .select('user_id, name, phone, city, created_at, is_blocked', { count: 'exact' });
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
@@ -56,7 +99,6 @@ export default function AdminUsersPage() {
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (error) throw error;
-
       setTotalCount(count || 0);
 
       if (!profiles || profiles.length === 0) {
@@ -65,7 +107,6 @@ export default function AdminUsersPage() {
         return;
       }
 
-      // Get stats for these users
       const userIds = profiles.map(p => p.user_id);
       const { data: stats } = await supabase
         .from('user_stats')
@@ -76,6 +117,7 @@ export default function AdminUsersPage() {
 
       const usersWithStats: UserWithStats[] = profiles.map(profile => ({
         ...profile,
+        is_blocked: profile.is_blocked || false,
         coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
         drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
         total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
@@ -87,6 +129,116 @@ export default function AdminUsersPage() {
       console.error('Error fetching users:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openEditDialog = (user: UserWithStats) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name || '',
+      phone: user.phone,
+      city: user.city || '',
+      is_blocked: user.is_blocked,
+      coffee_remaining: user.coffee_remaining,
+      drinks_remaining: user.drinks_remaining,
+    });
+    setSelectedSubscription('');
+  };
+
+  const handleSave = async () => {
+    if (!editingUser) return;
+
+    try {
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: formData.name || null,
+          city: formData.city || null,
+          is_blocked: formData.is_blocked,
+        })
+        .eq('user_id', editingUser.user_id);
+
+      if (profileError) throw profileError;
+
+      // Update stats
+      const { error: statsError } = await supabase
+        .from('user_stats')
+        .update({
+          coffee_remaining: formData.coffee_remaining,
+          drinks_remaining: formData.drinks_remaining,
+        })
+        .eq('user_id', editingUser.user_id);
+
+      if (statsError) throw statsError;
+
+      toast({ title: 'Пользователь обновлён' });
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error saving user:', error);
+      toast({ title: 'Ошибка сохранения', variant: 'destructive' });
+    }
+  };
+
+  const handleAddSubscription = async () => {
+    if (!editingUser || !selectedSubscription) return;
+
+    const subType = subscriptionTypes.find(s => s.id === selectedSubscription);
+    if (!subType) return;
+
+    try {
+      // Add subscription record
+      const { error: subError } = await supabase
+        .from('user_subscriptions')
+        .insert({
+          user_id: editingUser.user_id,
+          subscription_type_id: selectedSubscription,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+
+      if (subError) throw subError;
+
+      // Update user stats
+      const updateData: Record<string, number> = {};
+      if (subType.type === 'coffee') {
+        updateData.coffee_remaining = formData.coffee_remaining + subType.cups_count;
+        updateData.coffee_total = (editingUser.coffee_remaining || 0) + subType.cups_count;
+        setFormData(prev => ({ ...prev, coffee_remaining: updateData.coffee_remaining }));
+      } else {
+        updateData.drinks_remaining = formData.drinks_remaining + subType.cups_count;
+        updateData.drinks_total = (editingUser.drinks_remaining || 0) + subType.cups_count;
+        setFormData(prev => ({ ...prev, drinks_remaining: updateData.drinks_remaining }));
+      }
+
+      const { error: statsError } = await supabase
+        .from('user_stats')
+        .update(updateData)
+        .eq('user_id', editingUser.user_id);
+
+      if (statsError) throw statsError;
+
+      toast({ title: `Подписка "${subType.name}" добавлена` });
+      setSelectedSubscription('');
+    } catch (error) {
+      console.error('Error adding subscription:', error);
+      toast({ title: 'Ошибка добавления подписки', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleBlock = async (user: UserWithStats) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_blocked: !user.is_blocked })
+        .eq('user_id', user.user_id);
+
+      if (error) throw error;
+      toast({ title: user.is_blocked ? 'Пользователь разблокирован' : 'Пользователь заблокирован' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error toggling block:', error);
+      toast({ title: 'Ошибка', variant: 'destructive' });
     }
   };
 
@@ -135,13 +287,13 @@ export default function AdminUsersPage() {
                       <TableHead className="text-center">Кофе</TableHead>
                       <TableHead className="text-center">Напитки</TableHead>
                       <TableHead className="text-center">Всего</TableHead>
-                      <TableHead className="text-center">Streak</TableHead>
-                      <TableHead>Регистрация</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Действия</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => (
-                      <TableRow key={user.user_id}>
+                      <TableRow key={user.user_id} className={user.is_blocked ? 'opacity-50' : ''}>
                         <TableCell className="font-medium">
                           {user.name || '—'}
                         </TableCell>
@@ -150,9 +302,34 @@ export default function AdminUsersPage() {
                         <TableCell className="text-center">{user.coffee_remaining}</TableCell>
                         <TableCell className="text-center">{user.drinks_remaining}</TableCell>
                         <TableCell className="text-center">{user.total_cups}</TableCell>
-                        <TableCell className="text-center">{user.current_streak}</TableCell>
                         <TableCell>
-                          {new Date(user.created_at).toLocaleDateString('ru-RU')}
+                          {user.is_blocked ? (
+                            <span className="text-destructive text-sm">Заблокирован</span>
+                          ) : (
+                            <span className="text-green-600 text-sm">Активен</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(user)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleToggleBlock(user)}
+                            >
+                              {user.is_blocked ? (
+                                <UserCheck className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Ban className="w-4 h-4 text-destructive" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -160,7 +337,6 @@ export default function AdminUsersPage() {
                 </Table>
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-muted-foreground">
@@ -190,6 +366,104 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Редактировать пользователя</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Имя</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Телефон</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <Label htmlFor="city">Город</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="coffee">Остаток кофе</Label>
+                <Input
+                  id="coffee"
+                  type="number"
+                  min="0"
+                  value={formData.coffee_remaining}
+                  onChange={(e) => setFormData({ ...formData, coffee_remaining: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="drinks">Остаток напитков</Label>
+                <Input
+                  id="drinks"
+                  type="number"
+                  min="0"
+                  value={formData.drinks_remaining}
+                  onChange={(e) => setFormData({ ...formData, drinks_remaining: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="is_blocked"
+                checked={formData.is_blocked}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_blocked: checked })}
+              />
+              <Label htmlFor="is_blocked">Заблокирован</Label>
+            </div>
+
+            <div className="border-t pt-4">
+              <Label>Добавить подписку</Label>
+              <div className="flex gap-2 mt-2">
+                <Select value={selectedSubscription} onValueChange={setSelectedSubscription}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Выберите подписку" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subscriptionTypes.map(sub => (
+                      <SelectItem key={sub.id} value={sub.id}>
+                        {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleAddSubscription} disabled={!selectedSubscription}>
+                  Добавить
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setEditingUser(null)}>
+                Отмена
+              </Button>
+              <Button onClick={handleSave}>
+                Сохранить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

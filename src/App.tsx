@@ -27,6 +27,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminHistoryPage from "./pages/admin/AdminHistoryPage";
 import AdminShopsPage from "./pages/admin/AdminShopsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminSubscriptionsPage from "./pages/admin/AdminSubscriptionsPage";
 
 const queryClient = new QueryClient();
 
@@ -163,6 +164,7 @@ const AppContent = () => {
           <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
           <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
           <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
           <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
           
           <Route path="*" element={<NotFound />} />

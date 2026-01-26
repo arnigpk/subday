@@ -7,7 +7,8 @@ import {
   Coffee, 
   Settings, 
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const navItems = [
   { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['admin', 'moderator'] },
   { icon: History, label: 'История', path: '/admin/history', roles: ['admin', 'moderator', 'partner'] },
   { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['admin', 'moderator', 'partner'] },
+  { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
 ];
 
