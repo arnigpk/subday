@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.telegram-miniapp-auth]
 verify_jwt = false
+
+[functions.partner-scan-qr]
+verify_jwt = false

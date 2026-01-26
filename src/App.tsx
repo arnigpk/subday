@@ -28,6 +28,11 @@ import AdminHistoryPage from "./pages/admin/AdminHistoryPage";
 import AdminShopsPage from "./pages/admin/AdminShopsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminSubscriptionsPage from "./pages/admin/AdminSubscriptionsPage";
+import { PartnerProtectedRoute } from "@/components/partner/PartnerProtectedRoute";
+import PartnerDashboard from "./pages/partner/PartnerDashboard";
+import PartnerScanPage from "./pages/partner/PartnerScanPage";
+import PartnerHistoryPage from "./pages/partner/PartnerHistoryPage";
+import PartnerStaffPage from "./pages/partner/PartnerStaffPage";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +171,12 @@ const AppContent = () => {
           <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
           <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
           <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
+          
+          {/* Partner Routes */}
+          <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
+          <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
+          <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
+          <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>

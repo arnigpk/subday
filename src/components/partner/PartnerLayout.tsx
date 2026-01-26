@@ -1,0 +1,81 @@
+import { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, QrCode, History, Users, LogOut } from 'lucide-react';
+import { usePartnerAuth } from '@/hooks/usePartnerAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+
+interface PartnerLayoutProps {
+  children: ReactNode;
+}
+
+export function PartnerLayout({ children }: PartnerLayoutProps) {
+  const location = useLocation();
+  const { isPartner, shopName } = usePartnerAuth();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
+  // Navigation items - baristas only see scan
+  const navItems = isPartner
+    ? [
+        { path: '/partner', icon: LayoutDashboard, label: 'Дашборд' },
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
+        { path: '/partner/history', icon: History, label: 'История' },
+        { path: '/partner/staff', icon: Users, label: 'Сотрудники' },
+      ]
+    : [
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
+      ];
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="bg-card border-b border-border px-4 py-3 safe-area-top">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-foreground">
+              {shopName || 'Партнёрский кабинет'}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {isPartner ? 'Владелец' : 'Бариста'}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <LogOut size={20} />
+          </Button>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <nav className="bg-card border-b border-border px-2">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
+  );
+}

@@ -349,6 +349,7 @@ export type Database = {
     }
     Functions: {
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
+      get_staff_shop_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -358,7 +359,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "partner"
+      app_role: "admin" | "moderator" | "partner" | "barista"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -486,7 +487,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "partner"],
+      app_role: ["admin", "moderator", "partner", "barista"],
     },
   },
 } as const
