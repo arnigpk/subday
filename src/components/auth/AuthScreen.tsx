@@ -8,12 +8,24 @@ interface AuthScreenProps {
 
 export function AuthScreen({ onComplete }: AuthScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [prefillPhone, setPrefillPhone] = useState('');
+
+  const handleSwitchToRegister = (phone?: string) => {
+    if (phone) {
+      setPrefillPhone(phone);
+    }
+    setMode('register');
+  };
 
   if (mode === 'register') {
     return (
       <RegisterScreen
         onComplete={() => setMode('login')}
-        onSwitchToLogin={() => setMode('login')}
+        onSwitchToLogin={() => {
+          setPrefillPhone('');
+          setMode('login');
+        }}
+        initialPhone={prefillPhone}
       />
     );
   }
@@ -21,7 +33,7 @@ export function AuthScreen({ onComplete }: AuthScreenProps) {
   return (
     <LoginScreen
       onComplete={onComplete}
-      onSwitchToRegister={() => setMode('register')}
+      onSwitchToRegister={handleSwitchToRegister}
     />
   );
 }

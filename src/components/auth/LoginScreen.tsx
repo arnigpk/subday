@@ -5,8 +5,9 @@ import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 interface LoginScreenProps {
   onComplete: () => void;
-  onSwitchToRegister: () => void;
+  onSwitchToRegister: (phone?: string) => void;
 }
+
 export function LoginScreen({
   onComplete,
   onSwitchToRegister
@@ -54,15 +55,10 @@ export function LoginScreen({
         return;
       }
       if (data.error) {
-        // Если пользователь не зарегистрирован - показываем дружелюбный тост и переключаем на регистрацию
+        // Если пользователь не зарегистрирован - автоматически переходим на регистрацию
         if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
-          toast.info('Зарегистрируйтесь, пожалуйста 👋', {
-            description: 'Этот номер ещё не зарегистрирован',
-            action: {
-              label: 'Регистрация',
-              onClick: onSwitchToRegister
-            }
-          });
+          toast.info('Зарегистрируйтесь, пожалуйста 👋');
+          onSwitchToRegister(phone);
         } else {
           toast.error(data.error);
         }
@@ -174,7 +170,7 @@ export function LoginScreen({
                 {isLoading ? 'Отправляем...' : 'Войти'}
               </button>
               
-              <button onClick={onSwitchToRegister} className="btn-secondary w-full">
+              <button onClick={() => onSwitchToRegister()} className="btn-secondary w-full">
                 Нет аккаунта? Регистрация
               </button>
             </> : <>
