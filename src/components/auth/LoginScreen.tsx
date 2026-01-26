@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
+import { Send } from 'lucide-react';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -235,8 +236,28 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         </div>
       </div>
       
-      <div className="p-6 text-center">
-        <p className="text-xs text-muted-foreground">
+      <div className="px-6 pb-6 space-y-3">
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">или</span>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => {
+            toast.info('Для входа через Telegram свяжитесь с @subday_bot');
+            window.open('https://t.me/subday_bot', '_blank');
+          }}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
+        >
+          <Send size={20} />
+          Войти через Telegram
+        </button>
+        
+        <p className="text-xs text-muted-foreground text-center">
           Продолжая, ты соглашаешься с условиями использования
         </p>
       </div>
