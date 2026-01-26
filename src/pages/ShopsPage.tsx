@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { coffeeShops } from '@/data/mockData';
 import { Star, Clock, MapPin, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { isShopOpen } from '@/utils/shopHours';
 
 const filters = [
   { id: 'all', label: 'Все' },
@@ -11,11 +12,33 @@ const filters = [
   { id: 'top', label: 'Топ' },
 ];
 
+// Component to display shop status with real-time check
+function ShopStatusBadge({ openHours }: { openHours: string }) {
+  const isOpen = isShopOpen(openHours);
+  
+  return (
+    <div className="flex items-center gap-1">
+      <Clock size={12} className={isOpen ? 'text-accent' : 'text-destructive'} />
+      <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
+        {isOpen ? 'Открыто' : 'Закрыто'}
+      </span>
+    </div>
+  );
+}
+
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   
-  const filteredShops = coffeeShops.filter(shop => {
-    if (activeFilter === 'open') return shop.isOpen;
+  // Add real-time open status to shops
+  const shopsWithStatus = useMemo(() => {
+    return coffeeShops.map(shop => ({
+      ...shop,
+      isCurrentlyOpen: isShopOpen(shop.openHours),
+    }));
+  }, []);
+  
+  const filteredShops = shopsWithStatus.filter(shop => {
+    if (activeFilter === 'open') return shop.isCurrentlyOpen;
     if (activeFilter === 'nearby') return parseFloat(shop.distance) < 1;
     if (activeFilter === 'top') return shop.rating >= 4.8;
     return true;
@@ -85,12 +108,7 @@ export default function ShopsPage() {
                             <Navigation size={12} className="text-muted-foreground" />
                             <span className="text-xs text-muted-foreground">{shop.distance}</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} className={shop.isOpen ? 'text-accent' : 'text-destructive'} />
-                            <span className={`text-xs font-medium ${shop.isOpen ? 'text-accent' : 'text-destructive'}`}>
-                              {shop.isOpen ? 'Открыто' : 'Закрыто'}
-                            </span>
-                          </div>
+                          <ShopStatusBadge openHours={shop.openHours} />
                         </div>
                       </div>
                     </div>
