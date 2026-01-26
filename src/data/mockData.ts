@@ -151,7 +151,7 @@ export const coffeeShops: CoffeeShop[] = [
     rating: 4.9,
     isOpen: true,
     openHours: '08:00–22:00',
-    availableDrinks: ['Эспрессо', 'Капучино', 'Латте', 'Раф', 'V60'],
+    availableDrinks: ['Эспрессо', 'Кофе', 'Латте', 'Раф', 'V60'],
     image: '/placeholder.svg',
     coords: { lat: 43.238949, lng: 76.945465 },
   },
@@ -163,7 +163,7 @@ export const coffeeShops: CoffeeShop[] = [
     rating: 4.8,
     isOpen: true,
     openHours: '07:30–21:00',
-    availableDrinks: ['Эспрессо', 'Капучино', 'Флэт уайт', 'Матча'],
+    availableDrinks: ['Эспрессо', 'Кофе', 'Флэт уайт', 'Матча'],
     image: '/placeholder.svg',
     coords: { lat: 43.256789, lng: 76.928765 },
   },
@@ -175,7 +175,7 @@ export const coffeeShops: CoffeeShop[] = [
     rating: 4.7,
     isOpen: true,
     openHours: '09:00–20:00',
-    availableDrinks: ['Капучино', 'Латте', 'Раф', 'Какао'],
+    availableDrinks: ['Кофе', 'Латте', 'Раф', 'Какао'],
     image: '/placeholder.svg',
     coords: { lat: 43.234567, lng: 76.912345 },
   },
@@ -194,7 +194,7 @@ export const coffeeShops: CoffeeShop[] = [
 ];
 
 export const historyItems: HistoryItem[] = [
-  { id: 'h1', date: '25 янв', time: '09:15', coffeeShop: 'Surf Coffee', drink: 'Капучино', type: 'coffee' },
+  { id: 'h1', date: '25 янв', time: '09:15', coffeeShop: 'Surf Coffee', drink: 'Кофе', type: 'coffee' },
   { id: 'h2', date: '24 янв', time: '14:30', coffeeShop: 'Bowler Coffee', drink: 'Латте', type: 'coffee' },
   { id: 'h3', date: '24 янв', time: '08:45', coffeeShop: 'Surf Coffee', drink: 'Эспрессо', type: 'coffee' },
   { id: 'h4', date: '23 янв', time: '16:00', coffeeShop: 'Верность кофе', drink: 'Матча латте', type: 'drinks' },
