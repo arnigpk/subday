@@ -67,7 +67,7 @@ export function BalanceCard() {
         className="mb-4"
       />
       
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
             isCoffee ? 'bg-primary/10' : 'bg-accent/10'
@@ -80,12 +80,9 @@ export function BalanceCard() {
           </div>
           
           <div>
-            <p className="text-muted-foreground text-sm font-medium">Осталось</p>
-            <p className="text-4xl font-black text-foreground">
+            <p className="text-muted-foreground text-xs font-medium">Осталось {remaining} из {total}</p>
+            <p className="text-3xl font-black text-foreground">
               {remaining}
-              <span className="text-lg text-muted-foreground font-medium ml-1">
-                из {total}
-              </span>
             </p>
           </div>
         </div>
