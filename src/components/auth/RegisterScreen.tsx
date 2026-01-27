@@ -159,6 +159,10 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
                 />
               </div>
               
+              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
+                Отправка смс на beeline недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
+              </p>
+              
               <button
                 onClick={handleSendCode}
                 disabled={phone.replace(/\D/g, '').length < 11 || !name.trim() || isLoading}
