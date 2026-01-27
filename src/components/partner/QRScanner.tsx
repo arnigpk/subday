@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CameraOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,36 +13,54 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastScannedRef = useRef<string | null>(null);
+  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleScan = useCallback((decodedText: string) => {
+    // Prevent duplicate scans within 3 seconds
+    if (lastScannedRef.current === decodedText) return;
+    
+    lastScannedRef.current = decodedText;
+    console.log('QR Code scanned:', decodedText);
+    onScan(decodedText);
+    
+    // Reset after 3 seconds to allow re-scanning same code
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
+    scanTimeoutRef.current = setTimeout(() => {
+      lastScannedRef.current = null;
+    }, 3000);
+  }, [onScan]);
 
   const startScanner = async () => {
     if (!containerRef.current) return;
 
     try {
       setError(null);
+      lastScannedRef.current = null;
       
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
-      // Calculate qrbox size based on container width (80% of container)
+      // Calculate qrbox size based on container width (70% of container)
       const containerWidth = containerRef.current?.offsetWidth || 300;
-      const qrboxSize = Math.floor(containerWidth * 0.8);
+      const qrboxSize = Math.floor(containerWidth * 0.7);
       
       await scanner.start(
         { facingMode: 'environment' },
         {
-          fps: 15,
+          fps: 20,
           qrbox: { width: qrboxSize, height: qrboxSize },
-          aspectRatio: 1,
         },
-        (decodedText) => {
-          onScan(decodedText);
-        },
+        handleScan,
         () => {
-          // Ignore errors during scanning
+          // Ignore errors during scanning (no QR found)
         }
       );
 
       setIsScanning(true);
+      console.log('Scanner started successfully');
     } catch (err) {
       console.error('Failed to start scanner:', err);
       setError('Не удалось запустить камеру. Проверьте разрешения.');
@@ -64,6 +82,9 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   useEffect(() => {
     return () => {
       stopScanner();
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
     };
   }, []);
 
