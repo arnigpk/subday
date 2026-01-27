@@ -162,7 +162,7 @@ export function BalanceCard() {
             onClick={() => navigate('/packages')}
             className="w-full"
           >
-            Купить подписку
+            Оформить подписку
           </Button>
         </div>
       )}
