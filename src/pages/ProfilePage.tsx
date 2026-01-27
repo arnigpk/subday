@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -137,18 +138,18 @@ export default function ProfilePage() {
           
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
-            <div className="card-static text-center py-4">
+            <Link to="/streaks" className="card-interactive text-center py-4">
               <p className="text-2xl font-black text-foreground">{stats.totalCups}</p>
               <p className="text-xs text-muted-foreground">Выпито</p>
-            </div>
+            </Link>
             <div className="card-static text-center py-4">
               <p className="text-2xl font-black text-foreground">{stats.currentStreak}</p>
               <p className="text-xs text-muted-foreground">Дней подряд</p>
             </div>
-            <div className="card-static text-center py-4">
+            <Link to="/bonuses" className="card-interactive text-center py-4">
               <p className="text-2xl font-black text-foreground">{stats.bonusPoints}</p>
               <p className="text-xs text-muted-foreground">Бонусов</p>
-            </div>
+            </Link>
           </div>
           
           {/* Theme toggle */}

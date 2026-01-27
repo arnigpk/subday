@@ -1,7 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
-import { QuickActions } from '@/components/home/QuickActions';
 import { NearbyShops } from '@/components/home/NearbyShops';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -60,7 +59,6 @@ export default function HomePage() {
         <div className="px-4 space-y-4">
           <BalanceCard />
           <GetCoffeeButton />
-          <QuickActions />
           <NearbyShops />
         </div>
       </div>
