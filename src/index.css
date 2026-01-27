@@ -307,3 +307,31 @@
 .animate-confetti {
   animation: confetti 1s ease-out forwards;
 }
+
+/* QR Scanner styles - hide default html5-qrcode frame */
+.qr-scanner-container #qr-reader {
+  border: none !important;
+}
+
+.qr-scanner-container #qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.qr-scanner-container #qr-reader__scan_region {
+  min-height: 100% !important;
+}
+
+.qr-scanner-container #qr-reader__scan_region img {
+  display: none !important;
+}
+
+/* Hide default shaded region */
+.qr-scanner-container #qr-shaded-region {
+  display: none !important;
+}
+
+.qr-scanner-container #qr-reader > div:first-child {
+  display: none !important;
+}

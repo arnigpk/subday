@@ -23,11 +23,15 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
+      // Calculate qrbox size based on container width (80% of container)
+      const containerWidth = containerRef.current?.offsetWidth || 300;
+      const qrboxSize = Math.floor(containerWidth * 0.8);
+      
       await scanner.start(
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: { width: qrboxSize, height: qrboxSize },
         },
         (decodedText) => {
           onScan(decodedText);
@@ -70,12 +74,25 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   }, [isProcessing, isScanning]);
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 w-full">
       <div 
         ref={containerRef}
-        className="relative w-full max-w-sm aspect-square bg-secondary rounded-2xl overflow-hidden"
+        className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container"
       >
         <div id="qr-reader" className="w-full h-full" />
+        
+        {/* Custom square frame overlay */}
+        {isScanning && !isProcessing && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-[10%] border-2 border-white/80">
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white" />
+            </div>
+          </div>
+        )}
         
         {!isScanning && !isProcessing && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
@@ -104,7 +121,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
         size="lg"
         onClick={isScanning ? stopScanner : startScanner}
         disabled={isProcessing}
-        className="w-full max-w-sm"
+        className="w-full"
       >
         {isScanning ? (
           <>
