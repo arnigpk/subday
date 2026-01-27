@@ -63,7 +63,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
 
       setFormattedPhone(data.phone);
       setStep('code');
-      toast.success('Код отправлен в WhatsApp!');
+      toast.success('Код отправлен!');
     } catch (err) {
       console.error('Error sending code:', err);
       toast.error('Ошибка отправки');
@@ -178,7 +178,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Код из WhatsApp
+                  Код из SMS
                 </label>
                 <input
                   type="text"
@@ -198,7 +198,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
                   autoComplete="one-time-code"
                 />
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Отправили в WhatsApp на {formattedPhone}
+                  Отправили на {formattedPhone}
                 </p>
               </div>
               

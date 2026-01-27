@@ -105,7 +105,7 @@ export function LoginScreen({
       }
       setFormattedPhone(data.phone);
       setStep('code');
-      toast.success('Код отправлен в WhatsApp!');
+      toast.success('Код отправлен!');
     } catch (err) {
       console.error('Error sending code:', err);
       toast.error('Ошибка отправки');
@@ -174,7 +174,7 @@ export function LoginScreen({
         toast.error('Ошибка повторной отправки');
         return;
       }
-      toast.success('Код отправлен в WhatsApp повторно!');
+      toast.success('Код отправлен повторно!');
     } catch (err) {
       toast.error('Ошибка отправки');
     } finally {
@@ -215,7 +215,7 @@ export function LoginScreen({
             </> : <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Код из WhatsApp
+                  Код из SMS
                 </label>
                 <input type="text" inputMode="numeric" placeholder="0000" value={code} onChange={e => {
               const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -226,7 +226,7 @@ export function LoginScreen({
               }
             }} className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code" />
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Отправили в WhatsApp на {formattedPhone}
+                  Отправили на {formattedPhone}
                 </p>
               </div>
               

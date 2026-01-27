@@ -45,7 +45,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const smscLogin = Deno.env.get('SMSC_LOGIN')!
     const smscPassword = Deno.env.get('SMSC_PASSWORD')!
-    const whatsappBotNumber = Deno.env.get('WHATSAPP_BOT_NUMBER')!
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -102,26 +101,25 @@ Deno.serve(async (req) => {
     }
 
     const message = `subday: ваш код ${code}`
-    const waUrl = new URL('https://smsc.kz/sys/send.php')
-    waUrl.searchParams.set('login', smscLogin)
-    waUrl.searchParams.set('psw', smscPassword)
-    waUrl.searchParams.set('phones', formattedPhone)
-    waUrl.searchParams.set('mes', message)
-    waUrl.searchParams.set('fmt', '3')
-    waUrl.searchParams.set('charset', 'utf-8')
-    waUrl.searchParams.set('bot', `wa:${whatsappBotNumber}`)
+    const smsUrl = new URL('https://smsc.kz/sys/send.php')
+    smsUrl.searchParams.set('login', smscLogin)
+    smsUrl.searchParams.set('psw', smscPassword)
+    smsUrl.searchParams.set('phones', formattedPhone)
+    smsUrl.searchParams.set('mes', message)
+    smsUrl.searchParams.set('fmt', '3')
+    smsUrl.searchParams.set('charset', 'utf-8')
 
-    console.log(`Sending WhatsApp to ${formattedPhone}`)
+    console.log(`Sending SMS to ${formattedPhone}`)
 
-    const waResponse = await fetch(waUrl.toString())
-    const waResult = await waResponse.json()
+    const smsResponse = await fetch(smsUrl.toString())
+    const smsResult = await smsResponse.json()
 
-    console.log('SMSC WhatsApp response:', waResult)
+    console.log('SMSC response:', smsResult)
 
-    if (waResult.error) {
-      console.error('WhatsApp error:', waResult.error_code, waResult.error)
+    if (smsResult.error) {
+      console.error('SMS error:', smsResult.error_code, smsResult.error)
       return new Response(
-        JSON.stringify({ error: `Ошибка отправки WhatsApp: ${waResult.error}` }),
+        JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
