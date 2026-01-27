@@ -25,31 +25,22 @@ export function NearbyShops() {
 
   const fetchShopsWithVisits = async () => {
     try {
-      // Fetch all active shops
-      const { data: shopsData, error: shopsError } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('is_active', true);
+      // Fetch all active shops and global visit counts in parallel
+      const [shopsResult, visitsResult] = await Promise.all([
+        supabase.from('shops').select('*').eq('is_active', true),
+        supabase.rpc('get_shop_visit_counts')
+      ]);
 
-      if (shopsError) throw shopsError;
+      if (shopsResult.error) throw shopsResult.error;
 
-      // Fetch redemption counts per shop
-      const { data: redemptionsData, error: redemptionsError } = await supabase
-        .from('redemptions')
-        .select('shop_id');
-
-      if (redemptionsError) throw redemptionsError;
-
-      // Count visits per shop
+      // Build visit counts map from global stats
       const visitCounts: Record<string, number> = {};
-      redemptionsData?.forEach(r => {
-        if (r.shop_id) {
-          visitCounts[r.shop_id] = (visitCounts[r.shop_id] || 0) + 1;
-        }
+      (visitsResult.data || []).forEach((r: { shop_id: string; visit_count: number }) => {
+        visitCounts[r.shop_id] = r.visit_count;
       });
 
       // Map shops with visit counts and sort by visits
-      const shopsWithVisits: ShopWithVisits[] = (shopsData || []).map(shop => ({
+      const shopsWithVisits: ShopWithVisits[] = (shopsResult.data || []).map(shop => ({
         ...shop,
         visit_count: visitCounts[shop.id] || 0
       }));
