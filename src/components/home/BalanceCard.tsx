@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Coffee, Droplets, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
-import { formatDurationLabel } from '@/utils/subscriptionDuration';
+import { Button } from '../ui/button';
 
 const tabs = [
   { id: 'coffee', label: 'Кофе' },
@@ -14,6 +15,7 @@ export function BalanceCard() {
   const [activeTab, setActiveTab] = useState('coffee');
   const { stats, isLoading } = useUserStatsContext();
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
+  const navigate = useNavigate();
   
   const isCoffee = activeTab === 'coffee';
   const remaining = isCoffee ? stats.coffeeRemaining : stats.drinksRemaining;
@@ -24,6 +26,9 @@ export function BalanceCard() {
   const currentTypeSub = activeSubscriptions.find(s => 
     s.subscription_type === activeTab
   );
+  
+  // Check if user has any subscription for current type
+  const hasSubscription = !!currentTypeSub && total > 0;
   
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
@@ -67,8 +72,78 @@ export function BalanceCard() {
         className="mb-4"
       />
       
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
+      {hasSubscription ? (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+                isCoffee ? 'bg-primary/10' : 'bg-accent/10'
+              }`}>
+                {isCoffee ? (
+                  <Coffee size={32} className="text-primary" />
+                ) : (
+                  <Droplets size={32} className="text-accent" />
+                )}
+              </div>
+              
+              <div>
+                <p className="text-muted-foreground text-sm font-medium">По подписке осталось {remaining} из {total}</p>
+              </div>
+            </div>
+            
+            {/* Progress ring */}
+            <div className="relative w-16 h-16">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path
+                  className="text-secondary"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className={isCoffee ? 'text-primary' : 'text-accent'}
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  fill="none"
+                  strokeDasharray={`${percentage}, 100`}
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-foreground">
+                  {Math.round(percentage)}%
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Subscription expiry info */}
+          {currentTypeSub?.expires_at && daysRemaining !== null && (
+            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${
+              isExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'
+            }`}>
+              <Clock size={14} className={isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
+              <span className={`text-xs font-medium ${
+                isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'
+              }`}>
+                Подписка: {formatDaysRemaining(daysRemaining)}
+                {currentTypeSub.expires_at && (
+                  <span className="ml-1">
+                    (до {new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { 
+                      day: 'numeric', 
+                      month: 'short',
+                      year: daysRemaining > 30 ? 'numeric' : undefined
+                    })})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-4 gap-4">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
             isCoffee ? 'bg-primary/10' : 'bg-accent/10'
           }`}>
@@ -79,59 +154,16 @@ export function BalanceCard() {
             )}
           </div>
           
-          <div>
-            <p className="text-muted-foreground text-sm font-medium">Осталось {remaining} из {total}</p>
-          </div>
-        </div>
-        
-        {/* Progress ring */}
-        <div className="relative w-16 h-16">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-            <path
-              className="text-secondary"
-              stroke="currentColor"
-              strokeWidth="4"
-              fill="none"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-            <path
-              className={isCoffee ? 'text-primary' : 'text-accent'}
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeLinecap="round"
-              fill="none"
-              strokeDasharray={`${percentage}, 100`}
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-bold text-foreground">
-              {Math.round(percentage)}%
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Subscription expiry info */}
-      {currentTypeSub?.expires_at && daysRemaining !== null && (
-        <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${
-          isExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'
-        }`}>
-          <Clock size={14} className={isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
-          <span className={`text-xs font-medium ${
-            isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'
-          }`}>
-            Подписка: {formatDaysRemaining(daysRemaining)}
-            {currentTypeSub.expires_at && (
-              <span className="ml-1">
-                (до {new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { 
-                  day: 'numeric', 
-                  month: 'short',
-                  year: daysRemaining > 30 ? 'numeric' : undefined
-                })})
-              </span>
-            )}
-          </span>
+          <p className="text-muted-foreground text-sm font-medium text-center">
+            У вас нет подписки 😢
+          </p>
+          
+          <Button 
+            onClick={() => navigate('/packages')}
+            className="w-full"
+          >
+            Купить подписку
+          </Button>
         </div>
       )}
     </div>
