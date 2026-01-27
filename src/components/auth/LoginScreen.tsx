@@ -205,7 +205,7 @@ export function LoginScreen({
                 <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full text-lg" autoComplete="tel" />
               </div>
               
-              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
+              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 Отправка смс на beeline недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
               </p>
               
