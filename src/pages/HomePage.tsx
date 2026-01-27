@@ -2,6 +2,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
 import { NearbyShops } from '@/components/home/NearbyShops';
+import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +57,10 @@ export default function HomePage() {
         </div>
         
         {/* Content */}
-        <div className="px-4 space-y-4">
+        <div className="px-4 space-y-5">
+          {/* Top shops carousel */}
+          <TopShopsCarousel />
+          
           <BalanceCard />
           <GetCoffeeButton />
           <NearbyShops />
