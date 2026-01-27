@@ -150,13 +150,15 @@ export default function PartnerScanPage() {
 
   return (
     <PartnerLayout>
-      <div className="p-4 space-y-6">
-        <h2 className="text-xl font-bold text-foreground text-center">
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-foreground text-center px-4 pt-4">
           Сканер QR-кодов
         </h2>
 
         {status === 'ready' && (
-          <QRScanner onScan={handleScan} isProcessing={isProcessing} />
+          <div className="px-4">
+            <QRScanner onScan={handleScan} isProcessing={isProcessing} />
+          </div>
         )}
 
         {status === 'scanning' && (
@@ -240,7 +242,7 @@ export default function PartnerScanPage() {
           </div>
         )}
 
-        <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+        <div className="flex items-start gap-3 p-4 mx-4 bg-amber-500/10 rounded-xl">
           <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-foreground mb-1">Важно!</p>
