@@ -30,8 +30,9 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       await scanner.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
+          fps: 15,
           qrbox: { width: qrboxSize, height: qrboxSize },
+          aspectRatio: 1,
         },
         (decodedText) => {
           onScan(decodedText);
@@ -81,15 +82,18 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       >
         <div id="qr-reader" className="w-full h-full" />
         
-        {/* Custom square frame overlay */}
+        {/* Custom square frame overlay with scanning line */}
         {isScanning && !isProcessing && (
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-[10%] border-2 border-white/80">
               {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white" />
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white" />
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white" />
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white" />
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent" />
+              
+              {/* Animated scanning line */}
+              <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-scan-line shadow-[0_0_8px_hsl(var(--accent))]" />
             </div>
           </div>
         )}

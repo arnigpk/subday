@@ -347,15 +347,15 @@ export default function RedeemPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
             <div className="text-center animate-slide-up">
-              <div className="w-64 h-64 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-4">
+              <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
                   <QRCodeSVG 
                     value={qrCodeData}
-                    size={220}
-                    level="M"
+                    size={260}
+                    level="L"
                     includeMargin={false}
                     bgColor="white"
-                    fgColor="black"
+                    fgColor="#000000"
                   />
                 ) : (
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
