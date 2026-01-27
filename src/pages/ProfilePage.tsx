@@ -1,19 +1,67 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, HelpCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
+  
+  // Check current notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationsEnabled(Notification.permission === 'granted');
+    }
+  }, []);
+  
+  const handleNotificationToggle = async () => {
+    if (!('Notification' in window)) {
+      toast.error('Ваш браузер не поддерживает уведомления');
+      return;
+    }
+    
+    if (notificationsEnabled) {
+      // Can't programmatically revoke, just update UI state
+      setNotificationsEnabled(false);
+      toast.info('Уведомления отключены');
+      return;
+    }
+    
+    try {
+      const permission = await Notification.requestPermission();
+      
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+        toast.success('Уведомления включены!');
+        // Show test notification
+        new Notification('subday', {
+          body: 'Уведомления успешно включены! ☕',
+          icon: '/favicon.ico'
+        });
+      } else if (permission === 'denied') {
+        toast.error('Разрешение на уведомления отклонено. Измените в настройках браузера.');
+      } else {
+        toast.info('Запрос на уведомления отменён');
+      }
+    } catch (error) {
+      console.error('Notification permission error:', error);
+      toast.error('Ошибка при запросе разрешения');
+    }
+  };
+  
+  const handleSupportClick = () => {
+    window.open('https://api.whatsapp.com/send/?phone=77077000994', '_blank');
+  };
   
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -79,10 +127,10 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: 'Город', value: profile?.city || 'Атырау' },
-    { icon: Bell, label: 'Уведомления', value: 'Включены' },
-    { icon: HelpCircle, label: 'Помощь', action: true },
-    { icon: FileText, label: 'Условия', action: true },
+    { icon: MapPin, label: 'Город', value: profile?.city || 'Атырау', type: 'static' as const },
+    { icon: Bell, label: 'Уведомления', type: 'notification' as const },
+    { icon: MessageCircle, label: 'Помощь/техподдержка', type: 'support' as const },
+    { icon: FileText, label: 'Условия', type: 'static' as const },
   ];
   
   return (
@@ -170,6 +218,34 @@ export default function ProfilePage() {
           <div className="space-y-2 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             {menuItems.map((item) => {
               const Icon = item.icon;
+              
+              if (item.type === 'notification') {
+                return (
+                  <div key={item.label} className="card-static flex items-center gap-3">
+                    <Icon size={20} className="text-muted-foreground" />
+                    <span className="flex-1 font-medium text-foreground">{item.label}</span>
+                    <Switch 
+                      checked={notificationsEnabled} 
+                      onCheckedChange={handleNotificationToggle}
+                    />
+                  </div>
+                );
+              }
+              
+              if (item.type === 'support') {
+                return (
+                  <button 
+                    key={item.label} 
+                    onClick={handleSupportClick}
+                    className="w-full card-interactive flex items-center gap-3"
+                  >
+                    <Icon size={20} className="text-muted-foreground" />
+                    <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
+                    <ChevronRight size={18} className="text-muted-foreground" />
+                  </button>
+                );
+              }
+              
               return (
                 <div key={item.label} className="card-interactive flex items-center gap-3">
                   <Icon size={20} className="text-muted-foreground" />
