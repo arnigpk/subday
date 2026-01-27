@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
+import { PublicOfferDialog } from './PublicOfferDialog';
 interface LoginScreenProps {
   onComplete: () => void;
   onSwitchToRegister: (phone?: string) => void;
@@ -268,7 +269,9 @@ export function LoginScreen({
           <TelegramLoginButton botName="subday_lgbot" onSuccess={onComplete} />
         </div>
         
-        <p className="text-xs text-muted-foreground text-center">Продолжая пользоваться приложением, вы соглашаетесь с офертой.</p>
+        <p className="text-xs text-muted-foreground text-center">
+          Продолжая пользоваться приложением, вы соглашаетесь с <PublicOfferDialog>публичной офертой</PublicOfferDialog>.
+        </p>
       </div>
     </div>;
 }
