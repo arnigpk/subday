@@ -50,12 +50,12 @@ export function TopShopsCarousel() {
             <ChevronRight size={16} />
           </Link>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+        <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-shrink-0 w-40">
-              <Skeleton className="w-40 h-28 rounded-xl mb-2" />
-              <Skeleton className="h-4 w-24 mb-1" />
-              <Skeleton className="h-3 w-16" />
+            <div key={i} className="flex-shrink-0 w-32">
+              <Skeleton className="w-32 h-20 rounded-xl mb-2" />
+              <Skeleton className="h-3 w-20 mb-1" />
+              <Skeleton className="h-2.5 w-14" />
             </div>
           ))}
         </div>
@@ -77,15 +77,15 @@ export function TopShopsCarousel() {
         </Link>
       </div>
       
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory">
+      <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory">
         {shops.map((shop) => (
           <Link
             key={shop.id}
             to={`/shops/${shop.id}`}
-            className="flex-shrink-0 w-40 snap-start group"
+            className="flex-shrink-0 w-32 snap-start group"
           >
             {/* Shop Image */}
-            <div className="relative w-40 h-28 rounded-xl overflow-hidden mb-2 bg-secondary">
+            <div className="relative w-32 h-20 rounded-xl overflow-hidden mb-1.5 bg-secondary shadow-sm">
               {shop.logo_url ? (
                 <img
                   src={shop.logo_url}
@@ -93,32 +93,32 @@ export function TopShopsCarousel() {
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-secondary to-muted">
+                <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-secondary to-muted">
                   ☕
                 </div>
               )}
               {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
             </div>
             
             {/* Shop Info */}
-            <div className="space-y-1">
-              <h3 className="font-semibold text-foreground text-sm truncate">{shop.name}</h3>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-0.5">
+            <div className="space-y-0.5">
+              <h3 className="font-semibold text-foreground text-xs truncate">{shop.name}</h3>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-px">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
                       key={star}
-                      size={10}
+                      size={8}
                       className={star <= 4 ? 'fill-accent text-accent' : 'text-muted-foreground/30'}
                     />
                   ))}
                 </div>
-                <span className="text-xs text-muted-foreground">~500м</span>
+                <span className="text-[10px] text-muted-foreground">~500м</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                <span className="text-xs font-medium text-accent">Подписка</span>
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                <span className="text-[10px] font-medium text-accent">Подписка</span>
               </div>
             </div>
           </Link>
