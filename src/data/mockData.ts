@@ -204,7 +204,7 @@ export const historyItems: HistoryItem[] = [
 export const userData: UserData = {
   name: 'Алмас',
   phone: '+7 707 123 45 67',
-  city: 'Алматы',
+  city: 'Атырау',
   coffeeRemaining: 12,
   coffeeTotal: 30,
   drinksRemaining: 8,

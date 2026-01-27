@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
           user_id: signUpData.user.id,
           phone: formattedPhone,
           name: name || null,
-          city: 'Алматы'
+          city: 'Атырау'
         })
 
       if (profileError) {
