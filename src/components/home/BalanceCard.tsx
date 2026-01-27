@@ -80,10 +80,7 @@ export function BalanceCard() {
           </div>
           
           <div>
-            <p className="text-muted-foreground text-xs font-medium">Осталось {remaining} из {total}</p>
-            <p className="text-3xl font-black text-foreground">
-              {remaining}
-            </p>
+            <p className="text-muted-foreground text-sm font-medium">Осталось {remaining} из {total}</p>
           </div>
         </div>
         
