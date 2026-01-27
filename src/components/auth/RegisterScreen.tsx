@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { PublicOfferDialog } from './PublicOfferDialog';
+import { UserAgreementDialog } from './UserAgreementDialog';
 interface RegisterScreenProps {
   onComplete: () => void;
   onSwitchToLogin: () => void;
@@ -192,7 +193,7 @@ export function RegisterScreen({
       
       <div className="p-6 text-center">
         <p className="text-xs text-muted-foreground">
-          Продолжая, ты соглашаешься с <PublicOfferDialog>публичной офертой</PublicOfferDialog>
+          Продолжая, ты соглашаешься с <PublicOfferDialog>публичной офертой</PublicOfferDialog>, <UserAgreementDialog>пользовательским соглашением</UserAgreementDialog>
         </p>
       </div>
     </div>;
