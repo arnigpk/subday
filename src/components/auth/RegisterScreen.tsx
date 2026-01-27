@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
+import { PublicOfferDialog } from './PublicOfferDialog';
 interface RegisterScreenProps {
   onComplete: () => void;
   onSwitchToLogin: () => void;
@@ -191,7 +192,7 @@ export function RegisterScreen({
       
       <div className="p-6 text-center">
         <p className="text-xs text-muted-foreground">
-          Продолжая, ты соглашаешься с условиями использования
+          Продолжая, ты соглашаешься с <PublicOfferDialog>публичной офертой</PublicOfferDialog>
         </p>
       </div>
     </div>;
