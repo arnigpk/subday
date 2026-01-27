@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +17,28 @@ interface Shop {
 export function TopShopsCarousel() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchShops();
   }, []);
+
+  // Handle scroll to update active indicator
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const itemWidth = 128 + 10; // w-32 (128px) + gap (10px)
+      const newIndex = Math.round(scrollLeft / itemWidth);
+      setActiveIndex(Math.min(newIndex, shops.length - 1));
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [shops.length]);
 
   const fetchShops = async () => {
     try {
@@ -50,12 +68,11 @@ export function TopShopsCarousel() {
             <ChevronRight size={16} />
           </Link>
         </div>
-        <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-shrink-0 w-32">
-              <Skeleton className="w-32 h-20 rounded-xl mb-2" />
-              <Skeleton className="h-3 w-20 mb-1" />
-              <Skeleton className="h-2.5 w-14" />
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex-shrink-0 flex flex-col items-center w-20">
+              <Skeleton className="w-16 h-16 rounded-full mb-1.5" />
+              <Skeleton className="h-3 w-14" />
             </div>
           ))}
         </div>
@@ -77,62 +94,47 @@ export function TopShopsCarousel() {
         </Link>
       </div>
       
-      <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory">
+      <div 
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory"
+      >
         {shops.map((shop) => (
           <Link
             key={shop.id}
             to={`/shops/${shop.id}`}
-            className="flex-shrink-0 w-32 snap-start group"
+            className="flex-shrink-0 flex flex-col items-center w-20 snap-start group"
           >
-            {/* Shop Image */}
-            <div className="relative w-32 h-20 rounded-xl overflow-hidden mb-1.5 bg-secondary shadow-sm">
+            {/* Round Shop Image */}
+            <div className="relative w-16 h-16 rounded-full overflow-hidden mb-1.5 bg-secondary shadow-md ring-2 ring-accent/20">
               {shop.logo_url ? (
                 <img
                   src={shop.logo_url}
                   alt={shop.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-secondary to-muted">
+                <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-secondary to-muted">
                   ☕
                 </div>
               )}
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
             </div>
             
-            {/* Shop Info */}
-            <div className="space-y-0.5">
-              <h3 className="font-semibold text-foreground text-xs truncate">{shop.name}</h3>
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-px">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      size={8}
-                      className={star <= 4 ? 'fill-accent text-accent' : 'text-muted-foreground/30'}
-                    />
-                  ))}
-                </div>
-                <span className="text-[10px] text-muted-foreground">~500м</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                <span className="text-[10px] font-medium text-accent">Подписка</span>
-              </div>
-            </div>
+            {/* Shop Name */}
+            <h3 className="font-medium text-foreground text-xs text-center truncate w-full px-1">{shop.name}</h3>
           </Link>
         ))}
       </div>
       
-      {/* Pagination dots */}
-      {shops.length > 2 && (
-        <div className="flex justify-center gap-1.5 mt-3">
-          {shops.slice(0, Math.min(5, Math.ceil(shops.length / 2))).map((_, i) => (
+      {/* Active pagination dots */}
+      {shops.length > 3 && (
+        <div className="flex justify-center gap-1.5 mt-2">
+          {shops.map((_, i) => (
             <div
               key={i}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                i === 0 ? 'bg-accent' : 'bg-muted-foreground/30'
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === activeIndex 
+                  ? 'w-4 bg-accent' 
+                  : 'w-1.5 bg-muted-foreground/30'
               }`}
             />
           ))}
