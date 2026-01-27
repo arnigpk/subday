@@ -206,7 +206,7 @@ export function LoginScreen({
               </div>
               
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                Отправка смс на beeline недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
+                Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
               </p>
               
               <button onClick={handleSendCode} disabled={phone.replace(/\D/g, '').length < 11 || isLoading} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
