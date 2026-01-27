@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Star } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isShopOpen } from '@/utils/shopHours';
 
 interface Shop {
   id: string;
@@ -98,31 +99,41 @@ export function TopShopsCarousel() {
         ref={scrollRef}
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory"
       >
-        {shops.map((shop) => (
-          <Link
-            key={shop.id}
-            to={`/shops/${shop.id}`}
-            className="flex-shrink-0 flex flex-col items-center w-20 snap-start group"
-          >
-            {/* Round Shop Image */}
-            <div className="relative w-16 h-16 rounded-full overflow-hidden mb-1.5 bg-secondary shadow-md ring-2 ring-accent/20">
-              {shop.logo_url ? (
-                <img
-                  src={shop.logo_url}
-                  alt={shop.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-secondary to-muted">
-                  ☕
+        {shops.map((shop) => {
+          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          
+          return (
+            <Link
+              key={shop.id}
+              to={`/shops/${shop.id}`}
+              className="flex-shrink-0 flex flex-col items-center w-20 snap-start group"
+            >
+              {/* Round Shop Image with Status Indicator */}
+              <div className="relative w-16 h-16 mb-1.5">
+                <div className="w-full h-full rounded-full overflow-hidden bg-secondary shadow-md ring-2 ring-accent/20">
+                  {shop.logo_url ? (
+                    <img
+                      src={shop.logo_url}
+                      alt={shop.name}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-secondary to-muted">
+                      ☕
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-            {/* Shop Name */}
-            <h3 className="font-medium text-foreground text-xs text-center truncate w-full px-1">{shop.name}</h3>
-          </Link>
-        ))}
+                {/* Open/Closed Indicator */}
+                <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-background ${
+                  isOpen ? 'bg-accent' : 'bg-destructive'
+                }`} />
+              </div>
+              
+              {/* Shop Name */}
+              <h3 className="font-medium text-foreground text-xs text-center truncate w-full px-1">{shop.name}</h3>
+            </Link>
+          );
+        })}
       </div>
       
       {/* Active pagination dots */}
