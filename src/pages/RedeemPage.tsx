@@ -228,39 +228,6 @@ export default function RedeemPage() {
     return JSON.stringify(data);
   }, [userId, selectedShop, drinkType, drinkName, remaining]);
 
-  // Check if scan is allowed (for simulation only in dev)
-  const canScan = remaining > 0 && selectedShop?.isCurrentlyOpen;
-  
-  // Simulation function for testing (kept for development purposes)
-  const handleSimulateScan = async () => {
-    if (remaining <= 0) {
-      toast.error('У вас закончились напитки в пакете');
-      return;
-    }
-
-    if (!selectedShop) {
-      toast.error('Выберите кофейню');
-      return;
-    }
-
-    if (!selectedShop.isCurrentlyOpen) {
-      toast.error('Кофейня сейчас закрыта');
-      return;
-    }
-    
-    setStatus('scanning');
-    
-    // Simulate scanning delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // For simulation, directly update stats (in real usage, partner scan triggers this)
-    setStatus('success');
-    setShowConfetti(true);
-    playSuccessSound();
-    vibrateSuccess();
-    refetch();
-    setTimeout(() => setShowConfetti(false), 2000);
-  };
   
   const goHome = () => {
     navigate('/');
@@ -405,18 +372,6 @@ export default function RedeemPage() {
                   Кофейня сейчас закрыта
                 </p>
               )}
-              
-              <button 
-                onClick={handleSimulateScan}
-                className="btn-primary"
-                disabled={!canScan}
-              >
-                {remaining <= 0 
-                  ? 'Нет доступных напитков' 
-                  : !selectedShop?.isCurrentlyOpen 
-                    ? 'Кофейня закрыта'
-                    : 'Имитировать скан'}
-              </button>
             </div>
           )}
           
