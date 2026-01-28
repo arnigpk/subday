@@ -93,6 +93,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50">
         <div className="flex items-center justify-between p-4">
           <div>
+            <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs mb-1">
+              <ChevronLeft className="w-3 h-3" />
+              <span>В приложение</span>
+            </Link>
             <h1 className="font-bold">subday admin</h1>
             <p className="text-xs text-muted-foreground capitalize">{role}</p>
           </div>
