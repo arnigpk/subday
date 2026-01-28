@@ -270,7 +270,7 @@ export function LoginScreen({
         </div>
         
         <p className="text-xs text-muted-foreground text-center">
-          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog>правилами сервиса</ServiceRulesDialog>.
+          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">правилами сервиса</button></ServiceRulesDialog>.
         </p>
       </div>
     </div>;

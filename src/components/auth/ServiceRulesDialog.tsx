@@ -19,9 +19,7 @@ export function ServiceRulesDialog({ children }: ServiceRulesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button type="button" className="text-primary underline hover:text-primary/80 transition-colors">
-          {children}
-        </button>
+        {children}
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[85vh] p-0">
         <DialogHeader className="p-4 pb-0">

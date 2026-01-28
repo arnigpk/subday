@@ -250,11 +250,11 @@ export default function ProfilePage() {
               if (item.type === 'rules') {
                 return (
                   <ServiceRulesDialog key={item.label}>
-                    <div className="card-interactive flex items-center gap-3 cursor-pointer">
+                    <button type="button" className="w-full card-interactive flex items-center gap-3 text-left">
                       <Icon size={20} className="text-muted-foreground" />
                       <span className="flex-1 font-medium text-foreground">{item.label}</span>
                       <ChevronRight size={18} className="text-muted-foreground" />
-                    </div>
+                    </button>
                   </ServiceRulesDialog>
                 );
               }
