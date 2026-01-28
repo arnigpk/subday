@@ -268,6 +268,44 @@ export default function AdminUsersPage() {
   const handleAddSubscription = async () => {
     if (!editingUser || !selectedSubscription) return;
 
+    // Handle "no subscription" option - deactivate all subscriptions and reset balance
+    if (selectedSubscription === 'no_subscription') {
+      try {
+        // Deactivate all active subscriptions for this user
+        await supabase
+          .from('user_subscriptions')
+          .update({ is_active: false })
+          .eq('user_id', editingUser.user_id)
+          .eq('is_active', true);
+
+        // Reset user stats to 0
+        await supabase
+          .from('user_stats')
+          .update({
+            coffee_remaining: 0,
+            coffee_total: 0,
+            drinks_remaining: 0,
+            drinks_total: 0,
+          })
+          .eq('user_id', editingUser.user_id);
+
+        setFormData(prev => ({ 
+          ...prev, 
+          coffee_remaining: 0,
+          drinks_remaining: 0,
+        }));
+
+        toast({ title: 'Подписка отменена', description: 'Баланс пользователя обнулён' });
+        setSelectedSubscription('');
+        fetchUsers();
+        return;
+      } catch (error) {
+        console.error('Error removing subscription:', error);
+        toast({ title: 'Ошибка отмены подписки', variant: 'destructive' });
+        return;
+      }
+    }
+
     const subType = subscriptionTypes.find(s => s.id === selectedSubscription);
     if (!subType) return;
 
@@ -292,13 +330,11 @@ export default function AdminUsersPage() {
         setFormData(prev => ({ 
           ...prev, 
           coffee_remaining: result.cups_count || subType.cups_count,
-          coffee_total: result.cups_count || subType.cups_count 
         }));
       } else {
         setFormData(prev => ({ 
           ...prev, 
           drinks_remaining: result.cups_count || subType.cups_count,
-          drinks_total: result.cups_count || subType.cups_count 
         }));
       }
 
@@ -575,13 +611,16 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="border-t pt-4">
-              <Label>Добавить подписку</Label>
+              <Label>Управление подпиской</Label>
               <div className="flex gap-2 mt-2">
                 <Select value={selectedSubscription} onValueChange={setSelectedSubscription}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Выберите подписку" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="no_subscription">
+                      <span className="text-destructive">Нет подписки (обнулить)</span>
+                    </SelectItem>
                     {subscriptionTypes.map(sub => (
                       <SelectItem key={sub.id} value={sub.id}>
                         {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'})
@@ -590,7 +629,7 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
                 <Button onClick={handleAddSubscription} disabled={!selectedSubscription}>
-                  Добавить
+                  {selectedSubscription === 'no_subscription' ? 'Применить' : 'Добавить'}
                 </Button>
               </div>
             </div>

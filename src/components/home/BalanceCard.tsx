@@ -27,8 +27,9 @@ export function BalanceCard() {
     s.subscription_type === activeTab
   );
   
-  // Check if user has any subscription for current type
-  const hasSubscription = !!currentTypeSub && total > 0;
+  // Check if user has any subscription for current type AND has remaining cups
+  // If remaining is 0, treat it as no subscription
+  const hasSubscription = !!currentTypeSub && total > 0 && remaining > 0;
   
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
