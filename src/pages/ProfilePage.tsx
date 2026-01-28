@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -130,7 +131,7 @@ export default function ProfilePage() {
     { icon: MapPin, label: 'Город', value: profile?.city || 'Атырау', type: 'static' as const },
     { icon: Bell, label: 'Уведомления', type: 'notification' as const },
     { icon: MessageCircle, label: 'Помощь/техподдержка', type: 'support' as const },
-    { icon: FileText, label: 'Условия', type: 'static' as const },
+    { icon: FileText, label: 'Правила сервиса', type: 'rules' as const },
   ];
   
   return (
@@ -243,6 +244,18 @@ export default function ProfilePage() {
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     <ChevronRight size={18} className="text-muted-foreground" />
                   </button>
+                );
+              }
+              
+              if (item.type === 'rules') {
+                return (
+                  <ServiceRulesDialog key={item.label}>
+                    <div className="card-interactive flex items-center gap-3 cursor-pointer">
+                      <Icon size={20} className="text-muted-foreground" />
+                      <span className="flex-1 font-medium text-foreground">{item.label}</span>
+                      <ChevronRight size={18} className="text-muted-foreground" />
+                    </div>
+                  </ServiceRulesDialog>
                 );
               }
               
