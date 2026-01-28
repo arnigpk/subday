@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
-import { PublicOfferDialog } from './PublicOfferDialog';
-import { UserAgreementDialog } from './UserAgreementDialog';
+import { ServiceRulesDialog } from './ServiceRulesDialog';
 interface LoginScreenProps {
   onComplete: () => void;
   onSwitchToRegister: (phone?: string) => void;
@@ -271,7 +270,7 @@ export function LoginScreen({
         </div>
         
         <p className="text-xs text-muted-foreground text-center">
-          Продолжая пользоваться приложением, вы соглашаетесь с <PublicOfferDialog>публичной офертой</PublicOfferDialog>, <UserAgreementDialog>пользовательским соглашением</UserAgreementDialog>.
+          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog>правилами сервиса</ServiceRulesDialog>.
         </p>
       </div>
     </div>;
