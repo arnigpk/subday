@@ -62,7 +62,15 @@ interface SubscriptionType {
   badge: string | null;
   sort_order: number;
   created_at: string;
+  features: string[] | null;
 }
+
+const DEFAULT_FEATURES = [
+  'Любой кофейный напиток',
+  'Без ограничений по размеру',
+  '1 напиток за визит',
+  'Во всех партнёрских кофейнях',
+];
 
 const BADGE_OPTIONS = [
   { value: '', label: 'Без бейджа', icon: null },
@@ -102,6 +110,7 @@ export default function AdminSubscriptionsPage() {
     duration_days: 30,
     is_active: true,
     badge: '',
+    features: DEFAULT_FEATURES,
   });
 
   const sensors = useSensors(
@@ -176,6 +185,7 @@ export default function AdminSubscriptionsPage() {
       duration_days: 30,
       is_active: true,
       badge: '',
+      features: DEFAULT_FEATURES,
     });
     setIsDialogOpen(true);
   };
@@ -191,6 +201,7 @@ export default function AdminSubscriptionsPage() {
       duration_days: sub.duration_days,
       is_active: sub.is_active,
       badge: sub.badge || '',
+      features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
     });
     setIsDialogOpen(true);
   };
@@ -214,6 +225,7 @@ export default function AdminSubscriptionsPage() {
             duration_days: formData.duration_days,
             is_active: formData.is_active,
             badge: formData.badge || null,
+            features: formData.features.filter(f => f.trim() !== ''),
           })
           .eq('id', editingSub.id);
 
@@ -236,6 +248,7 @@ export default function AdminSubscriptionsPage() {
             is_active: formData.is_active,
             badge: formData.badge || null,
             sort_order: maxOrder + 1,
+            features: formData.features.filter(f => f.trim() !== ''),
           });
 
         if (error) throw error;
@@ -448,7 +461,7 @@ export default function AdminSubscriptionsPage() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  365+ = 1 год, иначе 30 дней
+                  360+ = 1 год, 180+ = 6 мес, иначе 30 дней
                 </p>
               </div>
               <div>
@@ -485,6 +498,48 @@ export default function AdminSubscriptionsPage() {
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
               <Label htmlFor="is_active">Активна</Label>
+            </div>
+            
+            {/* Features section */}
+            <div>
+              <Label className="mb-2 block">Что входит (функции)</Label>
+              <div className="space-y-2">
+                {formData.features.map((feature, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={feature}
+                      onChange={(e) => {
+                        const newFeatures = [...formData.features];
+                        newFeatures[index] = e.target.value;
+                        setFormData({ ...formData, features: newFeatures });
+                      }}
+                      placeholder={`Функция ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const newFeatures = formData.features.filter((_, i) => i !== index);
+                        setFormData({ ...formData, features: newFeatures });
+                      }}
+                      disabled={formData.features.length <= 1}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => setFormData({ ...formData, features: [...formData.features, ''] })}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Добавить функцию
+              </Button>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>

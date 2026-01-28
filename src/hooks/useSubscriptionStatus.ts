@@ -10,6 +10,8 @@ interface ActiveSubscription {
   subscription_name?: string;
   subscription_type?: string;
   cups_count?: number;
+  duration_days?: number;
+  features?: string[];
 }
 
 interface SubscriptionStatus {
@@ -53,7 +55,9 @@ export function useSubscriptionStatus() {
           subscription_types (
             name,
             type,
-            cups_count
+            cups_count,
+            duration_days,
+            features
           )
         `)
         .eq('user_id', user.id)
@@ -74,6 +78,8 @@ export function useSubscriptionStatus() {
         subscription_name: (sub.subscription_types as { name: string } | null)?.name,
         subscription_type: (sub.subscription_types as { type: string } | null)?.type,
         cups_count: (sub.subscription_types as { cups_count: number } | null)?.cups_count,
+        duration_days: (sub.subscription_types as { duration_days: number } | null)?.duration_days,
+        features: (sub.subscription_types as { features: string[] } | null)?.features,
       }));
 
       // Calculate days remaining for the soonest expiring subscription
