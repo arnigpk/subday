@@ -30,10 +30,12 @@ export function ServiceRulesDialog({ children }: ServiceRulesDialogProps) {
         
         <Tabs defaultValue="offer" className="w-full">
           <div className="px-4">
-            <TabsList className="grid w-full grid-cols-3 h-auto">
-              <TabsTrigger value="offer" className="text-xs py-2 px-1">Оферта</TabsTrigger>
-              <TabsTrigger value="agreement" className="text-xs py-2 px-1">Соглашение</TabsTrigger>
-              <TabsTrigger value="privacy" className="text-xs py-2 px-1">Конфиденц.</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5 h-auto">
+              <TabsTrigger value="offer" className="text-[10px] py-2 px-1">Оферта</TabsTrigger>
+              <TabsTrigger value="agreement" className="text-[10px] py-2 px-1">Соглашение</TabsTrigger>
+              <TabsTrigger value="privacy" className="text-[10px] py-2 px-1">Конфиденц.</TabsTrigger>
+              <TabsTrigger value="rules" className="text-[10px] py-2 px-1">Правила</TabsTrigger>
+              <TabsTrigger value="marketing" className="text-[10px] py-2 px-1">Рассылки</TabsTrigger>
             </TabsList>
           </div>
           
@@ -48,6 +50,14 @@ export function ServiceRulesDialog({ children }: ServiceRulesDialogProps) {
             
             <TabsContent value="privacy" className="mt-4 space-y-4 text-sm text-muted-foreground">
               <PrivacyPolicyContent />
+            </TabsContent>
+            
+            <TabsContent value="rules" className="mt-4 space-y-4 text-sm text-muted-foreground">
+              <PackageRulesContent />
+            </TabsContent>
+            
+            <TabsContent value="marketing" className="mt-4 space-y-4 text-sm text-muted-foreground">
+              <MarketingConsentContent />
             </TabsContent>
           </ScrollArea>
         </Tabs>
@@ -324,7 +334,110 @@ function PrivacyPolicyContent() {
         <div className="text-center">
           <h4 className="font-bold text-foreground">СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</h4>
         </div>
-        <p>Я даю ИП «ЭВРИКА», ИИН 980102400093, согласие на сбор, хранение, обработку и передачу моих персональных данных в объёме и целях, указанных в Политике конфиденциальности Subday.</p>
+        <p>Я даю ИП «ЭВРИКА», ИИН 980102400093, согласие на сбор, хранение, обработку и передачу моих персональных данных в объёме и целях, указанных в Политике конфиденциальности Subday, включая регистрацию, проведение оплат, учёт Пакетов/Погашений, гостевой доступ, поддержку, безопасность и антифрод.</p>
+        <p className="text-xs">Дата: Дата принятия правил — Подтверждение: авторизация, регистрация, вход в приложение.</p>
+      </div>
+    </>
+  );
+}
+
+function PackageRulesContent() {
+  return (
+    <>
+      <div className="text-center space-y-1">
+        <h3 className="font-bold text-foreground text-base">ПРАВИЛА SUBDAY</h3>
+        <p className="text-xs">Правила пакетов, погашений и гостевого доступа</p>
+      </div>
+      
+      <div className="space-y-1 text-xs">
+        <p><strong>Дата размещения:</strong> 28 января 2026 г.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Пакеты:</h4>
+        <ul className="list-disc list-inside space-y-1">
+          <li>30 кофе — 30 дней</li>
+          <li>45 кофе — 30 дней</li>
+          <li>180 кофе — 180 дней</li>
+          <li>365 кофе — 365 дней (с даты успешной оплаты)</li>
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Перенос остатков:</h4>
+        <p>Нет. Неиспользованное сгорает по окончании срока.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Лимиты в день:</h4>
+        <p>Нет.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Любой кофе:</h4>
+        <p>Любой кофейный напиток. Альтернативное молоко/сиропы — доплата на месте.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Передача пакета:</h4>
+        <p>Запрещена.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Гостевой доступ:</h4>
+        <ul className="list-disc list-inside space-y-1">
+          <li>1 раз на аккаунт</li>
+          <li>Действует 3 дня</li>
+          <li>При выдаче у пригласившего списывается 1 напиток</li>
+          <li>Если гость не успел — списание не возвращается</li>
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Возвраты:</h4>
+        <p>По желанию не предусмотрены; ошибки списаний решаются через поддержку.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Поддержка:</h4>
+        <p>supp@subday.app, +7 707 700 0994</p>
+      </div>
+    </>
+  );
+}
+
+function MarketingConsentContent() {
+  return (
+    <>
+      <div className="text-center space-y-1">
+        <h3 className="font-bold text-foreground text-base">СОГЛАСИЕ НА МАРКЕТИНГОВЫЕ РАССЫЛКИ</h3>
+        <p className="text-xs">(Push / WhatsApp / Telegram)</p>
+      </div>
+
+      <div className="space-y-4">
+        <p>Я даю согласие ИП «ЭВРИКА» (Subday) на получение рекламных и маркетинговых сообщений об акциях, новостях сервиса и предложениях партнёров по следующим каналам:</p>
+        
+        <ul className="list-disc list-inside space-y-1">
+          <li>Push-уведомления</li>
+          <li>WhatsApp-сообщения</li>
+          <li>Telegram-сообщения</li>
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-semibold text-foreground">Я понимаю, что:</h4>
+        <ul className="list-disc list-inside space-y-1">
+          <li>Сообщения могут содержать рекламу и спецпредложения</li>
+          <li>Согласие является добровольным и может быть отозвано в любой момент:</li>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li>через настройки Subday (если предусмотрено), и/или</li>
+            <li>обращением в поддержку: supp@subday.app</li>
+          </ul>
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs">Согласие действует до его отзыва. Отзыв: обращение на supp@subday.app (с учётом случаев, когда обработка допускается без согласия по закону).</p>
         <p className="text-xs">Дата: Дата принятия правил — Подтверждение: авторизация, регистрация, вход в приложение.</p>
       </div>
     </>
