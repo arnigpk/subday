@@ -191,8 +191,7 @@ export function RegisterScreen({
       </div>
       
       <div className="p-6 text-center">
-        <p className="text-xs text-muted-foreground">
-          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog>правилами сервиса</ServiceRulesDialog>.
+        <p className="text-xs text-muted-foreground">Продолжая пользоваться приложением, вы соглашаетесь с правилами сервиса.<ServiceRulesDialog>правилами сервиса</ServiceRulesDialog>.
         </p>
       </div>
     </div>;
