@@ -156,6 +156,7 @@ export type Database = {
           cups_count: number
           description: string | null
           duration_days: number | null
+          features: string[] | null
           id: string
           is_active: boolean | null
           name: string
@@ -170,6 +171,7 @@ export type Database = {
           cups_count: number
           description?: string | null
           duration_days?: number | null
+          features?: string[] | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -184,6 +186,7 @@ export type Database = {
           cups_count?: number
           description?: string | null
           duration_days?: number | null
+          features?: string[] | null
           id?: string
           is_active?: boolean | null
           name?: string

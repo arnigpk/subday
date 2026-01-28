@@ -4,6 +4,7 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Sparkles, Coffee, Zap, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getPeriodText } from '@/utils/subscriptionDuration';
 
 interface SubscriptionType {
   id: string;
@@ -41,12 +42,6 @@ const getBadgeStyle = (badge: string | null): { icon: typeof Sparkles; gradient:
     default:
       return { icon: Sparkles, gradient: 'from-accent to-primary' };
   }
-};
-
-const getPeriod = (days: number): string => {
-  if (days >= 365) return 'год';
-  if (days >= 30) return 'месяц';
-  return `${days} дней`;
 };
 
 const getOriginalPrice = (cups: number, type: string): number => {
@@ -115,9 +110,9 @@ export default function PackagesPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredSubscriptions.map((sub, index) => {
+            {filteredSubscriptions.map((sub, index) => {
                 const badgeStyle = getBadgeStyle(sub.badge);
-                const period = getPeriod(sub.duration_days);
+                const period = getPeriodText(sub.duration_days);
                 const originalPrice = getOriginalPrice(sub.cups_count, sub.type);
                 const savingsPercent = getSavingsPercent(originalPrice, sub.price);
                 const BadgeIcon = badgeStyle?.icon || Sparkles;

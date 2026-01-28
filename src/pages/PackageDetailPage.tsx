@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Info, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getPeriodText } from '@/utils/subscriptionDuration';
 
 interface SubscriptionType {
   id: string;
@@ -13,16 +14,11 @@ interface SubscriptionType {
   price: number;
   duration_days: number;
   badge: string | null;
+  features: string[] | null;
 }
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price) + ' ₸';
-};
-
-const getPeriod = (days: number): string => {
-  if (days >= 365) return 'год';
-  if (days >= 30) return 'месяц';
-  return `${days} дней`;
 };
 
 export default function PackageDetailPage() {
@@ -78,9 +74,10 @@ export default function PackageDetailPage() {
   }
 
   const isCoffee = subscription.type === 'coffee';
-  const period = getPeriod(subscription.duration_days);
+  const period = getPeriodText(subscription.duration_days);
   
-  const features = isCoffee
+  // Use features from database or fallback to defaults
+  const defaultFeatures = isCoffee
     ? [
         'Любой кофейный напиток',
         'Без ограничений по размеру',
@@ -93,6 +90,10 @@ export default function PackageDetailPage() {
         '1 напиток за визит',
         'Во всех партнёрских кофейнях',
       ];
+  
+  const features = subscription.features && subscription.features.length > 0 
+    ? subscription.features 
+    : defaultFeatures;
 
   // Calculate original price for savings display
   const pricePerCup = isCoffee ? 1500 : 1200;
