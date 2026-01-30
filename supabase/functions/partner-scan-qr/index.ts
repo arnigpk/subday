@@ -13,6 +13,45 @@ interface ScanRequest {
   drinkName: string;
 }
 
+/**
+ * Extracts Telegram ID from phone field
+ * Format: +telegram_123456789
+ */
+function extractTelegramId(phone: string): string | null {
+  const match = phone.match(/^\+telegram_(\d+)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Sends a message via Telegram Bot API
+ */
+async function sendTelegramMessage(telegramId: string, message: string, botToken: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: telegramId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    });
+
+    const result = await response.json();
+    
+    if (!result.ok) {
+      console.error('Telegram API error:', result);
+      return false;
+    }
+    
+    console.log('Low balance notification sent to:', telegramId);
+    return true;
+  } catch (error) {
+    console.error('Error sending Telegram message:', error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -169,12 +208,47 @@ Deno.serve(async (req) => {
       // Don't fail the whole operation, stats are already updated
     }
 
-    // Get customer name
+    // Get customer name and phone for notification
     const { data: profile } = await supabase
       .from('profiles')
-      .select('name')
+      .select('name, phone')
       .eq('user_id', userId)
       .maybeSingle();
+
+    // Check for low balance notification (7, 5, 3 cups remaining)
+    const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
+    
+    if ([7, 5, 3].includes(newRemaining) && profile?.phone) {
+      const telegramId = extractTelegramId(profile.phone);
+      
+      if (telegramId) {
+        const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+        
+        if (telegramBotToken) {
+          // Get user's active subscription to calculate days remaining
+          const { data: subscription } = await supabase
+            .from('user_subscriptions')
+            .select('expires_at')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+          
+          let daysRemaining = 0;
+          if (subscription?.expires_at) {
+            const expiresAt = new Date(subscription.expires_at);
+            const now = new Date();
+            daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+          }
+          
+          const message = `⚠️ У вас по подписке осталось ${newRemaining} кофе на ${daysRemaining} дней.`;
+          
+          // Send notification asynchronously (don't await to not slow down the response)
+          sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
+            console.error('Failed to send low balance notification:', err);
+          });
+        }
+      }
+    }
 
     console.log('Scan successful:', { userId, drinkName, remaining: newStats.coffee_remaining + newStats.drinks_remaining });
 
