@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { Star, Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
+import { AddressesList } from '@/components/shop/AddressesList';
 
 interface Shop {
   id: string;
   name: string;
   address: string | null;
+  addresses: string[] | null;
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
@@ -134,11 +136,13 @@ export default function ShopsPage() {
                           <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
                         </div>
                         
-                        {shop.address && (
-                          <p className="text-sm text-muted-foreground truncate">{shop.address}</p>
-                        )}
-                        
-                        <div className="flex items-center gap-4 mt-2">
+                        {/* Addresses */}
+                        <AddressesList 
+                          addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
+                          variant="compact"
+                          className="mt-2"
+                        />
+                        <div className="flex items-center gap-4 mt-1">
                           {shop.city && (
                             <div className="flex items-center gap-1">
                               <Navigation size={12} className="text-muted-foreground" />

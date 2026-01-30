@@ -11,6 +11,7 @@ import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
+import { AddressesEditor } from '@/components/shop/AddressesEditor';
 
 interface Stats {
   today: number;
@@ -22,6 +23,7 @@ interface Stats {
 interface ShopData {
   name: string;
   address: string;
+  addresses: string[];
   working_hours: string;
   logo_url: string | null;
 }
@@ -51,14 +53,16 @@ export default function PartnerDashboard() {
         // Fetch shop data
         const { data: shop } = await supabase
           .from('shops')
-          .select('name, address, working_hours, logo_url')
+          .select('name, address, addresses, working_hours, logo_url')
           .eq('id', shopId)
           .maybeSingle();
 
         if (shop) {
+          const addressesArray = shop.addresses || (shop.address ? [shop.address] : []);
           setShopData({
             name: shop.name,
             address: shop.address || '',
+            addresses: addressesArray,
             working_hours: shop.working_hours || '09:00-21:00',
             logo_url: shop.logo_url || null,
           });
@@ -158,7 +162,8 @@ export default function PartnerDashboard() {
         .from('shops')
         .update({
           name: editedShopData.name.trim(),
-          address: editedShopData.address.trim(),
+          address: editedShopData.addresses[0]?.trim() || null,
+          addresses: editedShopData.addresses.map(a => a.trim()).filter(Boolean),
           working_hours: editedShopData.working_hours.trim(),
           logo_url: editedShopData.logo_url,
         })
@@ -282,12 +287,9 @@ export default function PartnerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shop-address">Адрес</Label>
-                  <Input
-                    id="shop-address"
-                    value={editedShopData.address}
-                    onChange={(e) => setEditedShopData({ ...editedShopData, address: e.target.value })}
-                    placeholder="ул. Примерная, 1"
+                  <AddressesEditor
+                    addresses={editedShopData.addresses}
+                    onChange={(addresses) => setEditedShopData({ ...editedShopData, addresses, address: addresses[0] || '' })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -328,8 +330,16 @@ export default function PartnerDashboard() {
                     <p className="font-medium">{shopData.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Адрес</p>
-                    <p className="font-medium">{shopData.address || '—'}</p>
+                    <p className="text-sm text-muted-foreground">Адреса</p>
+                    {shopData.addresses.length > 0 ? (
+                      <div className="space-y-1">
+                        {shopData.addresses.map((addr, index) => (
+                          <p key={index} className="font-medium">{addr}</p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="font-medium">{shopData.address || '—'}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Время работы</p>
