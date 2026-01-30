@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
             daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
           }
           
-          const message = `⚠️ У вас по подписке осталось ${newRemaining} кофе на ${daysRemaining} дней.`;
+          const message = `⚠️ Осталось мало кофе: ${newRemaining} на ${daysRemaining} дней 🥹\nУспейте продлить при необходимости 🙂`;
           
           // Send notification asynchronously (don't await to not slow down the response)
           sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
