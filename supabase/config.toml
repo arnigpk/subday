@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.expire-subscriptions]
 verify_jwt = false
+
+[functions.send-subscription-notification]
+verify_jwt = false

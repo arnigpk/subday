@@ -319,7 +319,7 @@ export default function AdminUsersPage() {
       if (error) throw error;
 
       // Parse the response (it's a JSON object from the function)
-      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string } | null;
+      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string; duration_days?: number } | null;
 
       if (!result?.success) {
         throw new Error(result?.error || 'Unknown error');
@@ -344,6 +344,22 @@ export default function AdminUsersPage() {
         month: 'long', 
         year: 'numeric' 
       });
+
+      // Send Telegram notification about subscription activation
+      try {
+        await supabase.functions.invoke('send-subscription-notification', {
+          body: {
+            type: 'activated',
+            userId: editingUser.user_id,
+            cupsCount: result.cups_count || subType.cups_count,
+            daysCount: result.duration_days || subType.duration_days,
+          },
+        });
+        console.log('Subscription activation notification sent');
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+        // Don't fail the whole operation if notification fails
+      }
 
       toast({ 
         title: `Подписка "${subType.name}" активирована`,
