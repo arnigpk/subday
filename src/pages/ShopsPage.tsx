@@ -137,7 +137,7 @@ export default function ShopsPage() {
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
                           {/* Distance placeholder for Google Maps integration */}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">— км</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">— м</span>
                         </div>
                         
                         {/* Addresses - clickable area stops propagation */}
