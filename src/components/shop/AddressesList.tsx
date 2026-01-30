@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 
 interface AddressesListProps {
   addresses: string[];
@@ -40,24 +35,34 @@ export function AddressesList({ addresses, className, variant = 'full' }: Addres
   }
 
   // Multiple addresses - show collapsible
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
-      <CollapsibleTrigger className="flex items-center gap-1 group cursor-pointer w-full" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+    <div className={className}>
+      <button
+        type="button"
+        onClick={handleTriggerClick}
+        className="flex items-center gap-1 group cursor-pointer w-full text-left"
+      >
         <MapPin size={variant === 'compact' ? 12 : 16} className="text-muted-foreground shrink-0" />
         <span className={cn(
           'text-primary hover:underline',
           variant === 'compact' ? 'text-xs' : 'text-sm font-medium'
         )}>
-          Посмотреть все адреса ({addresses.length})
+          Выбрать адрес ({addresses.length})
         </span>
         {isOpen ? (
           <ChevronUp size={14} className="text-muted-foreground" />
         ) : (
           <ChevronDown size={14} className="text-muted-foreground" />
         )}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2">
-        <div className="space-y-1.5 pl-5 border-l-2 border-primary/20 ml-2">
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-1.5 pl-5 border-l-2 border-primary/20 ml-2">
           {addresses.map((address, index) => (
             <div key={index} className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-primary/50" />
@@ -70,7 +75,7 @@ export function AddressesList({ addresses, className, variant = 'full' }: Addres
             </div>
           ))}
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      )}
+    </div>
   );
 }
