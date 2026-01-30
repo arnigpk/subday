@@ -113,6 +113,7 @@ export type Database = {
       shops: {
         Row: {
           address: string | null
+          addresses: string[] | null
           city: string | null
           created_at: string | null
           id: string
@@ -125,6 +126,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          addresses?: string[] | null
           city?: string | null
           created_at?: string | null
           id?: string
@@ -137,6 +139,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          addresses?: string[] | null
           city?: string | null
           created_at?: string | null
           id?: string

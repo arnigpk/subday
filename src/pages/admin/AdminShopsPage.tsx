@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
+import { AddressesEditor } from '@/components/shop/AddressesEditor';
 import {
   DndContext,
   closestCenter,
@@ -46,6 +47,7 @@ interface Shop {
   id: string;
   name: string;
   address: string | null;
+  addresses: string[] | null;
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
@@ -62,7 +64,7 @@ export default function AdminShopsPage() {
   const [deleteShopId, setDeleteShopId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    address: '',
+    addresses: [] as string[],
     city: 'Атырау',
     working_hours: '09:00-21:00',
     is_active: true,
@@ -134,7 +136,7 @@ export default function AdminShopsPage() {
     setEditingShop(null);
     setFormData({
       name: '',
-      address: '',
+      addresses: [],
       city: 'Атырау',
       working_hours: '09:00-21:00',
       is_active: true,
@@ -147,7 +149,7 @@ export default function AdminShopsPage() {
     setEditingShop(shop);
     setFormData({
       name: shop.name,
-      address: shop.address || '',
+      addresses: shop.addresses || (shop.address ? [shop.address] : []),
       city: shop.city || 'Атырау',
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
@@ -168,7 +170,8 @@ export default function AdminShopsPage() {
           .from('shops')
           .update({
             name: formData.name,
-            address: formData.address || null,
+            address: formData.addresses[0] || null,
+            addresses: formData.addresses,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
@@ -187,7 +190,8 @@ export default function AdminShopsPage() {
           .from('shops')
           .insert({
             name: formData.name,
-            address: formData.address || null,
+            address: formData.addresses[0] || null,
+            addresses: formData.addresses,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
@@ -349,15 +353,10 @@ export default function AdminShopsPage() {
                 placeholder="Coffee Room"
               />
             </div>
-            <div>
-              <Label htmlFor="address">Адрес</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="ул. Сатпаева 20"
-              />
-            </div>
+            <AddressesEditor
+              addresses={formData.addresses}
+              onChange={(addresses) => setFormData({ ...formData, addresses })}
+            />
             <div>
               <Label htmlFor="city">Город</Label>
               <Input

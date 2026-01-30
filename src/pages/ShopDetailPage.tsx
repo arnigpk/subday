@@ -10,6 +10,7 @@ interface Shop {
   id: string;
   name: string;
   address: string | null;
+  addresses: string[] | null;
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
@@ -128,9 +129,19 @@ export default function ShopDetailPage() {
             
             <div className="flex items-start gap-2 text-muted-foreground">
               <MapPin size={18} className="mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium text-foreground">{shop.address || 'Адрес не указан'}</p>
-                <p className="text-sm">{shop.working_hours || '—'}</p>
+              <div className="flex-1">
+                {(shop.addresses && shop.addresses.length > 0) ? (
+                  <div className="space-y-1">
+                    {shop.addresses.map((addr, index) => (
+                      <p key={index} className="font-medium text-foreground">{addr}</p>
+                    ))}
+                  </div>
+                ) : shop.address ? (
+                  <p className="font-medium text-foreground">{shop.address}</p>
+                ) : (
+                  <p className="font-medium text-foreground">Адрес не указан</p>
+                )}
+                <p className="text-sm mt-1">{shop.working_hours || '—'}</p>
                 {shop.city && <p className="text-sm">{shop.city}</p>}
               </div>
             </div>
