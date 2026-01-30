@@ -54,6 +54,8 @@ interface Shop {
   created_at: string;
   logo_url: string | null;
   sort_order: number;
+  badge_text: string | null;
+  badge_color: string | null;
 }
 
 export default function AdminShopsPage() {
@@ -69,6 +71,8 @@ export default function AdminShopsPage() {
     working_hours: '09:00-21:00',
     is_active: true,
     logo_url: null as string | null,
+    badge_text: '',
+    badge_color: '' as string,
   });
 
   const sensors = useSensors(
@@ -141,6 +145,8 @@ export default function AdminShopsPage() {
       working_hours: '09:00-21:00',
       is_active: true,
       logo_url: null,
+      badge_text: '',
+      badge_color: '',
     });
     setIsDialogOpen(true);
   };
@@ -154,6 +160,8 @@ export default function AdminShopsPage() {
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
       logo_url: shop.logo_url,
+      badge_text: shop.badge_text || '',
+      badge_color: shop.badge_color || '',
     });
     setIsDialogOpen(true);
   };
@@ -176,6 +184,8 @@ export default function AdminShopsPage() {
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
+            badge_text: formData.badge_text || null,
+            badge_color: formData.badge_color || null,
           })
           .eq('id', editingShop.id);
 
@@ -196,6 +206,8 @@ export default function AdminShopsPage() {
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
+            badge_text: formData.badge_text || null,
+            badge_color: formData.badge_color || null,
             sort_order: maxOrder + 1,
           });
 
@@ -382,6 +394,29 @@ export default function AdminShopsPage() {
               label="Фото"
               maxSizeMb={10}
             />
+            <div className="space-y-2">
+              <Label>Бейдж (необязательно)</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={formData.badge_text}
+                  onChange={(e) => setFormData({ ...formData, badge_text: e.target.value })}
+                  placeholder="Текст бейджа"
+                  maxLength={15}
+                  className="flex-1"
+                />
+                <select
+                  value={formData.badge_color}
+                  onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                  className="h-10 px-3 rounded-md border border-input bg-background text-sm"
+                >
+                  <option value="">Без цвета</option>
+                  <option value="red">🔴 Красный</option>
+                  <option value="green">🟢 Зелёный</option>
+                  <option value="yellow">🟡 Жёлтый</option>
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">Короткий текст, например: "Новинка", "Акция", "ТОП"</p>
+            </div>
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"

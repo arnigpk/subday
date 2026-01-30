@@ -5,6 +5,7 @@ import { Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
+import { ShopBadge } from '@/components/shop/ShopBadge';
 
 interface Shop {
   id: string;
@@ -15,6 +16,8 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  badge_text: string | null;
+  badge_color: string | null;
 }
 
 const filters = [
@@ -148,7 +151,7 @@ export default function ShopsPage() {
                             className="mt-2"
                           />
                         </div>
-                        <div className="flex items-center gap-4 mt-1">
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
                           {shop.city && (
                             <div className="flex items-center gap-1">
                               <Navigation size={12} className="text-muted-foreground" />
@@ -157,6 +160,9 @@ export default function ShopsPage() {
                           )}
                           {shop.working_hours && (
                             <ShopStatusBadge openHours={shop.working_hours} />
+                          )}
+                          {shop.badge_text && shop.badge_color && (
+                            <ShopBadge text={shop.badge_text} color={shop.badge_color} />
                           )}
                         </div>
                       </div>
