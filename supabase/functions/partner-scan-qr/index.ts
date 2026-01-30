@@ -13,6 +13,41 @@ interface ScanRequest {
   drinkName: string;
 }
 
+// Low balance thresholds for notifications
+const LOW_BALANCE_THRESHOLDS = [7, 5, 3];
+
+async function sendLowBalanceNotification(
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+  userId: string,
+  remaining: number,
+  daysRemaining: number
+): Promise<void> {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        type: 'low_balance',
+        userId,
+        remaining,
+        daysRemaining,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send low balance notification:', await response.text());
+    } else {
+      console.log('Low balance notification sent for user:', userId, 'remaining:', remaining);
+    }
+  } catch (error) {
+    console.error('Error sending low balance notification:', error);
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -129,10 +164,13 @@ Deno.serve(async (req) => {
     const newMaxStreak = Math.max(newStreak, stats.max_streak);
     const bonusForRedemption = 10;
 
+    // Calculate new remaining balance
+    const newRemaining = remaining - 1;
+
     // Update stats
     const newStats = {
-      coffee_remaining: drinkType === 'coffee' ? stats.coffee_remaining - 1 : stats.coffee_remaining,
-      drinks_remaining: drinkType === 'drinks' ? stats.drinks_remaining - 1 : stats.drinks_remaining,
+      coffee_remaining: drinkType === 'coffee' ? newRemaining : stats.coffee_remaining,
+      drinks_remaining: drinkType === 'drinks' ? newRemaining : stats.drinks_remaining,
       current_streak: newStreak,
       max_streak: newMaxStreak,
       total_cups: stats.total_cups + 1,
@@ -176,14 +214,53 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    console.log('Scan successful:', { userId, drinkName, remaining: newStats.coffee_remaining + newStats.drinks_remaining });
+    console.log('Scan successful:', { userId, drinkName, remaining: newRemaining });
+
+    // Check if we need to send low balance notification
+    if (LOW_BALANCE_THRESHOLDS.includes(newRemaining)) {
+      // Get subscription expiration to calculate days remaining
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select('expires_at')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      let daysRemaining = 0;
+      if (subscription?.expires_at) {
+        const expiresAt = new Date(subscription.expires_at);
+        const now = new Date();
+        daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      // Send notification asynchronously (don't wait for it)
+      // Using EdgeRuntime.waitUntil if available, otherwise just fire and forget
+      const notificationPromise = sendLowBalanceNotification(
+        supabaseUrl,
+        supabaseAnonKey,
+        userId,
+        newRemaining,
+        daysRemaining
+      );
+
+      // Try to use EdgeRuntime.waitUntil if available
+      try {
+        // @ts-ignore - EdgeRuntime may not be typed
+        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+          // @ts-ignore
+          EdgeRuntime.waitUntil(notificationPromise);
+        }
+      } catch {
+        // If EdgeRuntime is not available, the promise will still execute
+      }
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         customerName: profile?.name || 'Клиент',
         drinkName: drinkName,
-        remaining: drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining,
+        remaining: newRemaining,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
