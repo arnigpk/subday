@@ -114,6 +114,8 @@ export type Database = {
         Row: {
           address: string | null
           addresses: string[] | null
+          badge_color: string | null
+          badge_text: string | null
           city: string | null
           created_at: string | null
           id: string
@@ -127,6 +129,8 @@ export type Database = {
         Insert: {
           address?: string | null
           addresses?: string[] | null
+          badge_color?: string | null
+          badge_text?: string | null
           city?: string | null
           created_at?: string | null
           id?: string
@@ -140,6 +144,8 @@ export type Database = {
         Update: {
           address?: string | null
           addresses?: string[] | null
+          badge_color?: string | null
+          badge_text?: string | null
           city?: string | null
           created_at?: string | null
           id?: string
