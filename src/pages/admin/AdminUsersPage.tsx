@@ -319,7 +319,7 @@ export default function AdminUsersPage() {
       if (error) throw error;
 
       // Parse the response (it's a JSON object from the function)
-      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string } | null;
+      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string; duration_days?: number } | null;
 
       if (!result?.success) {
         throw new Error(result?.error || 'Unknown error');
@@ -343,6 +343,23 @@ export default function AdminUsersPage() {
         day: 'numeric', 
         month: 'long', 
         year: 'numeric' 
+      });
+
+      // Send Telegram notification for subscription activation
+      const durationDays = result.duration_days || subType.duration_days;
+      supabase.functions.invoke('send-subscription-notification', {
+        body: {
+          type: 'activated',
+          userId: editingUser.user_id,
+          cupsCount: result.cups_count || subType.cups_count,
+          daysCount: durationDays,
+        },
+      }).then(({ error: notifError }) => {
+        if (notifError) {
+          console.error('Failed to send notification:', notifError);
+        } else {
+          console.log('Subscription notification sent');
+        }
       });
 
       toast({ 
