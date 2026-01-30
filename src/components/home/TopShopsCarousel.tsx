@@ -131,6 +131,8 @@ export function TopShopsCarousel() {
               
               {/* Shop Name */}
               <h3 className="font-medium text-foreground text-xs text-center truncate w-full px-1">{shop.name}</h3>
+              {/* Distance placeholder for Google Maps integration */}
+              <span className="text-[10px] text-muted-foreground">— км</span>
             </Link>
           );
         })}
