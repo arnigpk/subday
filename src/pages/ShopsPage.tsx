@@ -115,13 +115,15 @@ export default function ShopsPage() {
           ) : filteredShops.length > 0 ? (
             <div className="space-y-3">
               {filteredShops.map((shop, index) => (
-                <Link
+                <div
                   key={shop.id}
-                  to={`/shops/${shop.id}`}
                   className="block animate-slide-up"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div className="card-interactive">
+                  <Link
+                    to={`/shops/${shop.id}`}
+                    className="card-interactive block"
+                  >
                     <div className="flex items-start gap-3">
                       {shop.logo_url ? (
                         <img src={shop.logo_url} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
@@ -134,14 +136,18 @@ export default function ShopsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
+                          {/* Distance placeholder for Google Maps integration */}
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">— км</span>
                         </div>
                         
-                        {/* Addresses */}
-                        <AddressesList 
-                          addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
-                          variant="compact"
-                          className="mt-2"
-                        />
+                        {/* Addresses - clickable area stops propagation */}
+                        <div onClick={(e) => e.preventDefault()}>
+                          <AddressesList 
+                            addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
+                            variant="compact"
+                            className="mt-2"
+                          />
+                        </div>
                         <div className="flex items-center gap-4 mt-1">
                           {shop.city && (
                             <div className="flex items-center gap-1">
@@ -155,8 +161,8 @@ export default function ShopsPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
           ) : (

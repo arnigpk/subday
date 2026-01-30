@@ -42,7 +42,7 @@ export function AddressesList({ addresses, className, variant = 'full' }: Addres
   // Multiple addresses - show collapsible
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
-      <CollapsibleTrigger className="flex items-center gap-1 group cursor-pointer w-full" onClick={(e) => e.stopPropagation()}>
+      <CollapsibleTrigger className="flex items-center gap-1 group cursor-pointer w-full" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
         <MapPin size={variant === 'compact' ? 12 : 16} className="text-muted-foreground shrink-0" />
         <span className={cn(
           'text-primary hover:underline',
