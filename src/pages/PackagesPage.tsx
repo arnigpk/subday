@@ -16,6 +16,7 @@ interface SubscriptionType {
   duration_days: number;
   is_active: boolean;
   badge: string | null;
+  benefit: number | null;
 }
 
 const tabs = [
@@ -44,13 +45,8 @@ const getBadgeStyle = (badge: string | null): { icon: typeof Sparkles; gradient:
   }
 };
 
-const getOriginalPrice = (cups: number, type: string): number => {
-  const pricePerCup = type === 'coffee' ? 1500 : 1200;
-  return cups * pricePerCup;
-};
-
-const getSavingsPercent = (original: number, current: number): number => {
-  return Math.round(((original - current) / original) * 100);
+const formatBenefit = (benefit: number) => {
+  return new Intl.NumberFormat('ru-RU').format(benefit);
 };
 
 export default function PackagesPage() {
@@ -113,8 +109,6 @@ export default function PackagesPage() {
             {filteredSubscriptions.map((sub, index) => {
                 const badgeStyle = getBadgeStyle(sub.badge);
                 const period = getPeriodText(sub.duration_days);
-                const originalPrice = getOriginalPrice(sub.cups_count, sub.type);
-                const savingsPercent = getSavingsPercent(originalPrice, sub.price);
                 const BadgeIcon = badgeStyle?.icon || Sparkles;
                 
                 return (
@@ -165,26 +159,23 @@ export default function PackagesPage() {
                             </span>
                             <span className="text-xs text-muted-foreground mb-0.5">
                               / {period}
-                            </span>
-                          </div>
-                          
-                          {originalPrice > sub.price && (
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs text-muted-foreground line-through decoration-destructive/50">
-                                {formatPrice(originalPrice)} тг
-                              </span>
-                              <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
-                                −{savingsPercent}%
-                              </span>
-                            </div>
-                          )}
+                          </span>
                         </div>
                         
-                        {/* CTA Button */}
-                        <button className="btn-primary w-full text-sm font-semibold">
-                          Оформить
-                        </button>
+                        {sub.benefit && sub.benefit > 0 && (
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs font-semibold text-accent">
+                              Выгода {formatBenefit(sub.benefit)} ₸
+                            </span>
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* CTA Button */}
+                      <button className="btn-primary w-full text-sm font-semibold">
+                        Оформить
+                      </button>
+                    </div>
                     </div>
                   </Link>
                 );

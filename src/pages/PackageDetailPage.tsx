@@ -15,6 +15,7 @@ interface SubscriptionType {
   duration_days: number;
   badge: string | null;
   features: string[] | null;
+  benefit: number | null;
 }
 
 const formatPrice = (price: number) => {
@@ -95,10 +96,9 @@ export default function PackageDetailPage() {
     ? subscription.features 
     : defaultFeatures;
 
-  // Calculate original price for savings display
-  const pricePerCup = isCoffee ? 1500 : 1200;
-  const originalPrice = subscription.cups_count * pricePerCup;
-  const savings = originalPrice - subscription.price;
+  const formatBenefit = (benefit: number) => {
+    return new Intl.NumberFormat('ru-RU').format(benefit);
+  };
 
   return (
     <AppLayout>
@@ -133,10 +133,10 @@ export default function PackageDetailPage() {
               <span className="text-muted-foreground">/ {period}</span>
             </div>
 
-            {savings > 0 && (
+            {subscription.benefit && subscription.benefit > 0 && (
               <div className="bg-accent/10 rounded-xl p-3 mb-4">
                 <p className="text-sm text-accent font-semibold">
-                  Экономия {formatPrice(savings)} в {period}
+                  Выгода {formatBenefit(subscription.benefit)} ₸
                 </p>
               </div>
             )}
