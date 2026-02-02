@@ -146,6 +146,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check daily limit
+    const { data: subscription } = await supabase
+      .from('user_subscriptions')
+      .select(`
+        id,
+        subscription_types (
+          daily_limit,
+          type
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    interface SubscriptionTypeInfo {
+      daily_limit: number | null;
+      type: string;
+    }
+    
+    const subTypes = subscription?.subscription_types as unknown as SubscriptionTypeInfo | null;
+    
+    if (subTypes && subTypes.type === drinkType && subTypes.daily_limit !== null) {
+      // Count today's redemptions for this user and drink type
+      const today = new Date().toISOString().split('T')[0];
+      const { count: todayCount } = await supabase
+        .from('redemptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('drink_type', drinkType)
+        .gte('redeemed_at', `${today}T00:00:00`)
+        .lt('redeemed_at', `${today}T23:59:59.999`);
+
+      if ((todayCount || 0) >= subTypes.daily_limit) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Дневной лимит исчерпан (${subTypes.daily_limit} в день)`,
+            dailyLimitReached: true 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Calculate streak
     const today = new Date().toISOString().split('T')[0];
     const isNewDay = stats.last_redemption_date !== today;

@@ -164,6 +164,7 @@ export type Database = {
           benefit: number | null
           created_at: string | null
           cups_count: number
+          daily_limit: number | null
           description: string | null
           duration_days: number | null
           features: string[] | null
@@ -180,6 +181,7 @@ export type Database = {
           benefit?: number | null
           created_at?: string | null
           cups_count: number
+          daily_limit?: number | null
           description?: string | null
           duration_days?: number | null
           features?: string[] | null
@@ -196,6 +198,7 @@ export type Database = {
           benefit?: number | null
           created_at?: string | null
           cups_count?: number
+          daily_limit?: number | null
           description?: string | null
           duration_days?: number | null
           features?: string[] | null

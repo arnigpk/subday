@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Coffee, Droplets, Clock } from 'lucide-react';
+import { Coffee, Droplets, Clock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { Button } from '../ui/button';
 
 const tabs = [
@@ -12,9 +13,10 @@ const tabs = [
 ];
 
 export function BalanceCard() {
-  const [activeTab, setActiveTab] = useState('coffee');
+  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const { stats, isLoading } = useUserStatsContext();
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
+  const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   const navigate = useNavigate();
   
   const isCoffee = activeTab === 'coffee';
@@ -69,7 +71,7 @@ export function BalanceCard() {
       <TabSwitcher
         tabs={tabs}
         activeTab={activeTab}
-        onChange={setActiveTab}
+        onChange={(tab) => setActiveTab(tab as 'coffee' | 'drinks')}
         className="mb-4"
       />
       
@@ -89,6 +91,23 @@ export function BalanceCard() {
               
               <div>
                 <p className="text-muted-foreground text-sm font-medium">По подписке осталось {remaining} из {total}</p>
+                
+                {/* Daily limit warning */}
+                {!isLimitLoading && isLimitReached && (
+                  <div className="flex items-center gap-1.5 mt-1.5 text-destructive">
+                    <AlertTriangle size={14} />
+                    <span className="text-xs font-medium">
+                      У вас закончился дневной лимит на кофе, попробуйте завтра
+                    </span>
+                  </div>
+                )}
+                
+                {/* Show daily limit info if not exceeded */}
+                {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Сегодня осталось: {remainingToday} из {dailyLimit}
+                  </p>
+                )}
               </div>
             </div>
             
