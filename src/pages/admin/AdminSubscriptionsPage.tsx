@@ -63,6 +63,7 @@ interface SubscriptionType {
   sort_order: number;
   created_at: string;
   features: string[] | null;
+  benefit: number | null;
 }
 
 const DEFAULT_FEATURES = [
@@ -111,6 +112,7 @@ export default function AdminSubscriptionsPage() {
     is_active: true,
     badge: '',
     features: DEFAULT_FEATURES,
+    benefit: 0,
   });
 
   const sensors = useSensors(
@@ -186,6 +188,7 @@ export default function AdminSubscriptionsPage() {
       is_active: true,
       badge: '',
       features: DEFAULT_FEATURES,
+      benefit: 0,
     });
     setIsDialogOpen(true);
   };
@@ -202,6 +205,7 @@ export default function AdminSubscriptionsPage() {
       is_active: sub.is_active,
       badge: sub.badge || '',
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
+      benefit: sub.benefit || 0,
     });
     setIsDialogOpen(true);
   };
@@ -226,6 +230,7 @@ export default function AdminSubscriptionsPage() {
             is_active: formData.is_active,
             badge: formData.badge || null,
             features: formData.features.filter(f => f.trim() !== ''),
+            benefit: formData.benefit > 0 ? formData.benefit : null,
           })
           .eq('id', editingSub.id);
 
@@ -249,6 +254,7 @@ export default function AdminSubscriptionsPage() {
             badge: formData.badge || null,
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
+            benefit: formData.benefit > 0 ? formData.benefit : null,
           });
 
         if (error) throw error;
@@ -490,6 +496,20 @@ export default function AdminSubscriptionsPage() {
                   {formatDurationLabel(formData.duration_days)}
                 </span>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="benefit">Выгода (₸)</Label>
+              <Input
+                id="benefit"
+                type="number"
+                min="0"
+                value={formData.benefit}
+                onChange={(e) => setFormData({ ...formData, benefit: parseInt(e.target.value) || 0 })}
+                placeholder="Сумма выгоды"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Отображается в приложении как "Выгода X ₸"
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Switch

@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Loader2, TrendingUp } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
@@ -120,21 +120,14 @@ export function NearbyShops() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground text-sm truncate">{shop.name}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <TrendingUp size={10} />
-                    {shop.visit_count} покупок
-                  </span>
                   <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
-                    · {isOpen ? 'Открыто' : 'Закрыто'}
+                    {isOpen ? 'Открыто' : 'Закрыто'}
                   </span>
                 </div>
               </div>
               
               <div className="text-right">
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock size={12} />
-                  {shop.working_hours || '—'}
-                </div>
+                <span className="text-xs text-muted-foreground">— м</span>
               </div>
             </Link>
           );
