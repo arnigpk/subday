@@ -64,6 +64,7 @@ interface SubscriptionType {
   created_at: string;
   features: string[] | null;
   benefit: number | null;
+  daily_limit: number | null;
 }
 
 const DEFAULT_FEATURES = [
@@ -113,6 +114,7 @@ export default function AdminSubscriptionsPage() {
     badge: '',
     features: DEFAULT_FEATURES,
     benefit: 0,
+    daily_limit: null as number | null,
   });
 
   const sensors = useSensors(
@@ -189,6 +191,7 @@ export default function AdminSubscriptionsPage() {
       badge: '',
       features: DEFAULT_FEATURES,
       benefit: 0,
+      daily_limit: null,
     });
     setIsDialogOpen(true);
   };
@@ -206,6 +209,7 @@ export default function AdminSubscriptionsPage() {
       badge: sub.badge || '',
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
       benefit: sub.benefit || 0,
+      daily_limit: sub.daily_limit,
     });
     setIsDialogOpen(true);
   };
@@ -231,6 +235,7 @@ export default function AdminSubscriptionsPage() {
             badge: formData.badge || null,
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
+            daily_limit: formData.daily_limit,
           })
           .eq('id', editingSub.id);
 
@@ -255,6 +260,7 @@ export default function AdminSubscriptionsPage() {
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
+            daily_limit: formData.daily_limit,
           });
 
         if (error) throw error;
@@ -497,19 +503,42 @@ export default function AdminSubscriptionsPage() {
                 </span>
               </div>
             </div>
-            <div>
-              <Label htmlFor="benefit">Выгода (₸)</Label>
-              <Input
-                id="benefit"
-                type="number"
-                min="0"
-                value={formData.benefit}
-                onChange={(e) => setFormData({ ...formData, benefit: parseInt(e.target.value) || 0 })}
-                placeholder="Сумма выгоды"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Отображается в приложении как "Выгода X ₸"
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="benefit">Выгода (₸)</Label>
+                <Input
+                  id="benefit"
+                  type="number"
+                  min="0"
+                  value={formData.benefit}
+                  onChange={(e) => setFormData({ ...formData, benefit: parseInt(e.target.value) || 0 })}
+                  placeholder="Сумма выгоды"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  "Выгода X ₸" в приложении
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="daily_limit">Дневной лимит</Label>
+                <Select 
+                  value={formData.daily_limit?.toString() || 'unlimited'} 
+                  onValueChange={(v) => setFormData({ ...formData, daily_limit: v === 'unlimited' ? null : parseInt(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выбрать лимит" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unlimited">Безлимит</SelectItem>
+                    <SelectItem value="2">2 в день</SelectItem>
+                    <SelectItem value="5">5 в день</SelectItem>
+                    <SelectItem value="7">7 в день</SelectItem>
+                    <SelectItem value="10">10 в день</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Макс. чашек в день
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch
