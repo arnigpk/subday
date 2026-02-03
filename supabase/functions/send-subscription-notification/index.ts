@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     if (type === 'activated') {
       message = `🎉 Подписка активирована ☕\nБаланс: ${cupsCount} кофе · срок: ${daysCount} дней. Наслаждайтесь😌`;
     } else if (type === 'low_balance') {
-      message = `⚠️ По подписке осталось мало кофе: ${cupsCount} на ${daysCount} дней 🥹\nУспейте продлить подписку 🙂`;
+      message = `❗Подписка на исходе❗\n\nОсталось ${cupsCount} кофе на ${daysCount} дней 🥹\n\nПродлевайте подписку легко в приложении 🙂`;
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid notification type' }),

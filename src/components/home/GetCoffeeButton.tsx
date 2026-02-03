@@ -1,14 +1,18 @@
 import { QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { toast } from 'sonner';
 
 export function GetCoffeeButton() {
   const navigate = useNavigate();
   const { hasActiveSubscription, isLoading } = useSubscriptionStatus();
+  const { isLimitReached, isLoading: isLimitLoading } = useDailyLimit('coffee');
+
+  const isDisabled = isLoading || isLimitLoading || isLimitReached;
 
   const handleClick = () => {
-    if (isLoading) return;
+    if (isDisabled) return;
     
     if (!hasActiveSubscription) {
       toast.info('Пожалуйста, оформите подписку');
@@ -25,11 +29,13 @@ export function GetCoffeeButton() {
     >
       <button 
         onClick={handleClick}
-        disabled={isLoading}
-        className="w-full btn-accent flex items-center justify-center gap-3 text-xl animate-pulse-glow disabled:opacity-50"
+        disabled={isDisabled}
+        className={`w-full btn-accent flex items-center justify-center gap-3 text-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+          !isLimitReached ? 'animate-pulse-glow' : ''
+        }`}
       >
         <QrCode size={28} strokeWidth={2.5} />
-        <span>Взять кофе</span>
+        <span>{isLimitReached ? 'Лимит исчерпан' : 'Взять кофе'}</span>
       </button>
     </div>
   );

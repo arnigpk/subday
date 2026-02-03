@@ -3,6 +3,8 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -19,7 +21,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 
 interface RedemptionWithUser {
   id: string;
@@ -32,6 +37,8 @@ interface RedemptionWithUser {
   user_phone: string | null;
 }
 
+type PeriodType = 'last_month' | 'custom' | 'all';
+
 const PAGE_SIZE = 20;
 
 export default function AdminHistoryPage() {
@@ -40,6 +47,8 @@ export default function AdminHistoryPage() {
   const [search, setSearch] = useState('');
   const [shopFilter, setShopFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [periodType, setPeriodType] = useState<PeriodType>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [shops, setShops] = useState<string[]>([]);
@@ -50,7 +59,7 @@ export default function AdminHistoryPage() {
 
   useEffect(() => {
     fetchRedemptions();
-  }, [page, shopFilter, typeFilter, search]);
+  }, [page, shopFilter, typeFilter, search, periodType, dateRange]);
 
   const fetchShops = async () => {
     const { data } = await supabase
@@ -60,6 +69,27 @@ export default function AdminHistoryPage() {
     if (data) {
       setShops(data.map(s => s.name));
     }
+  };
+
+  const getDateFilters = () => {
+    const now = new Date();
+    
+    if (periodType === 'last_month') {
+      const lastMonth = subMonths(now, 1);
+      return {
+        from: startOfMonth(lastMonth),
+        to: endOfMonth(lastMonth),
+      };
+    }
+    
+    if (periodType === 'custom' && dateRange?.from) {
+      return {
+        from: startOfDay(dateRange.from),
+        to: dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from),
+      };
+    }
+    
+    return null;
   };
 
   const fetchRedemptions = async () => {
@@ -75,6 +105,13 @@ export default function AdminHistoryPage() {
       }
       if (typeFilter !== 'all') {
         query = query.eq('drink_type', typeFilter);
+      }
+
+      // Apply date filters
+      const dateFilters = getDateFilters();
+      if (dateFilters) {
+        query = query.gte('redeemed_at', dateFilters.from.toISOString());
+        query = query.lte('redeemed_at', dateFilters.to.toISOString());
       }
 
       const { data: redemptionsData, count, error } = await query
@@ -125,6 +162,28 @@ export default function AdminHistoryPage() {
     }
   };
 
+  const handlePeriodChange = (value: PeriodType) => {
+    setPeriodType(value);
+    setPage(0);
+    if (value !== 'custom') {
+      setDateRange(undefined);
+    }
+  };
+
+  const formatPeriodLabel = () => {
+    if (periodType === 'last_month') {
+      const lastMonth = subMonths(new Date(), 1);
+      return format(lastMonth, 'LLLL yyyy', { locale: ru });
+    }
+    if (periodType === 'custom' && dateRange?.from) {
+      if (dateRange.to) {
+        return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
+      }
+      return format(dateRange.from, 'd MMMM yyyy', { locale: ru });
+    }
+    return 'Все время';
+  };
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
@@ -133,40 +192,98 @@ export default function AdminHistoryPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <CardTitle>Всего покупок ({totalCount})</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Поиск по имени, телефону, напитку..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(0);
-                  }}
-                  className="pl-10"
-                />
+            <div className="flex flex-col gap-4">
+              {/* Search and filters row */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Поиск по имени, телефону, напитку..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(0);
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={shopFilter} onValueChange={(v) => { setShopFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Кофейня" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все кофейни</SelectItem>
+                    {shops.map(shop => (
+                      <SelectItem key={shop} value={shop}>{shop}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Тип" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все типы</SelectItem>
+                    <SelectItem value="coffee">Кофе</SelectItem>
+                    <SelectItem value="drinks">Напитки</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={shopFilter} onValueChange={(v) => { setShopFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Кофейня" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все кофейни</SelectItem>
-                  {shops.map(shop => (
-                    <SelectItem key={shop} value={shop}>{shop}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Тип" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все типы</SelectItem>
-                  <SelectItem value="coffee">Кофе</SelectItem>
-                  <SelectItem value="drinks">Напитки</SelectItem>
-                </SelectContent>
-              </Select>
+              
+              {/* Period filter row */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Период" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все время</SelectItem>
+                    <SelectItem value="last_month">Последний месяц</SelectItem>
+                    <SelectItem value="custom">Выбрать период</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {periodType === 'custom' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full sm:w-auto justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, 'd MMM', { locale: ru })} - {format(dateRange.to, 'd MMM yyyy', { locale: ru })}
+                            </>
+                          ) : (
+                            format(dateRange.from, 'd MMMM yyyy', { locale: ru })
+                          )
+                        ) : (
+                          'Выберите даты'
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={(range) => {
+                          setDateRange(range);
+                          setPage(0);
+                        }}
+                        numberOfMonths={1}
+                        locale={ru}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+                
+                {periodType !== 'all' && (
+                  <span className="text-sm text-muted-foreground">
+                    Период: {formatPeriodLabel()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -179,7 +296,7 @@ export default function AdminHistoryPage() {
             </div>
           ) : redemptions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              Нет данных
+              Нет данных за выбранный период
             </p>
           ) : (
             <>
