@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,10 +43,12 @@ export default function RedeemPage() {
   const [isLoadingShops, setIsLoadingShops] = useState(true);
   const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
+  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
   
   const { stats, refetch } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
   const { vibrateSuccess } = useVibration();
+  const { activeSubscriptions } = useSubscriptionStatus();
   
   // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
@@ -53,6 +56,10 @@ export default function RedeemPage() {
   const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Кофе' : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
+  
+  // Get current subscription name
+  const currentSubscription = activeSubscriptions.find(sub => sub.subscription_type === drinkType);
+  const subscriptionName = currentSubscription?.subscription_name;
 
   // Handle successful redemption from realtime
   const handleRealtimeRedemption = useCallback(() => {
@@ -178,9 +185,12 @@ export default function RedeemPage() {
     fetchShops();
   }, [initialShop]);
 
-  // Update shop status every minute
+  // Update shop status and QR timestamp every minute
   useEffect(() => {
     const interval = setInterval(() => {
+      // Refresh QR code every 1 minute
+      setQrTimestamp(Date.now());
+      
       setShops(prevShops => {
         const updated = prevShops.map(shop => ({
           ...shop,
@@ -204,16 +214,15 @@ export default function RedeemPage() {
           isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
         } : null);
       }
-    }, 60000);
+    }, 60000); // 1 minute
     
     return () => clearInterval(interval);
   }, [selectedShop]);
 
-  // Generate unique QR code data
+  // Generate unique QR code data with timestamp for 1-minute validity
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop) return null;
     
-    const timestamp = Date.now();
     const data = {
       type: 'subday_redeem',
       userId: userId,
@@ -221,12 +230,12 @@ export default function RedeemPage() {
       shopName: selectedShop.name,
       drinkType: drinkType,
       drinkName: drinkName,
-      timestamp: timestamp,
+      timestamp: qrTimestamp,
       remaining: remaining,
     };
     
     return JSON.stringify(data);
-  }, [userId, selectedShop, drinkType, drinkName, remaining]);
+  }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp]);
 
   
   const goHome = () => {
@@ -361,7 +370,16 @@ export default function RedeemPage() {
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
-              <p className="text-lg font-bold text-foreground mb-2">Ваш QR</p>
+              <p className="text-lg font-bold text-foreground mb-1">Ваш QR</p>
+              
+              {/* Subscription name badge */}
+              {subscriptionName && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full mb-2">
+                  <Info size={14} />
+                  <span className="text-sm font-medium">{subscriptionName}</span>
+                </div>
+              )}
+              
               <p className="text-muted-foreground mb-2">Покажи бариста для сканирования</p>
               <p className="text-sm text-muted-foreground mb-4">
                 Осталось: <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? 'кофе' : 'напитков'}

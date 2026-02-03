@@ -71,12 +71,12 @@ export default function PartnerScanPage() {
         return;
       }
 
-      // Check if QR is expired (5 minutes)
+      // Check if QR is expired (1 minute)
       const qrTimestamp = data.timestamp;
       const now = Date.now();
-      const fiveMinutes = 5 * 60 * 1000;
+      const oneMinute = 1 * 60 * 1000;
       
-      if (now - qrTimestamp > fiveMinutes) {
+      if (now - qrTimestamp > oneMinute) {
         setResult({
           success: false,
           message: 'QR-код просрочен, попросите обновить',
@@ -247,7 +247,7 @@ export default function PartnerScanPage() {
           <div className="text-sm">
             <p className="font-medium text-foreground mb-1">Важно!</p>
             <p className="text-muted-foreground">
-              QR-код действителен 5 минут. Убедитесь, что клиент показывает свежий код.
+              QR-код действителен 1 минуту. Убедитесь, что клиент показывает свежий код.
             </p>
           </div>
         </div>

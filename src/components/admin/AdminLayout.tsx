@@ -8,7 +8,8 @@ import {
   Settings, 
   LogOut,
   ChevronLeft,
-  CreditCard
+  CreditCard,
+  Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const navItems = [
   { icon: History, label: 'История', path: '/admin/history', roles: ['admin', 'moderator', 'partner'] },
   { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['admin', 'moderator', 'partner'] },
   { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['admin'] },
+  { icon: Send, label: 'Рассылка', path: '/admin/broadcast', roles: ['admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
 ];
 
