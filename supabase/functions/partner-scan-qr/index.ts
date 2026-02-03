@@ -258,10 +258,10 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    // Check for low balance notification (7, 5, 3 cups remaining)
+    // Check for low balance notification (only at 5 cups remaining)
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
     
-    if ([7, 5, 3].includes(newRemaining) && profile?.phone) {
+    if (newRemaining === 5 && profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
       
       if (telegramId) {
@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
             daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
           }
           
-          const message = `⚠️ Осталось мало кофе: ${newRemaining} на ${daysRemaining} дней 🥹\nУспейте продлить при необходимости 🙂`;
+          const message = `❗Подписка на исходе❗\n\nОсталось ${newRemaining} кофе на ${daysRemaining} дней 🥹\n\nПродлевайте подписку легко в приложении 🙂`;
           
           // Send notification asynchronously (don't await to not slow down the response)
           sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
