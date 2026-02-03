@@ -97,7 +97,7 @@ export function BalanceCard() {
                   <div className="flex items-center gap-1.5 mt-1.5 text-destructive">
                     <AlertTriangle size={14} />
                     <span className="text-xs font-medium">
-                      У вас закончился дневной лимит на кофе, попробуйте завтра
+                      У вас закончился дневной лимит, попробуйте завтра
                     </span>
                   </div>
                 )}
