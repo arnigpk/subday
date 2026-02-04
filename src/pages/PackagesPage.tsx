@@ -182,13 +182,6 @@ export default function PackagesPage() {
               })}
             </div>
           )}
-          
-          {/* Bottom info */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              Отмена подписки в любой момент
-            </p>
-          </div>
         </div>
       </div>
     </AppLayout>

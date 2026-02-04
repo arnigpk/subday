@@ -29,6 +29,8 @@ import AdminShopsPage from "./pages/admin/AdminShopsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminSubscriptionsPage from "./pages/admin/AdminSubscriptionsPage";
 import AdminBroadcastPage from "./pages/admin/AdminBroadcastPage";
+import AdminPushBroadcastPage from "./pages/admin/AdminPushBroadcastPage";
+import AdminSubscriptionTransactionsPage from "./pages/admin/AdminSubscriptionTransactionsPage";
 import { PartnerProtectedRoute } from "@/components/partner/PartnerProtectedRoute";
 import PartnerDashboard from "./pages/partner/PartnerDashboard";
 import PartnerScanPage from "./pages/partner/PartnerScanPage";
@@ -172,6 +174,8 @@ const AppContent = () => {
           <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
           <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
           <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
+          <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
+          <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
           <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
           
           {/* Partner Routes */}

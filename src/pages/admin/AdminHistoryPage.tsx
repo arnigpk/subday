@@ -33,6 +33,7 @@ interface RedemptionWithUser {
   drink_name: string;
   drink_type: string;
   redeemed_at: string;
+  subscription_name: string | null;
   user_name: string | null;
   user_phone: string | null;
 }
@@ -308,6 +309,7 @@ export default function AdminHistoryPage() {
                       <TableHead>Телефон</TableHead>
                       <TableHead>Кофейня</TableHead>
                       <TableHead>Напиток</TableHead>
+                      <TableHead>Подписка</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
                     </TableRow>
@@ -326,6 +328,11 @@ export default function AdminHistoryPage() {
                         <TableCell>{r.user_phone || '—'}</TableCell>
                         <TableCell>{r.shop_name}</TableCell>
                         <TableCell>{r.drink_name}</TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {r.subscription_name || '—'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${
                             r.drink_type === 'coffee' 

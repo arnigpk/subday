@@ -10,6 +10,7 @@ interface Redemption {
   id: string;
   customerName: string | null;
   drinkName: string;
+  subscriptionName: string | null;
   redeemedAt: string;
 }
 
@@ -29,6 +30,7 @@ export default function PartnerHistoryPage() {
           .select(`
             id,
             drink_name,
+            subscription_name,
             redeemed_at,
             user_id
           `)
@@ -61,6 +63,7 @@ export default function PartnerHistoryPage() {
           id: r.id,
           customerName: profileMap.get(r.user_id) || 'Неизвестный',
           drinkName: r.drink_name,
+          subscriptionName: r.subscription_name,
           redeemedAt: r.redeemed_at,
         }));
 
@@ -115,6 +118,11 @@ export default function PartnerHistoryPage() {
                     <p className="text-sm text-muted-foreground">
                       {redemption.drinkName}
                     </p>
+                    {redemption.subscriptionName && (
+                      <p className="text-xs text-primary">
+                        {redemption.subscriptionName}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

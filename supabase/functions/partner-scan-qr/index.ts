@@ -146,14 +146,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check daily limit
+    // Check daily limit and get subscription name
     const { data: subscription } = await supabase
       .from('user_subscriptions')
       .select(`
         id,
         subscription_types (
           daily_limit,
-          type
+          type,
+          name
         )
       `)
       .eq('user_id', userId)
@@ -163,6 +164,7 @@ Deno.serve(async (req) => {
     interface SubscriptionTypeInfo {
       daily_limit: number | null;
       type: string;
+      name: string;
     }
     
     const subTypes = subscription?.subscription_types as unknown as SubscriptionTypeInfo | null;
@@ -235,6 +237,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get subscription name for redemption record
+    const subscriptionName = subTypes?.name || null;
+
     // Insert redemption record
     const { error: redemptionError } = await supabase
       .from('redemptions')
@@ -244,6 +249,7 @@ Deno.serve(async (req) => {
         shop_id: shopId,
         drink_name: drinkName,
         drink_type: drinkType,
+        subscription_name: subscriptionName,
       });
 
     if (redemptionError) {

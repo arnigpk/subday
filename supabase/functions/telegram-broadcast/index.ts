@@ -140,6 +140,24 @@ Deno.serve(async (req) => {
 
     console.log(`Broadcast complete: ${successCount} sent, ${failCount} failed`);
 
+    // Save broadcast to history
+    try {
+      await supabase
+        .from('broadcast_messages')
+        .insert({
+          message: message.trim(),
+          broadcast_type: 'telegram',
+          target_type: targetType,
+          recipient_count: profiles.length,
+          sent_count: successCount,
+          failed_count: failCount,
+          sent_by: user.id,
+        });
+    } catch (historyError) {
+      console.error('Error saving broadcast history:', historyError);
+      // Don't fail the whole operation if history save fails
+    }
+
     return new Response(JSON.stringify({
       success: true,
       sent: successCount,
