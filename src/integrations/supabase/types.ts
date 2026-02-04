@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      broadcast_messages: {
+        Row: {
+          broadcast_type: string
+          created_at: string
+          failed_count: number
+          id: string
+          message: string
+          recipient_count: number
+          sent_by: string
+          sent_count: number
+          target_type: string
+        }
+        Insert: {
+          broadcast_type: string
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message: string
+          recipient_count?: number
+          sent_by: string
+          sent_count?: number
+          target_type: string
+        }
+        Update: {
+          broadcast_type?: string
+          created_at?: string
+          failed_count?: number
+          id?: string
+          message?: string
+          recipient_count?: number
+          sent_by?: string
+          sent_count?: number
+          target_type?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           code: string
@@ -86,6 +122,7 @@ export type Database = {
           redeemed_at: string
           shop_id: string | null
           shop_name: string
+          subscription_name: string | null
           user_id: string
         }
         Insert: {
@@ -96,6 +133,7 @@ export type Database = {
           redeemed_at?: string
           shop_id?: string | null
           shop_name: string
+          subscription_name?: string | null
           user_id: string
         }
         Update: {
@@ -106,6 +144,7 @@ export type Database = {
           redeemed_at?: string
           shop_id?: string | null
           shop_name?: string
+          subscription_name?: string | null
           user_id?: string
         }
         Relationships: []
@@ -157,6 +196,44 @@ export type Database = {
           working_hours?: string | null
         }
         Relationships: []
+      }
+      subscription_transactions: {
+        Row: {
+          activated_by: string | null
+          created_at: string
+          id: string
+          subscription_name: string
+          subscription_type_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          activated_by?: string | null
+          created_at?: string
+          id?: string
+          subscription_name: string
+          subscription_type_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          activated_by?: string | null
+          created_at?: string
+          id?: string
+          subscription_name?: string
+          subscription_type_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_transactions_subscription_type_id_fkey"
+            columns: ["subscription_type_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscription_types: {
         Row: {

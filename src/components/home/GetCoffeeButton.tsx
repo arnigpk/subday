@@ -35,7 +35,7 @@ export function GetCoffeeButton() {
         }`}
       >
         <QrCode size={28} strokeWidth={2.5} />
-        <span>{isLimitReached ? 'Лимит исчерпан' : 'Показать QR'}</span>
+        <span>Показать QR</span>
       </button>
     </div>
   );
