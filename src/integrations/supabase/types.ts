@@ -113,6 +113,30 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          title?: string
+        }
+        Relationships: []
+      }
       redemptions: {
         Row: {
           created_at: string

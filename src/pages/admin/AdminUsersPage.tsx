@@ -69,6 +69,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Администратор',
   moderator: 'Модератор',
   partner: 'Партнёр',
+  barista: 'Бариста',
 };
 
 export default function AdminUsersPage() {
