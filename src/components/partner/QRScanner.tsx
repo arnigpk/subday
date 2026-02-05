@@ -50,7 +50,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       await scanner.start(
         { facingMode: 'environment' },
         {
-          fps: 20,
+          fps: 30,
           qrbox: { width: qrboxSize, height: qrboxSize },
         },
         handleScan,

@@ -12,7 +12,7 @@ interface PartnerLayoutProps {
 export function PartnerLayout({ children }: PartnerLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isPartner, shopName } = usePartnerAuth();
+  const { isPartner, isBarista, shopName } = usePartnerAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -23,13 +23,18 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
     navigate('/');
   };
 
-  // Navigation items - baristas only see scan
+  // Navigation items - partners see all, baristas see dashboard + scan only
   const navItems = isPartner
     ? [
         { path: '/partner', icon: LayoutDashboard, label: 'Дашборд' },
         { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
         { path: '/partner/history', icon: History, label: 'История' },
         { path: '/partner/staff', icon: Users, label: 'Сотрудники' },
+      ]
+    : isBarista
+    ? [
+        { path: '/partner', icon: LayoutDashboard, label: 'Дашборд' },
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
       ]
     : [
         { path: '/partner/scan', icon: QrCode, label: 'Сканер' },

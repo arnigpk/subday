@@ -11,17 +11,17 @@ import logo from '@/assets/logo.png';
 
 export default function HomePage() {
   const { profile, isLoading } = useUserStatsContext();
-  const { role, isAdmin, isPartner } = useAdminAuth();
+  const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
   const navigate = useNavigate();
   
   const displayName = profile?.name?.split(' ')[0] || 'Гость';
   
-  const showAdminButton = isAdmin || role === 'moderator' || isPartner;
+  const showAdminButton = isAdmin || role === 'moderator' || isPartner || isBarista;
   
   const handleAdminClick = () => {
     if (isAdmin || role === 'moderator') {
       navigate('/admin');
-    } else if (isPartner) {
+    } else if (isPartner || isBarista) {
       navigate('/partner');
     }
   };

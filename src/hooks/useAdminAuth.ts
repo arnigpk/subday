@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
-export type AppRole = 'admin' | 'moderator' | 'partner';
+export type AppRole = 'admin' | 'moderator' | 'partner' | 'barista';
 
 interface AdminAuthState {
   session: Session | null;
@@ -12,6 +12,7 @@ interface AdminAuthState {
   isAdmin: boolean;
   isModerator: boolean;
   isPartner: boolean;
+  isBarista: boolean;
   hasAccess: boolean;
 }
 
@@ -51,19 +52,32 @@ export function useAdminAuth(): AdminAuthState {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      // Fetch all roles for the user
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, shop_id')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching user role:', error);
         setRole(null);
         setShopId(null);
-      } else if (data) {
-        setRole(data.role as AppRole);
-        setShopId(data.shop_id);
+      } else if (data && data.length > 0) {
+        // Priority: admin > moderator > partner > barista
+        const adminRole = data.find(r => r.role === 'admin');
+        const moderatorRole = data.find(r => r.role === 'moderator');
+        const partnerRole = data.find(r => r.role === 'partner');
+        const baristaRole = data.find(r => r.role === 'barista');
+        
+        const activeRole = adminRole || moderatorRole || partnerRole || baristaRole;
+        
+        if (activeRole) {
+          setRole(activeRole.role as AppRole);
+          setShopId(activeRole.shop_id);
+        } else {
+          setRole(null);
+          setShopId(null);
+        }
       } else {
         setRole(null);
         setShopId(null);
@@ -80,7 +94,8 @@ export function useAdminAuth(): AdminAuthState {
   const isAdmin = role === 'admin';
   const isModerator = role === 'moderator';
   const isPartner = role === 'partner';
-  const hasAccess = isAdmin || isModerator || isPartner;
+  const isBarista = role === 'barista';
+  const hasAccess = isAdmin || isModerator || isPartner || isBarista;
 
   return {
     session,
@@ -90,6 +105,7 @@ export function useAdminAuth(): AdminAuthState {
     isAdmin,
     isModerator,
     isPartner,
+    isBarista,
     hasAccess,
   };
 }
