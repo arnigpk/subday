@@ -30,14 +30,25 @@ export default function AdminPushBroadcastPage() {
         return;
       }
 
-      // Note: Real PUSH notifications would require a service worker and web push API
-      // For now, we'll just save the broadcast record
-      // In production, you'd integrate with Firebase Cloud Messaging or similar
+      const trimmed = message.trim();
+      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
 
-      const { error } = await supabase
+      // 1) Create in-app PUSH notification (delivered via Lovable Cloud realtime)
+      const { error: pushError } = await supabase
+        .from('push_notifications')
+        .insert({
+          title,
+          message: trimmed,
+          created_by: user.id,
+        });
+
+      if (pushError) throw pushError;
+
+      // 2) Save broadcast history record for admin UI
+      const { error: historyError } = await supabase
         .from('broadcast_messages')
         .insert({
-          message: message.trim(),
+          message: trimmed,
           broadcast_type: 'push',
           target_type: 'all',
           recipient_count: 0,
@@ -46,9 +57,9 @@ export default function AdminPushBroadcastPage() {
           sent_by: user.id,
         });
 
-      if (error) throw error;
+      if (historyError) throw historyError;
 
-      toast.info('PUSH-рассылка сохранена (требуется настройка сервера уведомлений)');
+      toast.success('PUSH-уведомление отправлено');
       setMessage('');
       setHistoryRefresh(prev => prev + 1);
     } catch (error) {
@@ -107,9 +118,9 @@ export default function AdminPushBroadcastPage() {
               )}
             </Button>
 
-            <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                ⚠️ Для работы PUSH-уведомлений требуется настройка Firebase Cloud Messaging или аналогичного сервиса на сервере.
+            <div className="p-3 bg-muted rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground">
+                Уведомление появится у активных пользователей в приложении.
               </p>
             </div>
           </CardContent>
