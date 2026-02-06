@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -10,14 +10,18 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
-import { AvatarMenu } from '@/components/profile/AvatarMenu';
+import { StoryViewer } from '@/components/stories/StoryViewer';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingStory, setIsUploadingStory] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [userStories, setUserStories] = useState<any[]>([]);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const storyInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
@@ -124,6 +128,67 @@ export default function ProfilePage() {
     }
   };
   
+  const handleStoryUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Выберите изображение');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Файл слишком большой (максимум 5МБ)');
+      return;
+    }
+
+    setIsUploadingStory(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('subflow-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('subflow-images')
+        .getPublicUrl(fileName);
+
+      const { error: storyError } = await supabase
+        .from('stories')
+        .insert({
+          user_id: user.id,
+          image_url: publicUrl
+        });
+
+      if (storyError) throw storyError;
+
+      toast.success('Сториз добавлен! 🎉');
+    } catch (error) {
+      console.error('Error uploading story:', error);
+      toast.error('Ошибка загрузки сториз');
+    } finally {
+      setIsUploadingStory(false);
+      if (storyInputRef.current) {
+        storyInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAvatarClick = () => {
+    // Open file picker for story
+    storyInputRef.current?.click();
+  };
+
+  const handleCameraClick = () => {
+    // Open file picker for avatar
+    avatarInputRef.current?.click();
+  };
+  
   const menuItems = [
     { icon: MapPin, label: 'Город', value: profile?.city || 'Атырау', type: 'static' as const },
     { icon: Bell, label: 'Уведомления', type: 'notification' as const },
@@ -137,38 +202,78 @@ export default function ProfilePage() {
         <div className="px-4 py-4">
           <h1 className="text-2xl font-black text-foreground mb-6">Профиль</h1>
           
+          {/* Hidden file inputs */}
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleAvatarChange(file);
+              if (avatarInputRef.current) avatarInputRef.current.value = '';
+            }}
+          />
+          <input
+            ref={storyInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleStoryUpload(file);
+            }}
+          />
+
           {/* User card */}
           <div className="card-static flex items-center gap-4 mb-6 animate-slide-up">
             <div className="relative">
-              <Avatar className="w-16 h-16 rounded-2xl">
-                {profile?.avatarUrl ? (
-                  <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" />
-                ) : null}
-                <AvatarFallback className="bg-primary/10 rounded-2xl">
-                  <User size={32} className="text-primary" />
-                </AvatarFallback>
-              </Avatar>
-              <AvatarMenu 
-                onAvatarChange={handleAvatarChange}
-                isUploading={isUploading}
-              />
+              <button 
+                onClick={handleAvatarClick}
+                disabled={isUploadingStory}
+                className="block"
+              >
+                <Avatar className="w-16 h-16 rounded-full cursor-pointer hover:ring-2 hover:ring-accent transition-all">
+                  {profile?.avatarUrl ? (
+                    <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10">
+                    <User size={32} className="text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+                {isUploadingStory && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
+                    <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={handleCameraClick}
+                disabled={isUploading}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+              >
+                {isUploading ? (
+                  <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera size={14} className="text-accent-foreground" />
+                )}
+              </button>
             </div>
             <div>
               {isLoading ? (
                 <div className="animate-pulse">
+                  <div className="h-4 w-16 bg-muted rounded mb-1" />
                   <div className="h-6 w-32 bg-muted rounded mb-1" />
                   <div className="h-4 w-24 bg-muted rounded" />
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
-                    {!isSubLoading && hasActiveSubscription && activeSubscriptions[0]?.subscription_name && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {activeSubscriptions[0].subscription_name}
-                      </span>
-                    )}
-                  </div>
+                  {!isSubLoading && hasActiveSubscription && activeSubscriptions[0]?.subscription_name && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-1">
+                      {activeSubscriptions[0].subscription_name}
+                    </span>
+                  )}
+                  <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
                   <p className="text-muted-foreground">{profile?.phone || ''}</p>
                 </>
               )}
