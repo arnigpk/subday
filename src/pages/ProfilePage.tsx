@@ -276,28 +276,28 @@ export default function ProfilePage() {
                     </span>
                   )}
                   {isEditingName ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Имя Фамилия"
+                        placeholder="Имя"
                         maxLength={50}
-                        className="flex-1 px-2 py-1 bg-secondary rounded-lg text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        className="w-28 min-w-0 px-2 py-1 bg-secondary rounded-lg text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
                         autoFocus
                       />
                       <button
                         onClick={handleSaveName}
                         disabled={isSavingName}
-                        className="p-1.5 bg-accent text-accent-foreground rounded-lg"
+                        className="p-1.5 bg-accent text-accent-foreground rounded-lg flex-shrink-0"
                       >
-                        <Check size={16} />
+                        <Check size={14} />
                       </button>
                       <button
                         onClick={handleCancelNameEdit}
-                        className="p-1.5 bg-secondary text-foreground rounded-lg"
+                        className="p-1.5 bg-secondary text-foreground rounded-lg flex-shrink-0"
                       >
-                        <X size={16} />
+                        <X size={14} />
                       </button>
                     </div>
                   ) : (
