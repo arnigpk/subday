@@ -86,10 +86,10 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       // Get unique user IDs
       const userIds = [...new Set(postsData.map(p => p.user_id))];
       
-      // Fetch profiles
+      // Fetch profiles with nickname
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('user_id, name, avatar_url')
+        .select('user_id, name, avatar_url, subflow_nickname')
         .in('user_id', userIds);
 
       const profilesMap = new Map(
@@ -136,6 +136,9 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         const profile = profilesMap.get(post.user_id);
         const reactions = reactionsMap.get(post.id) || { counts: {}, userReactions: [] };
         
+        // Use subflow_nickname if available, otherwise use name
+        const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
+        
         return {
           id: post.id,
           user_id: post.user_id,
@@ -145,7 +148,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
           shop_id: post.shop_id,
           shop_name: post.shop_name,
           created_at: post.created_at,
-          author_name: profile?.name || 'Пользователь',
+          author_name: displayName,
           author_avatar: profile?.avatar_url || null,
           reactions: reactions.counts,
           user_reactions: reactions.userReactions,
@@ -195,13 +198,14 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         // Immediately add new post to the feed
         const newPost = payload.new as any;
         
-        // Fetch author info for the new post
+        // Fetch author info for the new post (including nickname)
         supabase
           .from('profiles')
-          .select('user_id, name, avatar_url')
+          .select('user_id, name, avatar_url, subflow_nickname')
           .eq('user_id', newPost.user_id)
           .single()
           .then(({ data: profile }) => {
+            const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
             const enrichedPost: Post = {
               id: newPost.id,
               user_id: newPost.user_id,
@@ -211,7 +215,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
               shop_id: newPost.shop_id,
               shop_name: newPost.shop_name,
               created_at: newPost.created_at,
-              author_name: profile?.name || 'Пользователь',
+              author_name: displayName,
               author_avatar: profile?.avatar_url || null,
               reactions: {},
               user_reactions: [],

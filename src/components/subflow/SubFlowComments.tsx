@@ -43,11 +43,11 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         return;
       }
 
-      // Get user profiles
+      // Get user profiles with nickname
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('user_id, name, avatar_url')
+        .select('user_id, name, avatar_url, subflow_nickname')
         .in('user_id', userIds);
 
       const profilesMap = new Map(
@@ -56,12 +56,14 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
 
       const enrichedComments: Comment[] = commentsData.map(comment => {
         const profile = profilesMap.get(comment.user_id);
+        // Use subflow_nickname if available, otherwise use name
+        const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
         return {
           id: comment.id,
           user_id: comment.user_id,
           content: comment.content,
           created_at: comment.created_at,
-          author_name: profile?.name || 'Пользователь',
+          author_name: displayName,
           author_avatar: profile?.avatar_url || null,
         };
       });
