@@ -50,7 +50,7 @@ export default function SubFlowPage() {
           {/* Subscription badge for non-subscribers */}
           {!isSubLoading && !hasActiveSubscription && <div className="mb-4 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2">
               <Info size={16} className="text-primary flex-shrink-0" />
-              <p className="text-xs text-foreground leading-snug text-center">
+              <p className="text-xs text-foreground leading-snug text-left">
                 Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
               </p>
             </div>}
