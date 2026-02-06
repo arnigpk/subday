@@ -106,13 +106,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate dynamic API key for PayLink
-    // Format: base64(shop_id:secret_key:timestamp)
-    const timestamp = Math.floor(Date.now() / 1000);
-    const authString = `${paylinkShopId}:${paylinkSecretKey}:${timestamp}`;
-    const dynamicApiKey = btoa(authString);
-
-    console.log(`PayLink auth: shop_id=${paylinkShopId}, timestamp=${timestamp}`);
+    // Use static X-API-KEY provided by PayLink for test/production
+    console.log(`PayLink auth: shop_id=${paylinkShopId}, using static API key`);
 
     // Create payment via PayLink API v3
     // Docs: https://docs.paylink.kz/en/using_api/api_v3/
