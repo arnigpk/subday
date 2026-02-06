@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
             const statusData = JSON.parse(responseText);
             const status = (statusData.status || statusData.transactionStatus || '').toLowerCase();
             console.log('Payment status from Paylink:', status);
-            isPaymentSuccessful = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(status);
+            isPaymentSuccessful = ['successful', 'success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(status);
           } catch (parseErr) {
             console.error('Failed to parse status response:', parseErr);
           }
