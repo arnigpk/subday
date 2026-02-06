@@ -1,0 +1,117 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { MapPin, ChevronDown, X } from 'lucide-react';
+
+interface Shop {
+  id: string;
+  name: string;
+}
+
+interface SubFlowShopFilterProps {
+  selectedShopId: string | null;
+  onShopChange: (shopId: string | null) => void;
+}
+
+export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopFilterProps) {
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedShopName, setSelectedShopName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchShops();
+  }, []);
+
+  useEffect(() => {
+    if (selectedShopId && shops.length > 0) {
+      const shop = shops.find(s => s.id === selectedShopId);
+      setSelectedShopName(shop?.name || null);
+    } else {
+      setSelectedShopName(null);
+    }
+  }, [selectedShopId, shops]);
+
+  const fetchShops = async () => {
+    const { data } = await supabase
+      .from('shops')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('sort_order');
+    
+    setShops(data || []);
+  };
+
+  const handleSelect = (shopId: string | null) => {
+    onShopChange(shopId);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+          selectedShopId 
+            ? 'bg-primary text-primary-foreground' 
+            : 'bg-secondary text-foreground hover:bg-secondary/80'
+        }`}
+      >
+        <MapPin size={16} />
+        <span className="max-w-[120px] truncate">
+          {selectedShopName || 'Все кофейни'}
+        </span>
+        {selectedShopId ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSelect(null);
+            }}
+            className="ml-1 p-0.5 rounded-full hover:bg-primary-foreground/20"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)} 
+          />
+          
+          <div className="absolute left-0 top-full mt-2 z-50 bg-card border border-border rounded-xl shadow-lg p-2 min-w-[200px] max-h-[300px] overflow-y-auto animate-slide-up">
+            <button
+              onClick={() => handleSelect(null)}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                !selectedShopId 
+                  ? 'bg-primary/10 text-primary font-medium' 
+                  : 'text-foreground hover:bg-secondary'
+              }`}
+            >
+              <MapPin size={16} />
+              <span>Все кофейни</span>
+            </button>
+            
+            <div className="my-1 border-t border-border" />
+            
+            {shops.map((shop) => (
+              <button
+                key={shop.id}
+                onClick={() => handleSelect(shop.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                  selectedShopId === shop.id 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'text-foreground hover:bg-secondary'
+                }`}
+              >
+                <span className="truncate">{shop.name}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

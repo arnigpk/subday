@@ -112,7 +112,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   };
 
   return (
-    <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-4 mb-4 shadow-lg animate-slide-up">
+    <div className="card-static mb-4 animate-slide-up">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-lg text-foreground">Новый пост ✨</h2>
@@ -127,7 +127,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         onChange={(e) => setContent(e.target.value)}
         placeholder="Какой кофе сегодня? Расскажи! ☕"
         rows={3}
-        className="w-full px-4 py-3 bg-secondary/50 border border-border/30 rounded-xl text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent mb-3 transition-all"
+        className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
 
       {/* Image preview */}
@@ -143,7 +143,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
               setImageFile(null);
               setImagePreview(null);
             }}
-            className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white"
+            className="absolute top-2 right-2 p-1 bg-foreground/50 rounded-full text-background"
           >
             <X size={16} />
           </button>
@@ -192,13 +192,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         />
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
           <Image size={22} />
         </button>
         <button
           onClick={() => setShowShopPicker(!showShopPicker)}
-          className={`p-2 transition-colors ${selectedShop ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`p-2 rounded-lg transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
         >
           <MapPin size={22} />
         </button>
@@ -206,6 +206,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         <Button
           onClick={handleSubmit}
           disabled={isSubmitting || !content.trim()}
+          className="btn-primary"
         >
           {isSubmitting ? (
             <Loader2 className="w-4 h-4 animate-spin" />

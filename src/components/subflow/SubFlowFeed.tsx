@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -21,27 +22,63 @@ interface Post {
 interface SubFlowFeedProps {
   refreshTrigger: number;
   currentUserId: string | null;
+  shopFilter?: string | null;
 }
 
-export function SubFlowFeed({ refreshTrigger, currentUserId }: SubFlowFeedProps) {
+const POSTS_PER_PAGE = 10;
+
+export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFlowFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async (isInitial = true) => {
     try {
-      // Fetch posts
-      const { data: postsData, error: postsError } = await supabase
+      if (isInitial) {
+        setIsLoading(true);
+        setPosts([]);
+        setLastCreatedAt(null);
+        setHasMore(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      // Build query
+      let query = supabase
         .from('subflow_posts')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(POSTS_PER_PAGE);
+
+      // Apply shop filter
+      if (shopFilter) {
+        query = query.eq('shop_id', shopFilter);
+      }
+
+      // Cursor pagination
+      if (!isInitial && lastCreatedAt) {
+        query = query.lt('created_at', lastCreatedAt);
+      }
+
+      const { data: postsData, error: postsError } = await query;
 
       if (postsError) throw postsError;
 
       if (!postsData || postsData.length === 0) {
-        setPosts([]);
+        if (isInitial) {
+          setPosts([]);
+        }
+        setHasMore(false);
         setIsLoading(false);
+        setIsLoadingMore(false);
         return;
       }
+
+      // Update cursor
+      setLastCreatedAt(postsData[postsData.length - 1].created_at);
+      setHasMore(postsData.length === POSTS_PER_PAGE);
 
       // Get unique user IDs
       const userIds = [...new Set(postsData.map(p => p.user_id))];
@@ -112,34 +149,58 @@ export function SubFlowFeed({ refreshTrigger, currentUserId }: SubFlowFeedProps)
         };
       });
 
-      setPosts(enrichedPosts);
+      if (isInitial) {
+        setPosts(enrichedPosts);
+      } else {
+        setPosts(prev => [...prev, ...enrichedPosts]);
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  };
+  }, [currentUserId, shopFilter, lastCreatedAt]);
 
+  const loadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore) {
+      fetchPosts(false);
+    }
+  }, [fetchPosts, isLoadingMore, hasMore]);
+
+  const { loadMoreRef } = useInfiniteScroll({
+    onLoadMore: loadMore,
+    hasMore,
+    isLoading: isLoadingMore,
+  });
+
+  // Initial fetch and refresh
   useEffect(() => {
-    fetchPosts();
-  }, [refreshTrigger, currentUserId]);
+    fetchPosts(true);
+  }, [refreshTrigger, currentUserId, shopFilter]);
 
   // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
       .channel('subflow-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_posts' }, () => {
-        fetchPosts();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, () => {
+        // Only refresh for new posts if we're at the top
+        if (posts.length === 0 || !lastCreatedAt) {
+          fetchPosts(true);
+        }
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_posts' }, () => {
+        fetchPosts(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_reactions' }, () => {
-        fetchPosts();
+        // Silently update reactions without full refresh
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, posts.length, lastCreatedAt]);
 
   if (isLoading) {
     return (
@@ -168,10 +229,25 @@ export function SubFlowFeed({ refreshTrigger, currentUserId }: SubFlowFeedProps)
           key={post.id}
           post={post}
           currentUserId={currentUserId}
-          onUpdate={fetchPosts}
-          animationDelay={index * 0.05}
+          onUpdate={() => fetchPosts(true)}
+          animationDelay={index < 10 ? index * 0.05 : 0}
         />
       ))}
+      
+      {/* Infinite scroll trigger */}
+      <div ref={loadMoreRef} className="h-4" />
+      
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      )}
+      
+      {!hasMore && posts.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-4">
+          Это все посты 🎉
+        </p>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { User, MessageCircle, Trash2, MapPin } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
+import { SubFlowShareMenu } from './SubFlowShareMenu';
 import { toast } from 'sonner';
 
 interface Post {
@@ -118,7 +119,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
 
   return (
     <div 
-      className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up"
+      className="card-static animate-slide-up"
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {/* Header */}
@@ -127,23 +128,30 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
           {post.author_avatar ? (
             <AvatarImage src={post.author_avatar} alt={post.author_name} className="object-cover" />
           ) : null}
-          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20">
+          <AvatarFallback className="bg-primary/10">
             <User size={20} className="text-primary" />
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-foreground truncate">{post.author_name}</p>
-          <p className="text-xs text-muted-foreground/70">{formatDate(post.created_at)}</p>
+          <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
-        {isOwner && (
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <SubFlowShareMenu 
+            postId={post.id} 
+            postContent={post.content}
+            imageUrl={post.image_url}
+          />
+          {isOwner && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Shop tag */}
@@ -181,8 +189,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
               onClick={() => handleReaction(reaction)}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
                 hasReacted 
-                  ? 'bg-gradient-to-r from-primary/25 to-accent/25 text-primary shadow-sm' 
-                  : 'bg-secondary/80 text-foreground hover:bg-secondary hover:scale-105'
+                  ? 'bg-primary/15 text-primary shadow-sm' 
+                  : 'bg-secondary text-foreground hover:bg-secondary/80'
               }`}
             >
               <span className="text-base">{reaction}</span>
