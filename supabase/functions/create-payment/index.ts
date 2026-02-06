@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     // Convert amount to minor units (tiyns) - multiply by 100
     const amountInMinorUnits = Math.round(subscriptionType.price * 100);
 
-    // s-core.paylink.kz API — endpoint /api/v1/invoices из документации Postman
+    // s-core.paylink.kz API — endpoint /api/v1/invoices
 
     const paylinkHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -126,29 +126,42 @@ Deno.serve(async (req) => {
       'X-API-KEY': paylinkApiKey,
     };
 
-    // s-core.paylink.kz invoices endpoint
     const paylinkEndpoint = 'https://s-core.paylink.kz/api/v1/invoices';
 
-    // Payload format for invoices API
+    // Generate unique requestId (UUID format)
+    const requestId = crypto.randomUUID();
+    
+    // Customer name parsing
+    const customerName = profile?.name || 'Клиент';
+    const nameParts = customerName.split(' ');
+    const firstName = nameParts[0] || 'Клиент';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Payload format per Paylink documentation
     const paylinkPayload = {
-      shop_id: paylinkShopId,
-      amount: subscriptionType.price, // in tenge
+      amount: subscriptionType.price * 100, // in tiyns (minor units)
       currency: 'KZT',
-      order_id: orderId,
+      requestId: requestId,
+      trackingId: orderId,
       description: `Подписка: ${subscriptionType.name}`,
-      success_url: 'https://vhod.lovable.app/?payment=success',
-      fail_url: 'https://vhod.lovable.app/?payment=failed',
-      callback_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
-      customer: {
-        phone: formattedPhone,
-        email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
-      },
-      test: true,
-      metadata: {
+      callbackUrl: `${supabaseUrl}/functions/v1/paylink-webhook`,
+      successUrl: 'https://vhod.lovable.app/?payment=success',
+      failureUrl: 'https://vhod.lovable.app/?payment=failed',
+      customFields: {
         user_id: user.id,
         subscription_type_id: subscription_type_id,
         payment_order_id: paymentOrder.id,
-      }
+      },
+      customer: {
+        id: user.id,
+        firstName: firstName,
+        lastName: lastName,
+        phone: formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`,
+        email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
+        language: 'RU',
+      },
+      transactionType: 'AUTHORIZATION',
+      doTokenize: false,
     };
 
     console.log('Creating Paylink payment (s-core):', JSON.stringify(paylinkPayload, null, 2));
@@ -160,7 +173,9 @@ Deno.serve(async (req) => {
     });
 
     const responseText = await paylinkResponse.text();
-    console.log('Paylink raw response:', responseText);
+    console.log('Paylink HTTP status:', paylinkResponse.status);
+    console.log('Paylink response headers:', JSON.stringify(Object.fromEntries(paylinkResponse.headers.entries())));
+    console.log('Paylink raw response:', responseText || '(empty body)');
 
     let paylinkData;
     try {
