@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -150,6 +151,10 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFl
           comments_count: commentsCountMap.get(post.id) || 0,
         };
       });
+
+      // Prefetch stories for all users in this batch
+      const postUserIds = [...new Set(enrichedPosts.map(p => p.user_id))];
+      prefetchStoriesForUsers(postUserIds);
 
       if (isInitial) {
         setPosts(enrichedPosts);
