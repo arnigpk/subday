@@ -301,8 +301,8 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                    <div className="flex items-center gap-1.5 max-w-full">
+                      <h2 className="text-xl font-bold text-foreground truncate max-w-[160px]">{profile?.name || 'Пользователь'}</h2>
                       <button
                         onClick={() => setIsEditingName(true)}
                         className="p-1 text-muted-foreground hover:text-primary transition-colors"
