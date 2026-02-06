@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePost } from '@/components/subflow/SubFlowCreatePost';
-import { SubFlowShopFilter } from '@/components/subflow/SubFlowShopFilter';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Info } from 'lucide-react';
@@ -15,7 +14,6 @@ export default function SubFlowPage() {
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({
       data: {
@@ -41,11 +39,8 @@ export default function SubFlowPage() {
               </Button>}
           </div>
           
-          {/* Subtitle and filter row */}
-          <div className="flex items-center gap-2 mb-4">
-            <p className="text-xs text-muted-foreground">Делись впечатлениями ☕</p>
-            <SubFlowShopFilter selectedShopId={selectedShopId} onShopChange={setSelectedShopId} />
-          </div>
+          {/* Subtitle */}
+          <p className="text-xs text-muted-foreground mb-4">Делись впечатлениями ☕</p>
 
           {/* Subscription badge for non-subscribers */}
           {!isSubLoading && !hasActiveSubscription && <div className="mb-4 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2">
@@ -57,7 +52,7 @@ export default function SubFlowPage() {
 
           {showCreatePost && <SubFlowCreatePost onClose={() => setShowCreatePost(false)} onPostCreated={handlePostCreated} />}
 
-          <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={selectedShopId} />
+          <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} />
         </div>
       </div>
     </AppLayout>;
