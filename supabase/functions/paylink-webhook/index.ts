@@ -109,9 +109,9 @@ Deno.serve(async (req) => {
     }
 
     // Check payment status 
-    // Paylink s-core uses: AUTHORIZED, CAPTURED, SUCCESS, PAID, COMPLETED, etc.
+    // Paylink s-core uses: SUCCESSFUL, AUTHORIZED, CAPTURED, SUCCESS, PAID, COMPLETED, etc.
     const statusLower = String(status || '').toLowerCase();
-    const isSuccess = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(statusLower);
+    const isSuccess = ['successful', 'success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(statusLower);
 
     console.log('Payment status check:', { status, statusLower, isSuccess });
 
