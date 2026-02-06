@@ -31,32 +31,31 @@ export default function SubFlowPage() {
       <div className="safe-area-top">
         <div className="px-4 py-4">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
+          <div className="flex items-start justify-between mb-4 gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Делись впечатлениями ☕</p>
+              {/* Subscription badge for non-subscribers */}
+              {!isSubLoading && !hasActiveSubscription && (
+                <div className="px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-1.5">
+                  <Info size={12} className="text-primary flex-shrink-0" />
+                  <p className="text-[10px] text-foreground leading-tight max-w-[180px]">
+                    Купите подписку что бы публиковать посты и сториз
+                  </p>
+                </div>
+              )}
             </div>
             {!isSubLoading && hasActiveSubscription && (
               <Button
                 size="sm"
                 onClick={() => setShowCreatePost(true)}
-                className="rounded-xl btn-accent text-sm py-2 px-4"
+                className="rounded-xl btn-accent text-sm py-2 px-4 flex-shrink-0"
               >
                 <Plus size={16} className="mr-1" />
                 Сделать пост
               </Button>
             )}
           </div>
-
-          {/* Subscription badge for non-subscribers */}
-          {!isSubLoading && !hasActiveSubscription && (
-            <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3">
-              <Info size={18} className="text-primary flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-foreground leading-snug">
-                Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
-              </p>
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground -mt-3 mb-4">Делись впечатлениями ☕</p>
 
           {/* Filter */}
           <div className="mb-4">
