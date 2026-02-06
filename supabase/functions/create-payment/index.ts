@@ -17,7 +17,10 @@ Deno.serve(async (req) => {
     const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY')!;
     const paylinkShopIdRaw = Deno.env.get('PAYLINK_SHOP_ID') || '911';
     const paylinkShopId = Number(paylinkShopIdRaw);
-
+    
+    // Log API key format (masked for security)
+    const keyMask = paylinkApiKey ? `${paylinkApiKey.substring(0, 4)}...${paylinkApiKey.substring(paylinkApiKey.length - 4)} (len=${paylinkApiKey.length})` : 'MISSING';
+    console.log('PAYLINK_API_KEY check:', keyMask);
     if (!Number.isFinite(paylinkShopId)) {
       return new Response(JSON.stringify({ error: 'Invalid PAYLINK_SHOP_ID' }), {
         status: 500,
