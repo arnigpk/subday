@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { usePayment } from '@/hooks/usePayment';
 import { Button } from '@/components/ui/button';
+import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 
 interface SubscriptionType {
   id: string;
@@ -29,6 +30,7 @@ export default function PackageDetailPage() {
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessing, createPayment } = usePayment();
+  const { activeSubscriptionTypeId } = useActiveSubscription();
 
   useEffect(() => {
     if (id) {
@@ -85,6 +87,7 @@ export default function PackageDetailPage() {
 
   const isCoffee = subscription.type === 'coffee';
   const period = getPeriodText(subscription.duration_days);
+  const isActive = activeSubscriptionTypeId === subscription.id;
   
   // Use features from database or fallback to defaults
   const defaultFeatures = isCoffee
@@ -181,23 +184,29 @@ export default function PackageDetailPage() {
           </div>
 
           <div className="pb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button 
-              onClick={handlePurchase}
-              disabled={isProcessing}
-              className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Создаём платёж...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Оформить за {formatPrice(subscription.price)}
-                </>
-              )}
-            </Button>
+            {isActive ? (
+              <div className="w-full h-14 flex items-center justify-center text-lg font-bold bg-muted text-muted-foreground rounded-xl cursor-not-allowed">
+                Ваша активная подписка
+              </div>
+            ) : (
+              <Button 
+                onClick={handlePurchase}
+                disabled={isProcessing}
+                className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Создаём платёж...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-5 h-5 mr-2" />
+                    Оформить за {formatPrice(subscription.price)}
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>
