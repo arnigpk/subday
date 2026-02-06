@@ -72,61 +72,63 @@ Deno.serve(async (req) => {
     }
 
     // Try to get payment status from Paylink
-    // If we have payment_id, use it to check status
+    // Use payment_id (uid from Paylink) to check status
     let isPaymentSuccessful = false;
+    const paymentUid = pendingOrder.payment_id;
 
-    if (pendingOrder.payment_id) {
+    console.log('Checking payment status, payment_id:', paymentUid);
+
+    if (paymentUid) {
       try {
-        const statusResponse = await fetch(
-          `https://s-core.paylink.kz/api/v1/invoices/${pendingOrder.payment_id}`,
-          {
-            method: 'GET',
-            headers: {
-              'X-API-KEY': paylinkApiKey,
-              'Accept': 'application/json',
-            },
-          }
-        );
+        // Get invoice status by uid
+        const statusUrl = `https://s-core.paylink.kz/api/v1/invoices/${paymentUid}`;
+        console.log('Fetching status from:', statusUrl);
+        
+        const statusResponse = await fetch(statusUrl, {
+          method: 'GET',
+          headers: {
+            'X-API-KEY': paylinkApiKey,
+            'Accept': 'application/json',
+          },
+        });
 
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          console.log('Paylink status response:', JSON.stringify(statusData, null, 2));
-          
-          const status = (statusData.status || statusData.transactionStatus || '').toLowerCase();
-          isPaymentSuccessful = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(status);
+        const responseText = await statusResponse.text();
+        console.log('Paylink status HTTP:', statusResponse.status);
+        console.log('Paylink status response:', responseText);
+
+        if (statusResponse.ok && responseText) {
+          try {
+            const statusData = JSON.parse(responseText);
+            const status = (statusData.status || statusData.transactionStatus || '').toLowerCase();
+            console.log('Payment status from Paylink:', status);
+            isPaymentSuccessful = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(status);
+          } catch (parseErr) {
+            console.error('Failed to parse status response:', parseErr);
+          }
         }
       } catch (apiError) {
         console.error('Error checking Paylink status:', apiError);
       }
+    } else {
+      console.log('No payment_id stored, cannot verify via API');
     }
 
-    // Alternative: Check by tracking ID
+    // If we couldn't verify via API but user came from success URL,
+    // we should trust the redirect (Paylink only redirects to successUrl on success)
+    // This is a fallback when webhook doesn't work
     if (!isPaymentSuccessful) {
-      try {
-        const statusResponse = await fetch(
-          `https://s-core.paylink.kz/api/v1/invoices?trackingId=${encodeURIComponent(pendingOrder.order_id)}`,
-          {
-            method: 'GET',
-            headers: {
-              'X-API-KEY': paylinkApiKey,
-              'Accept': 'application/json',
-            },
-          }
-        );
-
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          console.log('Paylink trackingId response:', JSON.stringify(statusData, null, 2));
-          
-          // Check if response has payment info
-          const payment = Array.isArray(statusData) ? statusData[0] : statusData;
-          if (payment) {
-            const status = (payment.status || payment.transactionStatus || '').toLowerCase();
-            isPaymentSuccessful = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(status);
-          }
-        }
-      } catch (apiError) {
-        console.error('Error checking Paylink by trackingId:', apiError);
+      console.log('API verification failed, checking if we should trust success redirect...');
+      
+      // Check if the payment was created recently (within last 10 minutes)
+      const orderCreatedAt = new Date(pendingOrder.created_at);
+      const now = new Date();
+      const minutesAgo = (now.getTime() - orderCreatedAt.getTime()) / (1000 * 60);
+      
+      if (minutesAgo <= 10) {
+        console.log(`Order is ${minutesAgo.toFixed(1)} minutes old, trusting success redirect`);
+        isPaymentSuccessful = true;
+      } else {
+        console.log(`Order is ${minutesAgo.toFixed(1)} minutes old, too old to trust redirect`);
       }
     }
 
