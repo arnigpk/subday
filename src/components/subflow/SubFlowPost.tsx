@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { User, MessageCircle, Trash2, MapPin } from 'lucide-react';
+import { User, MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -13,6 +13,7 @@ interface Post {
   user_id: string;
   content: string;
   image_url: string | null;
+  image_urls?: string[];
   shop_id: string | null;
   shop_name: string | null;
   created_at: string;
@@ -31,14 +32,19 @@ interface SubFlowPostProps {
 }
 
 const REACTIONS = ['💚', '🚀', '🔥', '⚡️', '👍', '🥹'];
+const MAX_REACTIONS_PER_USER = 2;
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [localReactions, setLocalReactions] = useState(post.reactions);
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const isOwner = currentUserId === post.user_id;
+  
+  // Get all images - prefer image_urls array, fallback to single image_url
+  const images = post.image_urls?.length ? post.image_urls : (post.image_url ? [post.image_url] : []);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -56,6 +62,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
     }
 
     const hasReaction = localUserReactions.includes(reaction);
+    
+    // Check if user already has max reactions and trying to add new one
+    if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
+      toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
+      return;
+    }
 
     // Optimistic update
     if (hasReaction) {
@@ -165,15 +177,50 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
       {/* Content */}
       <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
 
-      {/* Image */}
-      {post.image_url && (
-        <div className="mb-4 -mx-4 overflow-hidden">
+      {/* Images carousel */}
+      {images.length > 0 && (
+        <div className="mb-4 -mx-4 overflow-hidden relative">
           <img
-            src={post.image_url}
-            alt="Post image"
+            src={images[currentImageIndex]}
+            alt={`Post image ${currentImageIndex + 1}`}
             className="w-full h-auto max-h-96 object-cover"
             loading="lazy"
           />
+          {images.length > 1 && (
+            <>
+              {/* Navigation arrows */}
+              {currentImageIndex > 0 && (
+                <button
+                  onClick={() => setCurrentImageIndex(prev => prev - 1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full text-foreground hover:bg-background transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
+              {currentImageIndex < images.length - 1 && (
+                <button
+                  onClick={() => setCurrentImageIndex(prev => prev + 1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full text-foreground hover:bg-background transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              )}
+              {/* Dots indicator */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentImageIndex 
+                        ? 'bg-primary w-4' 
+                        : 'bg-background/60'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

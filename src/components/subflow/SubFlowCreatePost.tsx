@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2 } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -14,13 +14,15 @@ interface SubFlowCreatePostProps {
   onPostCreated: () => void;
 }
 
+const MAX_IMAGES = 5;
+
 export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostProps) {
   const [content, setContent] = useState('');
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,21 +41,48 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Выберите изображение');
+    const remainingSlots = MAX_IMAGES - imageFiles.length;
+    if (remainingSlots <= 0) {
+      toast.error(`Максимум ${MAX_IMAGES} фото`);
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Максимум 5МБ');
-      return;
+    const validFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (const file of files.slice(0, remainingSlots)) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Выберите изображение');
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Максимум 5МБ на фото');
+        continue;
+      }
+
+      validFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
     }
 
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    setImageFiles(prev => [...prev, ...validFiles]);
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleSubmit = async () => {
@@ -68,12 +97,12 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      let imageUrl: string | null = null;
+      const imageUrls: string[] = [];
 
-      // Upload image if selected
-      if (imageFile) {
+      // Upload all images
+      for (const imageFile of imageFiles) {
         const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('subflow-images')
@@ -85,16 +114,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           .from('subflow-images')
           .getPublicUrl(fileName);
 
-        imageUrl = publicUrl;
+        imageUrls.push(publicUrl);
       }
 
-      // Create post
+      // Create post with image_urls array
       const { error: postError } = await supabase
         .from('subflow_posts')
         .insert({
           user_id: user.id,
           content: content.trim(),
-          image_url: imageUrl,
+          image_url: imageUrls[0] || null, // Keep for backward compatibility
+          image_urls: imageUrls,
           shop_id: selectedShop?.id || null,
           shop_name: selectedShop?.name || null,
         });
@@ -130,23 +160,37 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
 
-      {/* Image preview */}
-      {imagePreview && (
-        <div className="relative mb-3">
-          <img
-            src={imagePreview}
-            alt="Preview"
-            className="w-full h-48 object-cover rounded-xl"
-          />
-          <button
-            onClick={() => {
-              setImageFile(null);
-              setImagePreview(null);
-            }}
-            className="absolute top-2 right-2 p-1 bg-foreground/50 rounded-full text-background"
-          >
-            <X size={16} />
-          </button>
+      {/* Image previews */}
+      {imagePreviews.length > 0 && (
+        <div className="mb-3">
+          <div className={`grid gap-2 ${imagePreviews.length === 1 ? 'grid-cols-1' : imagePreviews.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative aspect-square">
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+                <button
+                  onClick={() => removeImage(index)}
+                  className="absolute top-1 right-1 p-1 bg-foreground/50 rounded-full text-background"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {imageFiles.length < MAX_IMAGES && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square border-2 border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                <Plus size={24} />
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 text-center">
+            {imageFiles.length}/{MAX_IMAGES} фото
+          </p>
         </div>
       )}
 
@@ -187,6 +231,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleImageSelect}
         />
