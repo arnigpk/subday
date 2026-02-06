@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Heart, Eye } from 'lucide-react';
+import { X, Heart, Eye, Trash2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface Story {
   id: string;
@@ -21,14 +22,16 @@ interface StoryViewerProps {
   initialIndex: number;
   currentUserId: string | null;
   onClose: () => void;
+  onStoryDeleted?: () => void;
 }
 
-export function StoryViewer({ stories, initialIndex, currentUserId, onClose }: StoryViewerProps) {
+export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onStoryDeleted }: StoryViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [viewCount, setViewCount] = useState(0);
   const [likesCount, setLikesCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const story = stories[currentIndex];
   const isOwner = currentUserId === story?.user_id;
@@ -215,17 +218,46 @@ export function StoryViewer({ stories, initialIndex, currentUserId, onClose }: S
       {/* Footer */}
       <div className="absolute bottom-0 left-0 right-0 p-4 z-20 safe-area-bottom">
         {isOwner ? (
-          // Owner sees view count
-          <div className="flex items-center justify-center gap-2 text-white/80">
-            <Eye size={20} />
-            <span className="text-sm font-medium">{viewCount} просмотров</span>
-            {likesCount > 0 && (
-              <>
-                <span className="mx-2">•</span>
-                <Heart size={18} className="fill-red-500 text-red-500" />
-                <span className="text-sm font-medium">{likesCount}</span>
-              </>
-            )}
+          // Owner sees view count and delete button
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-white/80">
+              <Eye size={20} />
+              <span className="text-sm font-medium">{viewCount} просмотров</span>
+              {likesCount > 0 && (
+                <>
+                  <span className="mx-2">•</span>
+                  <Heart size={18} className="fill-red-500 text-red-500" />
+                  <span className="text-sm font-medium">{likesCount}</span>
+                </>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                if (!confirm('Удалить этот сториз?')) return;
+                setIsDeleting(true);
+                try {
+                  const { error } = await supabase
+                    .from('stories')
+                    .delete()
+                    .eq('id', story.id);
+                  
+                  if (error) throw error;
+                  toast.success('Сториз удалён');
+                  onStoryDeleted?.();
+                  onClose();
+                } catch (error) {
+                  console.error('Delete story error:', error);
+                  toast.error('Ошибка удаления');
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2 bg-destructive/20 text-destructive rounded-full text-sm font-medium hover:bg-destructive/30 transition-colors"
+            >
+              <Trash2 size={16} />
+              <span>{isDeleting ? 'Удаление...' : 'Удалить'}</span>
+            </button>
           </div>
         ) : (
           // Viewers can like
