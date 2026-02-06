@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Hash, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -21,11 +21,50 @@ export default function ProfilePage() {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [userStories, setUserStories] = useState<any[]>([]);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [isSavingNickname, setIsSavingNickname] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const storyInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
+  
+  // Sync nickname state with profile
+  useEffect(() => {
+    if (profile?.subflowNickname) {
+      setNickname(profile.subflowNickname);
+    }
+  }, [profile?.subflowNickname]);
+  
+  const handleSaveNickname = async () => {
+    setIsSavingNickname(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ subflow_nickname: nickname.trim() || null })
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      toast.success('Псевдоним сохранён!');
+      setIsEditingNickname(false);
+      refetch();
+    } catch (error) {
+      console.error('Error saving nickname:', error);
+      toast.error('Ошибка сохранения');
+    } finally {
+      setIsSavingNickname(false);
+    }
+  };
+  
+  const handleCancelNicknameEdit = () => {
+    setNickname(profile?.subflowNickname || '');
+    setIsEditingNickname(false);
+  };
   
   // Check current notification permission on mount
   useEffect(() => {
@@ -327,6 +366,54 @@ export default function ProfilePage() {
               <p className="text-2xl font-black text-foreground">{stats.bonusPoints}</p>
               <p className="text-xs text-muted-foreground">Бонусов</p>
             </Link>
+          </div>
+          
+          {/* SubFlow Nickname */}
+          <div className="card-static mb-3 animate-slide-up" style={{ animationDelay: '0.08s' }}>
+            <div className="flex items-center gap-3">
+              <Hash size={20} className="text-accent flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">Псевдоним #subFlow</p>
+                {isEditingNickname ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      placeholder="Введите псевдоним..."
+                      maxLength={30}
+                      className="flex-1 px-2 py-1 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveNickname}
+                      disabled={isSavingNickname}
+                      className="p-1.5 bg-accent text-accent-foreground rounded-lg"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={handleCancelNicknameEdit}
+                      className="p-1.5 bg-secondary text-foreground rounded-lg"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {profile?.subflowNickname || 'Не указан'}
+                    </p>
+                    <button
+                      onClick={() => setIsEditingNickname(true)}
+                      className="p-1 text-muted-foreground hover:text-primary"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           
           {/* Purchase History Section */}

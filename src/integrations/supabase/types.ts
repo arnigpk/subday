@@ -136,6 +136,7 @@ export type Database = {
           is_blocked: boolean | null
           name: string | null
           phone: string
+          subflow_nickname: string | null
           updated_at: string
           user_id: string
         }
@@ -147,6 +148,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone: string
+          subflow_nickname?: string | null
           updated_at?: string
           user_id: string
         }
@@ -158,6 +160,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone?: string
+          subflow_nickname?: string | null
           updated_at?: string
           user_id?: string
         }
