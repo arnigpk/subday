@@ -21,10 +21,18 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log('Paylink webhook received:', JSON.stringify(payload, null, 2));
 
-    // Extract relevant data from Paylink callback
-    const orderId = payload.order_id || payload.metadata?.order_id;
-    const status = payload.status || payload.payment_status;
-    const paymentId = payload.id || payload.payment_id;
+    // Extract relevant data from Paylink s-core callback
+    // Paylink sends: trackingId (our order_id), status, uid (payment id), customFields
+    const orderId = payload.trackingId || 
+                    payload.tracking_id || 
+                    payload.order_id || 
+                    payload.customFields?.payment_order_id ||
+                    payload.metadata?.order_id;
+    const status = payload.status || payload.payment_status || payload.transactionStatus;
+    const paymentId = payload.uid || payload.id || payload.payment_id;
+    const customFields = payload.customFields || {};
+
+    console.log('Parsed webhook data:', { orderId, status, paymentId, customFields });
 
     if (!orderId) {
       console.error('No order_id in webhook payload');
@@ -57,8 +65,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check payment status (Paylink uses 'success', 'paid', 'completed', etc.)
-    const isSuccess = ['success', 'paid', 'completed', 'approved'].includes(status?.toLowerCase());
+    // Check payment status 
+    // Paylink s-core uses: AUTHORIZED, CAPTURED, SUCCESS, PAID, COMPLETED, etc.
+    const statusLower = (status || '').toLowerCase();
+    const isSuccess = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(statusLower);
+
+    console.log('Payment status check:', { status, statusLower, isSuccess });
 
     if (isSuccess) {
       console.log('Payment successful, activating subscription for user:', paymentOrder.user_id);
@@ -164,9 +176,10 @@ Deno.serve(async (req) => {
       });
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Webhook error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
