@@ -4,6 +4,8 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Info, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { usePayment } from '@/hooks/usePayment';
+import { Button } from '@/components/ui/button';
 
 interface SubscriptionType {
   id: string;
@@ -26,6 +28,7 @@ export default function PackageDetailPage() {
   const { id } = useParams();
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isLoading: isPaymentLoading, redirectToPayment } = usePayment();
 
   useEffect(() => {
     if (id) {
@@ -172,9 +175,20 @@ export default function PackageDetailPage() {
           </div>
 
           <div className="pb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <button className="btn-accent w-full text-lg">
-              Оформить за {formatPrice(subscription.price)}
-            </button>
+            <Button 
+              onClick={() => redirectToPayment({ subscriptionTypeId: subscription.id })}
+              disabled={isPaymentLoading}
+              className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {isPaymentLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Создание платежа...
+                </>
+              ) : (
+                `Оформить за ${formatPrice(subscription.price)}`
+              )}
+            </Button>
           </div>
         </div>
       </div>

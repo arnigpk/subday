@@ -42,6 +42,8 @@ interface TransactionWithUser {
   user_id: string;
   subscription_name: string;
   transaction_type: string;
+  amount: number | null;
+  payment_method: string | null;
   created_at: string;
   user_name: string | null;
   user_phone: string | null;
@@ -120,7 +122,13 @@ export default function AdminSubscriptionTransactionsPage() {
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
       const combined: TransactionWithUser[] = data.map(t => ({
-        ...t,
+        id: t.id,
+        user_id: t.user_id,
+        subscription_name: t.subscription_name,
+        transaction_type: t.transaction_type,
+        amount: t.amount ?? null,
+        payment_method: t.payment_method ?? null,
+        created_at: t.created_at,
         user_name: profileMap.get(t.user_id)?.name || null,
         user_phone: profileMap.get(t.user_id)?.phone || null,
       }));
@@ -293,6 +301,7 @@ export default function AdminSubscriptionTransactionsPage() {
                       <TableHead>Пользователь</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Подписка</TableHead>
+                      <TableHead>Сумма</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
                     </TableRow>
@@ -310,6 +319,13 @@ export default function AdminSubscriptionTransactionsPage() {
                         </TableCell>
                         <TableCell>{t.user_phone || '—'}</TableCell>
                         <TableCell>{t.subscription_name}</TableCell>
+                        <TableCell>
+                          {t.amount ? (
+                            <span className="font-medium">
+                              {new Intl.NumberFormat('ru-RU').format(t.amount)} ₸
+                            </span>
+                          ) : '—'}
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
                             t.transaction_type === 'purchase'
