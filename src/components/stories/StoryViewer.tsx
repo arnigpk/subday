@@ -160,9 +160,21 @@ export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onS
   if (!story) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+      {/* Blurred background - uses the story image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center scale-110"
+        style={{ 
+          backgroundImage: `url(${story.image_url})`,
+          filter: 'blur(40px) brightness(0.4)'
+        }}
+      />
+      
+      {/* Dark overlay for better contrast */}
+      <div className="absolute inset-0 bg-black/30" />
+
       {/* Progress bars */}
-      <div className="absolute top-0 left-0 right-0 flex gap-1 p-2 z-20">
+      <div className="absolute top-0 left-0 right-0 flex gap-1 p-2 z-20 safe-area-top">
         {stories.map((_, index) => (
           <div key={index} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
             <div 
@@ -176,33 +188,33 @@ export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onS
       </div>
 
       {/* Header */}
-      <div className="absolute top-6 left-0 right-0 flex items-center justify-between px-4 z-20">
+      <div className="absolute top-6 left-0 right-0 flex items-center justify-between px-4 z-20 safe-area-top">
         <div className="flex items-center gap-3">
           <Avatar className="w-10 h-10 ring-2 ring-white/50">
             {story.author_avatar ? (
               <AvatarImage src={story.author_avatar} alt={story.author_name} />
             ) : null}
-            <AvatarFallback className="bg-primary/20">
+            <AvatarFallback className="bg-white/20">
               <User size={16} className="text-white" />
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-white font-medium text-sm">{story.author_name}</p>
-            <p className="text-white/60 text-xs">
+            <p className="text-white font-medium text-sm drop-shadow-md">{story.author_name}</p>
+            <p className="text-white/80 text-xs drop-shadow-md">
               {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: ru })}
             </p>
           </div>
         </div>
-        <button onClick={onClose} className="p-2 text-white/80 hover:text-white">
+        <button onClick={onClose} className="p-2 text-white/80 hover:text-white drop-shadow-md">
           <X size={24} />
         </button>
       </div>
 
-      {/* Story image */}
+      {/* Story image - full screen with object-cover */}
       <img 
         src={story.image_url} 
         alt="Story" 
-        className="max-w-full max-h-full object-contain"
+        className="relative z-10 w-full h-full object-contain"
       />
 
       {/* Touch areas for navigation */}
