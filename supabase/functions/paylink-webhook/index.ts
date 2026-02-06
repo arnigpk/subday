@@ -17,93 +17,32 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse webhook payload (Paylink может прислать POST JSON или GET/FORM)
-    const contentType = req.headers.get('content-type') || '';
-    const url = new URL(req.url);
-
-    let payload: any = null;
-    let rawBody = '';
-
-    if (req.method !== 'GET') {
-      rawBody = await req.text();
-      if (rawBody) {
-        try {
-          payload = JSON.parse(rawBody);
-        } catch {
-          // fallback: try x-www-form-urlencoded in body
-          try {
-            const params = new URLSearchParams(rawBody);
-            payload = Object.fromEntries(params.entries());
-          } catch {
-            payload = { raw: rawBody };
-          }
-        }
-      }
-    }
-
-    // Merge query params for GET callbacks
-    const queryObj = Object.fromEntries(url.searchParams.entries());
-    payload = { ...(payload || {}), ...queryObj };
-
-    console.log('Paylink webhook received:', JSON.stringify({
-      method: req.method,
-      contentType,
-      query: queryObj,
-      body: payload,
-      rawBody: rawBody ? rawBody.slice(0, 1000) : undefined,
-    }, null, 2));
+    // Parse webhook payload
+    const payload = await req.json();
+    console.log('Paylink webhook received:', JSON.stringify(payload, null, 2));
 
     // Extract relevant data from Paylink callback
-    const orderId =
-      payload.trackingId ||
-      payload.tracking_id ||
-      payload.order_id ||
-      payload.orderId ||
-      payload.metadata?.order_id ||
-      payload.metadata?.trackingId ||
-      payload.metadata?.tracking_id ||
-      payload.customFields?.order_id ||
-      payload.customFields?.trackingId ||
-      payload.customFields?.tracking_id;
+    const orderId = payload.order_id || payload.metadata?.order_id;
+    const status = payload.status || payload.payment_status;
+    const paymentId = payload.id || payload.payment_id;
 
-    const paymentOrderId =
-      payload.customFields?.payment_order_id ||
-      payload.custom_fields?.payment_order_id ||
-      payload.payment_order_id ||
-      payload.paymentOrderId;
-
-    const status =
-      payload.status ||
-      payload.payment_status ||
-      payload.paymentStatus ||
-      payload.state ||
-      payload.result;
-
-    const paymentId = payload.id || payload.payment_id || payload.paymentId || payload.invoiceId || payload.invoice_id;
-
-    if (!orderId && !paymentOrderId) {
-      console.error('No order identifier in webhook payload');
-      return new Response(JSON.stringify({ error: 'Missing order identifier' }), {
+    if (!orderId) {
+      console.error('No order_id in webhook payload');
+      return new Response(JSON.stringify({ error: 'Missing order_id' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Find the payment order (preferred: payment_order_id from customFields, fallback: order_id/trackingId)
-    let findQuery = supabase
+    // Find the payment order
+    const { data: paymentOrder, error: findError } = await supabase
       .from('payment_orders')
-      .select('*');
-
-    if (paymentOrderId) {
-      findQuery = findQuery.eq('id', paymentOrderId);
-    } else {
-      findQuery = findQuery.eq('order_id', orderId);
-    }
-
-    const { data: paymentOrder, error: findError } = await findQuery.single();
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
 
     if (findError || !paymentOrder) {
-      console.error('Payment order not found:', { orderId, paymentOrderId, findError });
+      console.error('Payment order not found:', orderId, findError);
       return new Response(JSON.stringify({ error: 'Order not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
