@@ -17,8 +17,51 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse webhook payload
-    const payload = await req.json();
+    // Parse webhook payload - handle different content types
+    let payload: Record<string, unknown> = {};
+    
+    const contentType = req.headers.get('content-type') || '';
+    const url = new URL(req.url);
+    
+    // First, try to get data from query params (some payment systems use GET with params)
+    if (url.searchParams.toString()) {
+      for (const [key, value] of url.searchParams.entries()) {
+        payload[key] = value;
+      }
+      console.log('Payload from query params:', JSON.stringify(payload, null, 2));
+    }
+    
+    // Then try to parse body based on content type
+    if (req.method === 'POST') {
+      try {
+        const bodyText = await req.text();
+        console.log('Raw body received:', bodyText || '(empty)');
+        
+        if (bodyText) {
+          if (contentType.includes('application/json')) {
+            payload = { ...payload, ...JSON.parse(bodyText) };
+          } else if (contentType.includes('application/x-www-form-urlencoded')) {
+            const formData = new URLSearchParams(bodyText);
+            for (const [key, value] of formData.entries()) {
+              payload[key] = value;
+            }
+          } else {
+            // Try JSON first, then form-urlencoded
+            try {
+              payload = { ...payload, ...JSON.parse(bodyText) };
+            } catch {
+              const formData = new URLSearchParams(bodyText);
+              for (const [key, value] of formData.entries()) {
+                payload[key] = value;
+              }
+            }
+          }
+        }
+      } catch (parseError) {
+        console.log('Body parse error (non-fatal):', parseError);
+      }
+    }
+
     console.log('Paylink webhook received:', JSON.stringify(payload, null, 2));
 
     // Extract relevant data from Paylink s-core callback
@@ -26,11 +69,11 @@ Deno.serve(async (req) => {
     const orderId = payload.trackingId || 
                     payload.tracking_id || 
                     payload.order_id || 
-                    payload.customFields?.payment_order_id ||
-                    payload.metadata?.order_id;
+                    (payload.customFields as Record<string, unknown>)?.payment_order_id ||
+                    (payload.metadata as Record<string, unknown>)?.order_id;
     const status = payload.status || payload.payment_status || payload.transactionStatus;
     const paymentId = payload.uid || payload.id || payload.payment_id;
-    const customFields = payload.customFields || {};
+    const customFields = (payload.customFields || {}) as Record<string, unknown>;
 
     console.log('Parsed webhook data:', { orderId, status, paymentId, customFields });
 
@@ -67,7 +110,7 @@ Deno.serve(async (req) => {
 
     // Check payment status 
     // Paylink s-core uses: AUTHORIZED, CAPTURED, SUCCESS, PAID, COMPLETED, etc.
-    const statusLower = (status || '').toLowerCase();
+    const statusLower = String(status || '').toLowerCase();
     const isSuccess = ['success', 'paid', 'completed', 'approved', 'authorized', 'captured'].includes(statusLower);
 
     console.log('Payment status check:', { status, statusLower, isSuccess });
@@ -81,7 +124,7 @@ Deno.serve(async (req) => {
         .update({ 
           status: 'paid',
           paid_at: new Date().toISOString(),
-          payment_id: String(paymentId),
+          payment_id: String(paymentId || ''),
         })
         .eq('id', paymentOrder.id);
 
@@ -115,7 +158,7 @@ Deno.serve(async (req) => {
         .insert({
           user_id: paymentOrder.user_id,
           subscription_type_id: paymentOrder.subscription_type_id,
-          subscription_name: subType?.name || paymentOrder.metadata?.subscription_name || 'Unknown',
+          subscription_name: subType?.name || (paymentOrder.metadata as Record<string, unknown>)?.subscription_name || 'Unknown',
           transaction_type: 'purchase',
           payment_method: 'paylink',
           amount: paymentOrder.amount,
