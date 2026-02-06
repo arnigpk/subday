@@ -9,6 +9,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -210,8 +211,13 @@ export default function ProfilePage() {
             </Link>
           </div>
           
+          {/* Purchase History Section */}
+          <div style={{ animationDelay: '0.1s' }}>
+            <PurchaseHistorySection />
+          </div>
+          
           {/* Theme toggle */}
-          <div className="card-interactive flex items-center justify-between mb-3 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="card-interactive flex items-center justify-between mb-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-3">
               {isDark ? <Moon size={20} className="text-muted-foreground" /> : <Sun size={20} className="text-muted-foreground" />}
               <span className="font-medium text-foreground">Тема: {isDark ? 'Эспрессо' : 'Латте'}</span>
@@ -225,7 +231,7 @@ export default function ProfilePage() {
           </div>
           
           {/* Menu */}
-          <div className="space-y-2 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+          <div className="space-y-2 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             {menuItems.map((item) => {
               const Icon = item.icon;
               
@@ -295,7 +301,7 @@ export default function ProfilePage() {
             }}
             disabled={isLoggingOut}
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
-            style={{ animationDelay: '0.2s' }}
+            style={{ animationDelay: '0.25s' }}
           >
             <LogOut size={20} />
             <span className="font-medium">{isLoggingOut ? 'Выходим...' : 'Выйти'}</span>
