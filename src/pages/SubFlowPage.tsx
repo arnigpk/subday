@@ -31,19 +31,20 @@ export default function SubFlowPage() {
       <div className="safe-area-top">
         <div className="px-4 py-4">
           {/* Header */}
-          <div className="flex items-start justify-between mb-4 gap-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
-              {/* Subscription badge for non-subscribers */}
-              {!isSubLoading && !hasActiveSubscription && (
-                <div className="px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-1.5">
-                  <Info size={12} className="text-primary flex-shrink-0" />
-                  <p className="text-[10px] text-foreground leading-tight max-w-[180px]">
-                    Купите подписку что бы публиковать посты и сториз
-                  </p>
-                </div>
-              )}
-            </div>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-black text-foreground flex-shrink-0">#subFlow</h1>
+            {/* Subscription badge for non-subscribers */}
+            {!isSubLoading && !hasActiveSubscription && (
+              <div className="px-2.5 py-1.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2 flex-1">
+                <Info size={14} className="text-primary flex-shrink-0" />
+                <p className="text-[11px] text-foreground leading-snug">
+                  Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
+                </p>
+              </div>
+            )}
+            {!isSubLoading && hasActiveSubscription && (
+              <div className="flex-1" />
+            )}
             {!isSubLoading && hasActiveSubscription && (
               <Button
                 size="sm"
@@ -55,7 +56,7 @@ export default function SubFlowPage() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground -mt-3 mb-4">Делись впечатлениями ☕</p>
+          <p className="text-xs text-muted-foreground mb-4">Делись впечатлениями ☕</p>
 
           {/* Filter */}
           <div className="mb-4">
