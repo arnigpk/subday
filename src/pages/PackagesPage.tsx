@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Sparkles, Coffee, Zap, Crown } from 'lucide-react';
+import { Sparkles, Coffee, Zap, Crown, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 
 interface SubscriptionType {
   id: string;
@@ -53,6 +54,7 @@ export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState('coffee');
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { activeSubscriptionTypeId } = useActiveSubscription();
 
   useEffect(() => {
     fetchSubscriptions();
@@ -110,6 +112,7 @@ export default function PackagesPage() {
                 const badgeStyle = getBadgeStyle(sub.badge);
                 const period = getPeriodText(sub.duration_days);
                 const BadgeIcon = badgeStyle?.icon || Sparkles;
+                const isActive = activeSubscriptionTypeId === sub.id;
                 
                 return (
                   <Link
@@ -118,16 +121,26 @@ export default function PackagesPage() {
                     className="block animate-slide-up"
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <div className="card-interactive relative overflow-hidden group">
+                    <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
                       {/* Background accent */}
                       <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       
                       {/* Badge from database */}
-                      {sub.badge && badgeStyle && (
+                      {sub.badge && badgeStyle && !isActive && (
                         <div className="absolute top-4 right-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${badgeStyle.gradient} shadow-lg`}>
                             <BadgeIcon size={12} />
                             {sub.badge}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Active badge */}
+                      {isActive && (
+                        <div className="absolute top-4 right-4">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
+                            <Check size={12} />
+                            Активна
                           </span>
                         </div>
                       )}
@@ -172,9 +185,15 @@ export default function PackagesPage() {
                       </div>
                       
                       {/* CTA Button */}
-                      <button className="btn-primary w-full text-sm font-semibold">
-                        Оформить
-                      </button>
+                      {isActive ? (
+                        <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
+                          Ваша активная подписка
+                        </div>
+                      ) : (
+                        <button className="btn-primary w-full text-sm font-semibold">
+                          Оформить
+                        </button>
+                      )}
                     </div>
                     </div>
                   </Link>

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { User, MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
 import { SubFlowShareMenu } from './SubFlowShareMenu';
+import { StoryAvatar } from '@/components/stories/StoryAvatar';
 import { toast } from 'sonner';
 
 interface Post {
@@ -136,14 +136,13 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <Avatar className="w-11 h-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
-          {post.author_avatar ? (
-            <AvatarImage src={post.author_avatar} alt={post.author_name} className="object-cover" />
-          ) : null}
-          <AvatarFallback className="bg-primary/10">
-            <User size={20} className="text-primary" />
-          </AvatarFallback>
-        </Avatar>
+        <StoryAvatar
+          userId={post.user_id}
+          userName={post.author_name}
+          userAvatar={post.author_avatar}
+          currentUserId={currentUserId}
+          size="md"
+        />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-foreground truncate">{post.author_name}</p>
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>

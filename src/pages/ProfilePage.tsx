@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
+import { AvatarMenu } from '@/components/profile/AvatarMenu';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -72,14 +73,7 @@ export default function ProfilePage() {
     document.documentElement.classList.toggle('dark');
   };
   
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
-  };
-  
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  const handleAvatarChange = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Пожалуйста, выберите изображение');
@@ -154,23 +148,9 @@ export default function ProfilePage() {
                   <User size={32} className="text-primary" />
                 </AvatarFallback>
               </Avatar>
-              <button
-                onClick={handleAvatarClick}
-                disabled={isUploading}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center shadow-lg"
-              >
-                {isUploading ? (
-                  <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Camera size={14} className="text-accent-foreground" />
-                )}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
+              <AvatarMenu 
+                onAvatarChange={handleAvatarChange}
+                isUploading={isUploading}
               />
             </div>
             <div>
