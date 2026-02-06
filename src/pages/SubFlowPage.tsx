@@ -33,7 +33,7 @@ export default function SubFlowPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-black text-foreground">subFlow</h1>
+              <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Делись впечатлениями ☕</p>
             </div>
             {!isSubLoading && hasActiveSubscription && (
