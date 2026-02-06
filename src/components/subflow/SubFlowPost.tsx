@@ -31,7 +31,7 @@ interface SubFlowPostProps {
   animationDelay: number;
 }
 
-const REACTIONS = ['💚', '🚀', '🔥', '⚡️', '👍', '🥹'];
+const REACTIONS = ['💚', '🚀', '🔥', '⚡️', '👍'];
 const MAX_REACTIONS_PER_USER = 2;
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
