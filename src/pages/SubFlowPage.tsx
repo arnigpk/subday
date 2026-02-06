@@ -31,40 +31,38 @@ export default function SubFlowPage() {
       <div className="safe-area-top">
         <div className="px-4 py-4">
           {/* Header */}
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-black text-foreground flex-shrink-0">#subFlow</h1>
-            {/* Subscription badge for non-subscribers */}
-            {!isSubLoading && !hasActiveSubscription && (
-              <div className="px-2.5 py-1.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2 flex-1">
-                <Info size={14} className="text-primary flex-shrink-0" />
-                <p className="text-[11px] text-foreground leading-snug">
-                  Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
-                </p>
-              </div>
-            )}
-            {!isSubLoading && hasActiveSubscription && (
-              <div className="flex-1" />
-            )}
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
             {!isSubLoading && hasActiveSubscription && (
               <Button
                 size="sm"
                 onClick={() => setShowCreatePost(true)}
-                className="rounded-xl btn-accent text-sm py-2 px-4 flex-shrink-0"
+                className="rounded-xl btn-accent text-sm py-2 px-4"
               >
                 <Plus size={16} className="mr-1" />
                 Сделать пост
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mb-4">Делись впечатлениями ☕</p>
-
-          {/* Filter */}
-          <div className="mb-4">
+          
+          {/* Subtitle and filter row */}
+          <div className="flex items-center gap-2 mb-4">
+            <p className="text-xs text-muted-foreground">Делись впечатлениями ☕</p>
             <SubFlowShopFilter
               selectedShopId={selectedShopId}
               onShopChange={setSelectedShopId}
             />
           </div>
+
+          {/* Subscription badge for non-subscribers */}
+          {!isSubLoading && !hasActiveSubscription && (
+            <div className="mb-4 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2">
+              <Info size={16} className="text-primary flex-shrink-0" />
+              <p className="text-xs text-foreground leading-snug">
+                Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
+              </p>
+            </div>
+          )}
 
           {showCreatePost && (
             <SubFlowCreatePost
