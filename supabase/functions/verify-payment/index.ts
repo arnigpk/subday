@@ -175,9 +175,26 @@ Deno.serve(async (req) => {
     // Get subscription type for transaction log
     const { data: subType } = await supabase
       .from('subscription_types')
-      .select('name')
+      .select('name, cups_count, duration_days')
       .eq('id', pendingOrder.subscription_type_id)
       .single();
+
+    // Send user notification via Telegram (@subday_lgbot)
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'activated',
+          userId: user.id,
+          cupsCount: subType?.cups_count || activationResult.cups_count,
+          daysCount: subType?.duration_days || activationResult.duration_days,
+        }),
+      });
+      console.log('User notification sent for subscription activation');
+    } catch (notifError) {
+      console.error('Failed to send user notification:', notifError);
+    }
 
     // Log transaction
     await supabase
