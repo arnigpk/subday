@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
         language: 'RU',
       },
-      transactionType: 'AUTHORIZATION',
+      transactionType: 'PAYMENT',
       doTokenize: false,
     };
 
