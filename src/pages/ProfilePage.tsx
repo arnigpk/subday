@@ -183,9 +183,7 @@ export default function ProfilePage() {
   const handleAvatarClick = () => {
     // Check subscription before allowing story upload
     if (!hasActiveSubscription) {
-      toast.error('Сториз доступны только подписчикам', {
-        description: 'Оформите подписку чтобы добавлять сториз'
-      });
+      toast.error('Приобретите пожалуйста подписку, что бы выкладывать сториз');
       return;
     }
     // Open file picker for story
