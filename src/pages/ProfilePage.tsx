@@ -274,16 +274,12 @@ export default function ProfilePage() {
                     />
                     
                     {/* Dropdown Menu */}
-                    <div className="absolute left-0 top-full mt-2 z-[101] bg-card border border-border rounded-xl shadow-lg p-1.5 min-w-[180px] animate-slide-up">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-border mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">Выберите действие</span>
-                      </div>
-                      
+                    <div className="absolute left-0 top-full mt-2 z-[101] bg-card border border-border rounded-xl shadow-lg p-1 min-w-[160px] animate-slide-up">
                       <button
                         onClick={handleAvatarMenuSelect}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
                       >
-                        <Camera size={18} className="text-primary" />
+                        <Camera size={16} className="text-primary" />
                         <span className="font-medium">Поменять аватарку</span>
                       </button>
                     </div>
