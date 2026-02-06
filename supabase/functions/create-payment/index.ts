@@ -15,7 +15,15 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY')!;
-    const paylinkShopId = Deno.env.get('PAYLINK_SHOP_ID') || '911';
+    const paylinkShopIdRaw = Deno.env.get('PAYLINK_SHOP_ID') || '911';
+    const paylinkShopId = Number(paylinkShopIdRaw);
+
+    if (!Number.isFinite(paylinkShopId)) {
+      return new Response(JSON.stringify({ error: 'Invalid PAYLINK_SHOP_ID' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
@@ -110,18 +118,41 @@ Deno.serve(async (req) => {
     // Convert amount to minor units (tiyns) - multiply by 100
     const amountInMinorUnits = Math.round(subscriptionType.price * 100);
 
-    // Create Paylink payment request - wrapped in 'request' object
+    // Paylink Checkout (redirect flow): create hosted checkout session
+    // The provided PAYLINK_API_KEY is Base64 and may include extra parts. BeGateway expects Basic auth as base64("shop_id:secret_key").
+    const buildPaylinkAuthHeader = () => {
+      try {
+        const decoded = atob(paylinkApiKey);
+        // expected formats:
+        // - "shop_id:secret"
+        // - "shop_id:secret:gateway_id" (take first two parts)
+        const parts = decoded.split(':');
+        if (parts.length >= 2) {
+          const basic = btoa(`${parts[0]}:${parts[1]}`);
+          return `Basic ${basic}`;
+        }
+      } catch {
+        // ignore
+      }
+      // Fallback: assume key is already a correct Basic token payload
+      return `Basic ${paylinkApiKey}`;
+    };
+
     const paylinkPayload = {
-      request: {
-        shop_id: paylinkShopId,
-        amount: amountInMinorUnits,
-        currency: "KZT",
-        tracking_id: orderId,
-        description: `Подписка: ${subscriptionType.name}`,
-        success_url: "https://vhod.lovable.app/?payment=success",
-        fail_url: "https://vhod.lovable.app/?payment=failed",
-        notification_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
-        test: true,
+      checkout: {
+        transaction_type: 'payment',
+        order: {
+          amount: amountInMinorUnits,
+          currency: 'KZT',
+          description: `Подписка: ${subscriptionType.name}`,
+          tracking_id: orderId,
+        },
+        settings: {
+          success_url: 'https://vhod.lovable.app/?payment=success',
+          fail_url: 'https://vhod.lovable.app/?payment=failed',
+          notification_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
+          language: 'ru',
+        },
         customer: {
           phone: formattedPhone,
           email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
@@ -130,27 +161,73 @@ Deno.serve(async (req) => {
           user_id: user.id,
           subscription_type_id: subscription_type_id,
           payment_order_id: paymentOrder.id,
-        }
+          shop_id: String(paylinkShopId),
+        },
+        test: true,
       }
     };
 
-    console.log('Creating Paylink payment:', JSON.stringify(paylinkPayload, null, 2));
+    console.log('Creating Paylink checkout:', JSON.stringify(paylinkPayload, null, 2));
 
-    // Use correct Paylink gateway endpoint for transactions
-    // API key appears to be Base64 encoded - try both Basic Auth and X-API-KEY
-    const paylinkResponse = await fetch('https://gateway.paylink.kz/transactions/payments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Basic ${paylinkApiKey}`,
-        'X-API-Version': '3',
-      },
-      body: JSON.stringify(paylinkPayload),
-    });
+    const paylinkHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': buildPaylinkAuthHeader(),
+      // Some Paylink environments require this header even for Checkout API
+      'X-API-KEY': paylinkApiKey,
+    };
 
-    // Get raw response text first to debug
-    const responseText = await paylinkResponse.text();
+    const tryCreateCheckout = async (url: string) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: paylinkHeaders,
+        body: JSON.stringify(paylinkPayload),
+      });
+      const text = await res.text();
+      return { res, text };
+    };
+
+    // Paylink Checkout URLs vary by environment; try a small list and use the first valid response
+    let paylinkResponse: Response | null = null;
+    let responseText = '';
+
+    const checkoutUrls = [
+      'https://checkout.paylink.kz/api/checkouts',
+      'https://checkout.paylink.kz/api/v1/checkouts',
+      'https://gateway.paylink.kz/api/checkouts',
+      'https://gateway.paylink.kz/api/v1/checkouts',
+      'https://checkout.paylink.kz/ctp/api/checkouts',
+      'https://checkout.paylink.kz/ctp/api/v1/checkouts',
+      'https://gateway.paylink.kz/ctp/api/checkouts',
+      'https://gateway.paylink.kz/ctp/api/v1/checkouts',
+    ];
+
+    for (const url of checkoutUrls) {
+      const result = await tryCreateCheckout(url);
+      paylinkResponse = result.res;
+      responseText = result.text;
+
+      // stop on success
+      if (paylinkResponse.ok) break;
+
+      const lowered = responseText.toLowerCase();
+      // try next on common routing/auth errors
+      if (lowered.includes("route doesn't exist") || lowered.includes('not found') || lowered.includes('access denied')) {
+        console.warn(`Paylink checkout failed on ${url}: ${responseText}`);
+        continue;
+      }
+
+      // unknown error - still break to surface it
+      break;
+    }
+
+    if (!paylinkResponse) {
+      return new Response(JSON.stringify({ error: 'Payment provider unreachable' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('Paylink raw response:', responseText);
 
     let paylinkData;
@@ -194,16 +271,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract payment URL from response (try multiple possible fields)
-    const paymentUrl = paylinkData.redirect_url || 
-                       paylinkData.pay_url || 
-                       paylinkData.url || 
+    // Extract payment URL/id from Checkout API response
+    const paymentUrl = paylinkData.checkout?.redirect_url ||
+                       paylinkData.redirect_url ||
+                       paylinkData.pay_url ||
+                       paylinkData.url ||
                        paylinkData.response?.redirect_url ||
                        paylinkData.response?.pay_url ||
                        paylinkData.checkout_url;
-    
-    const paymentId = paylinkData.id || 
-                      paylinkData.payment_id || 
+
+    const paymentId = paylinkData.checkout?.id ||
+                      paylinkData.checkout?.token ||
+                      paylinkData.id ||
+                      paylinkData.payment_id ||
                       paylinkData.checkout_id ||
                       paylinkData.response?.id;
 
