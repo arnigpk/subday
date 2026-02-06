@@ -5,7 +5,7 @@ import { SubFlowCreatePost } from '@/components/subflow/SubFlowCreatePost';
 import { SubFlowShopFilter } from '@/components/subflow/SubFlowShopFilter';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus } from 'lucide-react';
+import { Plus, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function SubFlowPage() {
@@ -47,6 +47,16 @@ export default function SubFlowPage() {
               </Button>
             )}
           </div>
+
+          {/* Subscription badge for non-subscribers */}
+          {!isSubLoading && !hasActiveSubscription && (
+            <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3">
+              <Info size={18} className="text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground leading-snug">
+                Купите подписку что бы публиковать посты и сториз в #subFlow и видеть кто выкладывает посты и сториз
+              </p>
+            </div>
+          )}
 
           {/* Filter */}
           <div className="mb-4">
