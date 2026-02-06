@@ -20,6 +20,7 @@ import HistoryPage from "./pages/HistoryPage";
 import StreaksPage from "./pages/StreaksPage";
 import BonusesPage from "./pages/BonusesPage";
 import ProfilePage from "./pages/ProfilePage";
+import SubFlowPage from "./pages/SubFlowPage";
 import NotFound from "./pages/NotFound";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -166,6 +167,7 @@ const AppContent = () => {
           <Route path="/streaks" element={<StreaksPage />} />
           <Route path="/bonuses" element={<BonusesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/subflow" element={<SubFlowPage />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />

@@ -1,11 +1,11 @@
-import { Home, Coffee, MapPin, Clock, User } from 'lucide-react';
+import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const navItems = [
   { icon: Home, label: 'Главная', path: '/' },
   { icon: Coffee, label: 'Подписки', path: '/packages' },
   { icon: MapPin, label: 'Кофейни', path: '/shops' },
-  { icon: Clock, label: 'История', path: '/history' },
+  { icon: Zap, label: 'subFlow', path: '/subflow' },
   { icon: User, label: 'Профиль', path: '/profile' },
 ];
 
