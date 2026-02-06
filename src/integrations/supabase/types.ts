@@ -77,56 +77,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_orders: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          metadata: Json | null
-          order_id: string
-          paid_at: string | null
-          payment_id: string | null
-          payment_url: string | null
-          status: string
-          subscription_type_id: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          order_id: string
-          paid_at?: string | null
-          payment_id?: string | null
-          payment_url?: string | null
-          status?: string
-          subscription_type_id: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          order_id?: string
-          paid_at?: string | null
-          payment_id?: string | null
-          payment_url?: string | null
-          status?: string
-          subscription_type_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_orders_subscription_type_id_fkey"
-            columns: ["subscription_type_id"]
-            isOneToOne: false
-            referencedRelation: "subscription_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -274,11 +224,8 @@ export type Database = {
       subscription_transactions: {
         Row: {
           activated_by: string | null
-          amount: number | null
           created_at: string
           id: string
-          payment_method: string | null
-          payment_order_id: string | null
           subscription_name: string
           subscription_type_id: string | null
           transaction_type: string
@@ -286,11 +233,8 @@ export type Database = {
         }
         Insert: {
           activated_by?: string | null
-          amount?: number | null
           created_at?: string
           id?: string
-          payment_method?: string | null
-          payment_order_id?: string | null
           subscription_name: string
           subscription_type_id?: string | null
           transaction_type: string
@@ -298,24 +242,14 @@ export type Database = {
         }
         Update: {
           activated_by?: string | null
-          amount?: number | null
           created_at?: string
           id?: string
-          payment_method?: string | null
-          payment_order_id?: string | null
           subscription_name?: string
           subscription_type_id?: string | null
           transaction_type?: string
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "subscription_transactions_payment_order_id_fkey"
-            columns: ["payment_order_id"]
-            isOneToOne: false
-            referencedRelation: "payment_orders"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "subscription_transactions_subscription_type_id_fkey"
             columns: ["subscription_type_id"]

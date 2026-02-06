@@ -32,9 +32,3 @@ verify_jwt = false
 
 [functions.telegram-broadcast]
 verify_jwt = false
-
-[functions.create-payment]
-verify_jwt = false
-
-[functions.paylink-webhook]
-verify_jwt = false
