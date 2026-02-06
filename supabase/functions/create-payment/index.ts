@@ -162,7 +162,9 @@ Deno.serve(async (req) => {
         email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
         language: 'RU',
       },
-      transactionType: 'AUTHORIZATION',
+      // AUTHORIZATION может быть не включён у мерчанта и приводить к отказам.
+      // Для обычной оплаты используем PURCHASE (прямая покупка).
+      transactionType: 'PURCHASE',
       doTokenize: false,
     };
 
