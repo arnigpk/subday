@@ -46,7 +46,7 @@ export default function SubFlowPage() {
           {!isSubLoading && !hasActiveSubscription && <div className="mb-4 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-2">
               <Info size={16} className="text-primary flex-shrink-0" />
               <p className="text-xs text-foreground leading-snug text-left">
-                Купите подписку чтобы публиковать посты, сториз и комментарии в #subFlow
+                Купите подписку чтобы публиковать посты и комментарии в #subFlow
               </p>
             </div>}
 

@@ -4,7 +4,7 @@ import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Ch
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
-import { StoryAvatar } from '@/components/stories/StoryAvatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 
 interface Post {
@@ -177,13 +177,14 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <StoryAvatar
-          userId={post.user_id}
-          userName={post.author_name}
-          userAvatar={post.author_avatar}
-          currentUserId={currentUserId}
-          size="md"
-        />
+        <Avatar className="w-11 h-11">
+          {post.author_avatar ? (
+            <AvatarImage src={post.author_avatar} alt={post.author_name} className="object-cover" />
+          ) : null}
+          <AvatarFallback className="bg-primary/10">
+            <User size={20} className="text-primary" />
+          </AvatarFallback>
+        </Avatar>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-foreground truncate">{post.author_name}</p>
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>

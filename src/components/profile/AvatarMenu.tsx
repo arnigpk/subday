@@ -1,7 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Image, Sparkles, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { Camera, Image, X } from 'lucide-react';
 
 interface AvatarMenuProps {
   onAvatarChange: (file: File) => Promise<void>;
@@ -10,9 +8,7 @@ interface AvatarMenuProps {
 
 export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isUploadingStory, setIsUploadingStory] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const storyInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -27,75 +23,14 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
     }
   };
 
-  const handleStorySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      toast.error('Выберите изображение');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Файл слишком большой (максимум 5МБ)');
-      return;
-    }
-
-    setIsUploadingStory(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('subflow-images')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('subflow-images')
-        .getPublicUrl(fileName);
-
-      // Create story record
-      const { error: storyError } = await supabase
-        .from('stories')
-        .insert({
-          user_id: user.id,
-          image_url: publicUrl
-        });
-
-      if (storyError) throw storyError;
-
-      toast.success('Сториз добавлен! 🎉');
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error uploading story:', error);
-      toast.error('Ошибка загрузки сториз');
-    } finally {
-      setIsUploadingStory(false);
-      if (storyInputRef.current) {
-        storyInputRef.current.value = '';
-      }
-    }
-  };
-
-  const isProcessing = isUploading || isUploadingStory;
-
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        disabled={isProcessing}
+        disabled={isUploading}
         className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center shadow-lg transition-transform hover:scale-110"
       >
-        {isProcessing ? (
+        {isUploading ? (
           <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
         ) : (
           <Camera size={14} className="text-accent-foreground" />
@@ -129,14 +64,6 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
               <Image size={18} className="text-primary" />
               <span className="font-medium">Поменять аватарку</span>
             </button>
-            
-            <button
-              onClick={() => storyInputRef.current?.click()}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
-            >
-              <Sparkles size={18} className="text-accent" />
-              <span className="font-medium">Добавить сториз</span>
-            </button>
           </div>
         </>
       )}
@@ -148,13 +75,6 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
         accept="image/*"
         className="hidden"
         onChange={handleAvatarSelect}
-      />
-      <input
-        ref={storyInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleStorySelect}
       />
     </div>
   );
