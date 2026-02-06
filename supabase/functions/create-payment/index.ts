@@ -118,8 +118,7 @@ Deno.serve(async (req) => {
     const cleanPhone = profile?.phone?.replace(/\D/g, '') || '';
     const formattedPhone = cleanPhone.startsWith('7') ? cleanPhone : `7${cleanPhone}`;
 
-    // Convert amount to minor units (tiyns) - multiply by 100
-    const amountInMinorUnits = Math.round(subscriptionType.price * 100);
+    // Amount is already in KZT (tenge), no conversion needed
 
     // s-core.paylink.kz API — endpoint /api/v1/invoices
 
@@ -142,7 +141,7 @@ Deno.serve(async (req) => {
 
     // Payload format per Paylink documentation
     const paylinkPayload = {
-      amount: subscriptionType.price * 100, // in tiyns (minor units)
+      amount: subscriptionType.price, // in KZT (tenge)
       currency: 'KZT',
       requestId: requestId,
       trackingId: orderId,
