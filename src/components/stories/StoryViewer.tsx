@@ -23,10 +23,9 @@ interface StoryViewerProps {
   currentUserId: string | null;
   onClose: () => void;
   onStoryDeleted?: () => void;
-  hasActiveSubscription?: boolean;
 }
 
-export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onStoryDeleted, hasActiveSubscription = true }: StoryViewerProps) {
+export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onStoryDeleted }: StoryViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [viewCount, setViewCount] = useState(0);
   const [likesCount, setLikesCount] = useState(0);
@@ -189,28 +188,19 @@ export function StoryViewer({ stories, initialIndex, currentUserId, onClose, onS
       </div>
 
       {/* Header */}
+      {/* Header */}
       <div className="absolute top-6 left-0 right-0 flex items-center justify-between px-4 z-20 safe-area-top">
         <div className="flex items-center gap-3">
-          {hasActiveSubscription ? (
-            <Avatar className="w-10 h-10 ring-2 ring-white/50">
-              {story.author_avatar ? (
-                <AvatarImage src={story.author_avatar} alt={story.author_name} />
-              ) : null}
-              <AvatarFallback className="bg-white/20">
-                <User size={16} className="text-white" />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center ring-2 ring-white/50">
+          <Avatar className="w-10 h-10 ring-2 ring-white/50">
+            {story.author_avatar ? (
+              <AvatarImage src={story.author_avatar} alt={story.author_name} />
+            ) : null}
+            <AvatarFallback className="bg-white/20">
               <User size={16} className="text-white" />
-            </div>
-          )}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            {hasActiveSubscription ? (
-              <p className="text-white font-medium text-sm drop-shadow-md">{story.author_name}</p>
-            ) : (
-              <p className="text-white/60 font-medium text-sm drop-shadow-md">Автор скрыт</p>
-            )}
+            <p className="text-white font-medium text-sm drop-shadow-md">{story.author_name}</p>
             <p className="text-white/80 text-xs drop-shadow-md">
               {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: ru })}
             </p>

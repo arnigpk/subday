@@ -177,26 +177,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        {hasActiveSubscription ? (
-          <StoryAvatar
-            userId={post.user_id}
-            userName={post.author_name}
-            userAvatar={post.author_avatar}
-            currentUserId={currentUserId}
-            size="md"
-            hasActiveSubscription={hasActiveSubscription}
-          />
-        ) : (
-          <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center">
-            <User size={20} className="text-muted-foreground" />
-          </div>
-        )}
+        <StoryAvatar
+          userId={post.user_id}
+          userName={post.author_name}
+          userAvatar={post.author_avatar}
+          currentUserId={currentUserId}
+          size="md"
+        />
         <div className="flex-1 min-w-0">
-          {hasActiveSubscription ? (
-            <p className="font-bold text-foreground truncate">{post.author_name}</p>
-          ) : (
-            <p className="font-bold text-muted-foreground truncate">Автор скрыт</p>
-          )}
+          <p className="font-bold text-foreground truncate">{post.author_name}</p>
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
