@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check } from 'lucide-react';
+import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
-import { SubFlowShareMenu } from './SubFlowShareMenu';
 import { StoryAvatar } from '@/components/stories/StoryAvatar';
 import { toast } from 'sonner';
 
@@ -37,11 +36,22 @@ const MAX_REACTIONS_PER_USER = 2;
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [isSaving, setIsSaving] = useState(false);
   const [localReactions, setLocalReactions] = useState(post.reactions);
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const isOwner = currentUserId === post.user_id;
+  
+  // Check if post can be edited (within 1 hour of creation)
+  const canEdit = useMemo(() => {
+    if (!isOwner) return false;
+    const createdAt = parseISO(post.created_at);
+    const minutesSinceCreation = differenceInMinutes(new Date(), createdAt);
+    return minutesSinceCreation <= 60;
+  }, [isOwner, post.created_at]);
   
   // Get all images - prefer image_urls array, fallback to single image_url
   const images = post.image_urls?.length ? post.image_urls : (post.image_url ? [post.image_url] : []);
@@ -129,6 +139,36 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) {
+      toast.error('Напишите что-нибудь');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('subflow_posts')
+        .update({ content: editContent.trim() })
+        .eq('id', post.id);
+
+      if (error) throw error;
+      toast.success('Пост обновлён');
+      setIsEditing(false);
+      onUpdate();
+    } catch (error) {
+      console.error('Edit error:', error);
+      toast.error('Ошибка сохранения');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditContent(post.content);
+    setIsEditing(false);
+  };
+
   return (
     <div 
       className="card-static animate-slide-up"
@@ -148,11 +188,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
-          <SubFlowShareMenu 
-            postId={post.id} 
-            postContent={post.content}
-            imageUrl={post.image_url}
-          />
+          {isOwner && canEdit && !isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+              title="Редактировать (доступно 1 час)"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
           {isOwner && (
             <button
               onClick={handleDelete}
@@ -174,7 +218,35 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
       )}
 
       {/* Content */}
-      <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+      {isEditing ? (
+        <div className="mb-3">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={handleSaveEdit}
+              disabled={isSaving}
+              className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+            >
+              <Check size={14} />
+              <span>{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="flex items-center gap-1 px-3 py-1.5 bg-secondary text-foreground rounded-lg text-sm font-medium"
+            >
+              <X size={14} />
+              <span>Отмена</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+      )}
 
       {/* Images carousel */}
       {images.length > 0 && (

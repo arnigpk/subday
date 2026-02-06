@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, memo } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { StoryViewer } from './StoryViewer';
-
-interface Story {
-  id: string;
-  user_id: string;
-  image_url: string;
-  created_at: string;
-  expires_at: string;
-  author_name: string;
-  author_avatar: string | null;
-}
+import { useStoriesCache } from '@/hooks/useStoriesCache';
 
 interface StoryAvatarProps {
   userId: string;
@@ -35,7 +25,7 @@ const ringClasses = {
   lg: 'ring-[3px]',
 };
 
-export function StoryAvatar({ 
+export const StoryAvatar = memo(function StoryAvatar({ 
   userId, 
   userName, 
   userAvatar, 
@@ -43,40 +33,20 @@ export function StoryAvatar({
   size = 'md',
   className = ''
 }: StoryAvatarProps) {
-  const [hasStory, setHasStory] = useState(false);
-  const [stories, setStories] = useState<Story[]>([]);
+  const { hasStory, stories, invalidateCache } = useStoriesCache(userId);
   const [showViewer, setShowViewer] = useState(false);
-
-  useEffect(() => {
-    checkForStories();
-  }, [userId]);
-
-  const checkForStories = async () => {
-    const { data, error } = await supabase
-      .from('stories')
-      .select('*')
-      .eq('user_id', userId)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      setHasStory(true);
-      setStories(data.map(s => ({
-        ...s,
-        author_name: userName,
-        author_avatar: userAvatar
-      })));
-    } else {
-      setHasStory(false);
-      setStories([]);
-    }
-  };
 
   const handleClick = () => {
     if (hasStory && stories.length > 0) {
       setShowViewer(true);
     }
   };
+
+  const enrichedStories = stories.map(s => ({
+    ...s,
+    author_name: userName,
+    author_avatar: userAvatar
+  }));
 
   return (
     <>
@@ -105,14 +75,15 @@ export function StoryAvatar({
         )}
       </div>
 
-      {showViewer && (
+      {showViewer && enrichedStories.length > 0 && (
         <StoryViewer
-          stories={stories}
+          stories={enrichedStories}
           initialIndex={0}
           currentUserId={currentUserId}
           onClose={() => setShowViewer(false)}
+          onStoryDeleted={invalidateCache}
         />
       )}
     </>
   );
-}
+});
