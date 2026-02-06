@@ -136,23 +136,29 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
 
   return (
     <div className="mt-4 pt-4 border-t border-border">
-      {/* Comment input */}
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Написать комментарий..."
-          className="flex-1 px-3 py-2 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
-        <button
-          type="submit"
-          disabled={isSubmitting || !newComment.trim()}
-          className="p-2 bg-primary text-primary-foreground rounded-xl disabled:opacity-50"
-        >
-          <Send size={18} />
-        </button>
-      </form>
+      {/* Comment input - only for subscribers */}
+      {hasActiveSubscription ? (
+        <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Написать комментарий..."
+            className="flex-1 px-3 py-2 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting || !newComment.trim()}
+            className="p-2 bg-primary text-primary-foreground rounded-xl disabled:opacity-50"
+          >
+            <Send size={18} />
+          </button>
+        </form>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center py-2 mb-4">
+          Оформите подписку чтобы комментировать
+        </p>
+      )}
 
       {/* Comments list */}
       {isLoading ? (
@@ -167,27 +173,17 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         <div className="space-y-3">
           {comments.map(comment => (
             <div key={comment.id} className="flex gap-2">
-              {hasActiveSubscription ? (
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                  {comment.author_avatar ? (
-                    <AvatarImage src={comment.author_avatar} alt={comment.author_name} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary/10">
-                    <User size={14} className="text-primary" />
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                  <User size={14} className="text-muted-foreground" />
-                </div>
-              )}
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                {comment.author_avatar ? (
+                  <AvatarImage src={comment.author_avatar} alt={comment.author_name} />
+                ) : null}
+                <AvatarFallback className="bg-primary/10">
+                  <User size={14} className="text-primary" />
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  {hasActiveSubscription ? (
-                    <span className="text-sm font-medium text-foreground">{comment.author_name}</span>
-                  ) : (
-                    <span className="text-sm font-medium text-muted-foreground">Автор скрыт</span>
-                  )}
+                  <span className="text-sm font-medium text-foreground">{comment.author_name}</span>
                   <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
                   {comment.user_id === currentUserId && (
                     <button

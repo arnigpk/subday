@@ -11,7 +11,6 @@ interface StoryAvatarProps {
   currentUserId: string | null;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  hasActiveSubscription?: boolean;
 }
 
 const sizeClasses = {
@@ -32,8 +31,7 @@ export const StoryAvatar = memo(function StoryAvatar({
   userAvatar, 
   currentUserId,
   size = 'md',
-  className = '',
-  hasActiveSubscription = true
+  className = ''
 }: StoryAvatarProps) {
   const { hasStory, stories, invalidateCache } = useStoriesCache(userId);
   const [showViewer, setShowViewer] = useState(false);
@@ -84,7 +82,6 @@ export const StoryAvatar = memo(function StoryAvatar({
           currentUserId={currentUserId}
           onClose={() => setShowViewer(false)}
           onStoryDeleted={invalidateCache}
-          hasActiveSubscription={hasActiveSubscription}
         />
       )}
     </>
