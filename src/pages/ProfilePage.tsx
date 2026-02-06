@@ -10,22 +10,18 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
-import { StoryViewer } from '@/components/stories/StoryViewer';
+
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isUploadingStory, setIsUploadingStory] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [showStoryViewer, setShowStoryViewer] = useState(false);
-  const [userStories, setUserStories] = useState<any[]>([]);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nickname, setNickname] = useState('');
   const [isSavingNickname, setIsSavingNickname] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const storyInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
@@ -168,65 +164,9 @@ export default function ProfilePage() {
     }
   };
   
-  const handleStoryUpload = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Выберите изображение');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Файл слишком большой (максимум 5МБ)');
-      return;
-    }
-
-    setIsUploadingStory(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('subflow-images')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('subflow-images')
-        .getPublicUrl(fileName);
-
-      const { error: storyError } = await supabase
-        .from('stories')
-        .insert({
-          user_id: user.id,
-          image_url: publicUrl
-        });
-
-      if (storyError) throw storyError;
-
-      toast.success('Сториз добавлен! 🎉');
-    } catch (error) {
-      console.error('Error uploading story:', error);
-      toast.error('Ошибка загрузки сториз');
-    } finally {
-      setIsUploadingStory(false);
-      if (storyInputRef.current) {
-        storyInputRef.current.value = '';
-      }
-    }
-  };
-
   const handleAvatarClick = () => {
-    // Check subscription before allowing story upload
-    if (!hasActiveSubscription) {
-      toast.error('Приобретите пожалуйста подписку, что бы выкладывать сториз');
-      return;
-    }
-    // Open file picker for story
-    storyInputRef.current?.click();
+    // Open avatar change dialog
+    handleCameraClick();
   };
 
   const handleCameraClick = () => {
@@ -263,23 +203,12 @@ export default function ProfilePage() {
               if (avatarInputRef.current) avatarInputRef.current.value = '';
             }}
           />
-          <input
-            ref={storyInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleStoryUpload(file);
-            }}
-          />
 
           {/* User card */}
           <div className="card-static flex items-center gap-4 mb-10 animate-slide-up">
             <div className="relative">
               <button 
                 onClick={handleAvatarClick}
-                disabled={isUploadingStory}
                 className="block"
               >
                 <Avatar className="w-16 h-16 rounded-full cursor-pointer hover:ring-2 hover:ring-accent transition-all">
@@ -290,11 +219,6 @@ export default function ProfilePage() {
                     <User size={32} className="text-primary" />
                   </AvatarFallback>
                 </Avatar>
-                {isUploadingStory && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
-                    <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
               </button>
               <div className="relative">
                 <button
