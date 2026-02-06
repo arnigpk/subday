@@ -231,7 +231,7 @@ export default function ProfilePage() {
           />
 
           {/* User card */}
-          <div className="card-static flex items-center gap-4 mb-16 animate-slide-up">
+          <div className="card-static flex items-center gap-4 mb-10 animate-slide-up">
             <div className="relative">
               <button 
                 onClick={handleAvatarClick}
