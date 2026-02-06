@@ -118,116 +118,48 @@ Deno.serve(async (req) => {
     // Convert amount to minor units (tiyns) - multiply by 100
     const amountInMinorUnits = Math.round(subscriptionType.price * 100);
 
-    // Paylink Checkout (redirect flow): create hosted checkout session
-    // The provided PAYLINK_API_KEY is Base64 and may include extra parts. BeGateway expects Basic auth as base64("shop_id:secret_key").
-    const buildPaylinkAuthHeader = () => {
-      try {
-        const decoded = atob(paylinkApiKey);
-        // expected formats:
-        // - "shop_id:secret"
-        // - "shop_id:secret:gateway_id" (take first two parts)
-        const parts = decoded.split(':');
-        if (parts.length >= 2) {
-          const basic = btoa(`${parts[0]}:${parts[1]}`);
-          return `Basic ${basic}`;
-        }
-      } catch {
-        // ignore
-      }
-      // Fallback: assume key is already a correct Basic token payload
-      return `Basic ${paylinkApiKey}`;
-    };
-
-    const paylinkPayload = {
-      checkout: {
-        transaction_type: 'payment',
-        order: {
-          amount: amountInMinorUnits,
-          currency: 'KZT',
-          description: `Подписка: ${subscriptionType.name}`,
-          tracking_id: orderId,
-        },
-        settings: {
-          success_url: 'https://vhod.lovable.app/?payment=success',
-          fail_url: 'https://vhod.lovable.app/?payment=failed',
-          notification_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
-          language: 'ru',
-        },
-        customer: {
-          phone: formattedPhone,
-          email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
-        },
-        additional_data: {
-          user_id: user.id,
-          subscription_type_id: subscription_type_id,
-          payment_order_id: paymentOrder.id,
-          shop_id: String(paylinkShopId),
-        },
-        test: true,
-      }
-    };
-
-    console.log('Creating Paylink checkout:', JSON.stringify(paylinkPayload, null, 2));
+    // s-core.paylink.kz API — endpoint из документации Postman
 
     const paylinkHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Authorization': buildPaylinkAuthHeader(),
-      // Some Paylink environments require this header even for Checkout API
       'X-API-KEY': paylinkApiKey,
     };
 
-    const tryCreateCheckout = async (url: string) => {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: paylinkHeaders,
-        body: JSON.stringify(paylinkPayload),
-      });
-      const text = await res.text();
-      return { res, text };
+    // s-core.paylink.kz API: the documented endpoint for creating a payment link
+    const paylinkEndpoint = 'https://s-core.paylink.kz/api/payment';
+
+    // Adjust payload to match s-core API format (differs from BeGateway)
+    const paylinkPayload = {
+      shop_id: paylinkShopId,
+      amount: subscriptionType.price, // in tenge (not minor units for s-core)
+      currency: 'KZT',
+      order_id: orderId,
+      description: `Подписка: ${subscriptionType.name}`,
+      success_url: 'https://vhod.lovable.app/?payment=success',
+      fail_url: 'https://vhod.lovable.app/?payment=failed',
+      callback_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
+      customer: {
+        phone: formattedPhone,
+        email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
+      },
+      test: true,
+      metadata: {
+        user_id: user.id,
+        subscription_type_id: subscription_type_id,
+        payment_order_id: paymentOrder.id,
+      }
     };
 
-    // Paylink Checkout URLs vary by environment; try a small list and use the first valid response
-    let paylinkResponse: Response | null = null;
-    let responseText = '';
+    console.log('Creating Paylink payment (s-core):', JSON.stringify(paylinkPayload, null, 2));
 
-    const checkoutUrls = [
-      'https://checkout.paylink.kz/api/checkouts',
-      'https://checkout.paylink.kz/api/v1/checkouts',
-      'https://gateway.paylink.kz/api/checkouts',
-      'https://gateway.paylink.kz/api/v1/checkouts',
-      'https://checkout.paylink.kz/ctp/api/checkouts',
-      'https://checkout.paylink.kz/ctp/api/v1/checkouts',
-      'https://gateway.paylink.kz/ctp/api/checkouts',
-      'https://gateway.paylink.kz/ctp/api/v1/checkouts',
-    ];
+    const paylinkResponse = await fetch(paylinkEndpoint, {
+      method: 'POST',
+      headers: paylinkHeaders,
+      body: JSON.stringify(paylinkPayload),
+    });
 
-    for (const url of checkoutUrls) {
-      const result = await tryCreateCheckout(url);
-      paylinkResponse = result.res;
-      responseText = result.text;
-
-      // stop on success
-      if (paylinkResponse.ok) break;
-
-      const lowered = responseText.toLowerCase();
-      // try next on common routing/auth errors
-      if (lowered.includes("route doesn't exist") || lowered.includes('not found') || lowered.includes('access denied')) {
-        console.warn(`Paylink checkout failed on ${url}: ${responseText}`);
-        continue;
-      }
-
-      // unknown error - still break to surface it
-      break;
-    }
-
-    if (!paylinkResponse) {
-      return new Response(JSON.stringify({ error: 'Payment provider unreachable' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
+    const responseText = await paylinkResponse.text();
     console.log('Paylink raw response:', responseText);
 
     let paylinkData;
@@ -236,7 +168,6 @@ Deno.serve(async (req) => {
     } catch (parseError) {
       console.error('Failed to parse Paylink response:', responseText);
       
-      // Update order status to failed
       await supabaseClient
         .from('payment_orders')
         .update({ status: 'failed' })
