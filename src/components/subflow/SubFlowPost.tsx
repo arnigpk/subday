@@ -30,7 +30,7 @@ interface SubFlowPostProps {
   animationDelay: number;
 }
 
-const REACTIONS = ['💚', '🚀', '🔥', '⚡️', '👍'];
+const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
@@ -296,7 +296,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
       )}
 
       {/* Reactions */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1 mb-3">
         {REACTIONS.map(reaction => {
           const count = localReactions[reaction] || 0;
           const hasReacted = localUserReactions.includes(reaction);
