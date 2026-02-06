@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY')!;
+    const paylinkSecretKey = Deno.env.get('PAYLINK_API_KEY')!;
     const paylinkShopId = Deno.env.get('PAYLINK_SHOP_ID')!;
 
     // Verify auth
@@ -70,13 +70,15 @@ Deno.serve(async (req) => {
 
     // Generate unique order ID
     const orderId = `SUB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const amount = subType.price;
+    // Amount in tenge (PayLink expects amount in minimal units - tiyn, so multiply by 100)
+    const amountInTenge = subType.price;
+    const amountInTiyn = amountInTenge * 100;
 
     // Get return URL (app home page)
     const returnUrl = `${req.headers.get('origin') || 'https://vhod.lovable.app'}/`;
     const webhookUrl = `${supabaseUrl}/functions/v1/paylink-webhook`;
 
-    console.log(`Order ID: ${orderId}, Amount: ${amount}, Return URL: ${returnUrl}`);
+    console.log(`Order ID: ${orderId}, Amount: ${amountInTenge} KZT (${amountInTiyn} tiyn), Return URL: ${returnUrl}`);
 
     // Create payment order in database first
     const { data: order, error: orderError } = await supabase
@@ -84,7 +86,7 @@ Deno.serve(async (req) => {
       .insert({
         user_id: userId,
         subscription_type_id: subscriptionTypeId,
-        amount: amount,
+        amount: amountInTenge,
         order_id: orderId,
         status: 'pending',
         metadata: {
@@ -104,36 +106,90 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create payment via PayLink API
+    // Generate dynamic API key for PayLink
+    // Format: base64(shop_id:secret_key:timestamp)
+    const timestamp = Math.floor(Date.now() / 1000);
+    const authString = `${paylinkShopId}:${paylinkSecretKey}:${timestamp}`;
+    const dynamicApiKey = btoa(authString);
+
+    console.log(`PayLink auth: shop_id=${paylinkShopId}, timestamp=${timestamp}`);
+
+    // Create payment via PayLink API v3
+    // Docs: https://docs.paylink.kz/en/using_api/api_v3/
     const paylinkPayload = {
-      shop_id: paylinkShopId,
-      amount: amount,
-      order_id: orderId,
-      description: subType.name, // Subscription name as order description
-      return_url: returnUrl,
-      callback_url: webhookUrl,
-      test_mode: true, // Test mode
-      // No commission for customer
-      payer_commission: 0,
+      request: {
+        shop_id: parseInt(paylinkShopId),
+        amount: amountInTiyn, // Amount in minimal units (tiyn)
+        currency: 'KZT',
+        description: subType.name, // Subscription name as order description
+        order_id: orderId,
+        return_url: returnUrl,
+        callback_url: webhookUrl,
+        test: true, // Test mode
+        payer_commission: 0, // No commission for customer
+      },
     };
 
     console.log('PayLink request payload:', JSON.stringify(paylinkPayload));
 
-    const paylinkResponse = await fetch('https://api.paylink.kz/api/v1/payments/create', {
+    const paylinkResponse = await fetch('https://gateway.paylink.kz/transactions/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': paylinkApiKey,
+        'X-API-KEY': dynamicApiKey,
+        'X-API-Version': '3',
       },
       body: JSON.stringify(paylinkPayload),
     });
 
-    const paylinkData = await paylinkResponse.json();
-    console.log('PayLink response:', JSON.stringify(paylinkData));
+    const responseText = await paylinkResponse.text();
+    console.log('PayLink raw response:', responseText);
 
-    if (!paylinkResponse.ok || !paylinkData.success) {
-      console.error('PayLink error:', paylinkData);
-      // Update order status to failed
+    // Handle non-OK responses
+    if (!paylinkResponse.ok) {
+      console.error('PayLink HTTP error:', paylinkResponse.status, responseText);
+      await supabase
+        .from('payment_orders')
+        .update({ status: 'failed', metadata: { ...order.metadata, error: responseText } })
+        .eq('id', order.id);
+
+      return new Response(JSON.stringify({ 
+        error: 'Payment gateway error',
+        details: responseText.substring(0, 500),
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    let paylinkData;
+    try {
+      paylinkData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse PayLink response:', responseText);
+      await supabase
+        .from('payment_orders')
+        .update({ status: 'failed', metadata: { ...order.metadata, error: responseText } })
+        .eq('id', order.id);
+
+      return new Response(JSON.stringify({ 
+        error: 'Payment gateway returned invalid response',
+        details: responseText.substring(0, 200),
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('PayLink parsed response:', JSON.stringify(paylinkData));
+
+    // Check for successful response
+    // PayLink v3 returns redirect_url for payment page
+    const redirectUrl = paylinkData.redirect_url || paylinkData.response?.redirect_url;
+    const paymentUid = paylinkData.uid || paylinkData.response?.uid;
+
+    if (!redirectUrl) {
+      console.error('PayLink error - no redirect_url:', paylinkData);
       await supabase
         .from('payment_orders')
         .update({ status: 'failed', metadata: { ...order.metadata, error: paylinkData } })
@@ -141,27 +197,27 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ 
         error: 'Payment creation failed', 
-        details: paylinkData.message || paylinkData 
+        details: paylinkData.message || paylinkData.friendly_message || 'No redirect URL returned',
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Update order with payment URL
+    // Update order with payment URL and UID
     await supabase
       .from('payment_orders')
       .update({ 
-        payment_url: paylinkData.data?.payment_url,
-        payment_id: paylinkData.data?.payment_id,
+        payment_url: redirectUrl,
+        payment_id: paymentUid,
       })
       .eq('id', order.id);
 
-    console.log('Payment created successfully:', paylinkData.data?.payment_url);
+    console.log('Payment created successfully:', redirectUrl);
 
     return new Response(JSON.stringify({
       success: true,
-      paymentUrl: paylinkData.data?.payment_url,
+      paymentUrl: redirectUrl,
       orderId: orderId,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
