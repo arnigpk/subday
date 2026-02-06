@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     // Convert amount to minor units (tiyns) - multiply by 100
     const amountInMinorUnits = Math.round(subscriptionType.price * 100);
 
-    // s-core.paylink.kz API — endpoint из документации Postman
+    // s-core.paylink.kz API — endpoint /api/v1/invoices из документации Postman
 
     const paylinkHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -126,13 +126,13 @@ Deno.serve(async (req) => {
       'X-API-KEY': paylinkApiKey,
     };
 
-    // s-core.paylink.kz API: the documented endpoint for creating a payment link
-    const paylinkEndpoint = 'https://s-core.paylink.kz/api/payment';
+    // s-core.paylink.kz invoices endpoint
+    const paylinkEndpoint = 'https://s-core.paylink.kz/api/v1/invoices';
 
-    // Adjust payload to match s-core API format (differs from BeGateway)
+    // Payload format for invoices API
     const paylinkPayload = {
       shop_id: paylinkShopId,
-      amount: subscriptionType.price, // in tenge (not minor units for s-core)
+      amount: subscriptionType.price, // in tenge
       currency: 'KZT',
       order_id: orderId,
       description: `Подписка: ${subscriptionType.name}`,
