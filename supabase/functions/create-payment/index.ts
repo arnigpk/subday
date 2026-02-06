@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -26,10 +26,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create supabase client with user's token
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Create supabase client with service role
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get user from token
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
@@ -54,9 +52,7 @@ Deno.serve(async (req) => {
     }
 
     // Get subscription type details
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const { data: subscriptionType, error: subError } = await adminClient
+    const { data: subscriptionType, error: subError } = await supabaseClient
       .from('subscription_types')
       .select('*')
       .eq('id', subscription_type_id)
@@ -70,11 +66,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate unique order ID
-    const orderId = `SUB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate unique order ID with subscription name
+    const cleanName = subscriptionType.name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_').substring(0, 20);
+    const orderId = `${cleanName}_${Date.now()}`;
 
     // Create payment order in database first
-    const { data: paymentOrder, error: orderError } = await adminClient
+    const { data: paymentOrder, error: orderError } = await supabaseClient
       .from('payment_orders')
       .insert({
         order_id: orderId,
@@ -99,54 +96,91 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user profile for phone
-    const { data: profile } = await adminClient
+    // Get user profile for contact info
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('phone, name')
       .eq('user_id', user.id)
       .single();
 
-    // Create Paylink payment
+    // Clean phone number
+    const cleanPhone = profile?.phone?.replace(/\D/g, '') || '';
+    const formattedPhone = cleanPhone.startsWith('7') ? cleanPhone : `7${cleanPhone}`;
+
+    // Convert amount to minor units (tiyns) - multiply by 100
+    const amountInMinorUnits = Math.round(subscriptionType.price * 100);
+
+    // Create Paylink payment request - wrapped in 'request' object
     const paylinkPayload = {
-      amount: subscriptionType.price,
-      currency: "KZT",
-      description: `Подписка ${subscriptionType.name}`,
-      order_id: orderId,
-      callback_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
-      success_url: `https://vhod.lovable.app/?payment=success`,
-      failure_url: `https://vhod.lovable.app/?payment=failed`,
-      back_url: `https://vhod.lovable.app/`,
-      customer: {
-        phone: profile?.phone?.replace(/\D/g, '') || '',
-        name: profile?.name || 'Customer',
-      },
-      metadata: {
-        user_id: user.id,
-        subscription_type_id: subscription_type_id,
-        order_id: orderId,
+      request: {
+        shop_id: paylinkShopId,
+        amount: amountInMinorUnits,
+        currency: "KZT",
+        tracking_id: orderId,
+        description: `Подписка: ${subscriptionType.name}`,
+        success_url: "https://vhod.lovable.app/?payment=success",
+        fail_url: "https://vhod.lovable.app/?payment=failed",
+        notification_url: `${supabaseUrl}/functions/v1/paylink-webhook`,
+        test: true,
+        customer: {
+          phone: formattedPhone,
+          email: user.email || `user_${user.id.substring(0, 8)}@subday.app`,
+        },
+        additional_data: {
+          user_id: user.id,
+          subscription_type_id: subscription_type_id,
+          payment_order_id: paymentOrder.id,
+        }
       }
     };
 
     console.log('Creating Paylink payment:', JSON.stringify(paylinkPayload, null, 2));
 
-    const paylinkResponse = await fetch('https://api.paylink.kz/api/v3/payments', {
+    // Use correct Paylink gateway endpoint for transactions
+    // API key appears to be Base64 encoded - try both Basic Auth and X-API-KEY
+    const paylinkResponse = await fetch('https://gateway.paylink.kz/transactions/payments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': paylinkApiKey,
+        'Accept': 'application/json',
+        'Authorization': `Basic ${paylinkApiKey}`,
         'X-API-Version': '3',
       },
       body: JSON.stringify(paylinkPayload),
     });
 
-    const paylinkData = await paylinkResponse.json();
-    console.log('Paylink response:', JSON.stringify(paylinkData, null, 2));
+    // Get raw response text first to debug
+    const responseText = await paylinkResponse.text();
+    console.log('Paylink raw response:', responseText);
 
-    if (!paylinkResponse.ok || paylinkData.error) {
+    let paylinkData;
+    try {
+      paylinkData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Paylink response:', responseText);
+      
+      // Update order status to failed
+      await supabaseClient
+        .from('payment_orders')
+        .update({ status: 'failed' })
+        .eq('id', paymentOrder.id);
+
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response from payment provider',
+        details: responseText.substring(0, 200)
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Paylink parsed response:', JSON.stringify(paylinkData, null, 2));
+
+    if (!paylinkResponse.ok || paylinkData.error || paylinkData.errors) {
       console.error('Paylink error:', paylinkData);
       
       // Update order status to failed
-      await adminClient
+      await supabaseClient
         .from('payment_orders')
         .update({ status: 'failed' })
         .eq('id', paymentOrder.id);
@@ -160,15 +194,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update order with payment URL and ID
-    const paymentUrl = paylinkData.pay_url || paylinkData.redirect_url || paylinkData.url;
-    const paymentId = paylinkData.id || paylinkData.payment_id;
+    // Extract payment URL from response (try multiple possible fields)
+    const paymentUrl = paylinkData.redirect_url || 
+                       paylinkData.pay_url || 
+                       paylinkData.url || 
+                       paylinkData.response?.redirect_url ||
+                       paylinkData.response?.pay_url ||
+                       paylinkData.checkout_url;
+    
+    const paymentId = paylinkData.id || 
+                      paylinkData.payment_id || 
+                      paylinkData.checkout_id ||
+                      paylinkData.response?.id;
 
-    await adminClient
+    if (!paymentUrl) {
+      console.error('No payment URL in response:', paylinkData);
+      
+      await supabaseClient
+        .from('payment_orders')
+        .update({ status: 'failed' })
+        .eq('id', paymentOrder.id);
+
+      return new Response(JSON.stringify({ 
+        error: 'No payment URL received',
+        response: paylinkData
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Update order with payment URL and ID
+    await supabaseClient
       .from('payment_orders')
       .update({ 
         payment_url: paymentUrl,
-        payment_id: String(paymentId),
+        payment_id: String(paymentId || ''),
       })
       .eq('id', paymentOrder.id);
 
