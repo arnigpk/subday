@@ -217,21 +217,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract payment URL/id from Checkout API response
-    const paymentUrl = paylinkData.checkout?.redirect_url ||
+    // Extract payment URL from s-core.paylink.kz response
+    // According to docs: response contains paymentUrl for redirect
+    const paymentUrl = paylinkData.paymentUrl ||
+                       paylinkData.payment_url ||
                        paylinkData.redirect_url ||
-                       paylinkData.pay_url ||
                        paylinkData.url ||
-                       paylinkData.response?.redirect_url ||
-                       paylinkData.response?.pay_url ||
+                       paylinkData.checkoutUrl ||
                        paylinkData.checkout_url;
 
-    const paymentId = paylinkData.checkout?.id ||
-                      paylinkData.checkout?.token ||
-                      paylinkData.id ||
-                      paylinkData.payment_id ||
-                      paylinkData.checkout_id ||
-                      paylinkData.response?.id;
+    const paymentId = paylinkData.id ||
+                      paylinkData.invoiceId ||
+                      paylinkData.invoice_id ||
+                      paylinkData.requestId ||
+                      paylinkData.trackingId;
 
     if (!paymentUrl) {
       console.error('No payment URL in response:', paylinkData);
