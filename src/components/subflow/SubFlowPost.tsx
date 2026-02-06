@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User } from 'lucide-react';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -28,12 +28,13 @@ interface SubFlowPostProps {
   currentUserId: string | null;
   onUpdate: () => void;
   animationDelay: number;
+  hasActiveSubscription: boolean;
 }
 
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
+export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -176,15 +177,26 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <StoryAvatar
-          userId={post.user_id}
-          userName={post.author_name}
-          userAvatar={post.author_avatar}
-          currentUserId={currentUserId}
-          size="md"
-        />
+        {hasActiveSubscription ? (
+          <StoryAvatar
+            userId={post.user_id}
+            userName={post.author_name}
+            userAvatar={post.author_avatar}
+            currentUserId={currentUserId}
+            size="md"
+            hasActiveSubscription={hasActiveSubscription}
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center">
+            <User size={20} className="text-muted-foreground" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-foreground truncate">{post.author_name}</p>
+          {hasActiveSubscription ? (
+            <p className="font-bold text-foreground truncate">{post.author_name}</p>
+          ) : (
+            <p className="font-bold text-muted-foreground truncate">Автор скрыт</p>
+          )}
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
@@ -341,6 +353,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
         <SubFlowComments
           postId={post.id}
           currentUserId={currentUserId}
+          hasActiveSubscription={hasActiveSubscription}
         />
       )}
     </div>

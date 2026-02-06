@@ -52,7 +52,7 @@ export default function SubFlowPage() {
 
           {showCreatePost && <SubFlowCreatePost onClose={() => setShowCreatePost(false)} onPostCreated={handlePostCreated} />}
 
-          <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} />
+          <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} />
         </div>
       </div>
     </AppLayout>;

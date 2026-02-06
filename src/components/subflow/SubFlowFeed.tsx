@@ -25,11 +25,12 @@ interface SubFlowFeedProps {
   refreshTrigger: number;
   currentUserId: string | null;
   shopFilter?: string | null;
+  hasActiveSubscription: boolean;
 }
 
 const POSTS_PER_PAGE = 10;
 
-export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFlowFeedProps) {
+export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActiveSubscription }: SubFlowFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -267,6 +268,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFl
           currentUserId={currentUserId}
           onUpdate={() => fetchPosts(true)}
           animationDelay={index < 10 ? index * 0.05 : 0}
+          hasActiveSubscription={hasActiveSubscription}
         />
       ))}
       
