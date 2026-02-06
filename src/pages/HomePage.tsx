@@ -5,14 +5,18 @@ import { NearbyShops } from '@/components/home/NearbyShops';
 import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
 
 export default function HomePage() {
-  const { profile, isLoading } = useUserStatsContext();
+  const { profile, isLoading, refetch } = useUserStatsContext();
   const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
   const navigate = useNavigate();
+  
+  // Handle payment result (show success/error toast)
+  usePaymentResult();
   
   const displayName = profile?.name?.split(' ')[0] || 'Гость';
   
