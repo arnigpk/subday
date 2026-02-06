@@ -106,12 +106,12 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-40" 
+            className="fixed inset-0 z-[100]" 
             onClick={() => setIsOpen(false)} 
           />
           
           {/* Menu */}
-          <div className="absolute left-full top-0 ml-2 z-50 bg-card border border-border rounded-xl shadow-lg p-1.5 min-w-[180px] animate-slide-up">
+          <div className="absolute left-0 top-full mt-2 z-[101] bg-card border border-border rounded-xl shadow-lg p-1.5 min-w-[180px] animate-slide-up">
             <div className="flex items-center justify-between px-3 py-2 border-b border-border mb-1">
               <span className="text-xs font-medium text-muted-foreground">Выберите действие</span>
               <button 
