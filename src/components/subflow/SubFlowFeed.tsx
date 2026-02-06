@@ -9,6 +9,7 @@ interface Post {
   user_id: string;
   content: string;
   image_url: string | null;
+  image_urls?: string[];
   shop_id: string | null;
   shop_name: string | null;
   created_at: string;
@@ -138,6 +139,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFl
           user_id: post.user_id,
           content: post.content,
           image_url: post.image_url,
+          image_urls: (post as any).image_urls || [],
           shop_id: post.shop_id,
           shop_name: post.shop_name,
           created_at: post.created_at,
@@ -179,28 +181,57 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter }: SubFl
     fetchPosts(true);
   }, [refreshTrigger, currentUserId, shopFilter]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates - always refresh on new posts
   useEffect(() => {
     const channel = supabase
-      .channel('subflow-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, () => {
-        // Only refresh for new posts if we're at the top
-        if (posts.length === 0 || !lastCreatedAt) {
-          fetchPosts(true);
-        }
+      .channel('subflow-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, (payload) => {
+        // Immediately add new post to the feed
+        const newPost = payload.new as any;
+        
+        // Fetch author info for the new post
+        supabase
+          .from('profiles')
+          .select('user_id, name, avatar_url')
+          .eq('user_id', newPost.user_id)
+          .single()
+          .then(({ data: profile }) => {
+            const enrichedPost: Post = {
+              id: newPost.id,
+              user_id: newPost.user_id,
+              content: newPost.content,
+              image_url: newPost.image_url,
+              image_urls: newPost.image_urls || [],
+              shop_id: newPost.shop_id,
+              shop_name: newPost.shop_name,
+              created_at: newPost.created_at,
+              author_name: profile?.name || 'Пользователь',
+              author_avatar: profile?.avatar_url || null,
+              reactions: {},
+              user_reactions: [],
+              comments_count: 0,
+            };
+            
+            // Add to top of feed if it matches current filter
+            if (!shopFilter || newPost.shop_id === shopFilter) {
+              setPosts(prev => [enrichedPost, ...prev]);
+            }
+          });
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_posts' }, () => {
-        fetchPosts(true);
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_posts' }, (payload) => {
+        // Remove deleted post from feed
+        const deletedId = payload.old.id;
+        setPosts(prev => prev.filter(p => p.id !== deletedId));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_reactions' }, () => {
-        // Silently update reactions without full refresh
+        // Silently update reactions - could implement optimistic updates here
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, posts.length, lastCreatedAt]);
+  }, [currentUserId, shopFilter]);
 
   if (isLoading) {
     return (
