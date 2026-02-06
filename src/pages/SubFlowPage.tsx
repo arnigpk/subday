@@ -28,16 +28,19 @@ export default function SubFlowPage() {
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-black text-foreground">subFlow</h1>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-black text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">subFlow</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Делись впечатлениями ☕</p>
+            </div>
             {!isSubLoading && hasActiveSubscription && (
               <Button
                 size="sm"
                 onClick={() => setShowCreatePost(true)}
-                className="rounded-full"
+                className="rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-lg"
               >
-                <Plus size={18} className="mr-1" />
-                Пост
+                <Plus size={16} className="mr-1" />
+                Сделать пост
               </Button>
             )}
           </div>

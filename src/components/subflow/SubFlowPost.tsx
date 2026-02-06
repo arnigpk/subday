@@ -29,7 +29,7 @@ interface SubFlowPostProps {
   animationDelay: number;
 }
 
-const REACTIONS = ['🚀', '🔥', '⚡️', '👍', '🥹'];
+const REACTIONS = ['💚', '🚀', '🔥', '⚡️', '👍', '🥹'];
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
@@ -118,59 +118,59 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
 
   return (
     <div 
-      className="card-static animate-slide-up"
+      className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up"
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <Avatar className="w-10 h-10">
+        <Avatar className="w-11 h-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
           {post.author_avatar ? (
-            <AvatarImage src={post.author_avatar} alt={post.author_name} />
+            <AvatarImage src={post.author_avatar} alt={post.author_name} className="object-cover" />
           ) : null}
-          <AvatarFallback className="bg-primary/10">
+          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20">
             <User size={20} className="text-primary" />
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground truncate">{post.author_name}</p>
-          <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
+          <p className="font-bold text-foreground truncate">{post.author_name}</p>
+          <p className="text-xs text-muted-foreground/70">{formatDate(post.created_at)}</p>
         </div>
         {isOwner && (
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+            className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
           >
-            <Trash2 size={18} />
+            <Trash2 size={16} />
           </button>
         )}
       </div>
 
       {/* Shop tag */}
       {post.shop_name && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
           <MapPin size={12} />
           <span>{post.shop_name}</span>
         </div>
       )}
 
       {/* Content */}
-      <p className="text-foreground mb-3 whitespace-pre-wrap">{post.content}</p>
+      <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
 
       {/* Image */}
       {post.image_url && (
-        <div className="mb-3 rounded-xl overflow-hidden">
+        <div className="mb-4 -mx-4 overflow-hidden">
           <img
             src={post.image_url}
             alt="Post image"
-            className="w-full h-auto max-h-80 object-cover"
+            className="w-full h-auto max-h-96 object-cover"
             loading="lazy"
           />
         </div>
       )}
 
       {/* Reactions */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3">
         {REACTIONS.map(reaction => {
           const count = localReactions[reaction] || 0;
           const hasReacted = localUserReactions.includes(reaction);
@@ -179,14 +179,14 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
             <button
               key={reaction}
               onClick={() => handleReaction(reaction)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
                 hasReacted 
-                  ? 'bg-primary/20 text-primary' 
-                  : 'bg-secondary text-foreground hover:bg-secondary/80'
+                  ? 'bg-gradient-to-r from-primary/25 to-accent/25 text-primary shadow-sm' 
+                  : 'bg-secondary/80 text-foreground hover:bg-secondary hover:scale-105'
               }`}
             >
-              <span>{reaction}</span>
-              {count > 0 && <span className="text-xs font-medium">{count}</span>}
+              <span className="text-base">{reaction}</span>
+              {count > 0 && <span className="text-xs">{count}</span>}
             </button>
           );
         })}
@@ -195,9 +195,13 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay }: S
       {/* Comments toggle */}
       <button
         onClick={() => setShowComments(!showComments)}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
+          showComments 
+            ? 'text-primary' 
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
       >
-        <MessageCircle size={18} />
+        <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
         <span>
           {post.comments_count > 0 
             ? `Комментарии (${post.comments_count})` 

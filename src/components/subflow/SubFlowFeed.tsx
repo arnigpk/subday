@@ -151,11 +151,11 @@ export function SubFlowFeed({ refreshTrigger, currentUserId }: SubFlowFeedProps)
 
   if (posts.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-4xl mb-4">☕</div>
-        <p className="text-lg font-semibold text-foreground mb-2">Пока тихо...</p>
-        <p className="text-sm text-muted-foreground">
-          Будь первым, кто поделится впечатлениями!
+      <div className="text-center py-16">
+        <div className="text-6xl mb-4 animate-bounce">☕</div>
+        <p className="text-xl font-bold text-foreground mb-2">Пока тихо...</p>
+        <p className="text-sm text-muted-foreground max-w-[200px] mx-auto">
+          Будь первым, кто поделится впечатлениями о любимой кофейне!
         </p>
       </div>
     );
