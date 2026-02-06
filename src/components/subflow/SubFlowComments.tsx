@@ -18,9 +18,10 @@ interface Comment {
 interface SubFlowCommentsProps {
   postId: string;
   currentUserId: string | null;
+  hasActiveSubscription: boolean;
 }
 
-export function SubFlowComments({ postId, currentUserId }: SubFlowCommentsProps) {
+export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }: SubFlowCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -166,17 +167,27 @@ export function SubFlowComments({ postId, currentUserId }: SubFlowCommentsProps)
         <div className="space-y-3">
           {comments.map(comment => (
             <div key={comment.id} className="flex gap-2">
-              <Avatar className="w-8 h-8 flex-shrink-0">
-                {comment.author_avatar ? (
-                  <AvatarImage src={comment.author_avatar} alt={comment.author_name} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10">
-                  <User size={14} className="text-primary" />
-                </AvatarFallback>
-              </Avatar>
+              {hasActiveSubscription ? (
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  {comment.author_avatar ? (
+                    <AvatarImage src={comment.author_avatar} alt={comment.author_name} />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10">
+                    <User size={14} className="text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                  <User size={14} className="text-muted-foreground" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{comment.author_name}</span>
+                  {hasActiveSubscription ? (
+                    <span className="text-sm font-medium text-foreground">{comment.author_name}</span>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">Автор скрыт</span>
+                  )}
                   <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
                   {comment.user_id === currentUserId && (
                     <button
