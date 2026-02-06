@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -18,12 +18,56 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
   
   
+  // Sync edit name with profile
+  useEffect(() => {
+    if (profile?.name) {
+      setEditName(profile.name);
+    }
+  }, [profile?.name]);
+
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      toast.error('Введите имя');
+      return;
+    }
+    
+    setIsSavingName(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: editName.trim() })
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      toast.success('Имя сохранено!');
+      setIsEditingName(false);
+      refetch();
+    } catch (error) {
+      console.error('Error saving name:', error);
+      toast.error('Ошибка сохранения');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleCancelNameEdit = () => {
+    setEditName(profile?.name || '');
+    setIsEditingName(false);
+  };
+
   // Check current notification permission on mount
   useEffect(() => {
     if ('Notification' in window) {
@@ -225,13 +269,48 @@ export default function ProfilePage() {
                   <div className="h-4 w-24 bg-muted rounded" />
                 </div>
               ) : (
-                <>
+              <>
                   {!isSubLoading && hasActiveSubscription && activeSubscriptions[0]?.subscription_name && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-1">
                       {activeSubscriptions[0].subscription_name}
                     </span>
                   )}
-                  <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Имя Фамилия"
+                        maxLength={50}
+                        className="flex-1 px-2 py-1 bg-secondary rounded-lg text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={isSavingName}
+                        className="p-1.5 bg-accent text-accent-foreground rounded-lg"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={handleCancelNameEdit}
+                        className="p-1.5 bg-secondary text-foreground rounded-lg"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                      <button
+                        onClick={() => setIsEditingName(true)}
+                        className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-muted-foreground">{profile?.phone || ''}</p>
                 </>
               )}
