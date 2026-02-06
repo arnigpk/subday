@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/sonner';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
+  const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
   
   // Check current notification permission on mount
   useEffect(() => {
@@ -178,7 +180,14 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl font-bold text-foreground">{profile?.name || 'Пользователь'}</h2>
+                    {!isSubLoading && hasActiveSubscription && activeSubscriptions[0]?.subscription_name && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                        {activeSubscriptions[0].subscription_name}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-muted-foreground">{profile?.phone || ''}</p>
                 </>
               )}
