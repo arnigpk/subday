@@ -112,12 +112,12 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   };
 
   return (
-    <div className="card-static mb-4 animate-slide-up">
+    <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-2xl p-4 mb-4 shadow-lg animate-slide-up">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-foreground">Новый пост</h2>
-        <button onClick={onClose} className="p-1 text-muted-foreground">
-          <X size={20} />
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-bold text-lg text-foreground">Новый пост ✨</h2>
+        <button onClick={onClose} className="p-1.5 rounded-full text-muted-foreground hover:bg-secondary transition-colors">
+          <X size={18} />
         </button>
       </div>
 
@@ -125,9 +125,9 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Поделитесь впечатлениями..."
+        placeholder="Какой кофе сегодня? Расскажи! ☕"
         rows={3}
-        className="w-full px-3 py-2 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 mb-3"
+        className="w-full px-4 py-3 bg-secondary/50 border border-border/30 rounded-xl text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent mb-3 transition-all"
       />
 
       {/* Image preview */}
