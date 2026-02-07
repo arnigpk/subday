@@ -177,6 +177,13 @@ export default function ShopsPage() {
             <div className="space-y-3">
               {filteredAndSortedShops.map((shop, index) => {
                 const shopDistance = distances.get(shop.id);
+                const closestIndex = shopDistance?.closestAddressIndex ?? 0;
+                const addresses = shop.addresses || (shop.address ? [shop.address] : []);
+                
+                // Reorder addresses to show closest first
+                const reorderedAddresses = addresses.length > 1 && closestIndex > 0
+                  ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
+                  : addresses;
                 
                 return (
                   <div
@@ -207,10 +214,10 @@ export default function ShopsPage() {
                             </span>
                           </div>
                           
-                          {/* Addresses */}
+                          {/* Addresses - closest first */}
                           <div onClick={(e) => e.preventDefault()}>
                             <AddressesList 
-                              addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
+                              addresses={reorderedAddresses} 
                               variant="compact"
                               className="mt-2"
                             />

@@ -188,9 +188,20 @@ export default function ShopDetailPage() {
               <div className="flex-1">
                 {(shop.addresses && shop.addresses.length > 0) ? (
                   <div className="space-y-1">
-                    {shop.addresses.map((addr, index) => (
-                      <p key={index} className="font-medium text-foreground">{addr}</p>
-                    ))}
+                    {(() => {
+                      const closestIndex = shopDistance?.closestAddressIndex ?? 0;
+                      const addresses = shop.addresses;
+                      // Reorder to show closest first
+                      const reordered = closestIndex > 0
+                        ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
+                        : addresses;
+                      return reordered.map((addr, index) => (
+                        <p key={index} className={`font-medium ${index === 0 && closestIndex > 0 ? 'text-accent' : 'text-foreground'}`}>
+                          {index === 0 && closestIndex > 0 && <span className="text-xs mr-1">📍</span>}
+                          {addr}
+                        </p>
+                      ));
+                    })()}
                   </div>
                 ) : shop.address ? (
                   <p className="font-medium text-foreground">{shop.address}</p>
