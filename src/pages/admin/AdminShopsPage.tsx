@@ -26,6 +26,7 @@ import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
 import { AddressesEditor } from '@/components/shop/AddressesEditor';
+import { BadgesEditor, ShopBadgeData } from '@/components/shop/BadgesEditor';
 import {
   DndContext,
   closestCenter,
@@ -56,6 +57,7 @@ interface Shop {
   sort_order: number;
   badge_text: string | null;
   badge_color: string | null;
+  badges: unknown;
 }
 
 export default function AdminShopsPage() {
@@ -71,8 +73,7 @@ export default function AdminShopsPage() {
     working_hours: '09:00-21:00',
     is_active: true,
     logo_url: null as string | null,
-    badge_text: '',
-    badge_color: '' as string,
+    badges: [] as ShopBadgeData[],
   });
 
   const sensors = useSensors(
@@ -145,14 +146,23 @@ export default function AdminShopsPage() {
       working_hours: '09:00-21:00',
       is_active: true,
       logo_url: null,
-      badge_text: '',
-      badge_color: '',
+      badges: [],
     });
     setIsDialogOpen(true);
   };
 
   const openEditDialog = (shop: Shop) => {
     setEditingShop(shop);
+    // Parse badges from jsonb or fall back to legacy single badge
+    let parsedBadges: ShopBadgeData[] = [];
+    if (shop.badges && Array.isArray(shop.badges)) {
+      parsedBadges = (shop.badges as Array<{ text?: string; color?: string }>)
+        .filter(b => b && b.text && b.color)
+        .map(b => ({ text: b.text!, color: b.color as 'red' | 'green' | 'yellow' }));
+    } else if (shop.badge_text && shop.badge_color) {
+      parsedBadges = [{ text: shop.badge_text, color: shop.badge_color as 'red' | 'green' | 'yellow' }];
+    }
+    
     setFormData({
       name: shop.name,
       addresses: shop.addresses || (shop.address ? [shop.address] : []),
@@ -160,8 +170,7 @@ export default function AdminShopsPage() {
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
       logo_url: shop.logo_url,
-      badge_text: shop.badge_text || '',
-      badge_color: shop.badge_color || '',
+      badges: parsedBadges,
     });
     setIsDialogOpen(true);
   };
@@ -173,6 +182,9 @@ export default function AdminShopsPage() {
     }
 
     try {
+      // Convert badges to JSON-compatible format
+      const badgesJson = formData.badges.map(b => ({ text: b.text, color: b.color }));
+      
       if (editingShop) {
         const { error } = await supabase
           .from('shops')
@@ -184,8 +196,10 @@ export default function AdminShopsPage() {
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
-            badge_text: formData.badge_text || null,
-            badge_color: formData.badge_color || null,
+            badges: badgesJson,
+            // Keep legacy fields for backward compatibility
+            badge_text: formData.badges[0]?.text || null,
+            badge_color: formData.badges[0]?.color || null,
           })
           .eq('id', editingShop.id);
 
@@ -198,7 +212,7 @@ export default function AdminShopsPage() {
 
         const { error } = await supabase
           .from('shops')
-          .insert({
+          .insert([{
             name: formData.name,
             address: formData.addresses[0] || null,
             addresses: formData.addresses,
@@ -206,10 +220,12 @@ export default function AdminShopsPage() {
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
-            badge_text: formData.badge_text || null,
-            badge_color: formData.badge_color || null,
+            badges: badgesJson,
+            // Keep legacy fields for backward compatibility
+            badge_text: formData.badges[0]?.text || null,
+            badge_color: formData.badges[0]?.color || null,
             sort_order: maxOrder + 1,
-          });
+          }]);
 
         if (error) throw error;
         toast({ title: 'Кофейня добавлена' });
@@ -394,29 +410,10 @@ export default function AdminShopsPage() {
               label="Фото"
               maxSizeMb={10}
             />
-            <div className="space-y-2">
-              <Label>Бейдж (необязательно)</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={formData.badge_text}
-                  onChange={(e) => setFormData({ ...formData, badge_text: e.target.value })}
-                  placeholder="Текст бейджа"
-                  maxLength={15}
-                  className="flex-1"
-                />
-                <select
-                  value={formData.badge_color}
-                  onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
-                  className="h-10 px-3 rounded-md border border-input bg-background text-sm"
-                >
-                  <option value="">Без цвета</option>
-                  <option value="red">🔴 Красный</option>
-                  <option value="green">🟢 Зелёный</option>
-                  <option value="yellow">🟡 Жёлтый</option>
-                </select>
-              </div>
-              <p className="text-xs text-muted-foreground">Короткий текст, например: "Новинка", "Акция", "ТОП"</p>
-            </div>
+            <BadgesEditor
+              badges={formData.badges}
+              onChange={(badges) => setFormData({ ...formData, badges })}
+            />
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"

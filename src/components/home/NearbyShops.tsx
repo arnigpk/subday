@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useState, useEffect } from 'react';
+import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 
 interface ShopWithVisits {
   id: string;
@@ -13,6 +14,28 @@ interface ShopWithVisits {
   is_active: boolean;
   logo_url: string | null;
   visit_count: number;
+  badge_text: string | null;
+  badge_color: string | null;
+  badges: unknown;
+}
+
+// Helper to get all badges from a shop
+function getShopBadges(shop: ShopWithVisits): ShopBadgeData[] {
+  const badges: ShopBadgeData[] = [];
+  
+  if (shop.badges && Array.isArray(shop.badges)) {
+    (shop.badges as Array<{ text?: string; color?: string }>).forEach(b => {
+      if (b && b.text && b.color) {
+        badges.push({ text: b.text, color: b.color });
+      }
+    });
+  }
+  
+  if (badges.length === 0 && shop.badge_text && shop.badge_color) {
+    badges.push({ text: shop.badge_text, color: shop.badge_color });
+  }
+  
+  return badges;
 }
 
 export function NearbyShops() {
@@ -124,10 +147,12 @@ export function NearbyShops() {
                     {isOpen ? 'Открыто' : 'Закрыто'}
                   </span>
                 </div>
-              </div>
-              
-              <div className="text-right">
-                <span className="text-xs text-muted-foreground">— м</span>
+                {/* Badges */}
+                {getShopBadges(shop).length > 0 && (
+                  <div className="mt-1" onClick={(e) => e.preventDefault()}>
+                    <ShopBadgesList badges={getShopBadges(shop)} maxVisible={1} />
+                  </div>
+                )}
               </div>
             </Link>
           );

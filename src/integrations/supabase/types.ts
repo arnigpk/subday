@@ -232,6 +232,7 @@ export type Database = {
           addresses: string[] | null
           badge_color: string | null
           badge_text: string | null
+          badges: Json | null
           city: string | null
           created_at: string | null
           id: string
@@ -247,6 +248,7 @@ export type Database = {
           addresses?: string[] | null
           badge_color?: string | null
           badge_text?: string | null
+          badges?: Json | null
           city?: string | null
           created_at?: string | null
           id?: string
@@ -262,6 +264,7 @@ export type Database = {
           addresses?: string[] | null
           badge_color?: string | null
           badge_text?: string | null
+          badges?: Json | null
           city?: string | null
           created_at?: string | null
           id?: string
