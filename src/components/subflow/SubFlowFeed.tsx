@@ -190,14 +190,15 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     fetchPosts(true);
   }, [refreshTrigger, currentUserId, shopFilter]);
 
-  // Subscribe to realtime updates for posts and reactions
+  // Subscribe to realtime updates - always refresh on new posts
   useEffect(() => {
     const channel = supabase
-      .channel('subflow-realtime-fast')
+      .channel('subflow-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, (payload) => {
+        // Immediately add new post to the feed
         const newPost = payload.new as any;
         
-        // Fetch author info for the new post
+        // Fetch author info for the new post (including nickname)
         supabase
           .from('profiles')
           .select('user_id, name, avatar_url, subflow_nickname')
@@ -221,68 +222,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
               comments_count: 0,
             };
             
+            // Add to top of feed if it matches current filter
             if (!shopFilter || newPost.shop_id === shopFilter) {
-              setPosts(prev => {
-                if (prev.some(p => p.id === enrichedPost.id)) return prev;
-                return [enrichedPost, ...prev];
-              });
+              setPosts(prev => [enrichedPost, ...prev]);
             }
           });
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_posts' }, (payload) => {
+        // Remove deleted post from feed
         const deletedId = payload.old.id;
         setPosts(prev => prev.filter(p => p.id !== deletedId));
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'subflow_posts' }, (payload) => {
-        const updatedPost = payload.new as any;
-        setPosts(prev => prev.map(post => {
-          if (post.id !== updatedPost.id) return post;
-          return { ...post, content: updatedPost.content };
-        }));
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_reactions' }, (payload) => {
-        const newReaction = payload.new as { post_id: string; user_id: string; reaction: string };
-        setPosts(prev => prev.map(post => {
-          if (post.id !== newReaction.post_id) return post;
-          
-          const newReactions = { ...post.reactions };
-          newReactions[newReaction.reaction] = (newReactions[newReaction.reaction] || 0) + 1;
-          
-          const newUserReactions = newReaction.user_id === currentUserId 
-            ? [...post.user_reactions, newReaction.reaction]
-            : post.user_reactions;
-          
-          return { ...post, reactions: newReactions, user_reactions: newUserReactions };
-        }));
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_reactions' }, (payload) => {
-        const deletedReaction = payload.old as { post_id: string; user_id: string; reaction: string };
-        setPosts(prev => prev.map(post => {
-          if (post.id !== deletedReaction.post_id) return post;
-          
-          const newReactions = { ...post.reactions };
-          newReactions[deletedReaction.reaction] = Math.max(0, (newReactions[deletedReaction.reaction] || 1) - 1);
-          
-          const newUserReactions = deletedReaction.user_id === currentUserId
-            ? post.user_reactions.filter(r => r !== deletedReaction.reaction)
-            : post.user_reactions;
-          
-          return { ...post, reactions: newReactions, user_reactions: newUserReactions };
-        }));
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_comments' }, (payload) => {
-        const newComment = payload.new as { post_id: string };
-        setPosts(prev => prev.map(post => {
-          if (post.id !== newComment.post_id) return post;
-          return { ...post, comments_count: post.comments_count + 1 };
-        }));
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_comments' }, (payload) => {
-        const deletedComment = payload.old as { post_id: string };
-        setPosts(prev => prev.map(post => {
-          if (post.id !== deletedComment.post_id) return post;
-          return { ...post, comments_count: Math.max(0, post.comments_count - 1) };
-        }));
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_reactions' }, () => {
+        // Silently update reactions - could implement optimistic updates here
       })
       .subscribe();
 

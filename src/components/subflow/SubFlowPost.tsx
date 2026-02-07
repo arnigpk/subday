@@ -40,6 +40,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
+  const [localReactions, setLocalReactions] = useState(post.reactions);
+  const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const isOwner = currentUserId === post.user_id;
@@ -70,43 +72,50 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       return;
     }
 
-    const hasReaction = post.user_reactions.includes(reaction);
+    const hasReaction = localUserReactions.includes(reaction);
     
+    // Check if user already has max reactions and trying to add new one
+    if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
+      toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
+      return;
+    }
+
+    // Optimistic update
+    if (hasReaction) {
+      setLocalUserReactions(prev => prev.filter(r => r !== reaction));
+      setLocalReactions(prev => ({
+        ...prev,
+        [reaction]: Math.max(0, (prev[reaction] || 1) - 1)
+      }));
+    } else {
+      setLocalUserReactions(prev => [...prev, reaction]);
+      setLocalReactions(prev => ({
+        ...prev,
+        [reaction]: (prev[reaction] || 0) + 1
+      }));
+    }
+
     try {
       if (hasReaction) {
-        // User wants to remove their reaction - always allow
-        const { error } = await supabase
+        await supabase
           .from('subflow_reactions')
           .delete()
           .eq('post_id', post.id)
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
-        
-        if (error) throw error;
       } else {
-        // User wants to add a new reaction - check limit first
-        // Count unique reactions this user has on this post
-        const uniqueUserReactions = [...new Set(post.user_reactions)];
-        
-        if (uniqueUserReactions.length >= MAX_REACTIONS_PER_USER) {
-          toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
-          return;
-        }
-        
-        const { error } = await supabase
+        await supabase
           .from('subflow_reactions')
           .insert({
             post_id: post.id,
             user_id: currentUserId,
             reaction
           });
-        
-        if (error) throw error;
       }
-      // Realtime will handle the UI update
     } catch (error) {
       console.error('Reaction error:', error);
-      toast.error('Ошибка при обработке реакции');
+      // Revert on error
+      onUpdate();
     }
   };
 
@@ -291,8 +300,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       {/* Reactions */}
       <div className="flex flex-wrap gap-1 mb-3">
         {REACTIONS.map(reaction => {
-          const count = post.reactions[reaction] || 0;
-          const hasReacted = post.user_reactions.includes(reaction);
+          const count = localReactions[reaction] || 0;
+          const hasReacted = localUserReactions.includes(reaction);
           
           return (
             <button
