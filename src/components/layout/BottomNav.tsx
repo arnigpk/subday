@@ -1,16 +1,27 @@
 import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { usePrefetch } from '@/hooks/usePrefetch';
+import { useCallback } from 'react';
 
 const navItems = [
-  { icon: Home, label: 'Главная', path: '/' },
-  { icon: Coffee, label: 'Подписки', path: '/packages' },
-  { icon: MapPin, label: 'Кофейни', path: '/shops' },
-  { icon: Zap, label: 'subFlow', path: '/subflow' },
-  { icon: User, label: 'Профиль', path: '/profile' },
+  { icon: Home, label: 'Главная', path: '/', prefetchKey: 'home' as const },
+  { icon: Coffee, label: 'Подписки', path: '/packages', prefetchKey: 'packages' as const },
+  { icon: MapPin, label: 'Кофейни', path: '/shops', prefetchKey: 'shops' as const },
+  { icon: Zap, label: 'subFlow', path: '/subflow', prefetchKey: 'subflow' as const },
+  { icon: User, label: 'Профиль', path: '/profile', prefetchKey: 'profile' as const },
 ];
 
 export function BottomNav() {
   const location = useLocation();
+  const { prefetchPage } = usePrefetch();
+  
+  const handleMouseEnter = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {
+    prefetchPage(prefetchKey);
+  }, [prefetchPage]);
+
+  const handleTouchStart = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {
+    prefetchPage(prefetchKey);
+  }, [prefetchPage]);
   
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom z-50">
@@ -23,6 +34,8 @@ export function BottomNav() {
             <Link
               key={item.path}
               to={item.path}
+              onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
+              onTouchStart={() => handleTouchStart(item.prefetchKey)}
               className={`nav-item transition-all duration-200 py-1 ${
                 isActive ? 'nav-item-active scale-105' : 'nav-item-inactive'
               }`}

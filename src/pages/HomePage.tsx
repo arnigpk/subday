@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
@@ -9,14 +10,21 @@ import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
+import { usePrefetch } from '@/hooks/usePrefetch';
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
   const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
   const navigate = useNavigate();
+  const { prefetchAll } = usePrefetch();
   
   // Handle payment result (show success/error toast)
   usePaymentResult();
+  
+  // Prefetch data for other pages when home page loads
+  useEffect(() => {
+    prefetchAll();
+  }, [prefetchAll]);
   
   const displayName = profile?.name?.split(' ')[0] || 'Гость';
   

@@ -38,7 +38,16 @@ import PartnerScanPage from "./pages/partner/PartnerScanPage";
 import PartnerHistoryPage from "./pages/partner/PartnerHistoryPage";
 import PartnerStaffPage from "./pages/partner/PartnerStaffPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds before data is considered stale
+      gcTime: 5 * 60 * 1000, // 5 minutes cache time
+      refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
+      retry: 1, // Reduce retries for faster failure
+    },
+  },
+});
 
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);

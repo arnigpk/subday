@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Sparkles, Coffee, Zap, Crown, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
+import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 
 interface SubscriptionType {
   id: string;
@@ -52,32 +54,16 @@ const formatBenefit = (benefit: number) => {
 
 export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState('coffee');
-  const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { activeSubscriptionTypeId } = useActiveSubscription();
 
-  useEffect(() => {
-    fetchSubscriptions();
-  }, []);
+  const { data: subscriptions = [], isLoading } = useQuery({
+    queryKey: queryKeys.subscriptions,
+    queryFn: prefetchSubscriptions,
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+  });
 
-  const fetchSubscriptions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('subscription_types')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      setSubscriptions(data || []);
-    } catch (error) {
-      console.error('Error fetching subscriptions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filteredSubscriptions = subscriptions.filter(s => s.type === activeTab);
+  const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
 
   return (
     <AppLayout>

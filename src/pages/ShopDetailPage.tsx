@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -63,14 +63,14 @@ export default function ShopDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const shopStatus = useShopStatus(shop?.working_hours || '');
 
+  // Memoize shop coordinates to prevent infinite re-renders
+  const shopCoordinates = useMemo(() => 
+    shop ? [{ id: shop.id, coordinates: parseCoordinates(shop.coordinates) }] : [],
+    [shop?.id, shop?.coordinates]
+  );
+
   // Get distance for this shop
-  const {
-    distances,
-    userLocation
-  } = useShopDistances(shop ? [{
-    id: shop.id,
-    coordinates: parseCoordinates(shop.coordinates)
-  }] : []);
+  const { distances, userLocation } = useShopDistances(shopCoordinates);
   const shopDistance = shop ? distances.get(shop.id) : undefined;
   useEffect(() => {
     if (id) {

@@ -1,9 +1,12 @@
+import { useMemo } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
-import { useState, useEffect, useMemo } from 'react';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
+import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
+
 interface ShopData {
   id: string;
   name: string;
@@ -37,44 +40,34 @@ function getShopBadges(shop: ShopData): ShopBadgeData[] {
   return badges;
 }
 
+// Fetch visit counts
+const fetchVisitCounts = async (): Promise<Map<string, number>> => {
+  const { data } = await supabase.rpc('get_shop_visit_counts');
+  const countsMap = new Map<string, number>();
+  if (data) {
+    data.forEach((item: { shop_id: string; visit_count: number }) => {
+      countsMap.set(item.shop_id, item.visit_count);
+    });
+  }
+  return countsMap;
+};
+
 export function TopShopsByVisits() {
-  const [shops, setShops] = useState<ShopData[]>([]);
-  const [visitCounts, setVisitCounts] = useState<Map<string, number>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: shops = [], isLoading: shopsLoading } = useQuery({
+    queryKey: queryKeys.shops,
+    queryFn: prefetchShops,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    fetchShopsAndVisits();
-  }, []);
+  const { data: visitCounts = new Map(), isLoading: visitsLoading } = useQuery({
+    queryKey: ['visitCounts'],
+    queryFn: fetchVisitCounts,
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000,
+  });
 
-  const fetchShopsAndVisits = async () => {
-    try {
-      // Fetch shops and visit counts in parallel
-      const [shopsResult, visitsResult] = await Promise.all([
-        supabase
-          .from('shops')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true }),
-        supabase.rpc('get_shop_visit_counts')
-      ]);
-
-      if (shopsResult.error) throw shopsResult.error;
-      setShops(shopsResult.data || []);
-
-      // Build visit counts map
-      if (visitsResult.data) {
-        const countsMap = new Map<string, number>();
-        visitsResult.data.forEach((item: { shop_id: string; visit_count: number }) => {
-          countsMap.set(item.shop_id, item.visit_count);
-        });
-        setVisitCounts(countsMap);
-      }
-    } catch (error) {
-      console.error('Error fetching shops:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = shopsLoading || visitsLoading;
 
   // Sort by visit count and take top 3
   const topShops = useMemo(() => {
