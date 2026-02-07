@@ -4,10 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useState, useEffect, useMemo } from 'react';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
-import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
-import { formatDistance } from '@/utils/distance';
-
-interface ShopWithCoords {
+interface ShopData {
   id: string;
   name: string;
   address: string | null;
@@ -18,16 +15,11 @@ interface ShopWithCoords {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
-  coordinates: unknown;
 }
 
-function parseCoordinates(coords: unknown): Coordinate[] {
-  if (!coords || !Array.isArray(coords)) return [];
-  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
-}
 
 // Helper to get all badges from a shop
-function getShopBadges(shop: ShopWithCoords): ShopBadgeData[] {
+function getShopBadges(shop: ShopData): ShopBadgeData[] {
   const badges: ShopBadgeData[] = [];
   
   if (shop.badges && Array.isArray(shop.badges)) {
@@ -46,7 +38,7 @@ function getShopBadges(shop: ShopWithCoords): ShopBadgeData[] {
 }
 
 export function TopShopsByVisits() {
-  const [shops, setShops] = useState<ShopWithCoords[]>([]);
+  const [shops, setShops] = useState<ShopData[]>([]);
   const [visitCounts, setVisitCounts] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,11 +75,6 @@ export function TopShopsByVisits() {
       setIsLoading(false);
     }
   };
-
-  // Get distances for display (not for sorting)
-  const { distances } = useShopDistances(
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
-  );
 
   // Sort by visit count and take top 3
   const topShops = useMemo(() => {
@@ -137,7 +124,6 @@ export function TopShopsByVisits() {
       <div className="space-y-1.5">
         {topShops.map((shop, index) => {
           const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
-          const shopDistance = distances.get(shop.id);
           
           return (
             <Link
@@ -145,7 +131,7 @@ export function TopShopsByVisits() {
               to={`/shops/${shop.id}`}
               className="card-interactive flex items-center gap-3 py-2.5 px-3"
             >
-              {/* Rank badge - now based on distance */}
+              {/* Rank badge based on visits */}
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                 index === 0 ? 'bg-accent text-accent-foreground' :
                 index === 1 ? 'bg-primary/20 text-primary' :
@@ -163,14 +149,7 @@ export function TopShopsByVisits() {
               )}
               
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-foreground text-sm truncate">{shop.name}</p>
-                  <span className={`text-xs whitespace-nowrap ${
-                    shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
-                  }`}>
-                    {formatDistance(shopDistance?.distance)}
-                  </span>
-                </div>
+                <p className="font-semibold text-foreground text-sm truncate">{shop.name}</p>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
                     {isOpen ? 'Открыто' : 'Закрыто'}
