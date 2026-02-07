@@ -141,10 +141,10 @@ export default function ShopDetailPage() {
         {/* Info */}
         <div className="px-4 space-y-4">
           <div className="card-static animate-slide-up">
-            <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center justify-between gap-4 mb-3">
               <div className={`flex items-center gap-1 ${shopStatus.isOpen ? 'text-accent' : 'text-destructive'}`}>
-                <Clock size={14} />
-                <span className="text-sm font-medium">
+                <Clock size={12} />
+                <span className="text-xs font-medium">
                   {shopStatus.isOpen ? `Открыто до ${shopStatus.closesAt}` : `Закрыто · откроется в ${shopStatus.opensAt}`}
                 </span>
               </div>
@@ -153,9 +153,9 @@ export default function ShopDetailPage() {
             </div>
 
             {/* Distance and duration */}
-            {shopDistance?.distance != null && <div className="flex items-center gap-3 mb-4 text-sm">
-                <div className="flex items-center gap-1.5 text-foreground font-medium">
-                  <Navigation size={16} className="text-accent" />
+            {shopDistance?.distance != null && <div className="flex items-center gap-2 mb-3 text-xs">
+                <div className="flex items-center gap-1 text-foreground font-medium">
+                  <Navigation size={14} className="text-accent" />
                   <span>{formatDistance(shopDistance.distance)}</span>
                 </div>
                 {shopDistance.duration != null && <span className="text-muted-foreground">
@@ -164,22 +164,27 @@ export default function ShopDetailPage() {
               </div>}
             
             <div className="flex items-start gap-2 text-muted-foreground">
-              <MapPin size={18} className="mt-0.5 shrink-0" />
+              <MapPin size={14} className="mt-0.5 shrink-0" />
               <div className="flex-1">
-                {shop.addresses && shop.addresses.length > 0 ? <div className="space-y-1">
+                {shop.addresses && shop.addresses.length > 0 ? <div className="space-y-0.5">
                     {(() => {
                   const closestIndex = shopDistance?.closestAddressIndex ?? 0;
                   const addresses = shop.addresses;
+                  const hasMultipleAddresses = addresses.length > 1;
                   // Reorder to show closest first
                   const reordered = closestIndex > 0 ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)] : addresses;
-                  return reordered.map((addr, index) => <p key={index} className={`font-medium ${index === 0 && closestIndex > 0 ? 'text-accent' : 'text-foreground'}`}>
-                          {index === 0 && closestIndex > 0 && <span className="text-xs mr-1"></span>}
-                          {addr}
-                        </p>);
+                  return reordered.map((addr, index) => {
+                    const isClosest = index === 0 && hasMultipleAddresses && shopDistance?.distance != null;
+                    return (
+                      <p key={index} className={`text-xs font-medium ${isClosest ? 'text-accent' : 'text-foreground'}`}>
+                        {addr}
+                      </p>
+                    );
+                  });
                 })()}
-                  </div> : shop.address ? <p className="font-medium text-foreground">{shop.address}</p> : <p className="font-medium text-foreground">Адрес не указан</p>}
-                <p className="text-sm mt-1">{shop.working_hours || '—'}</p>
-                {shop.city && <p className="text-sm">{shop.city}</p>}
+                  </div> : shop.address ? <p className="text-xs font-medium text-foreground">{shop.address}</p> : <p className="text-xs font-medium text-foreground">Адрес не указан</p>}
+                <p className="text-xs mt-1">{shop.working_hours || '—'}</p>
+                {shop.city && <p className="text-xs">{shop.city}</p>}
               </div>
             </div>
           </div>
