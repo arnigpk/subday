@@ -154,8 +154,8 @@ export default function ShopDetailPage() {
           <div className="card-static animate-slide-up">
             <div className="flex items-center justify-between gap-4 mb-4">
               <div className={`flex items-center gap-1 ${shopStatus.isOpen ? 'text-accent' : 'text-destructive'}`}>
-                <Clock size={18} />
-                <span className="font-medium">
+                <Clock size={14} />
+                <span className="text-sm font-medium">
                   {shopStatus.isOpen 
                     ? `Открыто до ${shopStatus.closesAt}` 
                     : `Закрыто · откроется в ${shopStatus.opensAt}`
