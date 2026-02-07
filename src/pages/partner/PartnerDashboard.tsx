@@ -11,7 +11,7 @@ import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
-import { AddressesEditor } from '@/components/shop/AddressesEditor';
+import { SimpleAddressesEditor } from '@/components/shop/SimpleAddressesEditor';
 
 interface Stats {
   today: number;
@@ -287,7 +287,7 @@ export default function PartnerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <AddressesEditor
+                  <SimpleAddressesEditor
                     addresses={editedShopData.addresses}
                     onChange={(addresses) => setEditedShopData({ ...editedShopData, addresses, address: addresses[0] || '' })}
                   />

@@ -6,7 +6,7 @@ import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation } from 
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
-import { useShopDistances } from '@/hooks/useShopDistances';
+import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, formatDuration } from '@/utils/distance';
 
 interface Shop {
@@ -21,8 +21,12 @@ interface Shop {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
-  latitude: number | null;
-  longitude: number | null;
+  coordinates: unknown;
+}
+
+function parseCoordinates(coords: unknown): Coordinate[] {
+  if (!coords || !Array.isArray(coords)) return [];
+  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
 }
 
 // Helper to get all badges from a shop
@@ -55,7 +59,7 @@ export default function ShopDetailPage() {
 
   // Get distance for this shop
   const { distances, userLocation } = useShopDistances(
-    shop ? [{ id: shop.id, latitude: shop.latitude, longitude: shop.longitude }] : []
+    shop ? [{ id: shop.id, coordinates: parseCoordinates(shop.coordinates) }] : []
   );
   const shopDistance = shop ? distances.get(shop.id) : undefined;
 
