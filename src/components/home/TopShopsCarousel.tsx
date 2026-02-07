@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isShopOpen } from '@/utils/shopHours';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
+import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 
 interface Shop {
   id: string;
@@ -24,14 +25,15 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 }
 
 export function TopShopsCarousel() {
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchShops();
-  }, []);
+  const { data: shops = [], isLoading } = useQuery({
+    queryKey: queryKeys.shops,
+    queryFn: prefetchShops,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
 
   // Handle scroll to update active indicator
   useEffect(() => {
@@ -49,28 +51,14 @@ export function TopShopsCarousel() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [shops.length]);
 
-  const fetchShops = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-        .limit(10);
-
-      if (error) throw error;
-      setShops(data || []);
-    } catch (error) {
-      console.error('Error fetching shops:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Memoize shop coordinates to prevent infinite re-renders
+  const shopCoordinates = useMemo(() => 
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
+    [shops]
+  );
 
   // Get distances for all shops
-  const { distances, userLocation } = useShopDistances(
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
-  );
+  const { distances, userLocation } = useShopDistances(shopCoordinates);
 
   // Sort shops by distance if location available
   const sortedShops = useMemo(() => {

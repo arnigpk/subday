@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useGeolocation } from './useGeolocation';
 
@@ -41,9 +41,16 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
 
   const { latitude, longitude, error: geoError, permissionDenied, loading: geoLoading } = useGeolocation();
 
+  // Stabilize shops array to prevent infinite re-renders
+  const shopsKey = useMemo(() => {
+    return shops.map(s => s.id).sort().join(',');
+  }, [shops]);
+  
+  const stableShops = useMemo(() => shops, [shopsKey]);
+
   const calculateDistances = useCallback(async (userLat: number, userLng: number) => {
     // Filter shops with valid coordinates
-    const shopsWithCoords = shops.filter(s => s.coordinates && s.coordinates.length > 0);
+    const shopsWithCoords = stableShops.filter(s => s.coordinates && s.coordinates.length > 0);
     
     if (shopsWithCoords.length === 0) {
       setDistances(new Map());
@@ -178,7 +185,7 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
     } finally {
       setLoading(false);
     }
-  }, [shops]);
+  }, [stableShops]);
 
   useEffect(() => {
     if (latitude != null && longitude != null && !geoLoading) {

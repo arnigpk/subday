@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { Clock, MapPin, Navigation, Loader2, MapPinOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
@@ -8,6 +8,7 @@ import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
+import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 
 interface Shop {
   id: string;
@@ -73,34 +74,22 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchShops();
-  }, []);
+  const { data: shops = [], isLoading } = useQuery({
+    queryKey: queryKeys.shops,
+    queryFn: prefetchShops,
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+  });
 
-  const fetchShops = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      setShops(data || []);
-    } catch (error) {
-      console.error('Error fetching shops:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Memoize shop coordinates to prevent infinite re-renders in useShopDistances
+  const shopCoordinates = useMemo(() => 
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
+    [shops]
+  );
 
   // Get distances for all shops
-  const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
-  );
+  const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
   // Add real-time open status to shops
   const shopsWithStatus = useMemo(() => {
