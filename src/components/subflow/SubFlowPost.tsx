@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User } from 'lucide-react';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
@@ -44,6 +44,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
+  
+  // Swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 50;
   
   // Track processed reaction IDs to prevent duplicates
   const [processedReactionIds] = useState(() => new Set<string>());
@@ -365,14 +370,40 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
       )}
 
-      {/* Images carousel */}
+      {/* Images carousel with swipe support */}
       {images.length > 0 && (
-        <div className="mb-4 -mx-4 overflow-hidden relative">
+        <div 
+          className="mb-4 -mx-4 overflow-hidden relative touch-pan-y"
+          onTouchStart={(e) => {
+            touchStartX.current = e.touches[0].clientX;
+            touchEndX.current = null;
+          }}
+          onTouchMove={(e) => {
+            touchEndX.current = e.touches[0].clientX;
+          }}
+          onTouchEnd={() => {
+            if (!touchStartX.current || !touchEndX.current) return;
+            
+            const distance = touchStartX.current - touchEndX.current;
+            const isSwipeLeft = distance > minSwipeDistance;
+            const isSwipeRight = distance < -minSwipeDistance;
+            
+            if (isSwipeLeft && currentImageIndex < images.length - 1) {
+              setCurrentImageIndex(prev => prev + 1);
+            } else if (isSwipeRight && currentImageIndex > 0) {
+              setCurrentImageIndex(prev => prev - 1);
+            }
+            
+            touchStartX.current = null;
+            touchEndX.current = null;
+          }}
+        >
           <img
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
-            className="w-full h-auto max-h-96 object-cover"
+            className="w-full h-auto max-h-96 object-cover select-none pointer-events-none"
             loading="lazy"
+            draggable={false}
           />
           {images.length > 1 && (
             <>
