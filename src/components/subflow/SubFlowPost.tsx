@@ -40,9 +40,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
-  const [localReactions, setLocalReactions] = useState(post.reactions);
-  const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Use reactions directly from props (updated via realtime)
+  const localReactions = post.reactions;
+  const localUserReactions = post.user_reactions;
 
   const isOwner = currentUserId === post.user_id;
   
@@ -80,21 +82,6 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       return;
     }
 
-    // Optimistic update
-    if (hasReaction) {
-      setLocalUserReactions(prev => prev.filter(r => r !== reaction));
-      setLocalReactions(prev => ({
-        ...prev,
-        [reaction]: Math.max(0, (prev[reaction] || 1) - 1)
-      }));
-    } else {
-      setLocalUserReactions(prev => [...prev, reaction]);
-      setLocalReactions(prev => ({
-        ...prev,
-        [reaction]: (prev[reaction] || 0) + 1
-      }));
-    }
-
     try {
       if (hasReaction) {
         await supabase
@@ -112,10 +99,10 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             reaction
           });
       }
+      // Realtime will handle the UI update
     } catch (error) {
       console.error('Reaction error:', error);
-      // Revert on error
-      onUpdate();
+      toast.error('Ошибка');
     }
   };
 
