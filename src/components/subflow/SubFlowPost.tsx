@@ -41,10 +41,6 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
-  // Use reactions directly from props (updated via realtime)
-  const localReactions = post.reactions;
-  const localUserReactions = post.user_reactions;
 
   const isOwner = currentUserId === post.user_id;
   
@@ -74,35 +70,43 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       return;
     }
 
-    const hasReaction = localUserReactions.includes(reaction);
+    const hasReaction = post.user_reactions.includes(reaction);
     
-    // Check if user already has max reactions and trying to add new one
-    if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
-      toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
-      return;
-    }
-
     try {
       if (hasReaction) {
-        await supabase
+        // User wants to remove their reaction - always allow
+        const { error } = await supabase
           .from('subflow_reactions')
           .delete()
           .eq('post_id', post.id)
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
+        
+        if (error) throw error;
       } else {
-        await supabase
+        // User wants to add a new reaction - check limit first
+        // Count unique reactions this user has on this post
+        const uniqueUserReactions = [...new Set(post.user_reactions)];
+        
+        if (uniqueUserReactions.length >= MAX_REACTIONS_PER_USER) {
+          toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
+          return;
+        }
+        
+        const { error } = await supabase
           .from('subflow_reactions')
           .insert({
             post_id: post.id,
             user_id: currentUserId,
             reaction
           });
+        
+        if (error) throw error;
       }
       // Realtime will handle the UI update
     } catch (error) {
       console.error('Reaction error:', error);
-      toast.error('Ошибка');
+      toast.error('Ошибка при обработке реакции');
     }
   };
 
@@ -287,8 +291,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       {/* Reactions */}
       <div className="flex flex-wrap gap-1 mb-3">
         {REACTIONS.map(reaction => {
-          const count = localReactions[reaction] || 0;
-          const hasReacted = localUserReactions.includes(reaction);
+          const count = post.reactions[reaction] || 0;
+          const hasReacted = post.user_reactions.includes(reaction);
           
           return (
             <button
