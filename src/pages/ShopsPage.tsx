@@ -312,7 +312,7 @@ export default function ShopsPage() {
                             className="mt-2"
                           />
                         </div>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {shop.city && (
                             <div className="flex items-center gap-1">
                               <Navigation size={12} className="text-muted-foreground" />
@@ -322,13 +322,13 @@ export default function ShopsPage() {
                           {shop.working_hours && (
                             <ShopStatusBadge openHours={shop.working_hours} />
                           )}
+                          {/* Badges inline after status */}
+                          {shop.allBadges.length > 0 && (
+                            <div onClick={(e) => e.preventDefault()}>
+                              <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
+                            </div>
+                          )}
                         </div>
-                        {/* Badges with expand/collapse */}
-                        {shop.allBadges.length > 0 && (
-                          <div className="mt-2" onClick={(e) => e.preventDefault()}>
-                            <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
-                          </div>
-                        )}
                       </div>
                     </div>
                   </Link>
