@@ -5,6 +5,7 @@ import { useGeolocation } from './useGeolocation';
 export interface ShopDistance {
   distance: number | null; // meters
   duration: number | null; // seconds
+  closestAddressIndex: number; // index of closest address in coordinates array
 }
 
 export interface UseShopDistancesResult {
@@ -41,8 +42,8 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
   const { latitude, longitude, error: geoError, permissionDenied, loading: geoLoading } = useGeolocation();
 
   const calculateDistances = useCallback(async (userLat: number, userLng: number) => {
-    // Filter shops with valid coordinates (use first coordinate from array)
-    const shopsWithCoords = shops.filter(s => s.coordinates && s.coordinates.length > 0 && s.coordinates[0]?.lat && s.coordinates[0]?.lng);
+    // Filter shops with valid coordinates
+    const shopsWithCoords = shops.filter(s => s.coordinates && s.coordinates.length > 0);
     
     if (shopsWithCoords.length === 0) {
       setDistances(new Map());
@@ -73,14 +74,29 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
     setError(null);
 
     try {
+      // Flatten all coordinates with shop reference for edge function
+      const allCoords: { id: string; addressIndex: number; lat: number; lng: number }[] = [];
+      shopsWithCoords.forEach(shop => {
+        shop.coordinates.forEach((coord, index) => {
+          if (coord?.lat && coord?.lng) {
+            allCoords.push({
+              id: shop.id,
+              addressIndex: index,
+              lat: coord.lat,
+              lng: coord.lng,
+            });
+          }
+        });
+      });
+
       const { data, error: fnError } = await supabase.functions.invoke('calculate-distances', {
         body: {
           user_lat: userLat,
           user_lng: userLng,
-          shops: shopsWithCoords.map(s => ({
-            id: s.id,
-            lat: s.coordinates[0].lat,
-            lng: s.coordinates[0].lng,
+          shops: allCoords.map(c => ({
+            id: `${c.id}_${c.addressIndex}`, // unique id per address
+            lat: c.lat,
+            lng: c.lng,
           })),
         },
       });
@@ -89,16 +105,38 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
         throw new Error(fnError.message);
       }
 
-      const newDistances = new Map<string, ShopDistance>();
+      // Process results - find closest address for each shop
+      const shopDistances = new Map<string, { distance: number; duration: number; addressIndex: number }>();
       
       if (data?.distances) {
         data.distances.forEach((d: { shop_id: string; distance: number | null; duration: number | null }) => {
-          newDistances.set(d.shop_id, {
-            distance: d.distance,
-            duration: d.duration,
-          });
+          // Parse composite id back to shop_id and addressIndex
+          const parts = d.shop_id.split('_');
+          const addressIndex = parseInt(parts.pop() || '0', 10);
+          const shopId = parts.join('_');
+          
+          if (d.distance != null) {
+            const existing = shopDistances.get(shopId);
+            if (!existing || d.distance < existing.distance) {
+              shopDistances.set(shopId, {
+                distance: d.distance,
+                duration: d.duration ?? 0,
+                addressIndex,
+              });
+            }
+          }
         });
       }
+
+      // Convert to final format
+      const newDistances = new Map<string, ShopDistance>();
+      shopDistances.forEach((value, shopId) => {
+        newDistances.set(shopId, {
+          distance: value.distance,
+          duration: value.duration,
+          closestAddressIndex: value.addressIndex,
+        });
+      });
 
       setDistances(newDistances);
       lastCalcPosition.current = { lat: userLat, lng: userLng };
@@ -109,15 +147,29 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
         console.error('Error calculating distances:', err);
         setError(err.message);
         
-        // Fallback to client-side Haversine
+        // Fallback to client-side Haversine - find closest for each shop
         const fallbackDistances = new Map<string, ShopDistance>();
         shopsWithCoords.forEach(shop => {
-          const coord = shop.coordinates[0];
-          if (coord?.lat && coord?.lng) {
-            const dist = haversineDistance(userLat, userLng, coord.lat, coord.lng);
+          let closest: { distance: number; duration: number; index: number } | null = null;
+          
+          shop.coordinates.forEach((coord, index) => {
+            if (coord?.lat && coord?.lng) {
+              const dist = haversineDistance(userLat, userLng, coord.lat, coord.lng);
+              if (!closest || dist < closest.distance) {
+                closest = {
+                  distance: Math.round(dist),
+                  duration: Math.round((dist / 1000) / 50 * 3600),
+                  index,
+                };
+              }
+            }
+          });
+          
+          if (closest) {
             fallbackDistances.set(shop.id, {
-              distance: Math.round(dist),
-              duration: Math.round((dist / 1000) / 50 * 3600), // ~50 km/h
+              distance: closest.distance,
+              duration: closest.duration,
+              closestAddressIndex: closest.index,
             });
           }
         });
