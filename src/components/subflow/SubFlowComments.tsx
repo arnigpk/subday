@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User, Send, Trash2 } from 'lucide-react';
@@ -27,7 +27,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const { data: commentsData, error } = await supabase
         .from('subflow_comments')
@@ -74,10 +74,63 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [postId]);
 
+  // Initial fetch
   useEffect(() => {
     fetchComments();
+  }, [fetchComments]);
+
+  // Real-time subscription for comments
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-${postId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${postId}`
+      }, async (payload) => {
+        const newComment = payload.new as any;
+        
+        // Fetch author info
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar_url, subflow_nickname')
+          .eq('user_id', newComment.user_id)
+          .single();
+        
+        const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
+        
+        const enrichedComment: Comment = {
+          id: newComment.id,
+          user_id: newComment.user_id,
+          content: newComment.content,
+          created_at: newComment.created_at,
+          author_name: displayName,
+          author_avatar: profile?.avatar_url || null,
+        };
+        
+        setComments(prev => {
+          // Avoid duplicates
+          if (prev.some(c => c.id === enrichedComment.id)) return prev;
+          return [...prev, enrichedComment];
+        });
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${postId}`
+      }, (payload) => {
+        const deletedId = payload.old.id;
+        setComments(prev => prev.filter(c => c.id !== deletedId));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [postId]);
 
   const formatDate = (dateStr: string) => {
