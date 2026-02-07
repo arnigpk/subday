@@ -44,6 +44,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
+  const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -370,7 +371,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
       )}
 
-      {/* Images carousel with swipe support */}
+      {/* Images carousel with swipe support and progressive loading */}
       {images.length > 0 && (
         <div 
           className="mb-4 -mx-4 overflow-hidden relative touch-pan-y"
@@ -398,12 +399,19 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             touchEndX.current = null;
           }}
         >
+          {/* Blur placeholder while loading */}
+          {!imageLoaded[currentImageIndex] && (
+            <div className="absolute inset-0 bg-muted animate-pulse" />
+          )}
           <img
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
-            className="w-full h-auto max-h-96 object-cover select-none pointer-events-none"
+            className={`w-full h-auto max-h-96 object-cover select-none pointer-events-none transition-opacity duration-300 ${
+              imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
+            }`}
             loading="lazy"
             draggable={false}
+            onLoad={() => setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }))}
           />
           {images.length > 1 && (
             <>

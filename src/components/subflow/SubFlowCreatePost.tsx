@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { X, Image, MapPin, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
+import { compressImage, getFileExtension, formatFileSize } from '@/utils/imageCompression';
 
 interface Shop {
   id: string;
@@ -21,9 +23,11 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imageFiles, setImageFiles] = useState<Blob[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,7 +44,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     setShops(data || []);
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
@@ -50,26 +54,58 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       return;
     }
 
+    // Filter valid files first
     const validFiles: File[] = [];
-    const newPreviews: string[] = [];
-
     for (const file of files.slice(0, remainingSlots)) {
       if (!file.type.startsWith('image/')) {
         toast.error('Выберите изображение');
         continue;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Максимум 5МБ на фото');
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Максимум 10МБ на фото');
         continue;
       }
 
       validFiles.push(file);
-      newPreviews.push(URL.createObjectURL(file));
     }
 
-    setImageFiles(prev => [...prev, ...validFiles]);
-    setImagePreviews(prev => [...prev, ...newPreviews]);
+    if (!validFiles.length) return;
+
+    // Compress images
+    setIsCompressing(true);
+    setCompressionProgress(0);
+    
+    const compressedBlobs: Blob[] = [];
+    const newPreviews: string[] = [];
+    
+    try {
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        const originalSize = file.size;
+        
+        const { blob } = await compressImage(file, {
+          maxWidth: 1200,
+          quality: 0.75
+        });
+        
+        const compressedSize = blob.size;
+        console.log(`Compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`);
+        
+        compressedBlobs.push(blob);
+        newPreviews.push(URL.createObjectURL(blob));
+        setCompressionProgress(Math.round(((i + 1) / validFiles.length) * 100));
+      }
+      
+      setImageFiles(prev => [...prev, ...compressedBlobs]);
+      setImagePreviews(prev => [...prev, ...newPreviews]);
+    } catch (error) {
+      console.error('Compression error:', error);
+      toast.error('Ошибка обработки изображения');
+    } finally {
+      setIsCompressing(false);
+      setCompressionProgress(0);
+    }
     
     // Reset input
     if (fileInputRef.current) {
@@ -99,14 +135,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
 
       const imageUrls: string[] = [];
 
-      // Upload all images
-      for (const imageFile of imageFiles) {
-        const fileExt = imageFile.name.split('.').pop();
+      // Upload all compressed images
+      for (const imageBlob of imageFiles) {
+        const fileExt = getFileExtension(imageBlob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('subflow-images')
-          .upload(fileName, imageFile);
+          .upload(fileName, imageBlob, {
+            contentType: imageBlob.type,
+            cacheControl: '31536000' // 1 year cache
+          });
 
         if (uploadError) throw uploadError;
 
@@ -160,6 +199,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
 
+      {/* Compression progress */}
+      {isCompressing && (
+        <div className="mb-3 p-3 bg-secondary rounded-xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-foreground">Сжатие фото...</span>
+            <span className="text-sm text-muted-foreground">{compressionProgress}%</span>
+          </div>
+          <Progress value={compressionProgress} className="h-2" />
+        </div>
+      )}
+
       {/* Image previews */}
       {imagePreviews.length > 0 && (
         <div className="mb-3">
@@ -173,13 +223,14 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
                 />
                 <button
                   onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 p-1 bg-foreground/50 rounded-full text-background"
+                  disabled={isCompressing}
+                  className="absolute top-1 right-1 p-1 bg-foreground/50 rounded-full text-background disabled:opacity-50"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
-            {imageFiles.length < MAX_IMAGES && (
+            {imageFiles.length < MAX_IMAGES && !isCompressing && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="aspect-square border-2 border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
@@ -250,7 +301,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         <div className="flex-1" />
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || !content.trim()}
+          disabled={isSubmitting || isCompressing || !content.trim()}
           className="btn-primary"
         >
           {isSubmitting ? (
