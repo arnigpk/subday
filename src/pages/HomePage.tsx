@@ -1,7 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
-import { NearbyShops } from '@/components/home/NearbyShops';
+import { TopShopsByVisits } from '@/components/home/NearbyShops';
 import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -67,7 +67,7 @@ export default function HomePage() {
           
           <BalanceCard />
           <GetCoffeeButton />
-          <NearbyShops />
+          <TopShopsByVisits />
         </div>
       </div>
     </AppLayout>

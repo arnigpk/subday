@@ -1,11 +1,11 @@
-import { ChevronRight, Loader2, MapPinOff } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useState, useEffect, useMemo } from 'react';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
-import { formatDistance, sortByDistance } from '@/utils/distance';
+import { formatDistance } from '@/utils/distance';
 
 interface ShopWithCoords {
   id: string;
@@ -45,24 +45,38 @@ function getShopBadges(shop: ShopWithCoords): ShopBadgeData[] {
   return badges;
 }
 
-export function NearbyShops() {
+export function TopShopsByVisits() {
   const [shops, setShops] = useState<ShopWithCoords[]>([]);
+  const [visitCounts, setVisitCounts] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchShops();
+    fetchShopsAndVisits();
   }, []);
 
-  const fetchShops = async () => {
+  const fetchShopsAndVisits = async () => {
     try {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      // Fetch shops and visit counts in parallel
+      const [shopsResult, visitsResult] = await Promise.all([
+        supabase
+          .from('shops')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase.rpc('get_shop_visit_counts')
+      ]);
 
-      if (error) throw error;
-      setShops(data || []);
+      if (shopsResult.error) throw shopsResult.error;
+      setShops(shopsResult.data || []);
+
+      // Build visit counts map
+      if (visitsResult.data) {
+        const countsMap = new Map<string, number>();
+        visitsResult.data.forEach((item: { shop_id: string; visit_count: number }) => {
+          countsMap.set(item.shop_id, item.visit_count);
+        });
+        setVisitCounts(countsMap);
+      }
     } catch (error) {
       console.error('Error fetching shops:', error);
     } finally {
@@ -70,25 +84,27 @@ export function NearbyShops() {
     }
   };
 
-  // Get distances for all shops
-  const { distances, loading: distancesLoading, userLocation, permissionDenied } = useShopDistances(
+  // Get distances for display (not for sorting)
+  const { distances } = useShopDistances(
     shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
   );
 
-  // Sort and take top 3 closest shops
-  const nearbyShops = useMemo(() => {
-    if (userLocation && distances.size > 0) {
-      return sortByDistance(shops, distances).slice(0, 3);
-    }
-    // Fallback to first 3 by sort_order
-    return shops.slice(0, 3);
-  }, [shops, distances, userLocation]);
+  // Sort by visit count and take top 3
+  const topShops = useMemo(() => {
+    return [...shops]
+      .sort((a, b) => {
+        const countA = visitCounts.get(a.id) || 0;
+        const countB = visitCounts.get(b.id) || 0;
+        return countB - countA;
+      })
+      .slice(0, 3);
+  }, [shops, visitCounts]);
 
   if (isLoading) {
     return (
       <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-foreground">Ближайшие кофейни</h2>
+          <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -101,7 +117,7 @@ export function NearbyShops() {
     return (
       <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-foreground">Ближайшие кофейни</h2>
+          <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
         </div>
         <p className="text-center text-muted-foreground py-4">Нет доступных кофеен</p>
       </div>
@@ -111,22 +127,15 @@ export function NearbyShops() {
   return (
     <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold text-foreground">Ближайшие кофейни</h2>
+        <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
         <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
           Все
           <ChevronRight size={16} />
         </Link>
       </div>
-
-      {permissionDenied && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl mb-2 text-xs text-muted-foreground">
-          <MapPinOff size={14} />
-          <span>Включите геолокацию</span>
-        </div>
-      )}
       
       <div className="space-y-1.5">
-        {nearbyShops.map((shop, index) => {
+        {topShops.map((shop, index) => {
           const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
           const shopDistance = distances.get(shop.id);
           
