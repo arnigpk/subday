@@ -233,8 +233,37 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         const deletedId = payload.old.id;
         setPosts(prev => prev.filter(p => p.id !== deletedId));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_reactions' }, () => {
-        // Silently update reactions - could implement optimistic updates here
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_reactions' }, (payload) => {
+        const newReaction = payload.new as { post_id: string; user_id: string; reaction: string };
+        setPosts(prev => prev.map(post => {
+          if (post.id !== newReaction.post_id) return post;
+          
+          const newReactions = { ...post.reactions };
+          newReactions[newReaction.reaction] = (newReactions[newReaction.reaction] || 0) + 1;
+          
+          // Add to user_reactions if it's current user
+          const newUserReactions = newReaction.user_id === currentUserId 
+            ? [...post.user_reactions, newReaction.reaction]
+            : post.user_reactions;
+          
+          return { ...post, reactions: newReactions, user_reactions: newUserReactions };
+        }));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'subflow_reactions' }, (payload) => {
+        const deletedReaction = payload.old as { post_id: string; user_id: string; reaction: string };
+        setPosts(prev => prev.map(post => {
+          if (post.id !== deletedReaction.post_id) return post;
+          
+          const newReactions = { ...post.reactions };
+          newReactions[deletedReaction.reaction] = Math.max(0, (newReactions[deletedReaction.reaction] || 1) - 1);
+          
+          // Remove from user_reactions if it's current user
+          const newUserReactions = deletedReaction.user_id === currentUserId
+            ? post.user_reactions.filter(r => r !== deletedReaction.reaction)
+            : post.user_reactions;
+          
+          return { ...post, reactions: newReactions, user_reactions: newUserReactions };
+        }));
       })
       .subscribe();
 
