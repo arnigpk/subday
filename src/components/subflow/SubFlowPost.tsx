@@ -168,6 +168,19 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   // Get all images - prefer image_urls array, fallback to single image_url
   const images = post.image_urls?.length ? post.image_urls : (post.image_url ? [post.image_url] : []);
 
+  // Preload all images when post mounts
+  useEffect(() => {
+    if (images.length <= 1) return;
+    
+    images.forEach((src, index) => {
+      const img = new window.Image();
+      img.src = src;
+      img.onload = () => {
+        setImageLoaded(prev => ({ ...prev, [index]: true }));
+      };
+    });
+  }, [images]);
+
   const formatDate = (dateStr: string) => {
     try {
       const date = parseISO(dateStr);
