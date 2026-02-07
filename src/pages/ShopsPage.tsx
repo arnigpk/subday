@@ -1,17 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, MapPin, Navigation, Loader2, Filter, X } from 'lucide-react';
+import { Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from '@/components/ui/checkbox';
 
 interface Shop {
   id: string;
@@ -30,6 +24,7 @@ interface Shop {
 const filters = [
   { id: 'all', label: 'Все' },
   { id: 'open', label: 'Открыто' },
+  { id: 'specialty', label: 'Specialty' },
 ];
 
 // Component to display shop status with real-time check
@@ -67,29 +62,16 @@ function getShopBadges(shop: Shop): ShopBadgeData[] {
   return badges;
 }
 
-// Get all unique badges across all shops
-function getAllUniqueBadges(shops: Shop[]): ShopBadgeData[] {
-  const badgeMap = new Map<string, ShopBadgeData>();
-  
-  shops.forEach(shop => {
-    const badges = getShopBadges(shop);
-    badges.forEach(b => {
-      const key = `${b.text}-${b.color}`;
-      if (!badgeMap.has(key)) {
-        badgeMap.set(key, b);
-      }
-    });
-  });
-  
-  return Array.from(badgeMap.values());
+// Check if shop has specialty badge
+function hasSpecialtyBadge(shop: Shop): boolean {
+  const badges = getShopBadges(shop);
+  return badges.some(b => b.text.toLowerCase() === 'specialty');
 }
 
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchShops();
@@ -112,15 +94,13 @@ export default function ShopsPage() {
     }
   };
 
-  // Get all unique badges for filter
-  const allBadges = useMemo(() => getAllUniqueBadges(shops), [shops]);
-
   // Add real-time open status to shops
   const shopsWithStatus = useMemo(() => {
     return shops.map(shop => ({
       ...shop,
       isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
       allBadges: getShopBadges(shop),
+      isSpecialty: hasSpecialtyBadge(shop),
     }));
   }, [shops]);
   
@@ -129,34 +109,12 @@ export default function ShopsPage() {
       // Open filter
       if (activeFilter === 'open' && !shop.isCurrentlyOpen) return false;
       
-      // Badge filter - shop must have ALL selected badges
-      if (selectedBadges.length > 0) {
-        const shopBadgeKeys = shop.allBadges.map(b => `${b.text}-${b.color}`);
-        const hasAllSelected = selectedBadges.every(key => shopBadgeKeys.includes(key));
-        if (!hasAllSelected) return false;
-      }
+      // Specialty filter
+      if (activeFilter === 'specialty' && !shop.isSpecialty) return false;
       
       return true;
     });
-  }, [shopsWithStatus, activeFilter, selectedBadges]);
-
-  const handleBadgeToggle = (badgeKey: string) => {
-    setSelectedBadges(prev => 
-      prev.includes(badgeKey)
-        ? prev.filter(k => k !== badgeKey)
-        : [...prev, badgeKey]
-    );
-  };
-
-  const clearBadgeFilters = () => {
-    setSelectedBadges([]);
-  };
-
-  const colorClasses: Record<string, string> = {
-    red: 'bg-red-500/10 text-red-600 border-red-500/20',
-    green: 'bg-green-500/10 text-green-600 border-green-500/20',
-    yellow: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20',
-  };
+  }, [shopsWithStatus, activeFilter]);
   
   return (
     <AppLayout>
@@ -188,88 +146,7 @@ export default function ShopsPage() {
                 {filter.label}
               </button>
             ))}
-            
-            {/* Badge Filter Popover */}
-            {allBadges.length > 0 && (
-              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                      selectedBadges.length > 0
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary text-secondary-foreground'
-                    }`}
-                  >
-                    <Filter size={14} />
-                    Фильтр
-                    {selectedBadges.length > 0 && (
-                      <span className="bg-primary-foreground/20 px-1.5 py-0.5 rounded-full text-xs">
-                        {selectedBadges.length}
-                      </span>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3 bg-popover" align="start">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">Бейджи</span>
-                      {selectedBadges.length > 0 && (
-                        <button
-                          onClick={clearBadgeFilters}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          <X size={12} />
-                          Сбросить
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {allBadges.map((badge) => {
-                        const key = `${badge.text}-${badge.color}`;
-                        const isSelected = selectedBadges.includes(key);
-                        return (
-                          <label
-                            key={key}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => handleBadgeToggle(key)}
-                            />
-                            <span
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorClasses[badge.color] || colorClasses.green}`}
-                            >
-                              {badge.text}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
           </div>
-
-          {/* Selected badges display */}
-          {selectedBadges.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {selectedBadges.map((key) => {
-                const badge = allBadges.find(b => `${b.text}-${b.color}` === key);
-                if (!badge) return null;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleBadgeToggle(key)}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${colorClasses[badge.color] || colorClasses.green}`}
-                  >
-                    {badge.text}
-                    <X size={10} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
           
           {/* Shops list */}
           {isLoading ? (
