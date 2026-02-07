@@ -5,6 +5,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2 } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useShopStatus } from '@/utils/shopHours';
+import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 
 interface Shop {
   id: string;
@@ -15,6 +16,28 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  badge_text: string | null;
+  badge_color: string | null;
+  badges: unknown;
+}
+
+// Helper to get all badges from a shop
+function getShopBadges(shop: Shop): ShopBadgeData[] {
+  const badges: ShopBadgeData[] = [];
+  
+  if (shop.badges && Array.isArray(shop.badges)) {
+    (shop.badges as Array<{ text?: string; color?: string }>).forEach(b => {
+      if (b && b.text && b.color) {
+        badges.push({ text: b.text, color: b.color });
+      }
+    });
+  }
+  
+  if (badges.length === 0 && shop.badge_text && shop.badge_color) {
+    badges.push({ text: shop.badge_text, color: shop.badge_color });
+  }
+  
+  return badges;
 }
 
 export default function ShopDetailPage() {
@@ -115,7 +138,7 @@ export default function ShopDetailPage() {
         {/* Info */}
         <div className="px-4 space-y-4">
           <div className="card-static animate-slide-up">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center justify-between gap-4 mb-4">
               <div className={`flex items-center gap-1 ${shopStatus.isOpen ? 'text-accent' : 'text-destructive'}`}>
                 <Clock size={18} />
                 <span className="font-medium">
@@ -125,6 +148,10 @@ export default function ShopDetailPage() {
                   }
                 </span>
               </div>
+              {/* Badges */}
+              {getShopBadges(shop).length > 0 && (
+                <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />
+              )}
             </div>
             
             <div className="flex items-start gap-2 text-muted-foreground">
