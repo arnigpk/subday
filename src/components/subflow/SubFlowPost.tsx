@@ -44,6 +44,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
+  
+  // Track processed reaction IDs to prevent duplicates
+  const [processedReactionIds] = useState(() => new Set<string>());
+  // Track pending optimistic updates to skip real-time events
+  const [pendingReactions] = useState(() => new Set<string>());
 
   // Sync with props when they change
   useEffect(() => {
@@ -62,6 +67,18 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         filter: `post_id=eq.${post.id}`
       }, (payload) => {
         const newReaction = payload.new as any;
+        const reactionKey = `${newReaction.user_id}-${newReaction.reaction}`;
+        
+        // Skip if already processed or if it's our own pending optimistic update
+        if (processedReactionIds.has(newReaction.id)) return;
+        processedReactionIds.add(newReaction.id);
+        
+        // Skip real-time update for our own reactions (already handled optimistically)
+        if (newReaction.user_id === currentUserId && pendingReactions.has(reactionKey)) {
+          pendingReactions.delete(reactionKey);
+          return;
+        }
+        
         setLocalReactions(prev => ({
           ...prev,
           [newReaction.reaction]: (prev[newReaction.reaction] || 0) + 1
@@ -81,6 +98,14 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         filter: `post_id=eq.${post.id}`
       }, (payload) => {
         const deletedReaction = payload.old as any;
+        const reactionKey = `${deletedReaction.user_id}-${deletedReaction.reaction}`;
+        
+        // Skip if it's our own pending optimistic delete
+        if (deletedReaction.user_id === currentUserId && pendingReactions.has(`del-${reactionKey}`)) {
+          pendingReactions.delete(`del-${reactionKey}`);
+          return;
+        }
+        
         setLocalReactions(prev => ({
           ...prev,
           [deletedReaction.reaction]: Math.max(0, (prev[deletedReaction.reaction] || 1) - 1)
@@ -95,7 +120,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [post.id, currentUserId]);
+  }, [post.id, currentUserId, processedReactionIds, pendingReactions]);
 
   // Real-time subscription for comments count
   useEffect(() => {
@@ -153,11 +178,19 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     }
 
     const hasReaction = localUserReactions.includes(reaction);
+    const reactionKey = `${currentUserId}-${reaction}`;
     
     // Check if user already has max reactions and trying to add new one
     if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
       toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
       return;
+    }
+
+    // Mark as pending to skip real-time duplicate
+    if (hasReaction) {
+      pendingReactions.add(`del-${reactionKey}`);
+    } else {
+      pendingReactions.add(reactionKey);
     }
 
     // Optimistic update
@@ -194,7 +227,9 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       }
     } catch (error) {
       console.error('Reaction error:', error);
-      // Revert on error
+      // Clear pending and revert on error
+      pendingReactions.delete(reactionKey);
+      pendingReactions.delete(`del-${reactionKey}`);
       onUpdate();
     }
   };
