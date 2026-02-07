@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User } from 'lucide-react';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
@@ -43,6 +43,86 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [localReactions, setLocalReactions] = useState(post.reactions);
   const [localUserReactions, setLocalUserReactions] = useState(post.user_reactions);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(post.comments_count);
+
+  // Sync with props when they change
+  useEffect(() => {
+    setLocalReactions(post.reactions);
+    setLocalUserReactions(post.user_reactions);
+  }, [post.reactions, post.user_reactions]);
+
+  // Real-time subscription for reactions on this post
+  useEffect(() => {
+    const channel = supabase
+      .channel(`reactions-${post.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'subflow_reactions',
+        filter: `post_id=eq.${post.id}`
+      }, (payload) => {
+        const newReaction = payload.new as any;
+        setLocalReactions(prev => ({
+          ...prev,
+          [newReaction.reaction]: (prev[newReaction.reaction] || 0) + 1
+        }));
+        // Update user reactions if it's current user
+        if (newReaction.user_id === currentUserId) {
+          setLocalUserReactions(prev => {
+            if (prev.includes(newReaction.reaction)) return prev;
+            return [...prev, newReaction.reaction];
+          });
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'subflow_reactions',
+        filter: `post_id=eq.${post.id}`
+      }, (payload) => {
+        const deletedReaction = payload.old as any;
+        setLocalReactions(prev => ({
+          ...prev,
+          [deletedReaction.reaction]: Math.max(0, (prev[deletedReaction.reaction] || 1) - 1)
+        }));
+        // Update user reactions if it's current user
+        if (deletedReaction.user_id === currentUserId) {
+          setLocalUserReactions(prev => prev.filter(r => r !== deletedReaction.reaction));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [post.id, currentUserId]);
+
+  // Real-time subscription for comments count
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-count-${post.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${post.id}`
+      }, () => {
+        setCommentsCount(prev => prev + 1);
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${post.id}`
+      }, () => {
+        setCommentsCount(prev => Math.max(0, prev - 1));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [post.id]);
 
   const isOwner = currentUserId === post.user_id;
   
@@ -331,8 +411,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       >
         <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
         <span>
-          {post.comments_count > 0 
-            ? `Комментарии (${post.comments_count})` 
+          {commentsCount > 0 
+            ? `Комментарии (${commentsCount})` 
             : 'Комментировать'
           }
         </span>
