@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isShopOpen } from '@/utils/shopHours';
+import { useShopDistances } from '@/hooks/useShopDistances';
+import { formatDistance, sortByDistance } from '@/utils/distance';
 
 interface Shop {
   id: string;
@@ -13,6 +15,8 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export function TopShopsCarousel() {
@@ -59,11 +63,21 @@ export function TopShopsCarousel() {
     }
   };
 
+  // Get distances for all shops
+  const { distances, userLocation } = useShopDistances(
+    shops.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude }))
+  );
+
+  // Sort shops by distance if location available
+  const sortedShops = userLocation && distances.size > 0 
+    ? sortByDistance(shops, distances) 
+    : shops;
+
   if (isLoading) {
     return (
       <div className="animate-slide-up">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-foreground">Топ кофеен рядом</h2>
+          <h2 className="text-lg font-bold text-foreground">Кофейни рядом</h2>
           <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
             Все
             <ChevronRight size={16} />
@@ -88,7 +102,7 @@ export function TopShopsCarousel() {
   return (
     <div className="animate-slide-up">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-foreground">Топ кофеен рядом</h2>
+        <h2 className="text-lg font-bold text-foreground">Кофейни рядом</h2>
         <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
           Все
           <ChevronRight size={16} />
@@ -99,8 +113,9 @@ export function TopShopsCarousel() {
         ref={scrollRef}
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory"
       >
-        {shops.map((shop) => {
+        {sortedShops.map((shop) => {
           const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          const shopDistance = distances.get(shop.id);
           
           return (
             <Link
@@ -131,17 +146,19 @@ export function TopShopsCarousel() {
               
               {/* Shop Name */}
               <h3 className="font-medium text-foreground text-xs text-center truncate w-full px-1">{shop.name}</h3>
-              {/* Distance placeholder for Google Maps integration */}
-              <span className="text-[10px] text-muted-foreground">— м</span>
+              {/* Distance */}
+              <span className="text-[10px] text-muted-foreground">
+                {formatDistance(shopDistance?.distance)}
+              </span>
             </Link>
           );
         })}
       </div>
       
       {/* Active pagination dots */}
-      {shops.length > 3 && (
+      {sortedShops.length > 3 && (
         <div className="flex justify-center gap-1.5 mt-2">
-          {shops.map((_, i) => (
+          {sortedShops.map((_, i) => (
             <div
               key={i}
               className={`h-1.5 rounded-full transition-all duration-300 ${

@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Clock, MapPin, Navigation, Loader2, MapPinOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
+import { useShopDistances } from '@/hooks/useShopDistances';
+import { formatDistance, sortByDistance } from '@/utils/distance';
 
 interface Shop {
   id: string;
@@ -19,6 +21,8 @@ interface Shop {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const filters = [
@@ -27,7 +31,6 @@ const filters = [
   { id: 'specialty', label: 'Specialty' },
 ];
 
-// Component to display shop status with real-time check
 function ShopStatusBadge({ openHours }: { openHours: string }) {
   const isOpen = isShopOpen(openHours);
   
@@ -41,11 +44,9 @@ function ShopStatusBadge({ openHours }: { openHours: string }) {
   );
 }
 
-// Helper to get all badges from a shop (combining old and new format)
 function getShopBadges(shop: Shop): ShopBadgeData[] {
   const badges: ShopBadgeData[] = [];
   
-  // First add badges from new jsonb array
   if (shop.badges && Array.isArray(shop.badges)) {
     (shop.badges as Array<{ text?: string; color?: string }>).forEach(b => {
       if (b && b.text && b.color) {
@@ -54,7 +55,6 @@ function getShopBadges(shop: Shop): ShopBadgeData[] {
     });
   }
   
-  // If no badges from new format, fall back to legacy single badge
   if (badges.length === 0 && shop.badge_text && shop.badge_color) {
     badges.push({ text: shop.badge_text, color: shop.badge_color });
   }
@@ -62,7 +62,6 @@ function getShopBadges(shop: Shop): ShopBadgeData[] {
   return badges;
 }
 
-// Check if shop has specialty badge
 function hasSpecialtyBadge(shop: Shop): boolean {
   const badges = getShopBadges(shop);
   return badges.some(b => b.text.toLowerCase() === 'specialty');
@@ -94,6 +93,11 @@ export default function ShopsPage() {
     }
   };
 
+  // Get distances for all shops
+  const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(
+    shops.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude }))
+  );
+
   // Add real-time open status to shops
   const shopsWithStatus = useMemo(() => {
     return shops.map(shop => ({
@@ -104,17 +108,21 @@ export default function ShopsPage() {
     }));
   }, [shops]);
   
-  const filteredShops = useMemo(() => {
-    return shopsWithStatus.filter(shop => {
-      // Open filter
+  // Filter and sort shops
+  const filteredAndSortedShops = useMemo(() => {
+    let filtered = shopsWithStatus.filter(shop => {
       if (activeFilter === 'open' && !shop.isCurrentlyOpen) return false;
-      
-      // Specialty filter
       if (activeFilter === 'specialty' && !shop.isSpecialty) return false;
-      
       return true;
     });
-  }, [shopsWithStatus, activeFilter]);
+
+    // Sort by distance if user location is available
+    if (userLocation && distances.size > 0) {
+      filtered = sortByDistance(filtered, distances);
+    }
+
+    return filtered;
+  }, [shopsWithStatus, activeFilter, distances, userLocation]);
   
   return (
     <AppLayout>
@@ -130,6 +138,14 @@ export default function ShopsPage() {
               <span className="text-sm font-medium text-muted-foreground">Карта кофеен</span>
             </div>
           </div>
+
+          {/* Location status */}
+          {permissionDenied && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl mb-4 text-sm text-muted-foreground">
+              <MapPinOff size={16} />
+              <span>Включите геолокацию для сортировки по расстоянию</span>
+            </div>
+          )}
           
           {/* Filters */}
           <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
@@ -153,64 +169,70 @@ export default function ShopsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          ) : filteredShops.length > 0 ? (
+          ) : filteredAndSortedShops.length > 0 ? (
             <div className="space-y-3">
-              {filteredShops.map((shop, index) => (
-                <div
-                  key={shop.id}
-                  className="block animate-slide-up"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <Link
-                    to={`/shops/${shop.id}`}
-                    className="card-interactive block"
+              {filteredAndSortedShops.map((shop, index) => {
+                const shopDistance = distances.get(shop.id);
+                
+                return (
+                  <div
+                    key={shop.id}
+                    className="block animate-slide-up"
+                    style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <div className="flex items-start gap-3">
-                      {shop.logo_url ? (
-                        <img src={shop.logo_url} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
-                          ☕
-                        </div>
-                      )}
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
-                          {/* Distance placeholder for Google Maps integration */}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">— м</span>
-                        </div>
+                    <Link
+                      to={`/shops/${shop.id}`}
+                      className="card-interactive block"
+                    >
+                      <div className="flex items-start gap-3">
+                        {shop.logo_url ? (
+                          <img src={shop.logo_url} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
+                            ☕
+                          </div>
+                        )}
                         
-                        {/* Addresses - clickable area stops propagation */}
-                        <div onClick={(e) => e.preventDefault()}>
-                          <AddressesList 
-                            addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
-                            variant="compact"
-                            className="mt-2"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {shop.city && (
-                            <div className="flex items-center gap-1">
-                              <Navigation size={12} className="text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">{shop.city}</span>
-                            </div>
-                          )}
-                          {shop.working_hours && (
-                            <ShopStatusBadge openHours={shop.working_hours} />
-                          )}
-                          {/* Badges inline after status */}
-                          {shop.allBadges.length > 0 && (
-                            <div onClick={(e) => e.preventDefault()}>
-                              <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
-                            </div>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
+                            <span className={`text-xs whitespace-nowrap ${
+                              shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
+                            }`}>
+                              {formatDistance(shopDistance?.distance)}
+                            </span>
+                          </div>
+                          
+                          {/* Addresses */}
+                          <div onClick={(e) => e.preventDefault()}>
+                            <AddressesList 
+                              addresses={shop.addresses || (shop.address ? [shop.address] : [])} 
+                              variant="compact"
+                              className="mt-2"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {shop.city && (
+                              <div className="flex items-center gap-1">
+                                <Navigation size={12} className="text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{shop.city}</span>
+                              </div>
+                            )}
+                            {shop.working_hours && (
+                              <ShopStatusBadge openHours={shop.working_hours} />
+                            )}
+                            {shop.allBadges.length > 0 && (
+                              <div onClick={(e) => e.preventDefault()}>
+                                <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                </div>
-              ))}
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">
