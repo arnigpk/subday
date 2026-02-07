@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.verify-payment]
 verify_jwt = false
+
+[functions.calculate-distances]
+verify_jwt = false

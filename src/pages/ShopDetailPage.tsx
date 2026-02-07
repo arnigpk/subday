@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
+import { useShopDistances } from '@/hooks/useShopDistances';
+import { formatDistance, formatDuration } from '@/utils/distance';
 
 interface Shop {
   id: string;
@@ -19,6 +21,8 @@ interface Shop {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 // Helper to get all badges from a shop
@@ -48,6 +52,12 @@ export default function ShopDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const shopStatus = useShopStatus(shop?.working_hours || '');
+
+  // Get distance for this shop
+  const { distances, userLocation } = useShopDistances(
+    shop ? [{ id: shop.id, latitude: shop.latitude, longitude: shop.longitude }] : []
+  );
+  const shopDistance = shop ? distances.get(shop.id) : undefined;
 
   useEffect(() => {
     if (id) {
@@ -153,6 +163,21 @@ export default function ShopDetailPage() {
                 <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />
               )}
             </div>
+
+            {/* Distance and duration */}
+            {shopDistance?.distance != null && (
+              <div className="flex items-center gap-3 mb-4 text-sm">
+                <div className="flex items-center gap-1.5 text-foreground font-medium">
+                  <Navigation size={16} className="text-accent" />
+                  <span>{formatDistance(shopDistance.distance)}</span>
+                </div>
+                {shopDistance.duration != null && (
+                  <span className="text-muted-foreground">
+                    ~{formatDuration(shopDistance.duration)} на авто
+                  </span>
+                )}
+              </div>
+            )}
             
             <div className="flex items-start gap-2 text-muted-foreground">
               <MapPin size={18} className="mt-0.5 shrink-0" />
