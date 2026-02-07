@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isShopOpen } from '@/utils/shopHours';
-import { useShopDistances } from '@/hooks/useShopDistances';
+import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 
 interface Shop {
@@ -15,8 +15,12 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
-  latitude: number | null;
-  longitude: number | null;
+  coordinates: unknown;
+}
+
+function parseCoordinates(coords: unknown): Coordinate[] {
+  if (!coords || !Array.isArray(coords)) return [];
+  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
 }
 
 export function TopShopsCarousel() {
@@ -65,13 +69,16 @@ export function TopShopsCarousel() {
 
   // Get distances for all shops
   const { distances, userLocation } = useShopDistances(
-    shops.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude }))
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
   );
 
   // Sort shops by distance if location available
-  const sortedShops = userLocation && distances.size > 0 
-    ? sortByDistance(shops, distances) 
-    : shops;
+  const sortedShops = useMemo(() => {
+    if (userLocation && distances.size > 0) {
+      return sortByDistance(shops, distances);
+    }
+    return shops;
+  }, [shops, distances, userLocation]);
 
   if (isLoading) {
     return (

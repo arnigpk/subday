@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
-import { useShopDistances } from '@/hooks/useShopDistances';
+import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 
 interface Shop {
@@ -21,8 +21,7 @@ interface Shop {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
-  latitude: number | null;
-  longitude: number | null;
+  coordinates: unknown;
 }
 
 const filters = [
@@ -67,6 +66,11 @@ function hasSpecialtyBadge(shop: Shop): boolean {
   return badges.some(b => b.text.toLowerCase() === 'specialty');
 }
 
+function parseCoordinates(coords: unknown): Coordinate[] {
+  if (!coords || !Array.isArray(coords)) return [];
+  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
+}
+
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [shops, setShops] = useState<Shop[]>([]);
@@ -95,7 +99,7 @@ export default function ShopsPage() {
 
   // Get distances for all shops
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(
-    shops.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude }))
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
   );
 
   // Add real-time open status to shops

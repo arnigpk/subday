@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
-import { AddressesEditor } from '@/components/shop/AddressesEditor';
+import { AddressesEditor, AddressWithCoords } from '@/components/shop/AddressesEditor';
 import { BadgesEditor, ShopBadgeData } from '@/components/shop/BadgesEditor';
 import {
   DndContext,
@@ -58,6 +58,20 @@ interface Shop {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
+  coordinates: unknown;
+}
+
+interface Coordinate {
+  lat: number | null;
+  lng: number | null;
+}
+
+function parseCoordinates(coords: unknown): Coordinate[] {
+  if (!coords || !Array.isArray(coords)) return [];
+  return coords.map(c => ({
+    lat: typeof c?.lat === 'number' ? c.lat : null,
+    lng: typeof c?.lng === 'number' ? c.lng : null,
+  }));
 }
 
 export default function AdminShopsPage() {
@@ -68,7 +82,7 @@ export default function AdminShopsPage() {
   const [deleteShopId, setDeleteShopId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    addresses: [] as string[],
+    addressesWithCoords: [] as AddressWithCoords[],
     city: 'Атырау',
     working_hours: '09:00-21:00',
     is_active: true,
@@ -114,7 +128,6 @@ export default function AdminShopsPage() {
       const newOrder = arrayMove(shops, oldIndex, newIndex);
       setShops(newOrder);
 
-      // Update sort_order in database
       try {
         const updates = newOrder.map((shop, index) => ({
           id: shop.id,
@@ -141,7 +154,7 @@ export default function AdminShopsPage() {
     setEditingShop(null);
     setFormData({
       name: '',
-      addresses: [],
+      addressesWithCoords: [],
       city: 'Атырау',
       working_hours: '09:00-21:00',
       is_active: true,
@@ -153,7 +166,8 @@ export default function AdminShopsPage() {
 
   const openEditDialog = (shop: Shop) => {
     setEditingShop(shop);
-    // Parse badges from jsonb or fall back to legacy single badge
+    
+    // Parse badges
     let parsedBadges: ShopBadgeData[] = [];
     if (shop.badges && Array.isArray(shop.badges)) {
       parsedBadges = (shop.badges as Array<{ text?: string; color?: string }>)
@@ -163,9 +177,18 @@ export default function AdminShopsPage() {
       parsedBadges = [{ text: shop.badge_text, color: shop.badge_color as 'red' | 'green' | 'yellow' }];
     }
     
+    // Parse addresses with coordinates
+    const addresses = shop.addresses || (shop.address ? [shop.address] : []);
+    const coords = parseCoordinates(shop.coordinates);
+    const addressesWithCoords: AddressWithCoords[] = addresses.map((addr, i) => ({
+      address: addr,
+      lat: coords[i]?.lat ?? null,
+      lng: coords[i]?.lng ?? null,
+    }));
+    
     setFormData({
       name: shop.name,
-      addresses: shop.addresses || (shop.address ? [shop.address] : []),
+      addressesWithCoords,
       city: shop.city || 'Атырау',
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
@@ -182,22 +205,26 @@ export default function AdminShopsPage() {
     }
 
     try {
-      // Convert badges to JSON-compatible format
       const badgesJson = formData.badges.map(b => ({ text: b.text, color: b.color }));
+      const addresses = formData.addressesWithCoords.map(a => a.address);
+      const coordinates = formData.addressesWithCoords.map(a => ({
+        lat: a.lat,
+        lng: a.lng,
+      }));
       
       if (editingShop) {
         const { error } = await supabase
           .from('shops')
           .update({
             name: formData.name,
-            address: formData.addresses[0] || null,
-            addresses: formData.addresses,
+            address: addresses[0] || null,
+            addresses,
+            coordinates,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
             badges: badgesJson,
-            // Keep legacy fields for backward compatibility
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
           })
@@ -214,14 +241,14 @@ export default function AdminShopsPage() {
           .from('shops')
           .insert([{
             name: formData.name,
-            address: formData.addresses[0] || null,
-            addresses: formData.addresses,
+            address: addresses[0] || null,
+            addresses,
+            coordinates,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
             logo_url: formData.logo_url,
             badges: badgesJson,
-            // Keep legacy fields for backward compatibility
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
             sort_order: maxOrder + 1,
@@ -365,7 +392,7 @@ export default function AdminShopsPage() {
 
       {/* Edit/Create Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingShop ? 'Редактировать кофейню' : 'Новая кофейня'}
@@ -382,8 +409,8 @@ export default function AdminShopsPage() {
               />
             </div>
             <AddressesEditor
-              addresses={formData.addresses}
-              onChange={(addresses) => setFormData({ ...formData, addresses })}
+              addresses={formData.addressesWithCoords}
+              onChange={(addressesWithCoords) => setFormData({ ...formData, addressesWithCoords })}
             />
             <div>
               <Label htmlFor="city">Город</Label>

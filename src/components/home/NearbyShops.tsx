@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useState, useEffect, useMemo } from 'react';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
-import { useShopDistances } from '@/hooks/useShopDistances';
+import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 
 interface ShopWithCoords {
@@ -18,8 +18,12 @@ interface ShopWithCoords {
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
-  latitude: number | null;
-  longitude: number | null;
+  coordinates: unknown;
+}
+
+function parseCoordinates(coords: unknown): Coordinate[] {
+  if (!coords || !Array.isArray(coords)) return [];
+  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
 }
 
 // Helper to get all badges from a shop
@@ -68,7 +72,7 @@ export function NearbyShops() {
 
   // Get distances for all shops
   const { distances, loading: distancesLoading, userLocation, permissionDenied } = useShopDistances(
-    shops.map(s => ({ id: s.id, latitude: s.latitude, longitude: s.longitude }))
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) }))
   );
 
   // Sort and take top 3 closest shops

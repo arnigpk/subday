@@ -234,12 +234,11 @@ export type Database = {
           badge_text: string | null
           badges: Json | null
           city: string | null
+          coordinates: Json | null
           created_at: string | null
           id: string
           is_active: boolean | null
-          latitude: number | null
           logo_url: string | null
-          longitude: number | null
           name: string
           sort_order: number | null
           updated_at: string | null
@@ -252,12 +251,11 @@ export type Database = {
           badge_text?: string | null
           badges?: Json | null
           city?: string | null
+          coordinates?: Json | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          latitude?: number | null
           logo_url?: string | null
-          longitude?: number | null
           name: string
           sort_order?: number | null
           updated_at?: string | null
@@ -270,12 +268,11 @@ export type Database = {
           badge_text?: string | null
           badges?: Json | null
           city?: string | null
+          coordinates?: Json | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          latitude?: number | null
           logo_url?: string | null
-          longitude?: number | null
           name?: string
           sort_order?: number | null
           updated_at?: string | null

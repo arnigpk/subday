@@ -16,10 +16,14 @@ export interface UseShopDistancesResult {
   permissionDenied: boolean;
 }
 
+export interface Coordinate {
+  lat: number;
+  lng: number;
+}
+
 interface ShopWithCoords {
   id: string;
-  latitude: number | null;
-  longitude: number | null;
+  coordinates: Coordinate[];
 }
 
 const CACHE_DURATION = 30000; // 30 seconds
@@ -37,8 +41,8 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
   const { latitude, longitude, error: geoError, permissionDenied, loading: geoLoading } = useGeolocation();
 
   const calculateDistances = useCallback(async (userLat: number, userLng: number) => {
-    // Filter shops with valid coordinates
-    const shopsWithCoords = shops.filter(s => s.latitude != null && s.longitude != null);
+    // Filter shops with valid coordinates (use first coordinate from array)
+    const shopsWithCoords = shops.filter(s => s.coordinates && s.coordinates.length > 0 && s.coordinates[0]?.lat && s.coordinates[0]?.lng);
     
     if (shopsWithCoords.length === 0) {
       setDistances(new Map());
@@ -75,8 +79,8 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
           user_lng: userLng,
           shops: shopsWithCoords.map(s => ({
             id: s.id,
-            lat: s.latitude,
-            lng: s.longitude,
+            lat: s.coordinates[0].lat,
+            lng: s.coordinates[0].lng,
           })),
         },
       });
@@ -108,8 +112,9 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
         // Fallback to client-side Haversine
         const fallbackDistances = new Map<string, ShopDistance>();
         shopsWithCoords.forEach(shop => {
-          if (shop.latitude && shop.longitude) {
-            const dist = haversineDistance(userLat, userLng, shop.latitude, shop.longitude);
+          const coord = shop.coordinates[0];
+          if (coord?.lat && coord?.lng) {
+            const dist = haversineDistance(userLat, userLng, coord.lat, coord.lng);
             fallbackDistances.set(shop.id, {
               distance: Math.round(dist),
               duration: Math.round((dist / 1000) / 50 * 3600), // ~50 km/h
