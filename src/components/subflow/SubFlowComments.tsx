@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User, Send, Trash2 } from 'lucide-react';
@@ -27,7 +27,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const { data: commentsData, error } = await supabase
         .from('subflow_comments')
@@ -56,7 +56,6 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
 
       const enrichedComments: Comment[] = commentsData.map(comment => {
         const profile = profilesMap.get(comment.user_id);
-        // Use subflow_nickname if available, otherwise use name
         const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
         return {
           id: comment.id,
@@ -74,10 +73,63 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [postId]);
 
+  // Initial fetch
   useEffect(() => {
     fetchComments();
+  }, [fetchComments]);
+
+  // Real-time subscription for comments
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-${postId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${postId}`
+      }, async (payload) => {
+        const newCommentData = payload.new as { id: string; user_id: string; content: string; created_at: string };
+        
+        // Fetch author profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, avatar_url, subflow_nickname')
+          .eq('user_id', newCommentData.user_id)
+          .single();
+        
+        const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
+        
+        const enrichedComment: Comment = {
+          id: newCommentData.id,
+          user_id: newCommentData.user_id,
+          content: newCommentData.content,
+          created_at: newCommentData.created_at,
+          author_name: displayName,
+          author_avatar: profile?.avatar_url || null,
+        };
+        
+        setComments(prev => {
+          // Avoid duplicates
+          if (prev.some(c => c.id === enrichedComment.id)) return prev;
+          return [...prev, enrichedComment];
+        });
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'subflow_comments',
+        filter: `post_id=eq.${postId}`
+      }, (payload) => {
+        const deletedId = payload.old.id;
+        setComments(prev => prev.filter(c => c.id !== deletedId));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [postId]);
 
   const formatDate = (dateStr: string) => {
@@ -110,9 +162,8 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         });
 
       if (error) throw error;
-
       setNewComment('');
-      fetchComments();
+      // Realtime will handle adding the comment
     } catch (error) {
       console.error('Comment error:', error);
       toast.error('Ошибка отправки комментария');
@@ -129,7 +180,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         .eq('id', commentId);
 
       if (error) throw error;
-      fetchComments();
+      // Realtime will handle removing the comment
     } catch (error) {
       console.error('Delete comment error:', error);
       toast.error('Ошибка удаления');
