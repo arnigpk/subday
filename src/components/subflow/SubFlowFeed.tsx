@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
+import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { Loader2 } from 'lucide-react';
@@ -244,11 +245,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   }, [currentUserId, shopFilter]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <SubFlowPostSkeleton count={4} />;
   }
 
   if (posts.length === 0) {
