@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useQuery } from '@tanstack/react-query';
 import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
@@ -33,7 +33,7 @@ const filters = [
   { id: 'specialty', label: 'Specialty' },
 ];
 
-const ShopStatusBadge = memo(function ShopStatusBadge({ openHours }: { openHours: string }) {
+function ShopStatusBadge({ openHours }: { openHours: string }) {
   const isOpen = isShopOpen(openHours);
   
   return (
@@ -44,7 +44,7 @@ const ShopStatusBadge = memo(function ShopStatusBadge({ openHours }: { openHours
       </span>
     </div>
   );
-});
+}
 
 function getShopBadges(shop: Shop): ShopBadgeData[] {
   const badges: ShopBadgeData[] = [];
@@ -74,109 +74,26 @@ function parseCoordinates(coords: unknown): Coordinate[] {
   return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
 }
 
-interface ShopCardProps {
-  shop: Shop & { isCurrentlyOpen: boolean; allBadges: ShopBadgeData[]; isSpecialty: boolean };
-  distance: { distance: number | null; closestAddressIndex: number } | undefined;
-  index: number;
-}
-
-const ShopCard = memo(function ShopCard({ shop, distance, index }: ShopCardProps) {
-  const closestIndex = distance?.closestAddressIndex ?? 0;
-  const addresses = shop.addresses || (shop.address ? [shop.address] : []);
-  
-  // Reorder addresses to show closest first
-  const reorderedAddresses = addresses.length > 1 && closestIndex > 0
-    ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
-    : addresses;
-  
-  const handleAddressClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-  }, []);
-  
-  return (
-    <div
-      className="block animate-slide-up"
-      style={{ animationDelay: `${index * 0.03}s` }}
-    >
-      <Link
-        to={`/shops/${shop.id}`}
-        className="card-interactive block"
-      >
-        <div className="flex items-start gap-3">
-          {(shop.gallery_urls?.[0] || shop.logo_url) ? (
-            <img 
-              src={shop.gallery_urls?.[0] || shop.logo_url!} 
-              alt={shop.name} 
-              className="w-16 h-16 rounded-xl object-cover shrink-0"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
-              ☕
-            </div>
-          )}
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
-              <span className={`text-xs whitespace-nowrap ${
-                distance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
-              }`}>
-                {formatDistance(distance?.distance)}
-              </span>
-            </div>
-            
-            {/* Addresses - closest first */}
-            <div onClick={handleAddressClick}>
-              <AddressesList 
-                addresses={reorderedAddresses} 
-                variant="compact"
-                className="mt-2"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {shop.city && (
-                <div className="flex items-center gap-1">
-                  <Navigation size={12} className="text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{shop.city}</span>
-                </div>
-              )}
-              {shop.working_hours && (
-                <ShopStatusBadge openHours={shop.working_hours} />
-              )}
-              {shop.allBadges.length > 0 && (
-                <div onClick={handleAddressClick}>
-                  <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
-});
-
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   const { data: shops = [], isLoading } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
-    staleTime: 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  // Memoize shop coordinates
+  // Memoize shop coordinates to prevent infinite re-renders in useShopDistances
   const shopCoordinates = useMemo(() => 
     shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
     [shops]
   );
 
   // Get distances for all shops
-  const { distances, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
+  const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
-  // Process shops with status and badges
+  // Add real-time open status to shops
   const shopsWithStatus = useMemo(() => {
     return shops.map(shop => ({
       ...shop,
@@ -202,10 +119,6 @@ export default function ShopsPage() {
     return filtered;
   }, [shopsWithStatus, activeFilter, distances, userLocation]);
   
-  const handleFilterClick = useCallback((filterId: string) => {
-    setActiveFilter(filterId);
-  }, []);
-  
   return (
     <AppLayout>
       <div className="safe-area-top">
@@ -228,7 +141,7 @@ export default function ShopsPage() {
             {filters.map((filter) => (
               <button
                 key={filter.id}
-                onClick={() => handleFilterClick(filter.id)}
+                onClick={() => setActiveFilter(filter.id)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
                   activeFilter === filter.id
                     ? 'bg-accent text-accent-foreground'
@@ -247,14 +160,75 @@ export default function ShopsPage() {
             </div>
           ) : filteredAndSortedShops.length > 0 ? (
             <div className="space-y-3">
-              {filteredAndSortedShops.map((shop, index) => (
-                <ShopCard
-                  key={shop.id}
-                  shop={shop}
-                  distance={distances.get(shop.id)}
-                  index={index}
-                />
-              ))}
+              {filteredAndSortedShops.map((shop, index) => {
+                const shopDistance = distances.get(shop.id);
+                const closestIndex = shopDistance?.closestAddressIndex ?? 0;
+                const addresses = shop.addresses || (shop.address ? [shop.address] : []);
+                
+                // Reorder addresses to show closest first
+                const reorderedAddresses = addresses.length > 1 && closestIndex > 0
+                  ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
+                  : addresses;
+                
+                return (
+                  <div
+                    key={shop.id}
+                    className="block animate-slide-up"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <Link
+                      to={`/shops/${shop.id}`}
+                      className="card-interactive block"
+                    >
+                      <div className="flex items-start gap-3">
+                        {(shop.gallery_urls?.[0] || shop.logo_url) ? (
+                          <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
+                            ☕
+                          </div>
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
+                            <span className={`text-xs whitespace-nowrap ${
+                              shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
+                            }`}>
+                              {formatDistance(shopDistance?.distance)}
+                            </span>
+                          </div>
+                          
+                          {/* Addresses - closest first */}
+                          <div onClick={(e) => e.preventDefault()}>
+                            <AddressesList 
+                              addresses={reorderedAddresses} 
+                              variant="compact"
+                              className="mt-2"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {shop.city && (
+                              <div className="flex items-center gap-1">
+                                <Navigation size={12} className="text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{shop.city}</span>
+                              </div>
+                            )}
+                            {shop.working_hours && (
+                              <ShopStatusBadge openHours={shop.working_hours} />
+                            )}
+                            {shop.allBadges.length > 0 && (
+                              <div onClick={(e) => e.preventDefault()}>
+                                <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

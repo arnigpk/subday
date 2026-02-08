@@ -1,9 +1,10 @@
-import { useState, memo, useCallback } from 'react';
+import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Sparkles, Coffee, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
@@ -36,100 +37,6 @@ const formatBenefit = (benefit: number) => {
   return new Intl.NumberFormat('ru-RU').format(benefit);
 };
 
-interface SubscriptionCardProps {
-  sub: SubscriptionType;
-  index: number;
-  isActive: boolean;
-}
-
-const SubscriptionCard = memo(function SubscriptionCard({ sub, index, isActive }: SubscriptionCardProps) {
-  const period = getPeriodText(sub.duration_days);
-  
-  return (
-    <Link
-      to={`/packages/${sub.id}`}
-      className="block animate-slide-up"
-      style={{ animationDelay: `${index * 0.03}s` }}
-    >
-      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
-        {/* Background accent */}
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Badge from database */}
-        {sub.badge && !isActive && (
-          <div className="absolute top-4 right-4">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
-              <Sparkles size={12} />
-              {sub.badge}
-            </span>
-          </div>
-        )}
-        
-        {/* Active badge */}
-        {isActive && (
-          <div className="absolute top-4 right-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
-              <Check size={12} />
-              Активна
-            </span>
-          </div>
-        )}
-        
-        <div className="relative">
-          {/* Title section */}
-          <div className="mb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Coffee size={14} className="text-accent" />
-              <h3 className="text-lg font-bold text-foreground tracking-tight">
-                {sub.name}
-              </h3>
-            </div>
-            {sub.description && (
-              <p className="text-xs text-muted-foreground leading-relaxed pl-5">
-                {sub.description}
-              </p>
-            )}
-          </div>
-          
-          {/* Price section */}
-          <div className="mb-4">
-            <div className="flex items-end gap-1.5">
-              <span className="text-2xl font-black text-foreground tracking-tight">
-                {formatPrice(sub.price)}
-              </span>
-              <span className="text-sm font-medium text-muted-foreground mb-0.5">
-                тг
-              </span>
-              <span className="text-xs text-muted-foreground mb-0.5">
-                / {period}
-            </span>
-          </div>
-          
-          {sub.benefit && sub.benefit > 0 && (
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-xs font-semibold text-accent">
-                Выгода {formatBenefit(sub.benefit)} ₸
-              </span>
-            </div>
-          )}
-        </div>
-        
-        {/* CTA Button */}
-        {isActive ? (
-          <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
-            Ваша активная подписка
-          </div>
-        ) : (
-          <button className="btn-primary w-full text-sm font-semibold">
-            Оформить
-          </button>
-        )}
-      </div>
-      </div>
-    </Link>
-  );
-});
-
 export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState('coffee');
   const { activeSubscriptionTypeId } = useActiveSubscription();
@@ -137,15 +44,11 @@ export default function PackagesPage() {
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: prefetchSubscriptions,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
-
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-  }, []);
 
   return (
     <AppLayout>
@@ -159,7 +62,7 @@ export default function PackagesPage() {
           <TabSwitcher
             tabs={tabs}
             activeTab={activeTab}
-            onChange={handleTabChange}
+            onChange={setActiveTab}
             className="mb-6"
           />
           
@@ -176,14 +79,95 @@ export default function PackagesPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredSubscriptions.map((sub, index) => (
-                <SubscriptionCard
-                  key={sub.id}
-                  sub={sub}
-                  index={index}
-                  isActive={activeSubscriptionTypeId === sub.id}
-                />
-              ))}
+            {filteredSubscriptions.map((sub, index) => {
+                const period = getPeriodText(sub.duration_days);
+                const isActive = activeSubscriptionTypeId === sub.id;
+                
+                return (
+                  <Link
+                    key={sub.id}
+                    to={`/packages/${sub.id}`}
+                    className="block animate-slide-up"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
+                      {/* Background accent */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* Badge from database */}
+                      {sub.badge && !isActive && (
+                        <div className="absolute top-4 right-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
+                            <Sparkles size={12} />
+                            {sub.badge}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Active badge */}
+                      {isActive && (
+                        <div className="absolute top-4 right-4">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
+                            <Check size={12} />
+                            Активна
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="relative">
+                        {/* Title section */}
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Coffee size={14} className="text-accent" />
+                            <h3 className="text-lg font-bold text-foreground tracking-tight">
+                              {sub.name}
+                            </h3>
+                          </div>
+                          {sub.description && (
+                            <p className="text-xs text-muted-foreground leading-relaxed pl-5">
+                              {sub.description}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Price section */}
+                        <div className="mb-4">
+                          <div className="flex items-end gap-1.5">
+                            <span className="text-2xl font-black text-foreground tracking-tight">
+                              {formatPrice(sub.price)}
+                            </span>
+                            <span className="text-sm font-medium text-muted-foreground mb-0.5">
+                              тг
+                            </span>
+                            <span className="text-xs text-muted-foreground mb-0.5">
+                              / {period}
+                          </span>
+                        </div>
+                        
+                        {sub.benefit && sub.benefit > 0 && (
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs font-semibold text-accent">
+                              Выгода {formatBenefit(sub.benefit)} ₸
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* CTA Button */}
+                      {isActive ? (
+                        <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
+                          Ваша активная подписка
+                        </div>
+                      ) : (
+                        <button className="btn-primary w-full text-sm font-semibold">
+                          Оформить
+                        </button>
+                      )}
+                    </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
 
 export interface UserStats {
   coffeeRemaining: number;
@@ -43,18 +42,12 @@ const defaultStats: UserStats = {
   lastRedemptionDate: null,
 };
 
-// Cache for user data to avoid redundant fetches
-let cachedUserId: string | null = null;
-let cachedProfile: UserProfile | null = null;
-let cachedStats: UserStats | null = null;
-
 export function useUserStats() {
-  const [stats, setStats] = useState<UserStats>(cachedStats || defaultStats);
-  const [profile, setProfile] = useState<UserProfile | null>(cachedProfile);
+  const [stats, setStats] = useState<UserStats>(defaultStats);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
-  const [isLoading, setIsLoading] = useState(!cachedStats);
-  const [userId, setUserId] = useState<string | null>(cachedUserId);
-  const queryClient = useQueryClient();
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,49 +57,41 @@ export function useUserStats() {
     }
     
     setUserId(user.id);
-    cachedUserId = user.id;
 
-    // Check for expired subscriptions (fire and forget)
-    supabase.rpc('expire_subscriptions').then(() => {}, () => {});
-
-    // Fetch profile and stats in parallel
-    const [profileResult, statsResult, redemptionsResult] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('name, phone, city, avatar_url, subflow_nickname')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-      supabase
-        .from('user_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-      supabase
-        .from('redemptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('redeemed_at', { ascending: false })
-        .limit(50),
-    ]);
-
-    // Handle profile
-    if (profileResult.data) {
-      const newProfile = {
-        name: profileResult.data.name,
-        phone: profileResult.data.phone,
-        city: profileResult.data.city,
-        avatarUrl: profileResult.data.avatar_url,
-        subflowNickname: profileResult.data.subflow_nickname,
-      };
-      setProfile(newProfile);
-      cachedProfile = newProfile;
+    // Check for expired subscriptions on app load (runs the DB function)
+    try {
+      await supabase.rpc('expire_subscriptions');
+    } catch (error) {
+      console.log('Subscription expiration check completed or skipped');
     }
 
-    // Handle stats
-    let statsData = statsResult.data;
+    // Fetch profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('name, phone, city, avatar_url, subflow_nickname')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileData) {
+      setProfile({
+        name: profileData.name,
+        phone: profileData.phone,
+        city: profileData.city,
+        avatarUrl: profileData.avatar_url,
+        subflowNickname: profileData.subflow_nickname,
+      });
+    }
+
+    // Fetch or create stats
+    let { data: statsData } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
     if (!statsData) {
-      // Create default stats for new user
-      const { data: newStats } = await supabase
+      // Create default stats for new user (no balance until subscription is purchased)
+      const { data: newStats, error } = await supabase
         .from('user_stats')
         .insert({
           user_id: user.id,
@@ -122,13 +107,13 @@ export function useUserStats() {
         .select()
         .single();
 
-      if (newStats) {
+      if (!error && newStats) {
         statsData = newStats;
       }
     }
 
     if (statsData) {
-      const newStats = {
+      setStats({
         coffeeRemaining: statsData.coffee_remaining,
         coffeeTotal: statsData.coffee_total,
         drinksRemaining: statsData.drinks_remaining,
@@ -138,15 +123,20 @@ export function useUserStats() {
         totalCups: statsData.total_cups,
         bonusPoints: statsData.bonus_points,
         lastRedemptionDate: statsData.last_redemption_date,
-      };
-      setStats(newStats);
-      cachedStats = newStats;
+      });
     }
 
-    // Handle redemptions
-    if (redemptionsResult.data) {
+    // Fetch redemptions
+    const { data: redemptionsData } = await supabase
+      .from('redemptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('redeemed_at', { ascending: false })
+      .limit(50);
+
+    if (redemptionsData) {
       setRedemptions(
-        redemptionsResult.data.map((r) => ({
+        redemptionsData.map((r) => ({
           id: r.id,
           shopName: r.shop_name,
           shopId: r.shop_id,
@@ -164,7 +154,7 @@ export function useUserStats() {
     fetchData();
   }, [fetchData]);
 
-  const redeemDrink = useCallback(async (
+  const redeemDrink = async (
     shopName: string,
     shopId: string,
     drinkName: string,
@@ -172,12 +162,14 @@ export function useUserStats() {
   ): Promise<boolean> => {
     if (!userId) return false;
 
+    // Check if user has remaining drinks
     const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
     if (remaining <= 0) return false;
 
     const today = new Date().toISOString().split('T')[0];
     const isNewDay = stats.lastRedemptionDate !== today;
     
+    // Calculate new streak
     let newStreak = stats.currentStreak;
     if (isNewDay) {
       const yesterday = new Date();
@@ -189,14 +181,15 @@ export function useUserStats() {
       } else if (!stats.lastRedemptionDate) {
         newStreak = 1;
       } else {
-        newStreak = 1;
+        newStreak = 1; // Reset streak if not consecutive
       }
     }
 
     const newMaxStreak = Math.max(newStreak, stats.maxStreak);
-    const bonusForRedemption = 10;
+    const bonusForRedemption = 10; // Bonus points per redemption
 
-    const newStatsData = {
+    // Update stats
+    const newStats = {
       coffee_remaining: drinkType === 'coffee' ? stats.coffeeRemaining - 1 : stats.coffeeRemaining,
       drinks_remaining: drinkType === 'drinks' ? stats.drinksRemaining - 1 : stats.drinksRemaining,
       current_streak: newStreak,
@@ -208,7 +201,7 @@ export function useUserStats() {
 
     const { error: statsError } = await supabase
       .from('user_stats')
-      .update(newStatsData)
+      .update(newStats)
       .eq('user_id', userId);
 
     if (statsError) {
@@ -216,6 +209,7 @@ export function useUserStats() {
       return false;
     }
 
+    // Insert redemption record
     const { error: redemptionError } = await supabase
       .from('redemptions')
       .insert({
@@ -231,30 +225,25 @@ export function useUserStats() {
       return false;
     }
 
-    // Update local state immediately
-    const updatedStats = {
+    // Update local state
+    setStats({
       ...stats,
-      coffeeRemaining: newStatsData.coffee_remaining,
-      drinksRemaining: newStatsData.drinks_remaining,
+      coffeeRemaining: newStats.coffee_remaining,
+      drinksRemaining: newStats.drinks_remaining,
       currentStreak: newStreak,
       maxStreak: newMaxStreak,
       totalCups: stats.totalCups + 1,
       bonusPoints: stats.bonusPoints + bonusForRedemption,
       lastRedemptionDate: today,
-    };
-    setStats(updatedStats);
-    cachedStats = updatedStats;
+    });
 
-    // Invalidate related queries
-    queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
-
-    // Refresh data in background
-    fetchData();
+    // Refresh all data
+    await fetchData();
 
     return true;
-  }, [userId, stats, fetchData, queryClient]);
+  };
 
-  const updateAvatar = useCallback(async (avatarUrl: string): Promise<boolean> => {
+  const updateAvatar = async (avatarUrl: string): Promise<boolean> => {
     if (!userId) return false;
 
     const { error } = await supabase
@@ -267,18 +256,16 @@ export function useUserStats() {
       return false;
     }
 
-    const updatedProfile = profile ? { ...profile, avatarUrl } : null;
-    setProfile(updatedProfile);
-    cachedProfile = updatedProfile;
+    setProfile((prev) => prev ? { ...prev, avatarUrl } : null);
     return true;
-  }, [userId, profile]);
+  };
 
-  const refetch = useCallback(() => {
+  const refetch = () => {
     setIsLoading(true);
     fetchData();
-  }, [fetchData]);
+  };
 
-  return useMemo(() => ({
+  return {
     stats,
     profile,
     redemptions,
@@ -286,5 +273,5 @@ export function useUserStats() {
     redeemDrink,
     updateAvatar,
     refetch,
-  }), [stats, profile, redemptions, isLoading, redeemDrink, updateAvatar, refetch]);
+  };
 }

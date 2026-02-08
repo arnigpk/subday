@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, memo } from 'react';
+import { useState, useEffect } from 'react';
 import preloader from '@/assets/preloader.gif';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,79 +10,45 @@ import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
-
-// Eagerly loaded - critical path pages
 import HomePage from "./pages/HomePage";
+import PackagesPage from "./pages/PackagesPage";
+import PackageDetailPage from "./pages/PackageDetailPage";
+import ShopsPage from "./pages/ShopsPage";
+import ShopDetailPage from "./pages/ShopDetailPage";
+import RedeemPage from "./pages/RedeemPage";
+import HistoryPage from "./pages/HistoryPage";
+import StreaksPage from "./pages/StreaksPage";
+import BonusesPage from "./pages/BonusesPage";
+import ProfilePage from "./pages/ProfilePage";
+import SubFlowPage from "./pages/SubFlowPage";
+import NotFound from "./pages/NotFound";
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminHistoryPage from "./pages/admin/AdminHistoryPage";
+import AdminShopsPage from "./pages/admin/AdminShopsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminSubscriptionsPage from "./pages/admin/AdminSubscriptionsPage";
+import AdminBroadcastPage from "./pages/admin/AdminBroadcastPage";
+import AdminPushBroadcastPage from "./pages/admin/AdminPushBroadcastPage";
+import AdminSubscriptionTransactionsPage from "./pages/admin/AdminSubscriptionTransactionsPage";
+import AdminBannersPage from "./pages/admin/AdminBannersPage";
+import { PartnerProtectedRoute } from "@/components/partner/PartnerProtectedRoute";
+import PartnerDashboard from "./pages/partner/PartnerDashboard";
+import PartnerScanPage from "./pages/partner/PartnerScanPage";
+import PartnerHistoryPage from "./pages/partner/PartnerHistoryPage";
+import PartnerStaffPage from "./pages/partner/PartnerStaffPage";
 
-// Lazy loaded pages - main app
-const PackagesPage = lazy(() => import("./pages/PackagesPage"));
-const PackageDetailPage = lazy(() => import("./pages/PackageDetailPage"));
-const ShopsPage = lazy(() => import("./pages/ShopsPage"));
-const ShopDetailPage = lazy(() => import("./pages/ShopDetailPage"));
-const RedeemPage = lazy(() => import("./pages/RedeemPage"));
-const HistoryPage = lazy(() => import("./pages/HistoryPage"));
-const StreaksPage = lazy(() => import("./pages/StreaksPage"));
-const BonusesPage = lazy(() => import("./pages/BonusesPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const SubFlowPage = lazy(() => import("./pages/SubFlowPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-
-// Lazy loaded admin pages
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
-const AdminHistoryPage = lazy(() => import("./pages/admin/AdminHistoryPage"));
-const AdminShopsPage = lazy(() => import("./pages/admin/AdminShopsPage"));
-const AdminSettingsPage = lazy(() => import("./pages/admin/AdminSettingsPage"));
-const AdminSubscriptionsPage = lazy(() => import("./pages/admin/AdminSubscriptionsPage"));
-const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage"));
-const AdminPushBroadcastPage = lazy(() => import("./pages/admin/AdminPushBroadcastPage"));
-const AdminSubscriptionTransactionsPage = lazy(() => import("./pages/admin/AdminSubscriptionTransactionsPage"));
-const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
-
-// Lazy loaded partner pages
-const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
-const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
-const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
-const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
-
-// Lazy loaded protected routes
-const AdminProtectedRoute = lazy(() => import("@/components/admin/AdminProtectedRoute").then(m => ({ default: m.AdminProtectedRoute })));
-const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
-
-// Optimized QueryClient with aggressive caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000, // 1 minute before data is considered stale
-      gcTime: 10 * 60 * 1000, // 10 minutes cache time
-      refetchOnWindowFocus: false,
-      refetchOnMount: false, // Don't refetch if data exists
-      refetchOnReconnect: false,
-      retry: 1,
-      networkMode: 'offlineFirst', // Use cache first
+      staleTime: 30 * 1000, // 30 seconds before data is considered stale
+      gcTime: 5 * 60 * 1000, // 5 minutes cache time
+      refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
+      retry: 1, // Reduce retries for faster failure
     },
   },
 });
-
-// Minimal loading fallback - instant transition feel
-const PageLoader = memo(() => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-  </div>
-));
-PageLoader.displayName = 'PageLoader';
-
-// Full screen preloader for initial load
-const FullPreloader = memo(() => (
-  <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-    <img 
-      src={preloader} 
-      alt="Loading" 
-      className="w-full h-full object-contain max-w-screen max-h-screen"
-    />
-  </div>
-));
-FullPreloader.displayName = 'FullPreloader';
 
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -92,7 +58,7 @@ const AppContent = () => {
   
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
-  // Minimum preloader time (1.5 seconds)
+  // Минимальное время показа прелоадера (1.5 секунды)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
@@ -175,7 +141,15 @@ const AppContent = () => {
   };
   
   if (isLoading) {
-    return <FullPreloader />;
+    return (
+      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+        <img 
+          src={preloader} 
+          alt="Loading" 
+          className="w-full h-full object-contain max-w-screen max-h-screen"
+        />
+      </div>
+    );
   }
   
   if (!session) {
@@ -192,41 +166,39 @@ const AppContent = () => {
       <BrowserRouter>
         <Toaster />
         <Sonner />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/packages" element={<PackagesPage />} />
-            <Route path="/packages/:id" element={<PackageDetailPage />} />
-            <Route path="/shops" element={<ShopsPage />} />
-            <Route path="/shops/:id" element={<ShopDetailPage />} />
-            <Route path="/redeem" element={<RedeemPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/streaks" element={<StreaksPage />} />
-            <Route path="/bonuses" element={<BonusesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/subflow" element={<SubFlowPage />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
-            <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
-            <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
-            <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
-            <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
-            <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
-            <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
-            
-            {/* Partner Routes */}
-            <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
-            <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
-            <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
-            <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/packages/:id" element={<PackageDetailPage />} />
+          <Route path="/shops" element={<ShopsPage />} />
+          <Route path="/shops/:id" element={<ShopDetailPage />} />
+          <Route path="/redeem" element={<RedeemPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/streaks" element={<StreaksPage />} />
+          <Route path="/bonuses" element={<BonusesPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/subflow" element={<SubFlowPage />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
+          <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
+          <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
+          <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
+          <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
+          <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
+          <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
+          <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
+          
+          {/* Partner Routes */}
+          <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
+          <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
+          <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
+          <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </UserStatsProvider>
   );

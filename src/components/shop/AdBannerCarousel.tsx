@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openWithDeepLink } from '@/utils/deepLinks';
-import { queryKeys, prefetchAdBanners } from '@/hooks/usePrefetch';
 
 interface AdBanner {
   id: string;
@@ -14,6 +13,7 @@ interface AdBanner {
   caption: string | null;
   shop_id: string | null;
   external_url: string | null;
+  is_active: boolean;
   sort_order: number;
   autoplay_delay: number;
 }
@@ -26,35 +26,7 @@ function preloadImages(urls: string[]) {
   });
 }
 
-const BannerDots = memo(function BannerDots({ 
-  count, 
-  selectedIndex, 
-  onDotClick 
-}: { 
-  count: number; 
-  selectedIndex: number; 
-  onDotClick: (index: number) => void;
-}) {
-  if (count <= 1) return null;
-  
-  return (
-    <div className="flex justify-center gap-1.5 mt-2">
-      {Array.from({ length: count }).map((_, index) => (
-        <button
-          key={index}
-          className={`w-1.5 h-1.5 rounded-full transition-all ${
-            index === selectedIndex
-              ? 'bg-primary w-4'
-              : 'bg-muted-foreground/30'
-          }`}
-          onClick={() => onDotClick(index)}
-        />
-      ))}
-    </div>
-  );
-});
-
-export const AdBannerCarousel = memo(function AdBannerCarousel() {
+export function AdBannerCarousel() {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [autoplayDelay, setAutoplayDelay] = useState(4000);
@@ -63,10 +35,18 @@ export const AdBannerCarousel = memo(function AdBannerCarousel() {
   const preloadedRef = useRef(false);
 
   const { data: banners = [], isLoading } = useQuery({
-    queryKey: queryKeys.adBanners,
-    queryFn: prefetchAdBanners,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    queryKey: ['ad-banners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ad_banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      
+      if (error) throw error;
+      return data as AdBanner[];
+    },
+    staleTime: 60 * 1000, // 1 minute
   });
 
   // Preload all banner images when data is loaded
@@ -84,7 +64,7 @@ export const AdBannerCarousel = memo(function AdBannerCarousel() {
     }
   }, [banners]);
 
-  // Get autoplay delay from first banner
+  // Get autoplay delay from first banner (or use default)
   useEffect(() => {
     if (banners.length > 0 && banners[0].autoplay_delay) {
       setAutoplayDelay(banners[0].autoplay_delay * 1000);
@@ -102,16 +82,18 @@ export const AdBannerCarousel = memo(function AdBannerCarousel() {
     [autoplayPlugin]
   );
 
-  // Track banner view (fire and forget)
-  const trackView = useCallback((bannerId: string) => {
+  // Track banner view
+  const trackView = useCallback(async (bannerId: string) => {
     if (viewedBanners.current.has(bannerId)) return;
     viewedBanners.current.add(bannerId);
     
-    // Fire and forget - don't await
-    supabase
-      .from('ad_banner_events')
-      .insert({ banner_id: bannerId, event_type: 'view' })
-      .then(() => {}, () => {});
+    try {
+      await supabase
+        .from('ad_banner_events')
+        .insert({ banner_id: bannerId, event_type: 'view' });
+    } catch (error) {
+      console.error('Failed to track banner view:', error);
+    }
   }, []);
 
   const onSelect = useCallback(() => {
@@ -134,24 +116,35 @@ export const AdBannerCarousel = memo(function AdBannerCarousel() {
     };
   }, [emblaApi, onSelect]);
 
+  // Update autoplay delay when it changes
+  useEffect(() => {
+    if (emblaApi && autoplayPlugin) {
+      autoplayPlugin.reset();
+    }
+  }, [autoplayDelay, emblaApi]);
+
   // Track click and navigate
-  const handleBannerClick = useCallback((banner: AdBanner) => {
-    // Track click (fire and forget)
-    supabase
-      .from('ad_banner_events')
-      .insert({ banner_id: banner.id, event_type: 'click' })
-      .then(() => {}, () => {});
+  const handleBannerClick = async (banner: AdBanner) => {
+    // Track click
+    try {
+      await supabase
+        .from('ad_banner_events')
+        .insert({ banner_id: banner.id, event_type: 'click' });
+    } catch (error) {
+      console.error('Failed to track banner click:', error);
+    }
     
     if (banner.shop_id) {
       navigate(`/shops/${banner.shop_id}`);
     } else if (banner.external_url) {
+      // Use deep links for popular apps with fallback to web version
       openWithDeepLink(banner.external_url);
     }
-  }, [navigate]);
+  };
 
-  const handleDotClick = useCallback((index: number) => {
-    emblaApi?.scrollTo(index);
-  }, [emblaApi]);
+  const hasLink = (banner: AdBanner) => {
+    return banner.shop_id || banner.external_url;
+  };
 
   // Show skeleton while loading data or images
   if (isLoading || (banners.length > 0 && !imagesLoaded)) {
@@ -170,42 +163,49 @@ export const AdBannerCarousel = memo(function AdBannerCarousel() {
     <div className="w-full mb-4">
       <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
         <div className="flex">
-          {banners.map((banner) => {
-            const hasLink = banner.shop_id || banner.external_url;
-            return (
-              <div
-                key={banner.id}
-                className="flex-[0_0_100%] min-w-0"
+          {banners.map((banner) => (
+            <div
+              key={banner.id}
+              className="flex-[0_0_100%] min-w-0"
+            >
+              <div 
+                className={`relative ${hasLink(banner) ? 'cursor-pointer' : ''}`}
+                onClick={() => handleBannerClick(banner)}
               >
-                <div 
-                  className={`relative ${hasLink ? 'cursor-pointer' : ''}`}
-                  onClick={() => handleBannerClick(banner)}
-                >
-                  <img
-                    src={banner.image_url}
-                    alt={banner.caption || 'Рекламный баннер'}
-                    className="w-full h-32 object-cover rounded-2xl"
-                    loading="eager"
-                  />
-                  {banner.caption && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-b-2xl">
-                      <p className="text-white text-sm font-medium truncate">
-                        {banner.caption}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <img
+                  src={banner.image_url}
+                  alt={banner.caption || 'Рекламный баннер'}
+                  className="w-full h-32 object-cover rounded-2xl"
+                />
+                {banner.caption && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-b-2xl">
+                    <p className="text-white text-sm font-medium truncate">
+                      {banner.caption}
+                    </p>
+                  </div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
       
-      <BannerDots
-        count={banners.length}
-        selectedIndex={selectedIndex}
-        onDotClick={handleDotClick}
-      />
+      {/* Dots indicator */}
+      {banners.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-2">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              className={`w-1.5 h-1.5 rounded-full transition-all ${
+                index === selectedIndex
+                  ? 'bg-primary w-4'
+                  : 'bg-muted-foreground/30'
+              }`}
+              onClick={() => emblaApi?.scrollTo(index)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-});
+}
