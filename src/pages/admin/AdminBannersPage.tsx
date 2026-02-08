@@ -17,6 +17,7 @@ interface AdBanner {
   image_url: string;
   caption: string | null;
   shop_id: string | null;
+  external_url: string | null;
   is_active: boolean;
   sort_order: number;
   autoplay_delay: number;
@@ -47,6 +48,7 @@ export default function AdminBannersPage() {
     image_url: '',
     caption: '',
     shop_id: '',
+    external_url: '',
     is_active: true,
     sort_order: 0,
     autoplay_delay: 4,
@@ -116,6 +118,7 @@ export default function AdminBannersPage() {
       image_url: '',
       caption: '',
       shop_id: '',
+      external_url: '',
       is_active: true,
       sort_order: banners.length,
       autoplay_delay: 4,
@@ -135,6 +138,7 @@ export default function AdminBannersPage() {
       image_url: banner.image_url,
       caption: banner.caption || '',
       shop_id: banner.shop_id || '',
+      external_url: banner.external_url || '',
       is_active: banner.is_active,
       sort_order: banner.sort_order,
       autoplay_delay: banner.autoplay_delay,
@@ -189,6 +193,7 @@ export default function AdminBannersPage() {
         image_url: formData.image_url,
         caption: formData.caption || null,
         shop_id: formData.shop_id || null,
+        external_url: formData.shop_id ? null : (formData.external_url || null),
         is_active: formData.is_active,
         sort_order: formData.sort_order,
         autoplay_delay: formData.autoplay_delay,
@@ -265,10 +270,17 @@ export default function AdminBannersPage() {
     }
   };
 
-  const getShopName = (shopId: string | null) => {
-    if (!shopId) return 'Без ссылки';
-    const shop = shops.find(s => s.id === shopId);
-    return shop?.name || 'Неизвестная кофейня';
+  const getShopName = (banner: AdBanner) => {
+    if (banner.shop_id) {
+      const shop = shops.find(s => s.id === banner.shop_id);
+      return shop?.name || 'Неизвестная кофейня';
+    }
+    if (banner.external_url) {
+      return banner.external_url.length > 30 
+        ? banner.external_url.substring(0, 30) + '...' 
+        : banner.external_url;
+    }
+    return 'Без ссылки';
   };
 
   return (
@@ -376,6 +388,23 @@ export default function AdminBannersPage() {
                   </Select>
                 </div>
 
+                {/* External URL - only show when no shop selected */}
+                {!formData.shop_id && (
+                  <div>
+                    <Label htmlFor="external_url">Внешняя ссылка</Label>
+                    <Input
+                      id="external_url"
+                      value={formData.external_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, external_url: e.target.value }))}
+                      placeholder="https://example.com"
+                      className="mt-1.5"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Откроется в новой вкладке
+                    </p>
+                  </div>
+                )}
+
                 {/* Autoplay delay */}
                 <div>
                   <Label htmlFor="autoplay_delay">Время прокрутки (сек)</Label>
@@ -464,7 +493,7 @@ export default function AdminBannersPage() {
                         {banner.caption || 'Без подписи'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        → {getShopName(banner.shop_id)}
+                        → {getShopName(banner)}
                       </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                         <span className="flex items-center gap-1">

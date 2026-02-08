@@ -11,6 +11,7 @@ interface AdBanner {
   image_url: string;
   caption: string | null;
   shop_id: string | null;
+  external_url: string | null;
   is_active: boolean;
   sort_order: number;
   autoplay_delay: number;
@@ -109,7 +110,13 @@ export function AdBannerCarousel() {
     
     if (banner.shop_id) {
       navigate(`/shops/${banner.shop_id}`);
+    } else if (banner.external_url) {
+      window.open(banner.external_url, '_blank', 'noopener,noreferrer');
     }
+  };
+
+  const hasLink = (banner: AdBanner) => {
+    return banner.shop_id || banner.external_url;
   };
 
   if (isLoading) {
@@ -134,7 +141,7 @@ export function AdBannerCarousel() {
               className="flex-[0_0_100%] min-w-0"
             >
               <div 
-                className={`relative ${banner.shop_id ? 'cursor-pointer' : ''}`}
+                className={`relative ${hasLink(banner) ? 'cursor-pointer' : ''}`}
                 onClick={() => handleBannerClick(banner)}
               >
                 <img
