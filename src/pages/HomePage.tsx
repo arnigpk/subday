@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, memo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
@@ -11,6 +11,50 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
 import { usePrefetch } from '@/hooks/usePrefetch';
+
+const Header = memo(function Header({ 
+  displayName, 
+  isLoading, 
+  showAdminButton, 
+  isAdmin, 
+  role, 
+  onAdminClick 
+}: { 
+  displayName: string; 
+  isLoading: boolean; 
+  showAdminButton: boolean; 
+  isAdmin: boolean; 
+  role: string | null; 
+  onAdminClick: () => void;
+}) {
+  return (
+    <div className="px-4 py-4 flex items-center justify-between">
+      <div>
+        <p className="text-muted-foreground text-sm">Привет,</p>
+        {isLoading ? (
+          <div className="h-7 w-24 bg-muted rounded animate-pulse" />
+        ) : (
+          <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {showAdminButton && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAdminClick}
+            className="text-xs font-medium"
+          >
+            {isAdmin || role === 'moderator' ? 'Админка' : 'Кабинет'}
+          </Button>
+        )}
+        <div className="w-20 h-20">
+          <img src={logo} alt="subday" className="w-full h-full object-contain" />
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
@@ -30,43 +74,25 @@ export default function HomePage() {
   
   const showAdminButton = isAdmin || role === 'moderator' || isPartner || isBarista;
   
-  const handleAdminClick = () => {
+  const handleAdminClick = useCallback(() => {
     if (isAdmin || role === 'moderator') {
       navigate('/admin');
     } else if (isPartner || isBarista) {
       navigate('/partner');
     }
-  };
+  }, [isAdmin, role, isPartner, isBarista, navigate]);
   
   return (
     <AppLayout>
       <div className="safe-area-top">
-        {/* Header */}
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-muted-foreground text-sm">Привет,</p>
-            {isLoading ? (
-              <div className="h-7 w-24 bg-muted rounded animate-pulse" />
-            ) : (
-              <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {showAdminButton && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAdminClick}
-                className="text-xs font-medium"
-              >
-                {isAdmin || role === 'moderator' ? 'Админка' : 'Кабинет'}
-              </Button>
-            )}
-            <div className="w-20 h-20">
-              <img src={logo} alt="subday" className="w-full h-full object-contain" />
-            </div>
-          </div>
-        </div>
+        <Header
+          displayName={displayName}
+          isLoading={isLoading}
+          showAdminButton={showAdminButton}
+          isAdmin={isAdmin}
+          role={role}
+          onAdminClick={handleAdminClick}
+        />
         
         {/* Content */}
         <div className="px-4 space-y-5">
