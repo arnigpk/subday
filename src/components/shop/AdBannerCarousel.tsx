@@ -5,6 +5,7 @@ import Autoplay from 'embla-carousel-autoplay';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { openWithDeepLink } from '@/utils/deepLinks';
 
 interface AdBanner {
   id: string;
@@ -136,7 +137,8 @@ export function AdBannerCarousel() {
     if (banner.shop_id) {
       navigate(`/shops/${banner.shop_id}`);
     } else if (banner.external_url) {
-      window.open(banner.external_url, '_blank', 'noopener,noreferrer');
+      // Use deep links for popular apps with fallback to web version
+      openWithDeepLink(banner.external_url);
     }
   };
 
