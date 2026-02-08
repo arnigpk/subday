@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, MapPin, Navigation, Loader2, MapPinOff } from 'lucide-react';
+import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
@@ -9,6 +9,7 @@ import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList'
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
+import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 
 interface Shop {
   id: string;
@@ -124,14 +125,8 @@ export default function ShopsPage() {
         <div className="px-4 py-4">
           <h1 className="text-2xl font-black text-foreground mb-4">Кофейни</h1>
           
-          {/* Map placeholder */}
-          <div className="w-full h-40 bg-secondary rounded-2xl mb-4 flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-secondary to-muted opacity-50" />
-            <div className="relative flex flex-col items-center gap-2">
-              <MapPin size={32} className="text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Карта кофеен</span>
-            </div>
-          </div>
+          {/* Ad Banner Carousel */}
+          <AdBannerCarousel />
 
           {/* Location status */}
           {permissionDenied && (
