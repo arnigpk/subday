@@ -8,6 +8,8 @@ import { useShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, formatDuration } from '@/utils/distance';
+import { ShopGalleryCarousel } from '@/components/shop/ShopGalleryCarousel';
+
 interface Shop {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  gallery_urls: string[] | null;
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
@@ -131,11 +134,13 @@ export default function ShopDetailPage() {
           <h1 className="text-xl font-bold text-foreground flex-1 truncate">{shop.name}</h1>
         </div>
         
-        {/* Hero */}
+        {/* Hero Gallery */}
         <div className="px-4 mb-6">
-          {shop.logo_url ? <img src={shop.logo_url} alt={shop.name} className="w-full h-48 rounded-2xl object-cover animate-pop" /> : <div className="w-full h-48 rounded-2xl bg-secondary flex items-center justify-center text-6xl animate-pop">
-              ☕
-            </div>}
+          <ShopGalleryCarousel 
+            images={shop.gallery_urls?.length ? shop.gallery_urls : (shop.logo_url ? [shop.logo_url] : [])}
+            shopName={shop.name}
+            autoplayInterval={3000}
+          />
         </div>
         
         {/* Info */}

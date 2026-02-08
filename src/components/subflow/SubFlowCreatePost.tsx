@@ -62,8 +62,8 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         continue;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Максимум 10МБ на фото');
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error('Максимум 15МБ на фото');
         continue;
       }
 

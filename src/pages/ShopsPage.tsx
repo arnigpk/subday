@@ -19,6 +19,7 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  gallery_urls: string[] | null;
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
@@ -185,8 +186,8 @@ export default function ShopsPage() {
                       className="card-interactive block"
                     >
                       <div className="flex items-start gap-3">
-                        {shop.logo_url ? (
-                          <img src={shop.logo_url} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                        {(shop.gallery_urls?.[0] || shop.logo_url) ? (
+                          <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
                         ) : (
                           <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
                             ☕

@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
+import { ShopGalleryUpload } from '@/components/admin/ShopGalleryUpload';
 import { AddressesEditor, AddressWithCoords } from '@/components/shop/AddressesEditor';
 import { BadgesEditor, ShopBadgeData } from '@/components/shop/BadgesEditor';
 import {
@@ -54,6 +55,7 @@ interface Shop {
   is_active: boolean;
   created_at: string;
   logo_url: string | null;
+  gallery_urls: string[] | null;
   sort_order: number;
   badge_text: string | null;
   badge_color: string | null;
@@ -87,6 +89,7 @@ export default function AdminShopsPage() {
     working_hours: '09:00-21:00',
     is_active: true,
     logo_url: null as string | null,
+    gallery_urls: [] as string[],
     badges: [] as ShopBadgeData[],
   });
 
@@ -159,6 +162,7 @@ export default function AdminShopsPage() {
       working_hours: '09:00-21:00',
       is_active: true,
       logo_url: null,
+      gallery_urls: [],
       badges: [],
     });
     setIsDialogOpen(true);
@@ -193,6 +197,7 @@ export default function AdminShopsPage() {
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
       logo_url: shop.logo_url,
+      gallery_urls: shop.gallery_urls || [],
       badges: parsedBadges,
     });
     setIsDialogOpen(true);
@@ -223,7 +228,8 @@ export default function AdminShopsPage() {
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
-            logo_url: formData.logo_url,
+            logo_url: formData.gallery_urls[0] || formData.logo_url,
+            gallery_urls: formData.gallery_urls,
             badges: badgesJson,
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
@@ -247,7 +253,8 @@ export default function AdminShopsPage() {
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
-            logo_url: formData.logo_url,
+            logo_url: formData.gallery_urls[0] || formData.logo_url,
+            gallery_urls: formData.gallery_urls,
             badges: badgesJson,
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
@@ -430,12 +437,12 @@ export default function AdminShopsPage() {
                 placeholder="09:00-21:00"
               />
             </div>
-            <ShopLogoUpload
-              currentLogoUrl={formData.logo_url}
-              onLogoChange={(url) => setFormData({ ...formData, logo_url: url })}
+            <ShopGalleryUpload
+              currentGalleryUrls={formData.gallery_urls}
+              onGalleryChange={(urls) => setFormData({ ...formData, gallery_urls: urls })}
               shopId={editingShop?.id}
-              label="Фото"
-              maxSizeMb={10}
+              maxImages={4}
+              maxSizeMb={15}
             />
             <BadgesEditor
               badges={formData.badges}

@@ -15,6 +15,7 @@ interface ShopData {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  gallery_urls: string[] | null;
   badge_text: string | null;
   badge_color: string | null;
   badges: unknown;
@@ -133,8 +134,8 @@ export function TopShopsByVisits() {
                 {index + 1}
               </div>
               
-              {shop.logo_url ? (
-                <img src={shop.logo_url} alt={shop.name} className="w-11 h-11 rounded-xl object-cover" />
+              {(shop.gallery_urls?.[0] || shop.logo_url) ? (
+                <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-11 h-11 rounded-xl object-cover" />
               ) : (
                 <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center text-xl">
                   ☕
