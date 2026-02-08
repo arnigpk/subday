@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 const LOCATION_CACHE_KEY = 'geolocation_cache';
 const PERMISSION_KEY = 'geolocation_permission';
-const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+const CACHE_MAX_AGE = 10 * 60 * 1000; // 10 minutes
 
 interface CachedLocation {
   latitude: number;
@@ -53,7 +53,7 @@ function setCachedLocation(lat: number, lng: number, accuracy: number) {
   }
 }
 
-function getPermissionState(): 'granted' | 'denied' | 'prompt' | null {
+function getStoredPermissionState(): 'granted' | 'denied' | null {
   try {
     return localStorage.getItem(PERMISSION_KEY) as 'granted' | 'denied' | null;
   } catch {
@@ -61,7 +61,7 @@ function getPermissionState(): 'granted' | 'denied' | 'prompt' | null {
   }
 }
 
-function setPermissionState(state: 'granted' | 'denied') {
+function setStoredPermissionState(state: 'granted' | 'denied') {
   try {
     localStorage.setItem(PERMISSION_KEY, state);
   } catch {
@@ -69,11 +69,26 @@ function setPermissionState(state: 'granted' | 'denied') {
   }
 }
 
+// Check browser permission API (more reliable than localStorage)
+async function checkBrowserPermission(): Promise<'granted' | 'denied' | 'prompt'> {
+  try {
+    // Safari doesn't support permissions API for geolocation
+    if (!navigator.permissions || !navigator.permissions.query) {
+      return getStoredPermissionState() || 'prompt';
+    }
+    
+    const result = await navigator.permissions.query({ name: 'geolocation' });
+    return result.state as 'granted' | 'denied' | 'prompt';
+  } catch {
+    // Fallback to stored state
+    return getStoredPermissionState() || 'prompt';
+  }
+}
+
 export function useGeolocation(options?: PositionOptions) {
   const [state, setState] = useState<GeolocationState>(() => {
-    // Initialize with cached location if available
     const cached = getCachedLocation();
-    const savedPermission = getPermissionState();
+    const savedPermission = getStoredPermissionState();
     
     if (savedPermission === 'denied') {
       return {
@@ -107,14 +122,17 @@ export function useGeolocation(options?: PositionOptions) {
     };
   });
 
-  const hasRequestedRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
+  const hasRequestedRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const updatePosition = useCallback((position: GeolocationPosition) => {
+    if (!isMountedRef.current) return;
+    
     const { latitude, longitude, accuracy } = position.coords;
     
     setCachedLocation(latitude, longitude, accuracy);
-    setPermissionState('granted');
+    setStoredPermissionState('granted');
     
     setState({
       latitude,
@@ -127,11 +145,13 @@ export function useGeolocation(options?: PositionOptions) {
   }, []);
 
   const handleError = useCallback((error: GeolocationPositionError) => {
+    if (!isMountedRef.current) return;
+    
     console.error('Geolocation error:', error.message);
     
     const isDenied = error.code === error.PERMISSION_DENIED;
     if (isDenied) {
-      setPermissionState('denied');
+      setStoredPermissionState('denied');
     }
     
     setState(prev => ({
@@ -143,60 +163,134 @@ export function useGeolocation(options?: PositionOptions) {
   }, []);
 
   useEffect(() => {
-    // Don't request if already denied
-    const savedPermission = getPermissionState();
-    if (savedPermission === 'denied') {
-      return;
-    }
+    isMountedRef.current = true;
+    
+    const initGeolocation = async () => {
+      // Skip if already denied
+      const storedPermission = getStoredPermissionState();
+      if (storedPermission === 'denied') {
+        return;
+      }
 
-    // Don't request if we already have a recent cached location and haven't requested yet
-    const cached = getCachedLocation();
-    if (cached && !hasRequestedRef.current) {
-      // Still set up watching for background updates, but don't block on it
-      hasRequestedRef.current = true;
-    }
+      // Check if we have valid cached location
+      const cached = getCachedLocation();
+      
+      if (!navigator.geolocation) {
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Геолокация не поддерживается вашим браузером',
+        }));
+        return;
+      }
 
-    if (!navigator.geolocation) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: 'Геолокация не поддерживается вашим браузером',
-      }));
-      return;
-    }
+      // Check browser permission state
+      const browserPermission = await checkBrowserPermission();
+      
+      // If permission was denied at browser level
+      if (browserPermission === 'denied') {
+        setStoredPermissionState('denied');
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Доступ к геолокации запрещён',
+          permissionDenied: true,
+        }));
+        return;
+      }
 
-    const defaultOptions: PositionOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 60000, // Cache for 1 minute
-      ...options,
+      const positionOptions: PositionOptions = {
+        enableHighAccuracy: false, // Use low accuracy to avoid extra permission prompts
+        timeout: 10000,
+        maximumAge: 300000, // Accept cached position up to 5 minutes old
+        ...options,
+      };
+
+      // If we have valid cache and permission was previously granted, 
+      // only do background update (no prompt)
+      if (cached && storedPermission === 'granted') {
+        // Use maximumAge to get cached position from browser without prompting
+        if (!hasRequestedRef.current) {
+          hasRequestedRef.current = true;
+          
+          // Try to get position silently with long maximumAge
+          navigator.geolocation.getCurrentPosition(
+            updatePosition,
+            () => {
+              // Silently fail - we already have cached data
+              console.log('Background geolocation update failed, using cache');
+            },
+            {
+              ...positionOptions,
+              maximumAge: 600000, // 10 minutes - likely to use browser cache
+              timeout: 5000,
+            }
+          );
+        }
+        return;
+      }
+
+      // First time or no cache - need to request permission
+      if (!hasRequestedRef.current) {
+        hasRequestedRef.current = true;
+        
+        navigator.geolocation.getCurrentPosition(
+          updatePosition,
+          handleError,
+          positionOptions
+        );
+      }
     };
 
-    // Only request position if we don't have a valid cache
-    if (!cached) {
-      navigator.geolocation.getCurrentPosition(
-        updatePosition,
-        handleError,
-        defaultOptions
-      );
-    }
-
-    // Watch for position changes (less frequently)
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      updatePosition,
-      handleError,
-      {
-        ...defaultOptions,
-        maximumAge: 30000, // 30 seconds for watching
-      }
-    );
+    initGeolocation();
 
     return () => {
+      isMountedRef.current = false;
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, [updatePosition, handleError, options]);
+
+  // Separate effect for watching position - only if already granted
+  useEffect(() => {
+    const storedPermission = getStoredPermissionState();
+    
+    // Only watch if permission was previously granted
+    if (storedPermission !== 'granted' || !navigator.geolocation) {
+      return;
+    }
+
+    // Start watching after initial position is obtained
+    const startWatching = () => {
+      if (watchIdRef.current !== null) return;
+      
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        updatePosition,
+        (error) => {
+          // Only log, don't update state for watch errors
+          console.log('Watch position error:', error.message);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 30000,
+          maximumAge: 60000,
+        }
+      );
+    };
+
+    // Delay watch to avoid immediate permission prompt
+    const timeoutId = setTimeout(startWatching, 5000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [updatePosition]);
 
   return state;
 }
