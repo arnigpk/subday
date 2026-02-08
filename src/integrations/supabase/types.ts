@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       ad_banners: {
         Row: {
+          autoplay_delay: number
           caption: string | null
           created_at: string
           id: string
@@ -26,6 +27,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          autoplay_delay?: number
           caption?: string | null
           created_at?: string
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          autoplay_delay?: number
           caption?: string | null
           created_at?: string
           id?: string

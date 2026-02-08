@@ -19,6 +19,7 @@ interface AdBanner {
   shop_id: string | null;
   is_active: boolean;
   sort_order: number;
+  autoplay_delay: number;
   created_at: string;
 }
 
@@ -42,6 +43,7 @@ export default function AdminBannersPage() {
     shop_id: '',
     is_active: true,
     sort_order: 0,
+    autoplay_delay: 4,
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -76,6 +78,7 @@ export default function AdminBannersPage() {
       shop_id: '',
       is_active: true,
       sort_order: banners.length,
+      autoplay_delay: 4,
     });
     setEditingBanner(null);
   };
@@ -94,6 +97,7 @@ export default function AdminBannersPage() {
       shop_id: banner.shop_id || '',
       is_active: banner.is_active,
       sort_order: banner.sort_order,
+      autoplay_delay: banner.autoplay_delay,
     });
     setIsDialogOpen(true);
   };
@@ -147,6 +151,7 @@ export default function AdminBannersPage() {
         shop_id: formData.shop_id || null,
         is_active: formData.is_active,
         sort_order: formData.sort_order,
+        autoplay_delay: formData.autoplay_delay,
       };
 
       if (editingBanner) {
@@ -331,6 +336,21 @@ export default function AdminBannersPage() {
                   </Select>
                 </div>
 
+                {/* Autoplay delay */}
+                <div>
+                  <Label htmlFor="autoplay_delay">Время прокрутки (сек)</Label>
+                  <Input
+                    id="autoplay_delay"
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={formData.autoplay_delay}
+                    onChange={(e) => setFormData(prev => ({ ...prev, autoplay_delay: Math.max(1, Math.min(30, parseInt(e.target.value) || 4)) }))}
+                    className="mt-1.5"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">От 1 до 30 секунд</p>
+                </div>
+
                 {/* Sort order */}
                 <div>
                   <Label htmlFor="sort_order">Порядок сортировки</Label>
@@ -407,7 +427,7 @@ export default function AdminBannersPage() {
                         → {getShopName(banner.shop_id)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Порядок: {banner.sort_order}
+                        {banner.autoplay_delay} сек • Порядок: {banner.sort_order}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">

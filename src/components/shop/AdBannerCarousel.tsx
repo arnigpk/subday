@@ -13,22 +13,13 @@ interface AdBanner {
   shop_id: string | null;
   is_active: boolean;
   sort_order: number;
+  autoplay_delay: number;
 }
 
 export function AdBannerCarousel() {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
-  
-  const autoplayPlugin = Autoplay({
-    delay: 4000,
-    stopOnInteraction: false,
-    stopOnMouseEnter: true,
-  });
-
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: 'center' },
-    [autoplayPlugin]
-  );
+  const [autoplayDelay, setAutoplayDelay] = useState(4000);
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners'],
@@ -45,6 +36,24 @@ export function AdBannerCarousel() {
     staleTime: 60 * 1000, // 1 minute
   });
 
+  // Get autoplay delay from first banner (or use default)
+  useEffect(() => {
+    if (banners.length > 0 && banners[0].autoplay_delay) {
+      setAutoplayDelay(banners[0].autoplay_delay * 1000);
+    }
+  }, [banners]);
+
+  const autoplayPlugin = Autoplay({
+    delay: autoplayDelay,
+    stopOnInteraction: false,
+    stopOnMouseEnter: true,
+  });
+
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: 'center' },
+    [autoplayPlugin]
+  );
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
@@ -58,6 +67,13 @@ export function AdBannerCarousel() {
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi, onSelect]);
+
+  // Update autoplay delay when it changes
+  useEffect(() => {
+    if (emblaApi && autoplayPlugin) {
+      autoplayPlugin.reset();
+    }
+  }, [autoplayDelay, emblaApi]);
 
   const handleBannerClick = (banner: AdBanner) => {
     if (banner.shop_id) {
