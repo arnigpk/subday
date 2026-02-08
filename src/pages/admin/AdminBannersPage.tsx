@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Image, Loader2, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
 
 interface AdBanner {
@@ -26,6 +26,12 @@ interface AdBanner {
 interface Shop {
   id: string;
   name: string;
+}
+
+interface BannerStats {
+  banner_id: string;
+  views: number;
+  clicks: number;
 }
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -70,6 +76,40 @@ export default function AdminBannersPage() {
       return data as Shop[];
     },
   });
+
+  const { data: bannerStats = [] } = useQuery({
+    queryKey: ['admin-banner-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ad_banner_events')
+        .select('banner_id, event_type');
+      
+      if (error) throw error;
+      
+      // Aggregate stats
+      const statsMap = new Map<string, { views: number; clicks: number }>();
+      
+      data?.forEach((event: { banner_id: string; event_type: string }) => {
+        const current = statsMap.get(event.banner_id) || { views: 0, clicks: 0 };
+        if (event.event_type === 'view') {
+          current.views++;
+        } else if (event.event_type === 'click') {
+          current.clicks++;
+        }
+        statsMap.set(event.banner_id, current);
+      });
+      
+      return Array.from(statsMap.entries()).map(([banner_id, stats]) => ({
+        banner_id,
+        ...stats,
+      })) as BannerStats[];
+    },
+  });
+
+  const getStats = (bannerId: string) => {
+    const stats = bannerStats.find(s => s.banner_id === bannerId);
+    return stats || { views: 0, clicks: 0 };
+  };
 
   const resetForm = () => {
     setFormData({
@@ -426,9 +466,18 @@ export default function AdminBannersPage() {
                       <p className="text-sm text-muted-foreground">
                         → {getShopName(banner.shop_id)}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {banner.autoplay_delay} сек • Порядок: {banner.sort_order}
-                      </p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Eye size={12} />
+                          {getStats(banner.id).views}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MousePointer size={12} />
+                          {getStats(banner.id).clicks}
+                        </span>
+                        <span>{banner.autoplay_delay} сек</span>
+                        <span>Порядок: {banner.sort_order}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <Switch

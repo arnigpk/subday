@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
@@ -20,6 +20,7 @@ export function AdBannerCarousel() {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [autoplayDelay, setAutoplayDelay] = useState(4000);
+  const viewedBanners = useRef<Set<string>>(new Set());
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners'],
@@ -54,10 +55,30 @@ export function AdBannerCarousel() {
     [autoplayPlugin]
   );
 
+  // Track banner view
+  const trackView = useCallback(async (bannerId: string) => {
+    if (viewedBanners.current.has(bannerId)) return;
+    viewedBanners.current.add(bannerId);
+    
+    try {
+      await supabase
+        .from('ad_banner_events')
+        .insert({ banner_id: bannerId, event_type: 'view' });
+    } catch (error) {
+      console.error('Failed to track banner view:', error);
+    }
+  }, []);
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
+    const index = emblaApi.selectedScrollSnap();
+    setSelectedIndex(index);
+    
+    // Track view for current banner
+    if (banners[index]) {
+      trackView(banners[index].id);
+    }
+  }, [emblaApi, banners, trackView]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -75,7 +96,17 @@ export function AdBannerCarousel() {
     }
   }, [autoplayDelay, emblaApi]);
 
-  const handleBannerClick = (banner: AdBanner) => {
+  // Track click and navigate
+  const handleBannerClick = async (banner: AdBanner) => {
+    // Track click
+    try {
+      await supabase
+        .from('ad_banner_events')
+        .insert({ banner_id: banner.id, event_type: 'click' });
+    } catch (error) {
+      console.error('Failed to track banner click:', error);
+    }
+    
     if (banner.shop_id) {
       navigate(`/shops/${banner.shop_id}`);
     }

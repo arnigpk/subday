@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_banner_events: {
+        Row: {
+          banner_id: string
+          created_at: string
+          event_type: string
+          id: string
+        }
+        Insert: {
+          banner_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+        }
+        Update: {
+          banner_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_banner_events_banner_id_fkey"
+            columns: ["banner_id"]
+            isOneToOne: false
+            referencedRelation: "ad_banners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_banners: {
         Row: {
           autoplay_delay: number
