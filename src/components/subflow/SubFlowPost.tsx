@@ -45,6 +45,25 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Check if current user is admin
+  useEffect(() => {
+    if (!currentUserId) {
+      setIsAdmin(false);
+      return;
+    }
+    
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', currentUserId)
+      .eq('role', 'admin')
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsAdmin(!!data);
+      });
+  }, [currentUserId]);
   
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -156,6 +175,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   }, [post.id]);
 
   const isOwner = currentUserId === post.user_id;
+  const canDelete = isOwner || isAdmin;
   
   // Check if post can be edited (within 1 hour of creation)
   const canEdit = useMemo(() => {
@@ -333,11 +353,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               <Pencil size={16} />
             </button>
           )}
-          {isOwner && (
+          {canDelete && (
             <button
               onClick={handleDelete}
               disabled={isDeleting}
               className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+              title={isAdmin && !isOwner ? "Удалить как админ" : "Удалить"}
             >
               <Trash2 size={16} />
             </button>
