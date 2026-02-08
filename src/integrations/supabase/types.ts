@@ -48,6 +48,7 @@ export type Database = {
           autoplay_delay: number
           caption: string | null
           created_at: string
+          external_url: string | null
           id: string
           image_url: string
           is_active: boolean
@@ -59,6 +60,7 @@ export type Database = {
           autoplay_delay?: number
           caption?: string | null
           created_at?: string
+          external_url?: string | null
           id?: string
           image_url: string
           is_active?: boolean
@@ -70,6 +72,7 @@ export type Database = {
           autoplay_delay?: number
           caption?: string | null
           created_at?: string
+          external_url?: string | null
           id?: string
           image_url?: string
           is_active?: boolean
