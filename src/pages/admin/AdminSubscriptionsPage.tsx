@@ -50,6 +50,7 @@ import {
 import { SortableItem } from '@/components/admin/SortableItem';
 import { getSubscriptionDurationDays, formatDurationLabel } from '@/utils/subscriptionDuration';
 import { SubscriptionBadgeEditor, getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
+import { SortableFeaturesEditor } from '@/components/admin/SortableFeaturesEditor';
 
 interface SubscriptionType {
   id: string;
@@ -518,47 +519,10 @@ export default function AdminSubscriptionsPage() {
               <Label htmlFor="is_active">Активна</Label>
             </div>
             
-            {/* Features section */}
-            <div>
-              <Label className="mb-2 block">Что входит (функции)</Label>
-              <div className="space-y-2">
-                {formData.features.map((feature, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={feature}
-                      onChange={(e) => {
-                        const newFeatures = [...formData.features];
-                        newFeatures[index] = e.target.value;
-                        setFormData({ ...formData, features: newFeatures });
-                      }}
-                      placeholder={`Функция ${index + 1}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const newFeatures = formData.features.filter((_, i) => i !== index);
-                        setFormData({ ...formData, features: newFeatures });
-                      }}
-                      disabled={formData.features.length <= 1}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => setFormData({ ...formData, features: [...formData.features, ''] })}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Добавить функцию
-              </Button>
-            </div>
+            <SortableFeaturesEditor
+              features={formData.features}
+              onChange={(features) => setFormData({ ...formData, features })}
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена
