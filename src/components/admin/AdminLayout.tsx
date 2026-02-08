@@ -11,7 +11,8 @@ import {
   CreditCard,
   Send,
   Bell,
-  Receipt
+  Receipt,
+  Image
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const navItems = [
   { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['admin'] },
   { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['admin', 'moderator', 'partner'] },
   { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['admin'] },
+  { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['admin'] },
   { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['admin'] },
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
