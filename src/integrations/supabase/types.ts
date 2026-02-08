@@ -236,6 +236,7 @@ export type Database = {
           city: string | null
           coordinates: Json | null
           created_at: string | null
+          gallery_urls: string[] | null
           id: string
           is_active: boolean | null
           logo_url: string | null
@@ -253,6 +254,7 @@ export type Database = {
           city?: string | null
           coordinates?: Json | null
           created_at?: string | null
+          gallery_urls?: string[] | null
           id?: string
           is_active?: boolean | null
           logo_url?: string | null
@@ -270,6 +272,7 @@ export type Database = {
           city?: string | null
           coordinates?: Json | null
           created_at?: string | null
+          gallery_urls?: string[] | null
           id?: string
           is_active?: boolean | null
           logo_url?: string | null

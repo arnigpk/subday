@@ -16,6 +16,7 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  gallery_urls: string[] | null;
   coordinates: unknown;
 }
 
@@ -121,9 +122,9 @@ export function TopShopsCarousel() {
               {/* Round Shop Image with Status Indicator */}
               <div className="relative w-16 h-16 mb-1.5">
                 <div className="w-full h-full rounded-full overflow-hidden bg-secondary shadow-md ring-2 ring-accent/20">
-                  {shop.logo_url ? (
+                  {(shop.gallery_urls?.[0] || shop.logo_url) ? (
                     <img
-                      src={shop.logo_url}
+                      src={shop.gallery_urls?.[0] || shop.logo_url!}
                       alt={shop.name}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />

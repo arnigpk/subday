@@ -18,7 +18,7 @@ export function ShopLogoUpload({
   onLogoChange, 
   shopId,
   label = 'Фото',
-  maxSizeMb = 10
+  maxSizeMb = 15
 }: ShopLogoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentLogoUrl);
