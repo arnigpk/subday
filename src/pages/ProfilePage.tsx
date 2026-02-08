@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
@@ -24,7 +25,14 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
-  const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
+  const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
+  
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      refetch(),
+      refetchSubscription(),
+    ]);
+  }, [refetch, refetchSubscription]);
   
   
   // Sync edit name with profile
@@ -193,9 +201,10 @@ export default function ProfilePage() {
   
   return (
     <AppLayout>
-      <div className="safe-area-top">
-        <div className="px-4 py-4">
-          <h1 className="text-2xl font-black text-foreground mb-6">Профиль</h1>
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="safe-area-top">
+          <div className="px-4 py-4">
+            <h1 className="text-2xl font-black text-foreground mb-6">Профиль</h1>
           
           {/* Hidden file inputs */}
           <input
@@ -436,6 +445,7 @@ export default function ProfilePage() {
           </p>
         </div>
       </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }
