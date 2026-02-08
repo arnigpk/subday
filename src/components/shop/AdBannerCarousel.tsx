@@ -17,11 +17,21 @@ interface AdBanner {
   autoplay_delay: number;
 }
 
+// Preload images for instant display
+function preloadImages(urls: string[]) {
+  urls.forEach(url => {
+    const img = new Image();
+    img.src = url;
+  });
+}
+
 export function AdBannerCarousel() {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [autoplayDelay, setAutoplayDelay] = useState(4000);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
   const viewedBanners = useRef<Set<string>>(new Set());
+  const preloadedRef = useRef(false);
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners'],
@@ -37,6 +47,21 @@ export function AdBannerCarousel() {
     },
     staleTime: 60 * 1000, // 1 minute
   });
+
+  // Preload all banner images when data is loaded
+  useEffect(() => {
+    if (banners.length > 0 && !preloadedRef.current) {
+      preloadedRef.current = true;
+      const imageUrls = banners.map(b => b.image_url);
+      preloadImages(imageUrls);
+      
+      // Wait for first image to load before showing carousel
+      const firstImg = new Image();
+      firstImg.onload = () => setImagesLoaded(true);
+      firstImg.onerror = () => setImagesLoaded(true); // Show anyway on error
+      firstImg.src = banners[0].image_url;
+    }
+  }, [banners]);
 
   // Get autoplay delay from first banner (or use default)
   useEffect(() => {
@@ -119,7 +144,8 @@ export function AdBannerCarousel() {
     return banner.shop_id || banner.external_url;
   };
 
-  if (isLoading) {
+  // Show skeleton while loading data or images
+  if (isLoading || (banners.length > 0 && !imagesLoaded)) {
     return (
       <div className="w-full mb-4">
         <Skeleton className="w-full h-32 rounded-2xl" />
