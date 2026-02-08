@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Sparkles, Coffee, Zap, Crown, Check } from 'lucide-react';
+import { Sparkles, Coffee, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
+import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 
 interface SubscriptionType {
   id: string;
@@ -19,6 +20,7 @@ interface SubscriptionType {
   duration_days: number;
   is_active: boolean;
   badge: string | null;
+  badge_color: string | null;
   benefit: number | null;
 }
 
@@ -29,23 +31,6 @@ const tabs = [
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price);
-};
-
-const getBadgeStyle = (badge: string | null): { icon: typeof Sparkles; gradient: string } | null => {
-  if (!badge) return null;
-  
-  switch (badge) {
-    case 'Максимум':
-      return { icon: Crown, gradient: 'from-amber-500 to-orange-500' };
-    case 'Выгодно':
-      return { icon: Zap, gradient: 'from-accent to-lime-500' };
-    case 'Хит':
-      return { icon: Sparkles, gradient: 'from-accent to-emerald-500' };
-    case 'Новинка':
-      return { icon: Sparkles, gradient: 'from-blue-500 to-cyan-500' };
-    default:
-      return { icon: Sparkles, gradient: 'from-accent to-primary' };
-  }
 };
 
 const formatBenefit = (benefit: number) => {
@@ -59,8 +44,8 @@ export default function PackagesPage() {
   const { data: subscriptions = [], isLoading } = useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: prefetchSubscriptions,
-    staleTime: 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
@@ -95,9 +80,7 @@ export default function PackagesPage() {
           ) : (
             <div className="space-y-4">
             {filteredSubscriptions.map((sub, index) => {
-                const badgeStyle = getBadgeStyle(sub.badge);
                 const period = getPeriodText(sub.duration_days);
-                const BadgeIcon = badgeStyle?.icon || Sparkles;
                 const isActive = activeSubscriptionTypeId === sub.id;
                 
                 return (
@@ -112,10 +95,10 @@ export default function PackagesPage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       
                       {/* Badge from database */}
-                      {sub.badge && badgeStyle && !isActive && (
+                      {sub.badge && !isActive && (
                         <div className="absolute top-4 right-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r ${badgeStyle.gradient} shadow-lg`}>
-                            <BadgeIcon size={12} />
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
+                            <Sparkles size={12} />
                             {sub.badge}
                           </span>
                         </div>

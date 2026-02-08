@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, Zap, Crown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   DndContext,
@@ -49,6 +49,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableItem } from '@/components/admin/SortableItem';
 import { getSubscriptionDurationDays, formatDurationLabel } from '@/utils/subscriptionDuration';
+import { SubscriptionBadgeEditor, getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 
 interface SubscriptionType {
   id: string;
@@ -60,6 +61,7 @@ interface SubscriptionType {
   duration_days: number;
   is_active: boolean;
   badge: string | null;
+  badge_color: string | null;
   sort_order: number;
   created_at: string;
   features: string[] | null;
@@ -73,29 +75,6 @@ const DEFAULT_FEATURES = [
   '1 напиток за визит',
   'Во всех партнёрских кофейнях',
 ];
-
-const BADGE_OPTIONS = [
-  { value: '', label: 'Без бейджа', icon: null },
-  { value: 'Хит', label: 'Хит', icon: Sparkles },
-  { value: 'Выгодно', label: 'Выгодно', icon: Zap },
-  { value: 'Максимум', label: 'Максимум', icon: Crown },
-  { value: 'Новинка', label: 'Новинка', icon: Sparkles },
-];
-
-const getBadgeStyle = (badge: string | null) => {
-  switch (badge) {
-    case 'Максимум':
-      return 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
-    case 'Выгодно':
-      return 'bg-gradient-to-r from-green-500 to-lime-500 text-white';
-    case 'Хит':
-      return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white';
-    case 'Новинка':
-      return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-};
 
 export default function AdminSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
@@ -111,7 +90,8 @@ export default function AdminSubscriptionsPage() {
     price: 15000,
     duration_days: 30,
     is_active: true,
-    badge: '',
+    badge: '' as string | null,
+    badge_color: null as string | null,
     features: DEFAULT_FEATURES,
     benefit: 0,
     daily_limit: null as number | null,
@@ -188,7 +168,8 @@ export default function AdminSubscriptionsPage() {
       price: 15000,
       duration_days: 30,
       is_active: true,
-      badge: '',
+      badge: null,
+      badge_color: null,
       features: DEFAULT_FEATURES,
       benefit: 0,
       daily_limit: null,
@@ -206,7 +187,8 @@ export default function AdminSubscriptionsPage() {
       price: sub.price,
       duration_days: sub.duration_days,
       is_active: sub.is_active,
-      badge: sub.badge || '',
+      badge: sub.badge,
+      badge_color: sub.badge_color,
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
       benefit: sub.benefit || 0,
       daily_limit: sub.daily_limit,
@@ -233,6 +215,7 @@ export default function AdminSubscriptionsPage() {
             duration_days: formData.duration_days,
             is_active: formData.is_active,
             badge: formData.badge || null,
+            badge_color: formData.badge_color || null,
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
@@ -257,6 +240,7 @@ export default function AdminSubscriptionsPage() {
             duration_days: formData.duration_days,
             is_active: formData.is_active,
             badge: formData.badge || null,
+            badge_color: formData.badge_color || null,
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
@@ -361,7 +345,7 @@ export default function AdminSubscriptionsPage() {
                             </div>
                           </div>
                           {sub.badge && (
-                            <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${getBadgeStyle(sub.badge)}`}>
+                            <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
                               <Sparkles size={10} />
                               {sub.badge}
                             </span>
@@ -423,38 +407,23 @@ export default function AdminSubscriptionsPage() {
                 placeholder="Любой кофейный напиток каждый день"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="type">Тип</Label>
-                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="coffee">Кофе</SelectItem>
-                    <SelectItem value="drinks">Напитки</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="badge">Бейдж</Label>
-                <Select value={formData.badge} onValueChange={(v) => setFormData({ ...formData, badge: v === 'none' ? '' : v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выбрать бейдж" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BADGE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value || 'none'} value={option.value || 'none'}>
-                        <span className="flex items-center gap-2">
-                          {option.icon && <option.icon size={12} />}
-                          {option.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="type">Тип</Label>
+              <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="coffee">Кофе</SelectItem>
+                  <SelectItem value="drinks">Напитки</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <SubscriptionBadgeEditor
+              badge={formData.badge}
+              badgeColor={formData.badge_color}
+              onChange={(badge, color) => setFormData({ ...formData, badge, badge_color: color })}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="cups_count">Количество</Label>

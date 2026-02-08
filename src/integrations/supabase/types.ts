@@ -527,6 +527,7 @@ export type Database = {
       subscription_types: {
         Row: {
           badge: string | null
+          badge_color: string | null
           benefit: number | null
           created_at: string | null
           cups_count: number
@@ -544,6 +545,7 @@ export type Database = {
         }
         Insert: {
           badge?: string | null
+          badge_color?: string | null
           benefit?: number | null
           created_at?: string | null
           cups_count: number
@@ -561,6 +563,7 @@ export type Database = {
         }
         Update: {
           badge?: string | null
+          badge_color?: string | null
           benefit?: number | null
           created_at?: string | null
           cups_count?: number

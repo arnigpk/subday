@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Info, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { usePayment } from '@/hooks/usePayment';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
+import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 
 interface SubscriptionType {
   id: string;
@@ -17,6 +18,7 @@ interface SubscriptionType {
   price: number;
   duration_days: number;
   badge: string | null;
+  badge_color: string | null;
   features: string[] | null;
   benefit: number | null;
 }
@@ -134,7 +136,10 @@ export default function PackageDetailPage() {
                 )}
               </div>
               {subscription.badge && (
-                <span className="badge-accent">{subscription.badge}</span>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(subscription.badge, subscription.badge_color)}`}>
+                  <Sparkles size={12} />
+                  {subscription.badge}
+                </span>
               )}
             </div>
 
