@@ -12,11 +12,11 @@ interface DeepLinkConfig {
 }
 
 const deepLinkConfigs: DeepLinkConfig[] = [
-  // Instagram
+  // Instagram profile
   {
-    pattern: /(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)\/?/,
+    pattern: /(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)\/?$/,
     extractId: (url) => {
-      const match = url.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
+      const match = url.match(/instagram\.com\/([a-zA-Z0-9_.]+)\/?$/);
       return match ? match[1] : null;
     },
     deepLink: (id) => `instagram://user?username=${id}`,
@@ -44,9 +44,9 @@ const deepLinkConfigs: DeepLinkConfig[] = [
   },
   // Telegram channel/user
   {
-    pattern: /(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)\/?/,
+    pattern: /(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)\/?$/,
     extractId: (url) => {
-      const match = url.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)/);
+      const match = url.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)\/?$/);
       return match ? match[1] : null;
     },
     deepLink: (id) => `tg://resolve?domain=${id}`,
@@ -67,7 +67,7 @@ const deepLinkConfigs: DeepLinkConfig[] = [
   },
   // WhatsApp direct message
   {
-    pattern: /(?:https?:\/\/)?(?:www\.)?(?:wa\.me|api\.whatsapp\.com\/send)\/?\??(?:phone=)?(\d+)/,
+    pattern: /(?:https?:\/\/)?(?:www\.)?(?:wa\.me|api\.whatsapp\.com\/send)/,
     extractId: (url) => {
       // Handle wa.me/1234567890
       const waMatch = url.match(/wa\.me\/(\d+)/);
@@ -82,42 +82,50 @@ const deepLinkConfigs: DeepLinkConfig[] = [
     deepLink: (id) => `whatsapp://send?phone=${id}`,
     webUrl: (id) => `https://wa.me/${id}`,
   },
-  // WhatsApp with text
-  {
-    pattern: /(?:https?:\/\/)?(?:www\.)?wa\.me\/(\d+)\?text=/,
-    extractId: (url) => {
-      const match = url.match(/wa\.me\/(\d+)\?text=([^&]*)/);
-      if (match) {
-        return `${match[1]}|${match[2]}`;
-      }
-      return null;
-    },
-    deepLink: (id) => {
-      const [phone, text] = id.split('|');
-      return `whatsapp://send?phone=${phone}&text=${text}`;
-    },
-    webUrl: (id) => {
-      const [phone, text] = id.split('|');
-      return `https://wa.me/${phone}?text=${text}`;
-    },
-  },
 ];
 
 /**
- * Opens a URL with deep link support for popular apps
- * Tries to open the native app first, falls back to web version
+ * Check if device is mobile
+ */
+function isMobileDevice(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+}
+
+/**
+ * Opens a URL with deep link support for popular apps on mobile
+ * On desktop, opens the web version directly
  */
 export function openWithDeepLink(url: string): void {
-  // Find matching config
+  // Check if running in Telegram Mini App
+  const tgWebApp = window.Telegram?.WebApp as { 
+    initData?: string; 
+    openLink?: (url: string) => void 
+  } | undefined;
+  
+  if (tgWebApp?.initData && tgWebApp?.openLink) {
+    // In Telegram Mini App, use openLink for external URLs
+    tgWebApp.openLink(url);
+    return;
+  }
+
+  // Find matching config for deep link
   for (const config of deepLinkConfigs) {
     if (config.pattern.test(url)) {
       const id = config.extractId(url);
       if (id) {
-        const deepLink = config.deepLink(id);
         const webUrl = config.webUrl(id);
         
-        // Try to open deep link with fallback
-        tryDeepLinkWithFallback(deepLink, webUrl);
+        // On mobile, try deep link with fallback
+        if (isMobileDevice()) {
+          const deepLink = config.deepLink(id);
+          tryDeepLinkWithFallback(deepLink, webUrl);
+          return;
+        }
+        
+        // On desktop, just open web version
+        window.open(webUrl, '_blank', 'noopener,noreferrer');
         return;
       }
     }
@@ -128,54 +136,38 @@ export function openWithDeepLink(url: string): void {
 }
 
 /**
- * Attempts to open a deep link, falls back to web URL if app is not installed
+ * Attempts to open a deep link on mobile, falls back to web URL
+ * Uses a simple timeout-based approach that works reliably
  */
 function tryDeepLinkWithFallback(deepLink: string, webUrl: string): void {
-  // Check if running in Telegram Mini App
-  const tgWebApp = window.Telegram?.WebApp as { 
-    initData?: string; 
-    openLink?: (url: string) => void 
-  } | undefined;
-  const isTelegramMiniApp = tgWebApp?.initData;
-  
-  if (isTelegramMiniApp && tgWebApp?.openLink) {
-    // In Telegram Mini App, use openLink for external URLs
-    // Deep links may not work properly in TMA context
-    tgWebApp.openLink(webUrl);
-    return;
-  }
-  
-  // Create hidden iframe to try deep link (works better on mobile)
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  document.body.appendChild(iframe);
-  
-  // Set timeout for fallback
-  const timeout = setTimeout(() => {
-    document.body.removeChild(iframe);
-    window.open(webUrl, '_blank', 'noopener,noreferrer');
-  }, 1500);
-  
-  // Try deep link via iframe
-  iframe.src = deepLink;
-  
-  // Also try via window.location for iOS
+  // Record start time
   const startTime = Date.now();
   
-  // Check if app was opened (page will be hidden)
-  const checkVisibility = () => {
-    if (document.hidden || Date.now() - startTime > 1000) {
-      clearTimeout(timeout);
-      document.body.removeChild(iframe);
+  // Set up fallback timer
+  const fallbackTimer = setTimeout(() => {
+    // Only open web URL if we're still on the page (app didn't open)
+    // If app opened, the page would be hidden and timer cleared
+    if (Date.now() - startTime < 2000) {
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, 1500);
+  
+  // Listen for page becoming hidden (means app opened)
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      clearTimeout(fallbackTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     }
   };
   
-  // Listen for visibility change
-  document.addEventListener('visibilitychange', checkVisibility, { once: true });
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   
-  // Clean up after timeout
+  // Try to open deep link via location.href (most reliable on mobile)
+  window.location.href = deepLink;
+  
+  // Clean up listener after timeout
   setTimeout(() => {
-    document.removeEventListener('visibilitychange', checkVisibility);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, 2000);
 }
 
