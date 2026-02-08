@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useQuery } from '@tanstack/react-query';
+import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen } from '@/utils/shopHours';
@@ -76,13 +77,21 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
+  const queryClient = useQueryClient();
 
-  const { data: shops = [], isLoading } = useQuery({
+  const { data: shops = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes cache
   });
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({ queryKey: ['adBanners'] }),
+    ]);
+  }, [refetch, queryClient]);
 
   // Memoize shop coordinates to prevent infinite re-renders in useShopDistances
   const shopCoordinates = useMemo(() => 
@@ -121,124 +130,126 @@ export default function ShopsPage() {
   
   return (
     <AppLayout>
-      <div className="safe-area-top">
-        <div className="px-4 py-4">
-          <h1 className="text-2xl font-black text-foreground mb-4">Кофейни</h1>
-          
-          {/* Ad Banner Carousel */}
-          <AdBannerCarousel />
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="safe-area-top">
+          <div className="px-4 py-4">
+            <h1 className="text-2xl font-black text-foreground mb-4">Кофейни</h1>
+            
+            {/* Ad Banner Carousel */}
+            <AdBannerCarousel />
 
-          {/* Location status */}
-          {permissionDenied && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl mb-4 text-sm text-muted-foreground">
-              <MapPinOff size={16} />
-              <span>Включите геолокацию для сортировки по расстоянию</span>
+            {/* Location status */}
+            {permissionDenied && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl mb-4 text-sm text-muted-foreground">
+                <MapPinOff size={16} />
+                <span>Включите геолокацию для сортировки по расстоянию</span>
+              </div>
+            )}
+            
+            {/* Filters */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+              {filters.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
+                    activeFilter === filter.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
-          )}
-          
-          {/* Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-            {filters.map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
-                  activeFilter === filter.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-secondary text-secondary-foreground'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-          
-          {/* Shops list */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : filteredAndSortedShops.length > 0 ? (
-            <div className="space-y-3">
-              {filteredAndSortedShops.map((shop, index) => {
-                const shopDistance = distances.get(shop.id);
-                const closestIndex = shopDistance?.closestAddressIndex ?? 0;
-                const addresses = shop.addresses || (shop.address ? [shop.address] : []);
-                
-                // Reorder addresses to show closest first
-                const reorderedAddresses = addresses.length > 1 && closestIndex > 0
-                  ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
-                  : addresses;
-                
-                return (
-                  <div
-                    key={shop.id}
-                    className="block animate-slide-up"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
-                    <Link
-                      to={`/shops/${shop.id}`}
-                      className="card-interactive block"
+            
+            {/* Shops list */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : filteredAndSortedShops.length > 0 ? (
+              <div className="space-y-3">
+                {filteredAndSortedShops.map((shop, index) => {
+                  const shopDistance = distances.get(shop.id);
+                  const closestIndex = shopDistance?.closestAddressIndex ?? 0;
+                  const addresses = shop.addresses || (shop.address ? [shop.address] : []);
+                  
+                  // Reorder addresses to show closest first
+                  const reorderedAddresses = addresses.length > 1 && closestIndex > 0
+                    ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
+                    : addresses;
+                  
+                  return (
+                    <div
+                      key={shop.id}
+                      className="block animate-slide-up"
+                      style={{ animationDelay: `${index * 0.05}s` }}
                     >
-                      <div className="flex items-start gap-3">
-                        {(shop.gallery_urls?.[0] || shop.logo_url) ? (
-                          <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
-                            ☕
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
-                            <span className={`text-xs whitespace-nowrap ${
-                              shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
-                            }`}>
-                              {formatDistance(shopDistance?.distance)}
-                            </span>
-                          </div>
+                      <Link
+                        to={`/shops/${shop.id}`}
+                        className="card-interactive block"
+                      >
+                        <div className="flex items-start gap-3">
+                          {(shop.gallery_urls?.[0] || shop.logo_url) ? (
+                            <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
+                              ☕
+                            </div>
+                          )}
                           
-                          {/* Addresses - closest first */}
-                          <div onClick={(e) => e.preventDefault()}>
-                            <AddressesList 
-                              addresses={reorderedAddresses} 
-                              variant="compact"
-                              className="mt-2"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {shop.city && (
-                              <div className="flex items-center gap-1">
-                                <Navigation size={12} className="text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">{shop.city}</span>
-                              </div>
-                            )}
-                            {shop.working_hours && (
-                              <ShopStatusBadge openHours={shop.working_hours} />
-                            )}
-                            {shop.allBadges.length > 0 && (
-                              <div onClick={(e) => e.preventDefault()}>
-                                <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
-                              </div>
-                            )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
+                              <span className={`text-xs whitespace-nowrap ${
+                                shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
+                              }`}>
+                                {formatDistance(shopDistance?.distance)}
+                              </span>
+                            </div>
+                            
+                            {/* Addresses - closest first */}
+                            <div onClick={(e) => e.preventDefault()}>
+                              <AddressesList 
+                                addresses={reorderedAddresses} 
+                                variant="compact"
+                                className="mt-2"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {shop.city && (
+                                <div className="flex items-center gap-1">
+                                  <Navigation size={12} className="text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{shop.city}</span>
+                                </div>
+                              )}
+                              {shop.working_hours && (
+                                <ShopStatusBadge openHours={shop.working_hours} />
+                              )}
+                              {shop.allBadges.length > 0 && (
+                                <div onClick={(e) => e.preventDefault()}>
+                                  <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-4">🔍</div>
-              <p className="text-lg font-semibold text-foreground mb-2">Нет кофеен</p>
-              <p className="text-sm text-muted-foreground">Попробуйте изменить фильтр</p>
-            </div>
-          )}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-4xl mb-4">🔍</div>
+                <p className="text-lg font-semibold text-foreground mb-2">Нет кофеен</p>
+                <p className="text-sm text-muted-foreground">Попробуйте изменить фильтр</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }
