@@ -137,6 +137,12 @@ export default function PackagesPage() {
                                 {sub.description}
                               </p>
                             )}
+                            {/* Cups and duration notification */}
+                            <div className="mt-2 pl-5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
+                                ☕ {sub.cups_count} кофе на {sub.duration_days} {sub.duration_days === 1 ? 'день' : sub.duration_days < 5 ? 'дня' : sub.duration_days < 21 ? 'дней' : sub.duration_days % 10 === 1 ? 'день' : sub.duration_days % 10 < 5 && sub.duration_days % 10 > 0 ? 'дня' : 'дней'}
+                              </span>
+                            </div>
                           </div>
                           
                           {/* Price section */}
