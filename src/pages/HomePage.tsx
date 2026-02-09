@@ -3,7 +3,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
-import { TopShopsByVisits } from '@/components/home/NearbyShops';
 import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -33,7 +32,6 @@ export default function HomePage() {
     await Promise.all([
       refetch(),
       queryClient.invalidateQueries({ queryKey: ['shops'] }),
-      queryClient.invalidateQueries({ queryKey: ['topShops'] }),
     ]);
   }, [refetch, queryClient]);
   
@@ -87,7 +85,6 @@ export default function HomePage() {
             
             <BalanceCard />
             <GetCoffeeButton />
-            <TopShopsByVisits />
           </div>
         </div>
       </PullToRefresh>
