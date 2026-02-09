@@ -21,6 +21,7 @@ interface AdBanner {
   is_active: boolean;
   sort_order: number;
   autoplay_delay: number;
+  display_location: string;
   created_at: string;
 }
 
@@ -52,6 +53,7 @@ export default function AdminBannersPage() {
     is_active: true,
     sort_order: 0,
     autoplay_delay: 4,
+    display_location: 'shops',
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -122,6 +124,7 @@ export default function AdminBannersPage() {
       is_active: true,
       sort_order: banners.length,
       autoplay_delay: 4,
+      display_location: 'shops',
     });
     setEditingBanner(null);
   };
@@ -142,6 +145,7 @@ export default function AdminBannersPage() {
       is_active: banner.is_active,
       sort_order: banner.sort_order,
       autoplay_delay: banner.autoplay_delay,
+      display_location: banner.display_location || 'shops',
     });
     setIsDialogOpen(true);
   };
@@ -197,6 +201,7 @@ export default function AdminBannersPage() {
         is_active: formData.is_active,
         sort_order: formData.sort_order,
         autoplay_delay: formData.autoplay_delay,
+        display_location: formData.display_location,
       };
 
       if (editingBanner) {
@@ -405,6 +410,24 @@ export default function AdminBannersPage() {
                   </div>
                 )}
 
+                {/* Display location */}
+                <div>
+                  <Label>Место публикации</Label>
+                  <Select
+                    value={formData.display_location}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, display_location: value }))}
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Выберите место" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shops">Только в кофейнях</SelectItem>
+                      <SelectItem value="home">Только на главной</SelectItem>
+                      <SelectItem value="both">На главной и в кофейнях</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Autoplay delay */}
                 <div>
                   <Label htmlFor="autoplay_delay">Время прокрутки (сек)</Label>
@@ -505,7 +528,9 @@ export default function AdminBannersPage() {
                           {getStats(banner.id).clicks}
                         </span>
                         <span>{banner.autoplay_delay} сек</span>
-                        <span>Порядок: {banner.sort_order}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        📍 {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Главная + Кофейни'}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

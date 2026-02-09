@@ -16,6 +16,7 @@ interface AdBanner {
   is_active: boolean;
   sort_order: number;
   autoplay_delay: number;
+  display_location: string;
 }
 
 // Preload images for instant display
@@ -26,7 +27,11 @@ function preloadImages(urls: string[]) {
   });
 }
 
-export function AdBannerCarousel() {
+interface AdBannerCarouselProps {
+  location?: 'home' | 'shops';
+}
+
+export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [autoplayDelay, setAutoplayDelay] = useState(4000);
@@ -35,7 +40,7 @@ export function AdBannerCarousel() {
   const preloadedRef = useRef(false);
 
   const { data: banners = [], isLoading } = useQuery({
-    queryKey: ['ad-banners'],
+    queryKey: ['ad-banners', location],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ad_banners')
@@ -44,7 +49,13 @@ export function AdBannerCarousel() {
         .order('sort_order', { ascending: true });
       
       if (error) throw error;
-      return data as AdBanner[];
+      
+      // Filter by location
+      const filtered = (data as AdBanner[]).filter(banner => 
+        banner.display_location === location || banner.display_location === 'both'
+      );
+      
+      return filtered;
     },
     staleTime: 60 * 1000, // 1 minute
   });

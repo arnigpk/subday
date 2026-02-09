@@ -136,7 +136,7 @@ export default function ShopsPage() {
             <h1 className="text-2xl font-black text-foreground mb-4">Кофейни</h1>
             
             {/* Ad Banner Carousel */}
-            <AdBannerCarousel />
+            <AdBannerCarousel location="shops" />
 
             {/* Location status */}
             {permissionDenied && (
