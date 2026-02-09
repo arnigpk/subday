@@ -79,7 +79,7 @@ export default function HomePage() {
           </div>
           
           {/* Content */}
-          <div className="px-4 mt-4 space-y-6">
+          <div className="px-4 mt-6 space-y-8">
             {/* Top shops carousel */}
             <TopShopsCarousel />
             
