@@ -190,7 +190,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
                 />
                 {banner.caption && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-b-2xl">
-                    <p className="text-white text-sm font-medium truncate">
+                    <p className="text-white text-sm font-medium truncate text-center">
                       {banner.caption}
                     </p>
                   </div>
