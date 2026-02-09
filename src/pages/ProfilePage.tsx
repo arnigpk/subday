@@ -320,7 +320,11 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   )}
-                  <p className="text-muted-foreground">{profile?.phone || ''}</p>
+                  <p className="text-muted-foreground">
+                    {profile?.phone?.startsWith('+telegram_') 
+                      ? `ID: ${profile.phone.replace('+telegram_', '')}` 
+                      : profile?.phone || ''}
+                  </p>
                 </>
               )}
             </div>
