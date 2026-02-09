@@ -107,7 +107,7 @@ export function TopShopsCarousel() {
       
       <div 
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory"
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory justify-center"
       >
         {sortedShops.map((shop) => {
           const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
