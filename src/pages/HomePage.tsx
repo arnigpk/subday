@@ -4,6 +4,7 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
 import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
+import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { usePaymentResult } from '@/hooks/usePaymentResult';
@@ -85,6 +86,9 @@ export default function HomePage() {
             
             <BalanceCard />
             <GetCoffeeButton />
+            
+            {/* Ad banners for home page */}
+            <AdBannerCarousel location="home" />
           </div>
         </div>
       </PullToRefresh>
