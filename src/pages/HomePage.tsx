@@ -79,12 +79,11 @@ export default function HomePage() {
           </div>
           
           {/* Content */}
-          <div className="px-4 mt-6 space-y-8">
+          <div className="px-4 space-y-5">
             {/* Top shops carousel */}
             <TopShopsCarousel />
             
             <BalanceCard />
-            
             <GetCoffeeButton />
           </div>
         </div>
