@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -320,11 +320,25 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   )}
-                  <p className="text-muted-foreground">
-                    {profile?.phone?.startsWith('+telegram_') 
-                      ? `ID: ${profile.phone.replace('+telegram_', '')}` 
-                      : profile?.phone || ''}
-                  </p>
+                  <button
+                    onClick={() => {
+                      const value = profile?.phone?.startsWith('+telegram_')
+                        ? profile.phone.replace('+telegram_', '')
+                        : profile?.phone || '';
+                      if (value) {
+                        navigator.clipboard.writeText(value);
+                        toast.success('Скопировано!');
+                      }
+                    }}
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span>
+                      {profile?.phone?.startsWith('+telegram_') 
+                        ? `ID: ${profile.phone.replace('+telegram_', '')}` 
+                        : profile?.phone || ''}
+                    </span>
+                    <Copy size={12} className="flex-shrink-0" />
+                  </button>
                 </>
               )}
             </div>
