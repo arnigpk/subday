@@ -151,21 +151,6 @@ export function TopShopsCarousel() {
         })}
       </div>
       
-      {/* Active pagination dots */}
-      {sortedShops.length > 3 && (
-        <div className="flex justify-center gap-1.5 mt-2">
-          {sortedShops.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === activeIndex 
-                  ? 'w-4 bg-accent' 
-                  : 'w-1.5 bg-muted-foreground/30'
-              }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
