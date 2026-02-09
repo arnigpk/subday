@@ -61,12 +61,12 @@ export function TopShopsCarousel() {
   // Get distances for all shops
   const { distances, userLocation } = useShopDistances(shopCoordinates);
 
-  // Sort shops by distance if location available
+  // Sort shops by distance if location available, limit to 4
   const sortedShops = useMemo(() => {
-    if (userLocation && distances.size > 0) {
-      return sortByDistance(shops, distances);
-    }
-    return shops;
+    const sorted = userLocation && distances.size > 0
+      ? sortByDistance(shops, distances)
+      : shops;
+    return sorted.slice(0, 4);
   }, [shops, distances, userLocation]);
 
   if (isLoading) {
