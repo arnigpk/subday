@@ -2,21 +2,21 @@ import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, Coffee, TrendingUp, Calendar } from 'lucide-react';
+import { UserPlus, LogIn, Calendar, TrendingUp } from 'lucide-react';
 
 interface DashboardStats {
-  totalUsers: number;
-  todayRedemptions: number;
-  weeklyRedemptions: number;
-  activeUsersWeek: number;
+  todayRegistered: number;
+  todayLogins: number;
+  weekRegistered: number;
+  weekLogins: number;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    todayRedemptions: 0,
-    weeklyRedemptions: 0,
-    activeUsersWeek: 0,
+    todayRegistered: 0,
+    todayLogins: 0,
+    weekRegistered: 0,
+    weekLogins: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [recentRedemptions, setRecentRedemptions] = useState<any[]>([]);
@@ -28,37 +28,17 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const { data, error } = await supabase.rpc('get_admin_dashboard_stats');
+      
+      if (error) throw error;
 
-      // Total users
-      const { count: totalUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      // Today's redemptions
-      const { count: todayRedemptions } = await supabase
-        .from('redemptions')
-        .select('*', { count: 'exact', head: true })
-        .gte('redeemed_at', today);
-
-      // Weekly redemptions
-      const { count: weeklyRedemptions } = await supabase
-        .from('redemptions')
-        .select('*', { count: 'exact', head: true })
-        .gte('redeemed_at', weekAgo);
-
-      // Active users this week
-      const { count: activeUsersWeek } = await supabase
-        .from('user_stats')
-        .select('*', { count: 'exact', head: true })
-        .gte('last_redemption_date', weekAgo);
-
+      const result = data as { today_registered: number; today_logins: number; week_registered: number; week_logins: number } | null;
+      
       setStats({
-        totalUsers: totalUsers || 0,
-        todayRedemptions: todayRedemptions || 0,
-        weeklyRedemptions: weeklyRedemptions || 0,
-        activeUsersWeek: activeUsersWeek || 0,
+        todayRegistered: result?.today_registered || 0,
+        todayLogins: result?.today_logins || 0,
+        weekRegistered: result?.week_registered || 0,
+        weekLogins: result?.week_logins || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -83,26 +63,26 @@ export default function AdminDashboard() {
 
   const statCards = [
     { 
-      title: 'Всего пользователей', 
-      value: stats.totalUsers, 
-      icon: Users,
+      title: 'Сегодня зарегистрировано', 
+      value: stats.todayRegistered, 
+      icon: UserPlus,
       color: 'text-blue-500'
     },
     { 
-      title: 'Сегодня', 
-      value: stats.todayRedemptions, 
-      icon: Coffee,
+      title: 'Сегодня зашли', 
+      value: stats.todayLogins, 
+      icon: LogIn,
       color: 'text-green-500'
     },
     { 
-      title: 'За неделю', 
-      value: stats.weeklyRedemptions, 
+      title: 'Регистрации за неделю', 
+      value: stats.weekRegistered, 
       icon: Calendar,
       color: 'text-purple-500'
     },
     { 
-      title: 'Активных (7 дней)', 
-      value: stats.activeUsersWeek, 
+      title: 'Зашли за неделю', 
+      value: stats.weekLogins, 
       icon: TrendingUp,
       color: 'text-orange-500'
     },

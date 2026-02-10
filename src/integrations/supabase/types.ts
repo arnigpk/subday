@@ -822,6 +822,7 @@ export type Database = {
         Returns: Json
       }
       expire_subscriptions: { Args: never; Returns: undefined }
+      get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
       get_shop_visit_counts: {
         Args: never
