@@ -139,7 +139,7 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[55vh] flex flex-col p-0 rounded-t-2xl">
-        <SheetHeader className="px-4 pt-3 pb-2 border-b">
+        <SheetHeader className="px-4 pt-3 pb-2 border-b pr-12">
           <SheetTitle className="flex items-center gap-2 text-sm">
             <Bot className="h-4 w-4 text-primary" />
             <span className="flex-1">Служба заботы subday</span>
