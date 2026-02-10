@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -142,7 +142,16 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
         <SheetHeader className="px-4 pt-3 pb-2 border-b">
           <SheetTitle className="flex items-center gap-2 text-sm">
             <Bot className="h-4 w-4 text-primary" />
-            Служба заботы subday
+            <span className="flex-1">Служба заботы subday</span>
+            {messages.length > 0 && (
+              <button
+                onClick={() => setMessages([])}
+                className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10"
+                aria-label="Очистить чат"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </SheetTitle>
         </SheetHeader>
 
