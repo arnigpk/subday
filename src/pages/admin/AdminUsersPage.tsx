@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAdminAuth';
 
@@ -81,6 +81,9 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<UserWithStats | null>(null);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
+  const [registrationFilter, setRegistrationFilter] = useState<string>('all');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -97,7 +100,7 @@ export default function AdminUsersPage() {
     fetchUsers();
     fetchSubscriptionTypes();
     fetchShops();
-  }, [page, search]);
+  }, [page, search, registrationFilter, customDateFrom, customDateTo]);
 
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
@@ -125,6 +128,24 @@ export default function AdminUsersPage() {
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+      }
+
+      // Registration date filter
+      if (registrationFilter === 'week') {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', weekAgo);
+      } else if (registrationFilter === 'month') {
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', monthAgo);
+      } else if (registrationFilter === 'custom') {
+        if (customDateFrom) {
+          query = query.gte('created_at', new Date(customDateFrom).toISOString());
+        }
+        if (customDateTo) {
+          const endDate = new Date(customDateTo);
+          endDate.setDate(endDate.getDate() + 1);
+          query = query.lt('created_at', endDate.toISOString());
+        }
       }
 
       const { data: profiles, count, error } = await query
@@ -397,19 +418,60 @@ export default function AdminUsersPage() {
     <AdminLayout title="Пользователи">
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <CardTitle>Все пользователи ({totalCount})</CardTitle>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Поиск по имени или телефону"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(0);
-                }}
-                className="pl-10"
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <CardTitle>Все пользователи ({totalCount})</CardTitle>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по имени или телефону"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(0);
+                  }}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Регистрация:</span>
+              {['all', 'week', 'month', 'custom'].map((filter) => (
+                <Button
+                  key={filter}
+                  variant={registrationFilter === filter ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setRegistrationFilter(filter);
+                    setPage(0);
+                  }}
+                >
+                  {filter === 'all' && 'Все'}
+                  {filter === 'week' && 'За неделю'}
+                  {filter === 'month' && 'За месяц'}
+                  {filter === 'custom' && 'Произвольный'}
+                </Button>
+              ))}
+              {registrationFilter === 'custom' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(e) => { setCustomDateFrom(e.target.value); setPage(0); }}
+                    className="w-36 h-8 text-sm"
+                    placeholder="От"
+                  />
+                  <span className="text-sm text-muted-foreground">—</span>
+                  <Input
+                    type="date"
+                    value={customDateTo}
+                    onChange={(e) => { setCustomDateTo(e.target.value); setPage(0); }}
+                    className="w-36 h-8 text-sm"
+                    placeholder="До"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
