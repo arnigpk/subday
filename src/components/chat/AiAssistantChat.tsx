@@ -142,7 +142,7 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
         <SheetHeader className="px-4 pt-3 pb-2 border-b">
           <SheetTitle className="flex items-center gap-2 text-sm">
             <Bot className="h-4 w-4 text-primary" />
-            AI-помощник subday
+            Служба заботы subday
           </SheetTitle>
         </SheetHeader>
 
