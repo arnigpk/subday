@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -26,6 +27,7 @@ interface ShopData {
   addresses: string[];
   working_hours: string;
   logo_url: string | null;
+  description: string;
 }
 
 export default function PartnerDashboard() {
@@ -53,7 +55,7 @@ export default function PartnerDashboard() {
         // Fetch shop data
         const { data: shop } = await supabase
           .from('shops')
-          .select('name, address, addresses, working_hours, logo_url')
+          .select('name, address, addresses, working_hours, logo_url, description')
           .eq('id', shopId)
           .maybeSingle();
 
@@ -65,6 +67,7 @@ export default function PartnerDashboard() {
             addresses: addressesArray,
             working_hours: shop.working_hours || '09:00-21:00',
             logo_url: shop.logo_url || null,
+            description: (shop as any).description || '',
           });
         }
 
@@ -166,6 +169,7 @@ export default function PartnerDashboard() {
           addresses: editedShopData.addresses.map(a => a.trim()).filter(Boolean),
           working_hours: editedShopData.working_hours.trim(),
           logo_url: editedShopData.logo_url,
+          description: editedShopData.description.trim() || null,
         })
         .eq('id', shopId);
 
@@ -293,6 +297,16 @@ export default function PartnerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="shop-description">О кофейне</Label>
+                  <Textarea
+                    id="shop-description"
+                    value={editedShopData.description}
+                    onChange={(e) => setEditedShopData({ ...editedShopData, description: e.target.value })}
+                    placeholder="Расскажите о вашей кофейне..."
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="shop-hours">Время работы</Label>
                   <Input
                     id="shop-hours"
@@ -341,6 +355,12 @@ export default function PartnerDashboard() {
                       <p className="font-medium">{shopData.address || '—'}</p>
                     )}
                   </div>
+                  {shopData.description && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">О кофейне</p>
+                      <p className="font-medium text-sm whitespace-pre-line">{shopData.description}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground">Время работы</p>
                     <p className="font-medium">{shopData.working_hours}</p>
