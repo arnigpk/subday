@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
 import { ShopGalleryUpload } from '@/components/admin/ShopGalleryUpload';
@@ -61,6 +62,7 @@ interface Shop {
   badge_color: string | null;
   badges: unknown;
   coordinates: unknown;
+  description: string | null;
 }
 
 interface Coordinate {
@@ -91,6 +93,7 @@ export default function AdminShopsPage() {
     logo_url: null as string | null,
     gallery_urls: [] as string[],
     badges: [] as ShopBadgeData[],
+    description: '',
   });
 
   const sensors = useSensors(
@@ -164,6 +167,7 @@ export default function AdminShopsPage() {
       logo_url: null,
       gallery_urls: [],
       badges: [],
+      description: '',
     });
     setIsDialogOpen(true);
   };
@@ -199,6 +203,7 @@ export default function AdminShopsPage() {
       logo_url: shop.logo_url,
       gallery_urls: shop.gallery_urls || [],
       badges: parsedBadges,
+      description: (shop as any).description || '',
     });
     setIsDialogOpen(true);
   };
@@ -233,6 +238,7 @@ export default function AdminShopsPage() {
             badges: badgesJson,
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
+            description: formData.description.trim() || null,
           })
           .eq('id', editingShop.id);
 
@@ -258,6 +264,7 @@ export default function AdminShopsPage() {
             badges: badgesJson,
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
+            description: formData.description.trim() || null,
             sort_order: maxOrder + 1,
           }]);
 
@@ -444,6 +451,16 @@ export default function AdminShopsPage() {
               maxImages={4}
               maxSizeMb={15}
             />
+            <div>
+              <Label htmlFor="description">О кофейне</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Расскажите о вашей кофейне..."
+                rows={3}
+              />
+            </div>
             <BadgesEditor
               badges={formData.badges}
               onChange={(badges) => setFormData({ ...formData, badges })}

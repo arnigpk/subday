@@ -24,6 +24,7 @@ interface Shop {
   badge_color: string | null;
   badges: unknown;
   coordinates: unknown;
+  description: string | null;
 }
 function parseCoordinates(coords: unknown): Coordinate[] {
   if (!coords || !Array.isArray(coords)) return [];
@@ -194,6 +195,14 @@ export default function ShopDetailPage() {
             </div>
           </div>
           
+          {/* About shop */}
+          {shop.description && (
+            <div className="card-static animate-slide-up" style={{ animationDelay: '0.05s' }}>
+              <h3 className="text-sm font-bold text-foreground mb-1.5">{shop.name}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{shop.description}</p>
+            </div>
+          )}
+
           {/* Available by package */}
           <div className="animate-slide-up" style={{
           animationDelay: '0.1s'
