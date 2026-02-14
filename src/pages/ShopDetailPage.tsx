@@ -161,7 +161,7 @@ export default function ShopDetailPage() {
             {/* Distance and duration */}
             {shopDistance?.distance != null && <div className="flex items-center gap-2 mb-3 text-xs">
                 <div className="flex items-center gap-1 text-foreground font-medium">
-                  <Navigation size={14} className="text-accent" />
+                  <Navigation size={14} className="text-green-700 dark:text-green-500" />
                   <span>{formatDistance(shopDistance.distance)}</span>
                 </div>
                 {shopDistance.duration != null && <span className="text-muted-foreground">
@@ -182,7 +182,7 @@ export default function ShopDetailPage() {
                   return reordered.map((addr, index) => {
                     const isClosest = index === 0 && hasMultipleAddresses && shopDistance?.distance != null;
                     return (
-                      <p key={index} className={`text-xs font-medium ${isClosest ? 'text-accent' : 'text-foreground'}`}>
+                      <p key={index} className={`text-xs font-medium ${isClosest ? 'text-green-700 dark:text-green-500' : 'text-foreground'}`}>
                         {addr}
                       </p>
                     );
