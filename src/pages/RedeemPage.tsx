@@ -8,7 +8,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
-import logo from '@/assets/logo.png';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import {
@@ -362,16 +361,10 @@ export default function RedeemPage() {
                   <QRCodeSVG 
                     value={qrCodeData}
                     size={260}
-                    level="H"
+                    level="L"
                     includeMargin={false}
                     bgColor="white"
                     fgColor="#000000"
-                    imageSettings={{
-                      src: logo,
-                      width: 40,
-                      height: 40,
-                      excavate: true,
-                    }}
                   />
                 ) : (
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
