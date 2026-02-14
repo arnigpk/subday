@@ -145,7 +145,7 @@ export function TopShopsByVisits() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground text-sm truncate">{shop.name}</p>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
+                  <span className={`text-xs font-medium ${isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
                     {isOpen ? 'Открыто' : 'Закрыто'}
                   </span>
                 </div>

@@ -39,8 +39,8 @@ function ShopStatusBadge({ openHours }: { openHours: string }) {
   
   return (
     <div className="flex items-center gap-1">
-      <Clock size={12} className={isOpen ? 'text-accent' : 'text-destructive'} />
-      <span className={`text-xs font-medium ${isOpen ? 'text-accent' : 'text-destructive'}`}>
+      <Clock size={12} className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
+      <span className={`text-xs font-medium ${isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
         {isOpen ? 'Открыто' : 'Закрыто'}
       </span>
     </div>
