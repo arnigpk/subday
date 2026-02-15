@@ -4,14 +4,17 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatDateKz } from '@/utils/kazakh';
 
 export default function HistoryPage() {
   const { redemptions, isLoading } = useUserStatsContext();
   const { t, language } = useLanguage();
   
   const formatDate = (dateStr: string) => {
-    try { return format(parseISO(dateStr), 'd MMM', { locale: ru }); }
-    catch { return dateStr; }
+    try {
+      const d = parseISO(dateStr);
+      return language === 'kz' ? formatDateKz(d) : format(d, 'd MMM', { locale: ru });
+    } catch { return dateStr; }
   };
   
   const formatTime = (dateStr: string) => {
