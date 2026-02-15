@@ -66,7 +66,7 @@ export default function HomePage() {
               }}
             />
             <div>
-              <p className="text-sm font-bold text-foreground">СДЕЛАНО В KZ 🇰🇿</p>
+              <span className="text-2xl">🇰🇿</span>
             </div>
             <div className="absolute left-1/2 -translate-x-1/2">
               <div className="w-20 h-20">
