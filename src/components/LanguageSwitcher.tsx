@@ -1,14 +1,58 @@
+import { useState, useRef, useEffect } from 'react';
+import { Globe, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const options = [
+    { value: 'ru' as const, label: 'Русский', flag: '🇷🇺' },
+    { value: 'kz' as const, label: 'Қазақша', flag: '🇰🇿' },
+  ];
+
+  const current = options.find(o => o.value === language)!;
 
   return (
-    <button
-      onClick={() => setLanguage(language === 'ru' ? 'kz' : 'ru')}
-      className="text-xs font-bold text-foreground bg-secondary px-2 py-1 rounded-lg transition-colors hover:bg-secondary/80"
-    >
-      {language === 'ru' ? 'KZ' : 'RU'}
-    </button>
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 bg-secondary/80 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-xs font-semibold text-foreground transition-all hover:bg-secondary active:scale-95 border border-border/50"
+      >
+        <Globe size={14} className="text-primary" />
+        <span>{current.flag} {language.toUpperCase()}</span>
+        <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1.5 z-[200] bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[150px] animate-in fade-in-0 zoom-in-95 duration-150">
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { setLanguage(opt.value); setIsOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
+                opt.value === language
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-foreground hover:bg-secondary'
+              }`}
+            >
+              <span className="text-base">{opt.flag}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

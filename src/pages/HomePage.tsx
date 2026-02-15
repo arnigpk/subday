@@ -62,6 +62,14 @@ export default function HomePage() {
                 backgroundPosition: 'center',
               }}
             />
+            <div className="flex items-center">
+              <span className="text-2xl">🇰🇿</span>
+            </div>
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <div className="w-20 h-20">
+                <img src={logo} alt="subday" className="w-full h-full object-contain" />
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               {showAdminButton && (
                 <button
@@ -72,14 +80,6 @@ export default function HomePage() {
                   💻
                 </button>
               )}
-              <span className="text-2xl">🇰🇿</span>
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2">
-              <div className="w-20 h-20">
-                <img src={logo} alt="subday" className="w-full h-full object-contain" />
-              </div>
-            </div>
-            <div>
               <LanguageSwitcher />
             </div>
           </div>
