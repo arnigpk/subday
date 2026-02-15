@@ -12,9 +12,10 @@ const MANUAL_KZ_OVERRIDES: Record<string, string> = {
   'Для тех, кто хочет попробовать всё 🚀': 'Барлығын сынап көргісі келетіндерге 🚀',
 };
 
-// Apply manual overrides to cache on load
+// Apply manual overrides to cache on load (both trimmed and original variants)
 Object.entries(MANUAL_KZ_OVERRIDES).forEach(([ru, kz]) => {
   translationCache.set(ru, kz);
+  translationCache.set(ru.trim(), kz);
 });
 
 // Batch queue for translations
@@ -50,7 +51,8 @@ async function processBatch() {
 }
 
 function queueTranslation(text: string): Promise<string> {
-  const cached = translationCache.get(text);
+  const trimmed = text.trim();
+  const cached = translationCache.get(trimmed) || translationCache.get(text);
   if (cached) return Promise.resolve(cached);
 
   return new Promise(resolve => {
@@ -78,7 +80,7 @@ export function useAutoTranslate(text: string | null | undefined): string {
       return;
     }
 
-    const cached = translationCache.get(text);
+    const cached = translationCache.get(text.trim()) || translationCache.get(text);
     if (cached) {
       setTranslated(cached);
       return;
