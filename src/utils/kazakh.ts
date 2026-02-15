@@ -3,33 +3,53 @@
  * based on the number, following Kazakh grammar rules.
  */
 export function getKzSuffix(n: number): string {
-  // Specific known mappings based on Kazakh phonetic rules
-  // Last significant digit determines the suffix
   const lastTwo = n % 100;
   const lastOne = n % 10;
 
-  // Numbers ending in 0
   if (lastOne === 0) {
-    // 10,20,30 -> дан; 40,70,80 -> дан; 50 -> тен; 60 -> тан; 90 -> нан
     const tens = Math.floor(lastTwo / 10);
     if (tens === 1 || tens === 2 || tens === 3 || tens === 4 || tens === 7 || tens === 8) return 'дан';
     if (tens === 5) return 'тен';
     if (tens === 6) return 'тан';
     if (tens === 9) return 'нан';
-    // 100, 200... 
-    if (n % 1000 === 0) return 'нан'; // мың -> нан
-    if (n % 100 === 0) return 'ден'; // жүз -> ден
+    if (n % 1000 === 0) return 'нан';
+    if (n % 100 === 0) return 'ден';
     return 'дан';
   }
 
-  // Numbers ending in 6, 9 -> дан
   if (lastOne === 6 || lastOne === 9) return 'дан';
-
-  // Numbers ending in 3, 4, 5 -> тен
   if (lastOne === 3 || lastOne === 4 || lastOne === 5) return 'тен';
-
-  // Numbers ending in 1, 2, 7, 8 -> ден
   if (lastOne === 1 || lastOne === 2 || lastOne === 7 || lastOne === 8) return 'ден';
 
   return 'ден';
+}
+
+const KZ_MONTHS_SHORT = [
+  'қаң', 'ақп', 'нау', 'сәу', 'мам', 'мау',
+  'шіл', 'там', 'қыр', 'қаз', 'қар', 'жел'
+];
+
+const KZ_MONTHS_FULL = [
+  'Қаңтар', 'Ақпан', 'Наурыз', 'Сәуір', 'Мамыр', 'Маусым',
+  'Шілде', 'Тамыз', 'Қыркүйек', 'Қазан', 'Қараша', 'Желтоқсан'
+];
+
+/**
+ * Format a date with Kazakh month names.
+ * pattern: 'short' = "5 қаң", 'long' = "5 Қаңтар"
+ */
+export function formatDateKz(date: Date, pattern: 'short' | 'long' = 'short'): string {
+  const day = date.getDate();
+  const month = pattern === 'short' ? KZ_MONTHS_SHORT[date.getMonth()] : KZ_MONTHS_FULL[date.getMonth()];
+  return `${day} ${month}`;
+}
+
+/**
+ * Format a date for subscription expiry display in Kazakh.
+ * Returns "5 қаң" or "5 қаң 2026" if includeYear is true.
+ */
+export function formatDateKzWithYear(date: Date, includeYear: boolean): string {
+  const day = date.getDate();
+  const month = KZ_MONTHS_SHORT[date.getMonth()];
+  return includeYear ? `${day} ${month} ${date.getFullYear()}` : `${day} ${month}`;
 }

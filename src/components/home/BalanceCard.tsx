@@ -7,7 +7,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { Button } from '../ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getKzSuffix } from '@/utils/kazakh';
+import { getKzSuffix, formatDateKzWithYear } from '@/utils/kazakh';
 
 export function BalanceCard() {
   const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
@@ -127,11 +127,10 @@ export function BalanceCard() {
                 {t('balance.subscription')} {formatDaysRemaining(daysRemaining)}
                 {currentTypeSub.expires_at && (
                   <span className="ml-1">
-                    ({language === 'kz' ? '' : 'до '}{new Date(currentTypeSub.expires_at).toLocaleDateString(language === 'kz' ? 'kk-KZ' : 'ru-RU', { 
-                      day: 'numeric', 
-                      month: 'short',
-                      year: daysRemaining > 30 ? 'numeric' : undefined
-                    })}{language === 'kz' ? ' дейін' : ''})
+                    {language === 'kz' 
+                      ? `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), daysRemaining > 30)} дейін)`
+                      : `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: daysRemaining > 30 ? 'numeric' : undefined })})`
+                    }
                   </span>
                 )}
               </span>
