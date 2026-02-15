@@ -6,6 +6,7 @@ import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Post {
   id: string;
@@ -46,6 +47,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const { t } = useLanguage();
   
   // Check if current user is admin
   useEffect(() => {
@@ -212,7 +214,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
   const handleReaction = async (reaction: string) => {
     if (!currentUserId) {
-      toast.error('Войдите, чтобы реагировать');
+      toast.error(t('subflow.loginToReact'));
       return;
     }
 
@@ -274,7 +276,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   };
 
   const handleDelete = async () => {
-    if (!confirm('Удалить этот пост?')) return;
+    if (!confirm(t('subflow.confirmDelete'))) return;
     
     setIsDeleting(true);
     try {
@@ -284,11 +286,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         .eq('id', post.id);
 
       if (error) throw error;
-      toast.success('Пост удалён');
+      toast.success(t('subflow.deleted'));
       onUpdate();
     } catch (error) {
       console.error('Delete error:', error);
-      toast.error('Ошибка удаления');
+      toast.error(t('subflow.deleteError'));
     } finally {
       setIsDeleting(false);
     }
@@ -296,7 +298,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
   const handleSaveEdit = async () => {
     if (!editContent.trim()) {
-      toast.error('Напишите что-нибудь');
+      toast.error(t('subflow.writeText'));
       return;
     }
 
@@ -308,12 +310,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         .eq('id', post.id);
 
       if (error) throw error;
-      toast.success('Пост обновлён');
+      toast.success(t('subflow.updated'));
       setIsEditing(false);
       onUpdate();
     } catch (error) {
       console.error('Edit error:', error);
-      toast.error('Ошибка сохранения');
+      toast.error(t('subflow.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -390,14 +392,14 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
             >
               <Check size={14} />
-              <span>{isSaving ? 'Сохранение...' : 'Сохранить'}</span>
+              <span>{isSaving ? t('subflow.saving') : t('subflow.save')}</span>
             </button>
             <button
               onClick={handleCancelEdit}
               className="flex items-center gap-1 px-3 py-1.5 bg-secondary text-foreground rounded-lg text-sm font-medium"
             >
               <X size={14} />
-              <span>Отмена</span>
+              <span>{t('subflow.cancel')}</span>
             </button>
           </div>
         </div>
@@ -520,8 +522,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
         <span>
           {commentsCount > 0 
-            ? `Комментарии (${commentsCount})` 
-            : 'Комментировать'
+            ? `${t('subflow.comments')} (${commentsCount})` 
+            : t('subflow.comment')
           }
         </span>
       </button>

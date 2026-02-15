@@ -108,7 +108,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
   const translatedDescription = useAutoTranslate(sub.description);
   const translatedBadge = sub.badge; // badges stay in original language
   
-  const period = getPeriodText(sub.duration_days);
+  const period = getPeriodText(sub.duration_days, language);
   const isActive = activeSubscriptionTypeId === sub.id;
 
   return (
@@ -149,7 +149,10 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
             )}
             <div className="mt-2 pl-5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
-                ☕ {sub.cups_count} {t('packages.coffeeFor')} {sub.duration_days} {daysWord(sub.duration_days)}
+                {language === 'kz' 
+                  ? `☕ ${sub.duration_days} ${daysWord(sub.duration_days)}ге ${sub.cups_count} кофе`
+                  : `☕ ${sub.cups_count} ${t('packages.coffeeFor')} ${sub.duration_days} ${daysWord(sub.duration_days)}`
+                }
               </span>
             </div>
           </div>
@@ -157,7 +160,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
           <div className="mb-4">
             <div className="flex items-end gap-1.5">
               <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(sub.price)}</span>
-              <span className="text-sm font-medium text-muted-foreground mb-0.5">тг</span>
+              <span className="text-sm font-medium text-muted-foreground mb-0.5">₸</span>
               <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
             </div>
           

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { compressImage, getFileExtension, formatFileSize } from '@/utils/imageCompression';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Shop {
   id: string;
@@ -29,6 +30,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetchShops();
@@ -58,12 +60,12 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     const validFiles: File[] = [];
     for (const file of files.slice(0, remainingSlots)) {
       if (!file.type.startsWith('image/')) {
-        toast.error('Выберите изображение');
+        toast.error(t('subflow.selectImage'));
         continue;
       }
 
       if (file.size > 15 * 1024 * 1024) {
-        toast.error('Максимум 15МБ на фото');
+        toast.error(t('subflow.fileTooLarge'));
         continue;
       }
 
@@ -101,7 +103,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       setImagePreviews(prev => [...prev, ...newPreviews]);
     } catch (error) {
       console.error('Compression error:', error);
-      toast.error('Ошибка обработки изображения');
+      toast.error(t('subflow.compressionError'));
     } finally {
       setIsCompressing(false);
       setCompressionProgress(0);
@@ -123,7 +125,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
 
   const handleSubmit = async () => {
     if (!content.trim()) {
-      toast.error('Напишите что-нибудь');
+      toast.error(t('subflow.writeText'));
       return;
     }
 
@@ -170,11 +172,11 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
 
       if (postError) throw postError;
 
-      toast.success('Пост опубликован!');
+      toast.success(t('subflow.posted'));
       onPostCreated();
     } catch (error) {
       console.error('Post error:', error);
-      toast.error('Ошибка публикации');
+      toast.error(t('subflow.postError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -184,7 +186,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     <div className="card-static mb-4 animate-slide-up">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-lg text-foreground">Новый пост ✨</h2>
+        <h2 className="font-bold text-lg text-foreground">{t('subflow.newPost')}</h2>
         <button onClick={onClose} className="p-1.5 rounded-full text-muted-foreground hover:bg-secondary transition-colors">
           <X size={18} />
         </button>
@@ -194,7 +196,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Какой кофе сегодня? Расскажи! ☕"
+        placeholder={t('subflow.placeholder')}
         rows={3}
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
@@ -203,7 +205,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       {isCompressing && (
         <div className="mb-3 p-3 bg-secondary rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-foreground">Сжатие фото...</span>
+            <span className="text-sm text-foreground">{t('subflow.compressing')}</span>
             <span className="text-sm text-muted-foreground">{compressionProgress}%</span>
           </div>
           <Progress value={compressionProgress} className="h-2" />
@@ -307,7 +309,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           {isSubmitting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            'Опубликовать'
+            t('subflow.publish')
           )}
         </Button>
       </div>

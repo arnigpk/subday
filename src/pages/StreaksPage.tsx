@@ -7,16 +7,24 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StreaksPage() {
   const { stats, isLoading } = useUserStatsContext();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const progress = Math.min((stats.currentStreak / 30) * 100, 100);
   
-  const getStreakRewards = (currentStreak: number) => [
-    { days: 3, reward: '🎯 Старт', unlocked: currentStreak >= 3 },
-    { days: 7, reward: '🔥 Неделя', unlocked: currentStreak >= 7 },
-    { days: 14, reward: '⚡ Две недели', unlocked: currentStreak >= 14 },
-    { days: 30, reward: '💎 Месяц', unlocked: currentStreak >= 30 },
-  ];
+  const getStreakRewards = (currentStreak: number) => {
+    if (language === 'kz') return [
+      { days: 3, reward: '🎯 Старт', unlocked: currentStreak >= 3 },
+      { days: 7, reward: '🔥 Апта', unlocked: currentStreak >= 7 },
+      { days: 14, reward: '⚡ Екі апта', unlocked: currentStreak >= 14 },
+      { days: 30, reward: '💎 Ай', unlocked: currentStreak >= 30 },
+    ];
+    return [
+      { days: 3, reward: '🎯 Старт', unlocked: currentStreak >= 3 },
+      { days: 7, reward: '🔥 Неделя', unlocked: currentStreak >= 7 },
+      { days: 14, reward: '⚡ Две недели', unlocked: currentStreak >= 14 },
+      { days: 30, reward: '💎 Месяц', unlocked: currentStreak >= 30 },
+    ];
+  };
   
   const streakRewards = getStreakRewards(stats.currentStreak);
   
