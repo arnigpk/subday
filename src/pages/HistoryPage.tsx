@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function HistoryPage() {
   const { redemptions, isLoading } = useUserStatsContext();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const formatDate = (dateStr: string) => {
     try { return format(parseISO(dateStr), 'd MMM', { locale: ru }); }

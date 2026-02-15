@@ -5,6 +5,7 @@ import { User, Send, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Comment {
   id: string;
@@ -26,6 +27,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useLanguage();
 
   const fetchComments = useCallback(async () => {
     try {
@@ -146,7 +148,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
     e.preventDefault();
     
     if (!currentUserId) {
-      toast.error('Войдите, чтобы комментировать');
+      toast.error(t('subflow.loginToComment'));
       return;
     }
 
@@ -168,7 +170,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
       fetchComments();
     } catch (error) {
       console.error('Comment error:', error);
-      toast.error('Ошибка отправки комментария');
+      toast.error(t('subflow.commentError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -185,7 +187,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
       fetchComments();
     } catch (error) {
       console.error('Delete comment error:', error);
-      toast.error('Ошибка удаления');
+      toast.error(t('subflow.deleteError'));
     }
   };
 
@@ -198,7 +200,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Написать комментарий..."
+            placeholder={t('subflow.commentPlaceholder')}
             className="flex-1 px-3 py-2 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           <button
@@ -211,7 +213,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         </form>
       ) : (
         <p className="text-xs text-muted-foreground text-center py-2 mb-4">
-          Оформите подписку чтобы комментировать
+          {t('subflow.subscribeToComment')}
         </p>
       )}
 
@@ -222,7 +224,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         </div>
       ) : comments.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-2">
-          Пока нет комментариев
+          {t('subflow.noComments')}
         </p>
       ) : (
         <div className="space-y-3">

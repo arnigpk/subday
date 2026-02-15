@@ -127,11 +127,11 @@ export function BalanceCard() {
                 {t('balance.subscription')} {formatDaysRemaining(daysRemaining)}
                 {currentTypeSub.expires_at && (
                   <span className="ml-1">
-                    (до {new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { 
+                    ({language === 'kz' ? '' : 'до '}{new Date(currentTypeSub.expires_at).toLocaleDateString(language === 'kz' ? 'kk-KZ' : 'ru-RU', { 
                       day: 'numeric', 
                       month: 'short',
                       year: daysRemaining > 30 ? 'numeric' : undefined
-                    })})
+                    })}{language === 'kz' ? ' дейін' : ''})
                   </span>
                 )}
               </span>

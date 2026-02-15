@@ -115,7 +115,7 @@ export default function PackageDetailPage() {
     );
   }
 
-  const period = getPeriodText(subscription.duration_days);
+  const period = getPeriodText(subscription.duration_days, language);
   const isActive = activeSubscriptionTypeId === subscription.id;
 
   const formatBenefit = (benefit: number) => {
@@ -188,8 +188,10 @@ export default function PackageDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t('packageDetail.howItWorksText')} {subscription.cups_count} {t('packageDetail.drinksFor')} {period}. 
-                    {t('packageDetail.howItWorksText2')}
+                    {language === 'kz' 
+                      ? `Рәсімдегеннен кейін ${period}ге ${subscription.cups_count} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
+                      : `${t('packageDetail.howItWorksText')} ${subscription.cups_count} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`
+                    }
                   </p>
                 </div>
               </div>
