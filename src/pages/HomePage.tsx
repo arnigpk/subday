@@ -61,7 +61,7 @@ export default function HomePage() {
               style={{
                 backgroundImage: `url(${kzOrnament})`,
                 backgroundRepeat: 'repeat-x',
-                backgroundSize: 'auto 100%',
+                backgroundSize: 'auto 80%',
                 backgroundPosition: 'center',
               }}
             />
