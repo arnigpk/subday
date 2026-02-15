@@ -7,6 +7,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { Button } from '../ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getKzSuffix } from '@/utils/kazakh';
 
 export function BalanceCard() {
   const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
@@ -14,7 +15,7 @@ export function BalanceCard() {
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
   const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const tabs = [
     { id: 'coffee', label: t('balance.coffee') },
@@ -86,7 +87,12 @@ export function BalanceCard() {
               </div>
               
               <div>
-                <p className="text-muted-foreground text-sm font-medium">{t('balance.remaining')} {remaining} {t('balance.of')} {total}</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  {language === 'kz' 
+                    ? `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} қалды`
+                    : `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total}`
+                  }
+                </p>
                 
                 {!isLimitLoading && isLimitReached && (
                   <div className="flex items-center gap-1.5 mt-1.5 text-destructive">
