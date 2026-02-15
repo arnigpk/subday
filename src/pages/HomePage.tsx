@@ -9,7 +9,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+
 import logo from '@/assets/logo.png';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,14 +64,13 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-2">
               {showAdminButton && (
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={handleAdminClick}
-                  className="text-xs font-medium"
+                  className="text-2xl leading-none"
+                  aria-label="Панель управления"
                 >
-                  {isAdmin || role === 'moderator' ? 'Админка' : 'Кабинет'}
-                </Button>
+                  💻
+                </button>
               )}
               <div className="w-20 h-20">
                 <img src={logo} alt="subday" className="w-full h-full object-contain" />
