@@ -10,6 +10,7 @@ import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, formatDuration } from '@/utils/distance';
 import { ShopGalleryCarousel } from '@/components/shop/ShopGalleryCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 interface Shop {
   id: string;
@@ -54,6 +55,7 @@ export default function ShopDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const shopStatus = useShopStatus(shop?.working_hours || '');
   const { t } = useLanguage();
+  const translatedDescription = useAutoTranslate(shop?.description);
 
   const shopCoordinates = useMemo(() => 
     shop ? [{ id: shop.id, coordinates: parseCoordinates(shop.coordinates) }] : [], [shop?.id, shop?.coordinates]);
@@ -144,7 +146,7 @@ export default function ShopDetailPage() {
         {shop.description && (
           <div className="card-static animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <h3 className="text-sm font-bold text-foreground mb-1.5">{shop.name}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{shop.description}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{translatedDescription}</p>
           </div>
         )}
 

@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isShopOpen } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ShopData {
   id: string;
@@ -21,27 +22,19 @@ interface ShopData {
   badges: unknown;
 }
 
-
-// Helper to get all badges from a shop
 function getShopBadges(shop: ShopData): ShopBadgeData[] {
   const badges: ShopBadgeData[] = [];
-  
   if (shop.badges && Array.isArray(shop.badges)) {
     (shop.badges as Array<{ text?: string; color?: string }>).forEach(b => {
-      if (b && b.text && b.color) {
-        badges.push({ text: b.text, color: b.color });
-      }
+      if (b && b.text && b.color) badges.push({ text: b.text, color: b.color });
     });
   }
-  
   if (badges.length === 0 && shop.badge_text && shop.badge_color) {
     badges.push({ text: shop.badge_text, color: shop.badge_color });
   }
-  
   return badges;
 }
 
-// Fetch visit counts
 const fetchVisitCounts = async (): Promise<Map<string, number>> => {
   const { data } = await supabase.rpc('get_shop_visit_counts');
   const countsMap = new Map<string, number>();
@@ -54,6 +47,8 @@ const fetchVisitCounts = async (): Promise<Map<string, number>> => {
 };
 
 export function TopShopsByVisits() {
+  const { t } = useLanguage();
+
   const { data: shops = [], isLoading: shopsLoading } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
@@ -64,13 +59,12 @@ export function TopShopsByVisits() {
   const { data: visitCounts = new Map(), isLoading: visitsLoading } = useQuery({
     queryKey: ['visitCounts'],
     queryFn: fetchVisitCounts,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 
   const isLoading = shopsLoading || visitsLoading;
 
-  // Sort by visit count and take top 3
   const topShops = useMemo(() => {
     return [...shops]
       .sort((a, b) => {
@@ -85,7 +79,7 @@ export function TopShopsByVisits() {
     return (
       <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('home.topByVisits')}</h2>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -98,9 +92,9 @@ export function TopShopsByVisits() {
     return (
       <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('home.topByVisits')}</h2>
         </div>
-        <p className="text-center text-muted-foreground py-4">Нет доступных кофеен</p>
+        <p className="text-center text-muted-foreground py-4">{t('shops.noShops')}</p>
       </div>
     );
   }
@@ -108,9 +102,9 @@ export function TopShopsByVisits() {
   return (
     <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold text-foreground">Топ по посещениям</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('home.topByVisits')}</h2>
         <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
-          Все
+          {t('home.all')}
           <ChevronRight size={16} />
         </Link>
       </div>
@@ -120,12 +114,7 @@ export function TopShopsByVisits() {
           const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
           
           return (
-            <Link
-              key={shop.id}
-              to={`/shops/${shop.id}`}
-              className="card-interactive flex items-center gap-3 py-2.5 px-3"
-            >
-              {/* Rank badge based on visits */}
+            <Link key={shop.id} to={`/shops/${shop.id}`} className="card-interactive flex items-center gap-3 py-2.5 px-3">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                 index === 0 ? 'bg-accent text-accent-foreground' :
                 index === 1 ? 'bg-primary/20 text-primary' :
@@ -137,19 +126,16 @@ export function TopShopsByVisits() {
               {(shop.gallery_urls?.[0] || shop.logo_url) ? (
                 <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-11 h-11 rounded-xl object-cover" />
               ) : (
-                <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center text-xl">
-                  ☕
-                </div>
+                <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center text-xl">☕</div>
               )}
               
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground text-sm truncate">{shop.name}</p>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-medium ${isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
-                    {isOpen ? 'Открыто' : 'Закрыто'}
+                    {isOpen ? t('shops.open') : t('shops.closed')}
                   </span>
                 </div>
-                {/* Badges */}
                 {getShopBadges(shop).length > 0 && (
                   <div className="mt-1" onClick={(e) => e.preventDefault()}>
                     <ShopBadgesList badges={getShopBadges(shop)} maxVisible={1} />

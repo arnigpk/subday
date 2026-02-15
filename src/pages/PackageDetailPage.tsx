@@ -8,6 +8,8 @@ import { usePayment } from '@/hooks/usePayment';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useAutoTranslate, useAutoTranslateArray } from '@/hooks/useAutoTranslate';
 
 interface SubscriptionType {
   id: string;
@@ -33,6 +35,7 @@ export default function PackageDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessing, createPayment } = usePayment();
   const { activeSubscriptionTypeId } = useActiveSubscription();
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     if (id) {
@@ -63,6 +66,31 @@ export default function PackageDetailPage() {
     }
   };
 
+  const isCoffee = subscription?.type === 'coffee';
+  const defaultFeatures = isCoffee
+    ? [
+        'Любой кофейный напиток',
+        'Без ограничений по размеру',
+        '1 напиток за визит',
+        'Во всех партнёрских кофейнях',
+      ]
+    : [
+        'Выбранная категория напитков',
+        'Стандартный размер',
+        '1 напиток за визит',
+        'Во всех партнёрских кофейнях',
+      ];
+
+  const rawFeatures = subscription?.features && subscription.features.length > 0
+    ? subscription.features
+    : defaultFeatures;
+
+  // Auto-translate dynamic content
+  const translatedName = useAutoTranslate(subscription?.name);
+  const translatedDescription = useAutoTranslate(subscription?.description);
+  const translatedBadge = useAutoTranslate(subscription?.badge);
+  const translatedFeatures = useAutoTranslateArray(rawFeatures);
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -79,36 +107,16 @@ export default function PackageDetailPage() {
         <div className="safe-area-top p-4">
           <Link to="/packages" className="flex items-center gap-2 text-muted-foreground mb-4">
             <ArrowLeft size={20} />
-            Назад
+            {t('packageDetail.back')}
           </Link>
-          <p className="text-center text-muted-foreground">Подписка не найдена</p>
+          <p className="text-center text-muted-foreground">{t('packageDetail.notFound')}</p>
         </div>
       </AppLayout>
     );
   }
 
-  const isCoffee = subscription.type === 'coffee';
   const period = getPeriodText(subscription.duration_days);
   const isActive = activeSubscriptionTypeId === subscription.id;
-  
-  // Use features from database or fallback to defaults
-  const defaultFeatures = isCoffee
-    ? [
-        'Любой кофейный напиток',
-        'Без ограничений по размеру',
-        '1 напиток за визит',
-        'Во всех партнёрских кофейнях',
-      ]
-    : [
-        'Выбранная категория напитков',
-        'Стандартный размер',
-        '1 напиток за визит',
-        'Во всех партнёрских кофейнях',
-      ];
-  
-  const features = subscription.features && subscription.features.length > 0 
-    ? subscription.features 
-    : defaultFeatures;
 
   const formatBenefit = (benefit: number) => {
     return new Intl.NumberFormat('ru-RU').format(benefit);
@@ -122,7 +130,7 @@ export default function PackageDetailPage() {
           <Link to="/packages" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
             <ArrowLeft size={20} className="text-foreground" />
           </Link>
-          <h1 className="text-xl font-bold text-foreground">Детали подписки</h1>
+          <h1 className="text-xl font-bold text-foreground">{t('packageDetail.title')}</h1>
         </div>
 
         {/* Content */}
@@ -130,15 +138,15 @@ export default function PackageDetailPage() {
           <div className="card-static animate-slide-up">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-2xl font-black text-foreground">{subscription.name}</h2>
+                <h2 className="text-2xl font-black text-foreground">{translatedName}</h2>
                 {subscription.description && (
-                  <p className="text-muted-foreground">{subscription.description}</p>
+                  <p className="text-muted-foreground">{translatedDescription}</p>
                 )}
               </div>
               {subscription.badge && (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(subscription.badge, subscription.badge_color)}`}>
                   <Sparkles size={12} />
-                  {subscription.badge}
+                  {translatedBadge}
                 </span>
               )}
             </div>
@@ -153,16 +161,16 @@ export default function PackageDetailPage() {
             {subscription.benefit && subscription.benefit > 0 && (
               <div className="bg-accent/10 rounded-xl p-3 mb-4">
                 <p className="text-sm text-accent font-semibold">
-                  Выгода {formatBenefit(subscription.benefit)} ₸
+                  {t('packages.benefit')} {formatBenefit(subscription.benefit)} ₸
                 </p>
               </div>
             )}
           </div>
 
           <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <h3 className="text-lg font-bold text-foreground mb-3">Что входит</h3>
+            <h3 className="text-lg font-bold text-foreground mb-3">{t('packageDetail.whatsIncluded')}</h3>
             <div className="space-y-2">
-              {features.map((feature, index) => (
+              {translatedFeatures.map((feature, index) => (
                 <div key={index} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
                   <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
                     <Check size={14} className="text-accent" />
@@ -178,10 +186,10 @@ export default function PackageDetailPage() {
               <div className="flex items-start gap-3">
                 <Info size={20} className="text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Как это работает</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   <p className="text-xs text-muted-foreground">
-                    После оформления получаешь {subscription.cups_count} напитков на {period}. 
-                    Заходишь в любую партнёрскую кофейню, показываешь QR — и забираешь напиток. Всё просто.
+                    {t('packageDetail.howItWorksText')} {subscription.cups_count} {t('packageDetail.drinksFor')} {period}. 
+                    {t('packageDetail.howItWorksText2')}
                   </p>
                 </div>
               </div>
@@ -191,7 +199,7 @@ export default function PackageDetailPage() {
           <div className="pb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             {isActive ? (
               <div className="w-full h-14 flex items-center justify-center text-lg font-bold bg-muted text-muted-foreground rounded-xl cursor-not-allowed">
-                Ваша активная подписка
+                {t('packages.yourActive')}
               </div>
             ) : (
               <Button 
@@ -202,12 +210,12 @@ export default function PackageDetailPage() {
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Создаём платёж...
+                    {t('packageDetail.creating')}
                   </>
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
-                    Оформить за {formatPrice(subscription.price)}
+                    {t('packageDetail.subscribeFor')} {formatPrice(subscription.price)}
                   </>
                 )}
               </Button>
