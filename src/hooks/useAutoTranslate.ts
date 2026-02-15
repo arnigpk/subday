@@ -5,6 +5,18 @@ import { supabase } from '@/integrations/supabase/client';
 // In-memory cache for translations (persists across renders, resets on page reload)
 const translationCache = new Map<string, string>();
 
+// Pre-seed with known correct Kazakh translations to avoid AI mistranslations
+const MANUAL_KZ_OVERRIDES: Record<string, string> = {
+  'Попробуй и будь в числе первых! ✅': 'Қосылыңыз және алғашқылардың қатарында болыңыз! ✅',
+  'Капучино или Латте каждый день 🔥': 'Күнделікті капучино және латте 🔥',
+  'Для тех, кто хочет попробовать всё 🚀': 'Барлығын сынап көргісі келетіндерге 🚀',
+};
+
+// Apply manual overrides to cache on load
+Object.entries(MANUAL_KZ_OVERRIDES).forEach(([ru, kz]) => {
+  translationCache.set(ru, kz);
+});
+
 // Batch queue for translations
 let batchQueue: { text: string; resolve: (val: string) => void }[] = [];
 let batchTimeout: ReturnType<typeof setTimeout> | null = null;
