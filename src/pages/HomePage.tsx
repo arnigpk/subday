@@ -11,6 +11,7 @@ import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 
 import logo from '@/assets/logo.png';
+import kzOrnament from '@/assets/kz-ornament.png';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -53,7 +54,17 @@ export default function HomePage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="safe-area-top">
           {/* Header */}
-          <div className="px-4 py-4 flex items-center justify-between relative">
+          <div className="px-4 py-4 flex items-center justify-between relative overflow-hidden">
+            {/* Kazakh ornament background */}
+            <div
+              className="absolute inset-0 opacity-15 pointer-events-none"
+              style={{
+                backgroundImage: `url(${kzOrnament})`,
+                backgroundRepeat: 'repeat-x',
+                backgroundSize: 'auto 100%',
+                backgroundPosition: 'center',
+              }}
+            />
             <div>
               <p className="text-muted-foreground text-sm">Привет,</p>
               {isLoading ? (
