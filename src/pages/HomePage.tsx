@@ -66,12 +66,7 @@ export default function HomePage() {
               }}
             />
             <div>
-              <p className="text-muted-foreground text-sm">Привет,</p>
-              {isLoading ? (
-                <div className="h-7 w-24 bg-muted rounded animate-pulse" />
-              ) : (
-                <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
-              )}
+              <p className="text-sm font-bold text-foreground">СДЕЛАНО В KZ 🇰🇿</p>
             </div>
             <div className="absolute left-1/2 -translate-x-1/2">
               <div className="w-20 h-20">
