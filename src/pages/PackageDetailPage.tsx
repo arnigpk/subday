@@ -88,7 +88,7 @@ export default function PackageDetailPage() {
   // Auto-translate dynamic content
   const translatedName = useAutoTranslate(subscription?.name);
   const translatedDescription = useAutoTranslate(subscription?.description);
-  const translatedBadge = useAutoTranslate(subscription?.badge);
+  const translatedBadge = subscription?.badge; // badges stay in original language
   const translatedFeatures = useAutoTranslateArray(rawFeatures);
 
   if (isLoading) {

@@ -106,7 +106,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
 }) {
   const translatedName = useAutoTranslate(sub.name);
   const translatedDescription = useAutoTranslate(sub.description);
-  const translatedBadge = useAutoTranslate(sub.badge);
+  const translatedBadge = sub.badge; // badges stay in original language
   
   const period = getPeriodText(sub.duration_days);
   const isActive = activeSubscriptionTypeId === sub.id;
