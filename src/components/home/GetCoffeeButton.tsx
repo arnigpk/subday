@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function GetCoffeeButton() {
   const navigate = useNavigate();
   const { hasActiveSubscription, isLoading } = useSubscriptionStatus();
   const { isLimitReached, isLoading: isLimitLoading } = useDailyLimit('coffee');
+  const { t } = useLanguage();
 
   const isDisabled = isLoading || isLimitLoading || isLimitReached;
 
@@ -15,7 +17,7 @@ export function GetCoffeeButton() {
     if (isDisabled) return;
     
     if (!hasActiveSubscription) {
-      toast.info('Пожалуйста, оформите подписку');
+      toast.info(t('home.pleaseSubscribe'));
       navigate('/packages');
     } else {
       navigate('/redeem');
@@ -35,7 +37,7 @@ export function GetCoffeeButton() {
         }`}
       >
         <QrCode size={28} strokeWidth={2.5} />
-        <span>Показать QR</span>
+        <span>{t('home.showQR')}</span>
       </button>
     </div>
   );

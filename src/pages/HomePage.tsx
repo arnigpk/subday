@@ -9,6 +9,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
@@ -22,10 +23,8 @@ export default function HomePage() {
   const { prefetchAll } = usePrefetch();
   const queryClient = useQueryClient();
   
-  // Handle payment result (show success/error toast)
   usePaymentResult();
   
-  // Prefetch data for other pages when home page loads
   useEffect(() => {
     prefetchAll();
   }, [prefetchAll]);
@@ -36,8 +35,6 @@ export default function HomePage() {
       queryClient.invalidateQueries({ queryKey: ['shops'] }),
     ]);
   }, [refetch, queryClient]);
-  
-  const displayName = profile?.name?.split(' ')[0] || 'Гость';
   
   const showAdminButton = isAdmin || role === 'moderator' || isPartner || isBarista;
   
@@ -65,15 +62,7 @@ export default function HomePage() {
                 backgroundPosition: 'center',
               }}
             />
-            <div>
-              <span className="text-2xl">🇰🇿</span>
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2">
-              <div className="w-20 h-20">
-                <img src={logo} alt="subday" className="w-full h-full object-contain" />
-              </div>
-            </div>
-            <div>
+            <div className="flex items-center gap-2">
               {showAdminButton && (
                 <button
                   onClick={handleAdminClick}
@@ -83,18 +72,23 @@ export default function HomePage() {
                   💻
                 </button>
               )}
+              <span className="text-2xl">🇰🇿</span>
+            </div>
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <div className="w-20 h-20">
+                <img src={logo} alt="subday" className="w-full h-full object-contain" />
+              </div>
+            </div>
+            <div>
+              <LanguageSwitcher />
             </div>
           </div>
           
           {/* Content */}
           <div className="px-4 space-y-5">
-            {/* Top shops carousel */}
             <TopShopsCarousel />
-            
             <BalanceCard />
             <GetCoffeeButton />
-            
-            {/* Ad banners for home page */}
             <AdBannerCarousel location="home" />
           </div>
         </div>

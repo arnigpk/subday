@@ -2,19 +2,21 @@ import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
-
-const navItems = [
-  { icon: Home, label: 'Главная', path: '/', prefetchKey: 'home' as const },
-  { icon: Coffee, label: 'Подписки', path: '/packages', prefetchKey: 'packages' as const },
-  { icon: MapPin, label: 'Кофейни', path: '/shops', prefetchKey: 'shops' as const },
-  { icon: Zap, label: 'subFlow', path: '/subflow', prefetchKey: 'subflow' as const },
-  { icon: User, label: 'Профиль', path: '/profile', prefetchKey: 'profile' as const },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function BottomNav() {
   const location = useLocation();
   const { prefetchPage } = usePrefetch();
+  const { t } = useLanguage();
   
+  const navItems = [
+    { icon: Home, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
+    { icon: Coffee, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
+    { icon: MapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
+    { icon: Zap, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
+    { icon: User, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
+  ];
+
   const handleMouseEnter = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {
     prefetchPage(prefetchKey);
   }, [prefetchPage]);
@@ -46,7 +48,7 @@ export function BottomNav() {
                 className="transition-all duration-200"
               />
               <span className={`text-[10px] font-medium ${isActive ? 'font-bold' : ''}`}>
-                {item.label}
+                {t(item.labelKey)}
               </span>
             </Link>
           );

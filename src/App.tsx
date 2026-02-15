@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
@@ -136,9 +137,7 @@ const AppContent = () => {
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
   const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
   
-  const handleAuthComplete = () => {
-    // Session will be updated via onAuthStateChange
-  };
+  const handleAuthComplete = () => {};
   
   if (isLoading) {
     return (
@@ -208,7 +207,9 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AppContent />
+        <LanguageProvider>
+          <AppContent />
+        </LanguageProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -5,17 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
-const SUGGESTIONS = [
+const SUGGESTIONS_RU = [
   'Какие подписки есть и сколько стоят?',
   'Как получить кофе?',
   'Какие кофейни работают?',
   'Что такое стрики?',
   'Как связаться с поддержкой?',
+];
+
+const SUGGESTIONS_KZ = [
+  'Қандай жазылымдар бар және қанша тұрады?',
+  'Кофені қалай алуға болады?',
+  'Қандай кофеханалар жұмыс істейді?',
+  'Стриктер деген не?',
+  'Қолдау қызметіне қалай хабарласуға болады?',
 ];
 
 interface AiAssistantChatProps {
@@ -29,17 +38,16 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t, language } = useLanguage();
+
+  const SUGGESTIONS = language === 'kz' ? SUGGESTIONS_KZ : SUGGESTIONS_RU;
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
-    if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
+    if (open && inputRef.current) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open]);
 
   const sendMessage = async (text: string) => {
@@ -60,12 +68,12 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMessages }),
+        body: JSON.stringify({ messages: allMessages, language }),
       });
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: 'Ошибка сервера' }));
-        toast({ title: 'Ошибка', description: err.error || 'Попробуйте позже', variant: 'destructive' });
+        toast({ title: t('ai.errorTitle'), description: err.error || 'Попробуйте позже', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
@@ -130,7 +138,7 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
       }
     } catch (e) {
       console.error('Chat error:', e);
-      toast({ title: 'Ошибка', description: 'Не удалось получить ответ', variant: 'destructive' });
+      toast({ title: t('ai.errorTitle'), description: t('ai.errorDesc'), variant: 'destructive' });
     }
 
     setIsLoading(false);
@@ -142,13 +150,11 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
         <SheetHeader className="px-4 pt-3 pb-2 border-b pr-12">
           <SheetTitle className="flex items-center gap-2 text-sm">
             <Bot className="h-4 w-4 text-primary" />
-            <span className="flex-1">Служба заботы subday</span>
+            <span className="flex-1">{t('ai.title')}</span>
             {messages.length > 0 && (
-              <button
-                onClick={() => setMessages([])}
+              <button onClick={() => setMessages([])}
                 className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10"
-                aria-label="Очистить чат"
-              >
+                aria-label={t('ai.clearChat')}>
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
@@ -159,16 +165,11 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
           <div className="py-3 space-y-3">
             {messages.length === 0 && (
               <div className="space-y-3">
-                <div className="text-center text-muted-foreground text-xs py-3">
-                  Привет! 👋 Задайте вопрос или выберите тему:
-                </div>
+                <div className="text-center text-muted-foreground text-xs py-3">{t('ai.greeting')}</div>
                 <div className="flex flex-wrap gap-1.5 justify-center">
                   {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => sendMessage(s)}
-                      className="text-xs px-3 py-1.5 rounded-full border border-border bg-secondary/50 text-secondary-foreground hover:bg-secondary transition-colors"
-                    >
+                    <button key={s} onClick={() => sendMessage(s)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-border bg-secondary/50 text-secondary-foreground hover:bg-secondary transition-colors">
                       {s}
                     </button>
                   ))}
@@ -182,13 +183,9 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
                     <Bot className="h-3.5 w-3.5 text-primary" />
                   </div>
                 )}
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-xs whitespace-pre-wrap ${
-                    m.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary text-secondary-foreground'
-                  }`}
-                >
+                <div className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-xs whitespace-pre-wrap ${
+                  m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                }`}>
                   {m.content}
                   {m.role === 'assistant' && i === messages.length - 1 && isLoading && (
                     <span className="inline-block w-1 h-3 bg-current ml-0.5 animate-pulse" />
@@ -213,15 +210,9 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
         </ScrollArea>
 
         <div className="border-t p-2 flex gap-2">
-          <Input
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
+          <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
-            placeholder="Задайте вопрос..."
-            disabled={isLoading}
-            className="flex-1 h-8 text-xs"
-          />
+            placeholder={t('ai.placeholder')} disabled={isLoading} className="flex-1 h-8 text-xs" />
           <Button size="icon" className="h-8 w-8" onClick={() => sendMessage(input)} disabled={isLoading || !input.trim()}>
             <Send className="h-3.5 w-3.5" />
           </Button>
