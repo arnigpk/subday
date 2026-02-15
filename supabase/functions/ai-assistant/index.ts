@@ -50,6 +50,59 @@ let cachedAppData = "";
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
+async function fetchUserContext(supabaseUrl: string, supabaseKey: string, authHeader: string | null): Promise<string> {
+  if (!authHeader) return "";
+  
+  try {
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || supabaseKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) return "";
+
+    const sb = createClient(supabaseUrl, supabaseKey);
+    
+    const [statsRes, subRes, profileRes] = await Promise.all([
+      sb.from("user_stats").select("coffee_remaining, coffee_total, drinks_remaining, drinks_total, current_streak, max_streak, bonus_points, total_cups").eq("user_id", user.id).maybeSingle(),
+      sb.from("user_subscriptions").select("subscription_type_id, started_at, expires_at, is_active, subscription_types(name, type, cups_count, daily_limit, duration_days, features)").eq("user_id", user.id).eq("is_active", true).maybeSingle(),
+      sb.from("profiles").select("name, city").eq("user_id", user.id).maybeSingle(),
+    ]);
+
+    let ctx = "\n\n--- ПЕРСОНАЛЬНЫЕ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ---\n";
+    
+    if (profileRes.data) {
+      ctx += `👤 Имя: ${profileRes.data.name || "не указано"}, Город: ${profileRes.data.city || "не указан"}\n`;
+    }
+
+    if (subRes.data && subRes.data.is_active) {
+      const st = subRes.data.subscription_types as any;
+      const expiresAt = subRes.data.expires_at ? new Date(subRes.data.expires_at) : null;
+      const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000)) : "?";
+      ctx += `\n📦 Активный пакет: "${st?.name || "Неизвестный"}" (тип: ${st?.type || "?"})\n`;
+      ctx += `  Осталось дней: ${daysLeft}\n`;
+      if (st?.daily_limit) ctx += `  Дневной лимит: ${st.daily_limit}\n`;
+      else ctx += `  Дневной лимит: безлимит\n`;
+      if (st?.features?.length) ctx += `  Включает: ${st.features.join(" | ")}\n`;
+    } else {
+      ctx += "\n📦 Активный пакет: НЕТ (пакет не оформлен или истёк)\n";
+    }
+
+    if (statsRes.data) {
+      const s = statsRes.data;
+      ctx += `\n📊 Баланс: кофе ${s.coffee_remaining}/${s.coffee_total}, напитки ${s.drinks_remaining}/${s.drinks_total}\n`;
+      ctx += `🔥 Стрик: ${s.current_streak} дней (макс: ${s.max_streak})\n`;
+      ctx += `🎁 Бонусы: ${s.bonus_points} баллов\n`;
+      ctx += `☕ Всего получено напитков: ${s.total_cups}\n`;
+    }
+
+    return ctx;
+  } catch (e) {
+    console.error("Failed to fetch user context:", e);
+    return "";
+  }
+}
+
 async function fetchAppData(): Promise<string> {
   const now = Date.now();
   if (cachedAppData && (now - cacheTimestamp) < CACHE_TTL_MS) {
@@ -110,11 +163,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Fetch real app data (cached with 12h TTL)
-    let appData = "";
-    try { appData = await fetchAppData(); } catch (e) { console.error("Failed to fetch app data:", e); }
+    // Fetch app data (cached) and user context (per-request)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authHeader = req.headers.get("Authorization");
 
-    const systemPrompt = BASE_PROMPT + appData;
+    const [appData, userContext] = await Promise.all([
+      fetchAppData().catch((e) => { console.error("Failed to fetch app data:", e); return ""; }),
+      fetchUserContext(supabaseUrl, supabaseKey, authHeader).catch((e) => { console.error("Failed to fetch user context:", e); return ""; }),
+    ]);
+
+    const systemPrompt = BASE_PROMPT + appData + userContext;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
