@@ -9,6 +9,7 @@ import { getPeriodText } from '@/utils/subscriptionDuration';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SubscriptionType {
   id: string;
@@ -24,23 +25,19 @@ interface SubscriptionType {
   benefit: number | null;
 }
 
-const tabs = [
-  { id: 'coffee', label: 'Кофе' },
-  { id: 'drinks', label: 'Напитки' },
-];
-
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('ru-RU').format(price);
-};
-
-const formatBenefit = (benefit: number) => {
-  return new Intl.NumberFormat('ru-RU').format(benefit);
-};
+const formatPrice = (price: number) => new Intl.NumberFormat('ru-RU').format(price);
+const formatBenefit = (benefit: number) => new Intl.NumberFormat('ru-RU').format(benefit);
 
 export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState('coffee');
   const { activeSubscriptionTypeId, refetch: refetchSubscription } = useActiveSubscription();
   const queryClient = useQueryClient();
+  const { t, language } = useLanguage();
+
+  const tabs = [
+    { id: 'coffee', label: t('balance.coffee') },
+    { id: 'drinks', label: t('balance.drinks') },
+  ];
 
   const { data: subscriptions = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.subscriptions,
@@ -50,13 +47,20 @@ export default function PackagesPage() {
   });
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([
-      refetch(),
-      refetchSubscription(),
-    ]);
+    await Promise.all([refetch(), refetchSubscription()]);
   }, [refetch, refetchSubscription]);
 
   const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
+
+  const daysWord = (days: number) => {
+    if (language === 'kz') return 'күн';
+    if (days === 1) return 'день';
+    if (days >= 2 && days <= 4) return 'дня';
+    if (days >= 5 && days <= 20) return 'дней';
+    if (days % 10 === 1) return 'день';
+    if (days % 10 >= 2 && days % 10 <= 4) return 'дня';
+    return 'дней';
+  };
 
   return (
     <AppLayout>
@@ -64,16 +68,11 @@ export default function PackagesPage() {
         <div className="safe-area-top">
           <div className="px-4 py-4">
             <div className="mb-5">
-              <h1 className="text-2xl font-black text-foreground tracking-tight">Подписки</h1>
-              <p className="text-xs text-muted-foreground mt-1">Выбери свой идеальный план</p>
+              <h1 className="text-2xl font-black text-foreground tracking-tight">{t('packages.title')}</h1>
+              <p className="text-xs text-muted-foreground mt-1">{t('packages.subtitle')}</p>
             </div>
             
-            <TabSwitcher
-              tabs={tabs}
-              activeTab={activeTab}
-              onChange={setActiveTab}
-              className="mb-6"
-            />
+            <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-6" />
             
             {isLoading ? (
               <div className="space-y-4">
@@ -84,7 +83,7 @@ export default function PackagesPage() {
             ) : filteredSubscriptions.length === 0 ? (
               <div className="text-center py-12">
                 <Coffee className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">Нет доступных подписок</p>
+                <p className="text-muted-foreground">{t('packages.noPackages')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -100,10 +99,8 @@ export default function PackagesPage() {
                       style={{ animationDelay: `${index * 0.05}s` }}
                     >
                       <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
-                        {/* Background accent */}
                         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         
-                        {/* Badge from database */}
                         {sub.badge && !isActive && (
                           <div className="absolute top-4 right-4">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
@@ -113,70 +110,51 @@ export default function PackagesPage() {
                           </div>
                         )}
                         
-                        {/* Active badge */}
                         {isActive && (
                           <div className="absolute top-4 right-4">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
                               <Check size={12} />
-                              Активна
+                              {t('packages.active')}
                             </span>
                           </div>
                         )}
                         
                         <div className="relative">
-                          {/* Title section */}
                           <div className="mb-3">
                             <div className="flex items-center gap-2 mb-1">
                               <Coffee size={14} className="text-accent" />
-                              <h3 className="text-lg font-bold text-foreground tracking-tight">
-                                {sub.name}
-                              </h3>
+                              <h3 className="text-lg font-bold text-foreground tracking-tight">{sub.name}</h3>
                             </div>
                             {sub.description && (
-                              <p className="text-xs text-muted-foreground leading-relaxed pl-5">
-                                {sub.description}
-                              </p>
+                              <p className="text-xs text-muted-foreground leading-relaxed pl-5">{sub.description}</p>
                             )}
-                            {/* Cups and duration notification */}
                             <div className="mt-2 pl-5">
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
-                                ☕ {sub.cups_count} кофе на {sub.duration_days} {sub.duration_days === 1 ? 'день' : sub.duration_days < 5 ? 'дня' : sub.duration_days < 21 ? 'дней' : sub.duration_days % 10 === 1 ? 'день' : sub.duration_days % 10 < 5 && sub.duration_days % 10 > 0 ? 'дня' : 'дней'}
+                                ☕ {sub.cups_count} {t('packages.coffeeFor')} {sub.duration_days} {daysWord(sub.duration_days)}
                               </span>
                             </div>
                           </div>
                           
-                          {/* Price section */}
                           <div className="mb-4">
                             <div className="flex items-end gap-1.5">
-                              <span className="text-2xl font-black text-foreground tracking-tight">
-                                {formatPrice(sub.price)}
-                              </span>
-                              <span className="text-sm font-medium text-muted-foreground mb-0.5">
-                                тг
-                              </span>
-                              <span className="text-xs text-muted-foreground mb-0.5">
-                                / {period}
-                            </span>
-                          </div>
+                              <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(sub.price)}</span>
+                              <span className="text-sm font-medium text-muted-foreground mb-0.5">тг</span>
+                              <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
+                            </div>
                           
                           {sub.benefit && sub.benefit > 0 && (
                             <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs font-semibold text-accent">
-                                Выгода {formatBenefit(sub.benefit)} ₸
-                              </span>
+                              <span className="text-xs font-semibold text-accent">{t('packages.benefit')} {formatBenefit(sub.benefit)} ₸</span>
                             </div>
                           )}
                         </div>
                         
-                        {/* CTA Button */}
                         {isActive ? (
                           <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
-                            Ваша активная подписка
+                            {t('packages.yourActive')}
                           </div>
                         ) : (
-                          <button className="btn-primary w-full text-sm font-semibold">
-                            Оформить
-                          </button>
+                          <button className="btn-primary w-full text-sm font-semibold">{t('packages.subscribe')}</button>
                         )}
                       </div>
                       </div>

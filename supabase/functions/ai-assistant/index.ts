@@ -6,8 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BASE_PROMPT = `Ты — дружелюбный AI-ассистент приложения subday (Служба заботы). Отвечай конкретно и точно. Если у тебя есть данные — давай их сразу, не перенаправляй пользователя в разделы приложения. Отвечай кратко, по делу, на русском языке. Используй эмодзи умеренно.
-
+const COMMON_PROMPT = `
 О приложении subday:
 subday — сервис пакетов на кофе и напитки в Казахстане. Пользователи покупают пакет и получают напитки в кофейнях-партнёрах.
 
@@ -48,6 +47,12 @@ subday — сервис пакетов на кофе и напитки в Каз
 - Если daily_limit не указан или указан как "безлимит" — это значит БЕЗЛИМИТ напитков в день (без ограничений по количеству в день).
 - Если пользователь спрашивает что-то не связанное с приложением, вежливо направь его к функциям subday.
 - Неиспользованные напитки по окончании срока пакета аннулируются, перенос остатков не допускается.`;
+
+const BASE_PROMPT_RU = `Ты — дружелюбный AI-ассистент приложения subday (Служба заботы). Отвечай конкретно и точно. Если у тебя есть данные — давай их сразу, не перенаправляй пользователя в разделы приложения. Отвечай кратко, по делу, на русском языке. Используй эмодзи умеренно.` + COMMON_PROMPT;
+
+const BASE_PROMPT_KZ = `Сен — subday қосымшасының мейірімді AI-көмекшісісің (Қамқорлық қызметі). Нақты және дәл жауап бер. Егер деректерің болса — бірден бер, пайдаланушыны қосымша бөлімдерге жібермe. Қысқа, нақты, қазақ тілінде жауап бер. Эмодзиді орынды қолдан.` + COMMON_PROMPT;
+
+const getBasePrompt = (language: string) => language === 'kz' ? BASE_PROMPT_KZ : BASE_PROMPT_RU;
 
 // Cache for app data — refreshes every 12 hours
 let cachedAppData = "";
@@ -163,7 +168,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, language = 'ru' } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -177,7 +182,7 @@ serve(async (req) => {
       fetchUserContext(supabaseUrl, supabaseKey, authHeader).catch((e) => { console.error("Failed to fetch user context:", e); return ""; }),
     ]);
 
-    const systemPrompt = BASE_PROMPT + appData + userContext;
+    const systemPrompt = getBasePrompt(language) + appData + userContext;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

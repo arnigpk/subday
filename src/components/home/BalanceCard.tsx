@@ -6,11 +6,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { Button } from '../ui/button';
-
-const tabs = [
-  { id: 'coffee', label: 'Кофе' },
-  { id: 'drinks', label: 'Напитки' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function BalanceCard() {
   const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
@@ -18,32 +14,32 @@ export function BalanceCard() {
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
   const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   const navigate = useNavigate();
+  const { t } = useLanguage();
   
+  const tabs = [
+    { id: 'coffee', label: t('balance.coffee') },
+    { id: 'drinks', label: t('balance.drinks') },
+  ];
+
   const isCoffee = activeTab === 'coffee';
   const remaining = isCoffee ? stats.coffeeRemaining : stats.drinksRemaining;
   const total = isCoffee ? stats.coffeeTotal : stats.drinksTotal;
   const percentage = total > 0 ? (remaining / total) * 100 : 0;
   
-  // Find active subscription for current type
-  const currentTypeSub = activeSubscriptions.find(s => 
-    s.subscription_type === activeTab
-  );
-  
-  // Check if user has any subscription for current type AND has remaining cups
-  // If remaining is 0, treat it as no subscription
+  const currentTypeSub = activeSubscriptions.find(s => s.subscription_type === activeTab);
   const hasSubscription = !!currentTypeSub && total > 0 && remaining > 0;
   
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
-    if (days <= 0) return 'Истекла';
-    if (days >= 365) return '~1 год';
+    if (days <= 0) return t('balance.expired');
+    if (days >= 365) return t('balance.year');
     if (days >= 30) {
       const months = Math.floor(days / 30);
-      return months === 1 ? '~1 месяц' : `~${months} мес.`;
+      return months === 1 ? `~1 ${t('balance.month1').replace('~1 ', '')}` : `~${months} ${t('balance.months')}`;
     }
-    if (days === 1) return '1 день';
-    if (days >= 2 && days <= 4) return `${days} дня`;
-    return `${days} дней`;
+    if (days === 1) return t('balance.day1');
+    if (days >= 2 && days <= 4) return `${days} ${t('balance.days234')}`;
+    return `${days} ${t('balance.days')}`;
   };
   
   if (isLoading) {
@@ -90,65 +86,39 @@ export function BalanceCard() {
               </div>
               
               <div>
-                <p className="text-muted-foreground text-sm font-medium">По подписке осталось {remaining} из {total}</p>
+                <p className="text-muted-foreground text-sm font-medium">{t('balance.remaining')} {remaining} {t('balance.of')} {total}</p>
                 
-                {/* Daily limit warning */}
                 {!isLimitLoading && isLimitReached && (
                   <div className="flex items-center gap-1.5 mt-1.5 text-destructive">
                     <AlertTriangle size={14} />
-                    <span className="text-xs font-medium">
-                      У вас закончился дневной лимит, попробуйте завтра
-                    </span>
+                    <span className="text-xs font-medium">{t('balance.dailyLimitReached')}</span>
                   </div>
                 )}
                 
-                {/* Show daily limit info if not exceeded */}
                 {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Сегодня осталось: {remainingToday} из {dailyLimit}
+                    {t('balance.todayRemaining')} {remainingToday} {t('balance.of')} {dailyLimit}
                   </p>
                 )}
               </div>
             </div>
             
-            {/* Progress ring */}
             <div className="relative w-16 h-16">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-secondary"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className={isCoffee ? 'text-primary' : 'text-accent'}
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  fill="none"
-                  strokeDasharray={`${percentage}, 100`}
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
+                <path className="text-secondary" stroke="currentColor" strokeWidth="4" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className={isCoffee ? 'text-primary' : 'text-accent'} stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" strokeDasharray={`${percentage}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-bold text-foreground">
-                  {Math.round(percentage)}%
-                </span>
+                <span className="text-xs font-bold text-foreground">{Math.round(percentage)}%</span>
               </div>
             </div>
           </div>
           
-          {/* Subscription expiry info */}
           {currentTypeSub?.expires_at && daysRemaining !== null && (
-            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${
-              isExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'
-            }`}>
+            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${isExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'}`}>
               <Clock size={14} className={isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
-              <span className={`text-xs font-medium ${
-                isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'
-              }`}>
-                Подписка: {formatDaysRemaining(daysRemaining)}
+              <span className={`text-xs font-medium ${isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {t('balance.subscription')} {formatDaysRemaining(daysRemaining)}
                 {currentTypeSub.expires_at && (
                   <span className="ml-1">
                     (до {new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { 
@@ -164,26 +134,11 @@ export function BalanceCard() {
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-4 gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-            isCoffee ? 'bg-primary/10' : 'bg-accent/10'
-          }`}>
-            {isCoffee ? (
-              <Coffee size={32} className="text-primary" />
-            ) : (
-              <Droplets size={32} className="text-accent" />
-            )}
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isCoffee ? 'bg-primary/10' : 'bg-accent/10'}`}>
+            {isCoffee ? <Coffee size={32} className="text-primary" /> : <Droplets size={32} className="text-accent" />}
           </div>
-          
-          <p className="text-muted-foreground text-sm font-medium text-center">
-            У вас нет подписки 😢
-          </p>
-          
-          <Button 
-            onClick={() => navigate('/packages')}
-            className="w-full"
-          >
-            Оформить подписку
-          </Button>
+          <p className="text-muted-foreground text-sm font-medium text-center">{t('balance.noSubscription')}</p>
+          <Button onClick={() => navigate('/packages')} className="w-full">{t('balance.subscribe')}</Button>
         </div>
       )}
     </div>

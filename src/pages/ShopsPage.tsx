@@ -11,6 +11,7 @@ import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Shop {
   id: string;
@@ -28,20 +29,13 @@ interface Shop {
   coordinates: unknown;
 }
 
-const filters = [
-  { id: 'all', label: 'Все' },
-  { id: 'open', label: 'Открыто' },
-  { id: 'specialty', label: 'Specialty' },
-];
-
-function ShopStatusBadge({ openHours }: { openHours: string }) {
+function ShopStatusBadge({ openHours, t }: { openHours: string; t: (key: string) => string }) {
   const isOpen = isShopOpen(openHours);
-  
   return (
     <div className="flex items-center gap-1">
       <Clock size={12} className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
       <span className={`text-xs font-medium ${isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
-        {isOpen ? 'Открыто' : 'Закрыто'}
+        {isOpen ? t('shops.open') : t('shops.closed')}
       </span>
     </div>
   );
@@ -49,25 +43,19 @@ function ShopStatusBadge({ openHours }: { openHours: string }) {
 
 function getShopBadges(shop: Shop): ShopBadgeData[] {
   const badges: ShopBadgeData[] = [];
-  
   if (shop.badges && Array.isArray(shop.badges)) {
     (shop.badges as Array<{ text?: string; color?: string }>).forEach(b => {
-      if (b && b.text && b.color) {
-        badges.push({ text: b.text, color: b.color });
-      }
+      if (b && b.text && b.color) badges.push({ text: b.text, color: b.color });
     });
   }
-  
   if (badges.length === 0 && shop.badge_text && shop.badge_color) {
     badges.push({ text: shop.badge_text, color: shop.badge_color });
   }
-  
   return badges;
 }
 
 function hasSpecialtyBadge(shop: Shop): boolean {
-  const badges = getShopBadges(shop);
-  return badges.some(b => b.text.toLowerCase() === 'specialty');
+  return getShopBadges(shop).some(b => b.text.toLowerCase() === 'specialty');
 }
 
 function parseCoordinates(coords: unknown): Coordinate[] {
@@ -78,53 +66,44 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
+
+  const filters = [
+    { id: 'all', label: t('shops.all') },
+    { id: 'open', label: t('shops.open') },
+    { id: 'specialty', label: 'Specialty' },
+  ];
 
   const { data: shops = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([
-      refetch(),
-      queryClient.invalidateQueries({ queryKey: ['adBanners'] }),
-    ]);
+    await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['adBanners'] })]);
   }, [refetch, queryClient]);
 
-  // Memoize shop coordinates to prevent infinite re-renders in useShopDistances
   const shopCoordinates = useMemo(() => 
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
-    [shops]
-  );
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })), [shops]);
 
-  // Get distances for all shops
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
-  // Add real-time open status to shops
-  const shopsWithStatus = useMemo(() => {
-    return shops.map(shop => ({
-      ...shop,
-      isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
-      allBadges: getShopBadges(shop),
-      isSpecialty: hasSpecialtyBadge(shop),
-    }));
-  }, [shops]);
+  const shopsWithStatus = useMemo(() => shops.map(shop => ({
+    ...shop,
+    isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+    allBadges: getShopBadges(shop),
+    isSpecialty: hasSpecialtyBadge(shop),
+  })), [shops]);
   
-  // Filter and sort shops
   const filteredAndSortedShops = useMemo(() => {
     let filtered = shopsWithStatus.filter(shop => {
       if (activeFilter === 'open' && !shop.isCurrentlyOpen) return false;
       if (activeFilter === 'specialty' && !shop.isSpecialty) return false;
       return true;
     });
-
-    // Sort by distance if user location is available
-    if (userLocation && distances.size > 0) {
-      filtered = sortByDistance(filtered, distances);
-    }
-
+    if (userLocation && distances.size > 0) filtered = sortByDistance(filtered, distances);
     return filtered;
   }, [shopsWithStatus, activeFilter, distances, userLocation]);
   
@@ -133,20 +112,17 @@ export default function ShopsPage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="safe-area-top">
           <div className="px-4 py-4">
-            <h1 className="text-2xl font-black text-foreground mb-4">Кофейни</h1>
+            <h1 className="text-2xl font-black text-foreground mb-4">{t('shops.title')}</h1>
             
-            {/* Ad Banner Carousel */}
             <AdBannerCarousel location="shops" />
 
-            {/* Location status */}
             {permissionDenied && (
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl mb-4 text-sm text-muted-foreground">
                 <MapPinOff size={16} />
-                <span>Включите геолокацию для сортировки по расстоянию</span>
+                <span>{t('shops.enableLocation')}</span>
               </div>
             )}
             
-            {/* Filters */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
               {filters.map((filter) => (
                 <button
@@ -163,7 +139,6 @@ export default function ShopsPage() {
               ))}
             </div>
             
-            {/* Shops list */}
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -174,48 +149,29 @@ export default function ShopsPage() {
                   const shopDistance = distances.get(shop.id);
                   const closestIndex = shopDistance?.closestAddressIndex ?? 0;
                   const addresses = shop.addresses || (shop.address ? [shop.address] : []);
-                  
-                  // Reorder addresses to show closest first
                   const reorderedAddresses = addresses.length > 1 && closestIndex > 0
                     ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
                     : addresses;
                   
                   return (
-                    <div
-                      key={shop.id}
-                      className="block animate-slide-up"
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                    >
-                      <Link
-                        to={`/shops/${shop.id}`}
-                        className="card-interactive block"
-                      >
+                    <div key={shop.id} className="block animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                      <Link to={`/shops/${shop.id}`} className="card-interactive block">
                         <div className="flex items-start gap-3">
                           {(shop.gallery_urls?.[0] || shop.logo_url) ? (
                             <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
                           ) : (
-                            <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">
-                              ☕
-                            </div>
+                            <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">☕</div>
                           )}
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <h3 className="font-bold text-foreground truncate">{shop.name}</h3>
-                              <span className={`text-xs whitespace-nowrap ${
-                                shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'
-                              }`}>
+                              <span className={`text-xs whitespace-nowrap ${shopDistance?.distance != null ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                                 {formatDistance(shopDistance?.distance)}
                               </span>
                             </div>
-                            
-                            {/* Addresses - closest first */}
                             <div onClick={(e) => e.preventDefault()}>
-                              <AddressesList 
-                                addresses={reorderedAddresses} 
-                                variant="compact"
-                                className="mt-2"
-                              />
+                              <AddressesList addresses={reorderedAddresses} variant="compact" className="mt-2" />
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {shop.city && (
@@ -224,9 +180,7 @@ export default function ShopsPage() {
                                   <span className="text-xs text-muted-foreground">{shop.city}</span>
                                 </div>
                               )}
-                              {shop.working_hours && (
-                                <ShopStatusBadge openHours={shop.working_hours} />
-                              )}
+                              {shop.working_hours && <ShopStatusBadge openHours={shop.working_hours} t={t} />}
                               {shop.allBadges.length > 0 && (
                                 <div onClick={(e) => e.preventDefault()}>
                                   <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
@@ -243,8 +197,8 @@ export default function ShopsPage() {
             ) : (
               <div className="text-center py-12">
                 <div className="text-4xl mb-4">🔍</div>
-                <p className="text-lg font-semibold text-foreground mb-2">Нет кофеен</p>
-                <p className="text-sm text-muted-foreground">Попробуйте изменить фильтр</p>
+                <p className="text-lg font-semibold text-foreground mb-2">{t('shops.noShops')}</p>
+                <p className="text-sm text-muted-foreground">{t('shops.changeFilter')}</p>
               </div>
             )}
           </div>
