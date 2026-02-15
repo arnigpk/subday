@@ -10,6 +10,7 @@ import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 interface SubscriptionType {
   id: string;
@@ -87,85 +88,95 @@ export default function PackagesPage() {
               </div>
             ) : (
               <div className="space-y-4">
-              {filteredSubscriptions.map((sub, index) => {
-                  const period = getPeriodText(sub.duration_days);
-                  const isActive = activeSubscriptionTypeId === sub.id;
-                  
-                  return (
-                    <Link
-                      key={sub.id}
-                      to={`/packages/${sub.id}`}
-                      className="block animate-slide-up"
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                    >
-                      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        
-                        {sub.badge && !isActive && (
-                          <div className="absolute top-4 right-4">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
-                              <Sparkles size={12} />
-                              {sub.badge}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {isActive && (
-                          <div className="absolute top-4 right-4">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
-                              <Check size={12} />
-                              {t('packages.active')}
-                            </span>
-                          </div>
-                        )}
-                        
-                        <div className="relative">
-                          <div className="mb-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Coffee size={14} className="text-accent" />
-                              <h3 className="text-lg font-bold text-foreground tracking-tight">{sub.name}</h3>
-                            </div>
-                            {sub.description && (
-                              <p className="text-xs text-muted-foreground leading-relaxed pl-5">{sub.description}</p>
-                            )}
-                            <div className="mt-2 pl-5">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
-                                ☕ {sub.cups_count} {t('packages.coffeeFor')} {sub.duration_days} {daysWord(sub.duration_days)}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="mb-4">
-                            <div className="flex items-end gap-1.5">
-                              <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(sub.price)}</span>
-                              <span className="text-sm font-medium text-muted-foreground mb-0.5">тг</span>
-                              <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
-                            </div>
-                          
-                          {sub.benefit && sub.benefit > 0 && (
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-xs font-semibold text-accent">{t('packages.benefit')} {formatBenefit(sub.benefit)} ₸</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {isActive ? (
-                          <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
-                            {t('packages.yourActive')}
-                          </div>
-                        ) : (
-                          <button className="btn-primary w-full text-sm font-semibold">{t('packages.subscribe')}</button>
-                        )}
-                      </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+              {filteredSubscriptions.map((sub, index) => (
+                <SubscriptionCard key={sub.id} sub={sub} index={index} activeSubscriptionTypeId={activeSubscriptionTypeId} t={t} language={language} daysWord={daysWord} />
+              ))}
               </div>
             )}
           </div>
         </div>
       </PullToRefresh>
     </AppLayout>
+  );
+}
+
+function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, daysWord }: {
+  sub: SubscriptionType; index: number; activeSubscriptionTypeId: string | null;
+  t: (key: string) => string; language: string; daysWord: (days: number) => string;
+}) {
+  const translatedName = useAutoTranslate(sub.name);
+  const translatedDescription = useAutoTranslate(sub.description);
+  const translatedBadge = useAutoTranslate(sub.badge);
+  
+  const period = getPeriodText(sub.duration_days);
+  const isActive = activeSubscriptionTypeId === sub.id;
+
+  return (
+    <Link
+      to={`/packages/${sub.id}`}
+      className="block animate-slide-up"
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {sub.badge && !isActive && (
+          <div className="absolute top-4 right-4">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
+              <Sparkles size={12} />
+              {translatedBadge}
+            </span>
+          </div>
+        )}
+        
+        {isActive && (
+          <div className="absolute top-4 right-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
+              <Check size={12} />
+              {t('packages.active')}
+            </span>
+          </div>
+        )}
+        
+        <div className="relative">
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Coffee size={14} className="text-accent" />
+              <h3 className="text-lg font-bold text-foreground tracking-tight">{translatedName}</h3>
+            </div>
+            {sub.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed pl-5">{translatedDescription}</p>
+            )}
+            <div className="mt-2 pl-5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
+                ☕ {sub.cups_count} {t('packages.coffeeFor')} {sub.duration_days} {daysWord(sub.duration_days)}
+              </span>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <div className="flex items-end gap-1.5">
+              <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(sub.price)}</span>
+              <span className="text-sm font-medium text-muted-foreground mb-0.5">тг</span>
+              <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
+            </div>
+          
+            {sub.benefit && sub.benefit > 0 && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-xs font-semibold text-accent">{t('packages.benefit')} {formatBenefit(sub.benefit)} ₸</span>
+              </div>
+            )}
+          </div>
+          
+          {isActive ? (
+            <div className="w-full py-3 px-6 rounded-xl text-sm font-semibold text-center bg-muted text-muted-foreground cursor-not-allowed">
+              {t('packages.yourActive')}
+            </div>
+          ) : (
+            <button className="btn-primary w-full text-sm font-semibold">{t('packages.subscribe')}</button>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }

@@ -12,7 +12,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const translations: Record<string, Record<Language, string>> = {
   // Bottom Nav
-  'nav.home': { ru: 'Главная', kz: 'Басты бет' },
+  'nav.home': { ru: 'Главная', kz: 'Басты' },
   'nav.packages': { ru: 'Подписки', kz: 'Жазылымдар' },
   'nav.shops': { ru: 'Кофейни', kz: 'Кофеханалар' },
   'nav.subflow': { ru: 'subFlow', kz: 'subFlow' },
@@ -185,6 +185,9 @@ const translations: Record<string, Record<Language, string>> = {
   // Common
   'common.days': { ru: 'дней', kz: 'күн' },
   'common.day': { ru: 'день', kz: 'күн' },
+
+  // Home - TopShops
+  'home.topByVisits': { ru: 'Топ по посещениям', kz: 'Барулар бойынша топ' },
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {

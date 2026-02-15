@@ -10,6 +10,7 @@ import { isShopOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,42 +50,34 @@ export default function RedeemPage() {
   const { playSuccessSound } = useSuccessSound();
   const { vibrateSuccess } = useVibration();
   const { activeSubscriptions } = useSubscriptionStatus();
+  const { t } = useLanguage();
   
-  // Get initial shop from location state if provided
   const initialShop = location.state?.shop;
   const drinkType = location.state?.drinkType || 'coffee';
-  const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? 'Кофе' : 'Матча латте');
+  const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? t('balance.coffee') : 'Матча латте');
   
   const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
   
-  // Get current subscription name
   const currentSubscription = activeSubscriptions.find(sub => sub.subscription_type === drinkType);
   const subscriptionName = currentSubscription?.subscription_name;
 
-  // Handle successful redemption from realtime
   const handleRealtimeRedemption = useCallback(() => {
     setStatus('scanning');
-    
-    // Short delay to show scanning state
     setTimeout(() => {
       setStatus('success');
       setShowConfetti(true);
       playSuccessSound();
       vibrateSuccess();
       refetch();
-      
       setTimeout(() => setShowConfetti(false), 2000);
     }, 500);
   }, [refetch, playSuccessSound, vibrateSuccess]);
 
-  // Get user ID and last redemption for QR code
   useEffect(() => {
     const initUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
-        
-        // Get the last redemption ID to ignore it in realtime
         const { data: lastRedemption } = await supabase
           .from('redemptions')
           .select('id')
@@ -92,155 +85,97 @@ export default function RedeemPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        
-        if (lastRedemption) {
-          setLastRedemptionId(lastRedemption.id);
-        }
+        if (lastRedemption) setLastRedemptionId(lastRedemption.id);
       }
     };
-    
     initUser();
   }, []);
 
-  // Subscribe to realtime redemptions
   useEffect(() => {
     if (!userId) return;
-
     const channel = supabase
       .channel('user-redemptions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'redemptions',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('New redemption detected:', payload);
-          // Only trigger if this is a new redemption (not the last one we knew about)
-          if (payload.new && payload.new.id !== lastRedemptionId) {
-            handleRealtimeRedemption();
-            setLastRedemptionId(payload.new.id as string);
-          }
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'redemptions',
+        filter: `user_id=eq.${userId}`,
+      }, (payload) => {
+        if (payload.new && payload.new.id !== lastRedemptionId) {
+          handleRealtimeRedemption();
+          setLastRedemptionId(payload.new.id as string);
         }
-      )
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId, lastRedemptionId, handleRealtimeRedemption]);
 
-  // Fetch shops from database and add open status
   useEffect(() => {
     const fetchShops = async () => {
       try {
         const { data, error } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('is_active', true)
-          .order('name');
-
+          .from('shops').select('*').eq('is_active', true).order('name');
         if (error) throw error;
-        
-        // Add open status to each shop
         const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => ({
-          ...shop,
-          isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+          ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
         }));
-        
-        // Sort: open shops first, then closed shops
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
           if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
           return a.name.localeCompare(b.name);
         });
-        
         setShops(shopsWithStatus);
-        
-        // Set initial shop - prefer open shop
         if (initialShop && shopsWithStatus.length > 0) {
           const foundShop = shopsWithStatus.find(s => s.id === initialShop.id);
-          if (foundShop) {
-            setSelectedShop(foundShop);
-          } else {
-            // Select first open shop or first shop
+          if (foundShop) setSelectedShop(foundShop);
+          else {
             const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
             setSelectedShop(firstOpen || shopsWithStatus[0]);
           }
         } else if (shopsWithStatus.length > 0) {
-          // Select first open shop or first shop
           const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
           setSelectedShop(firstOpen || shopsWithStatus[0]);
         }
       } catch (error) {
         console.error('Error fetching shops:', error);
-        toast.error('Ошибка загрузки кофеен');
+        toast.error(t('redeem.loadError'));
       } finally {
         setIsLoadingShops(false);
       }
     };
-
     fetchShops();
   }, [initialShop]);
 
-  // Update shop status and QR timestamp every minute
   useEffect(() => {
     const interval = setInterval(() => {
-      // Refresh QR code every 1 minute
       setQrTimestamp(Date.now());
-      
       setShops(prevShops => {
         const updated = prevShops.map(shop => ({
-          ...shop,
-          isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+          ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
         }));
-        
-        // Re-sort
         updated.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
           if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
           return a.name.localeCompare(b.name);
         });
-        
         return updated;
       });
-      
-      // Update selected shop status
       if (selectedShop) {
         setSelectedShop(prev => prev ? {
-          ...prev,
-          isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
+          ...prev, isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
         } : null);
       }
-    }, 60000); // 1 minute
-    
+    }, 60000);
     return () => clearInterval(interval);
   }, [selectedShop]);
 
-  // Generate unique QR code data with timestamp for 1-minute validity
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop) return null;
-    
-    const data = {
-      type: 'subday_redeem',
-      userId: userId,
-      shopId: selectedShop.id,
-      shopName: selectedShop.name,
-      drinkType: drinkType,
-      drinkName: drinkName,
-      timestamp: qrTimestamp,
-      remaining: remaining,
-    };
-    
-    return JSON.stringify(data);
+    return JSON.stringify({
+      type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
+      drinkType, drinkName, timestamp: qrTimestamp, remaining,
+    });
   }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp]);
 
-  
-  const goHome = () => {
-    navigate('/');
-  };
+  const goHome = () => navigate('/');
 
   if (isLoadingShops) {
     return (
@@ -264,8 +199,8 @@ export default function RedeemPage() {
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
               <div className="text-4xl mb-4">☕</div>
-              <p className="text-lg font-semibold text-foreground mb-2">Нет доступных кофеен</p>
-              <p className="text-sm text-muted-foreground">Попробуйте позже</p>
+              <p className="text-lg font-semibold text-foreground mb-2">{t('redeem.noShops')}</p>
+              <p className="text-sm text-muted-foreground">{t('redeem.tryLater')}</p>
             </div>
           </div>
         </div>
@@ -276,31 +211,27 @@ export default function RedeemPage() {
   return (
     <AppLayout hideNav>
       <div className="min-h-screen safe-area-top safe-area-bottom flex flex-col">
-        {/* Header */}
         <div className="px-4 py-4 flex items-center gap-3">
           <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
             <ArrowLeft size={20} className="text-foreground" />
           </Link>
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">Забираешь в</p>
+            <p className="text-sm text-muted-foreground">{t('redeem.pickingUp')}</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors">
                   <span className="flex items-center gap-2">
-                    {selectedShop?.name || 'Выбрать кофейню'}
+                    {selectedShop?.name || t('redeem.selectShop')}
                     {selectedShop && (
                       <span className={`text-xs font-medium ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
-                        · {selectedShop.isCurrentlyOpen ? 'Открыто' : 'Закрыто'}
+                        · {selectedShop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
                       </span>
                     )}
                   </span>
                   <ChevronDown size={16} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                align="start" 
-                className="w-72 bg-card border border-border shadow-lg z-50"
-              >
+              <DropdownMenuContent align="start" className="w-72 bg-card border border-border shadow-lg z-50">
                 {shops.map((shop) => (
                   <DropdownMenuItem
                     key={shop.id}
@@ -310,21 +241,15 @@ export default function RedeemPage() {
                     } ${!shop.isCurrentlyOpen ? 'opacity-60' : ''}`}
                   >
                     {shop.logo_url ? (
-                      <img 
-                        src={shop.logo_url} 
-                        alt={shop.name} 
-                        className="w-10 h-10 rounded-lg object-cover shrink-0"
-                      />
+                      <img src={shop.logo_url} alt={shop.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-lg shrink-0">
-                        ☕
-                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-lg shrink-0">☕</div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-foreground truncate">{shop.name}</p>
                         <span className={`text-xs font-medium shrink-0 ${shop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
-                          {shop.isCurrentlyOpen ? 'Открыто' : 'Закрыто'}
+                          {shop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -352,27 +277,18 @@ export default function RedeemPage() {
           </div>
         </div>
         
-        {/* Main content */}
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
             <div className="text-center animate-slide-up">
               <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
-                  <QRCodeSVG 
-                    value={qrCodeData}
-                    size={260}
-                    level="L"
-                    includeMargin={false}
-                    bgColor="white"
-                    fgColor="#000000"
-                  />
+                  <QRCodeSVG value={qrCodeData} size={260} level="L" includeMargin={false} bgColor="white" fgColor="#000000" />
                 ) : (
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
-              <p className="text-lg font-bold text-foreground mb-1">Ваш QR</p>
+              <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
               
-              {/* Subscription name badge */}
               {subscriptionName && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full mb-2">
                   <Info size={14} />
@@ -380,15 +296,13 @@ export default function RedeemPage() {
                 </div>
               )}
               
-              <p className="text-muted-foreground mb-2">Покажи бариста для сканирования</p>
+              <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Осталось: <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? 'кофе' : 'напитков'}
+                {t('redeem.remaining')} <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')}
               </p>
               
               {selectedShop && !selectedShop.isCurrentlyOpen && (
-                <p className="text-sm text-destructive mb-4">
-                  Кофейня сейчас закрыта
-                </p>
+                <p className="text-sm text-destructive mb-4">{t('redeem.shopClosed')}</p>
               )}
             </div>
           )}
@@ -398,48 +312,36 @@ export default function RedeemPage() {
               <div className="w-64 h-64 bg-card rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-primary">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-              <p className="text-lg font-bold text-foreground mb-2">Сканируют...</p>
-              <p className="text-muted-foreground">Подожди секунду</p>
+              <p className="text-lg font-bold text-foreground mb-2">{t('redeem.scanning')}</p>
+              <p className="text-muted-foreground">{t('redeem.waitSec')}</p>
             </div>
           )}
           
           {status === 'success' && (
             <div className="text-center animate-pop relative">
-              {/* Confetti */}
               {showConfetti && (
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
                   {Array.from({ length: 20 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute animate-confetti"
-                      style={{
-                        left: `${Math.random() * 100}%`,
-                        top: '50%',
-                        animationDelay: `${Math.random() * 0.5}s`,
-                        fontSize: `${Math.random() * 20 + 10}px`,
-                      }}
-                    >
+                    <div key={i} className="absolute animate-confetti" style={{
+                      left: `${Math.random() * 100}%`, top: '50%',
+                      animationDelay: `${Math.random() * 0.5}s`, fontSize: `${Math.random() * 20 + 10}px`,
+                    }}>
                       {['☕', '✨', '🎉', '⭐'][Math.floor(Math.random() * 4)]}
                     </div>
                   ))}
                 </div>
               )}
-              
               <div className="w-64 h-64 bg-accent rounded-3xl shadow-glow flex items-center justify-center mb-6 mx-auto">
                 <Check size={100} className="text-accent-foreground" strokeWidth={3} />
               </div>
-              <p className="text-2xl font-black text-foreground mb-2">Засчитано!</p>
-              <p className="text-muted-foreground mb-2">Наслаждайся напитком ☕</p>
-              
+              <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
+              <p className="text-muted-foreground mb-2">{t('redeem.enjoy')}</p>
               <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-4">
                 <Sparkles size={16} />
-                +10 бонусов
+                +10 {t('bonuses.points')}
               </div>
-              
               <div className="mt-8">
-                <button onClick={goHome} className="btn-primary">
-                  На главную
-                </button>
+                <button onClick={goHome} className="btn-primary">{t('redeem.goHome')}</button>
               </div>
             </div>
           )}
@@ -449,12 +351,9 @@ export default function RedeemPage() {
               <div className="w-64 h-64 bg-destructive/20 rounded-3xl flex items-center justify-center mb-6 mx-auto border-4 border-destructive">
                 <span className="text-6xl">❌</span>
               </div>
-              <p className="text-lg font-bold text-foreground mb-2">Ошибка</p>
-              <p className="text-muted-foreground mb-8">Попробуй ещё раз</p>
-              
-              <button onClick={() => setStatus('ready')} className="btn-primary">
-                Попробовать снова
-              </button>
+              <p className="text-lg font-bold text-foreground mb-2">{t('redeem.error')}</p>
+              <p className="text-muted-foreground mb-8">{t('redeem.tryAgain')}</p>
+              <button onClick={() => setStatus('ready')} className="btn-primary">{t('redeem.retry')}</button>
             </div>
           )}
         </div>
