@@ -18,8 +18,8 @@ export function LanguageSwitcher() {
   }, []);
 
   const options = [
-    { value: 'ru' as const, label: 'Русский', flag: '🇷🇺' },
-    { value: 'kz' as const, label: 'Қазақша', flag: '🇰🇿' },
+    { value: 'ru' as const, label: 'Русский', code: 'RU' },
+    { value: 'kz' as const, label: 'Қазақша', code: 'KZ' },
   ];
 
   const current = options.find(o => o.value === language)!;
@@ -31,7 +31,7 @@ export function LanguageSwitcher() {
         className="flex items-center gap-1.5 bg-secondary/80 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-xs font-semibold text-foreground transition-all hover:bg-secondary active:scale-95 border border-border/50"
       >
         <Globe size={14} className="text-primary" />
-        <span>{current.flag} {language.toUpperCase()}</span>
+        <span>{current.code}</span>
         <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -47,7 +47,7 @@ export function LanguageSwitcher() {
                   : 'text-foreground hover:bg-secondary'
               }`}
             >
-              <span className="text-base">{opt.flag}</span>
+              <span className="text-xs font-bold uppercase">{opt.code}</span>
               <span>{opt.label}</span>
             </button>
           ))}
