@@ -6,47 +6,79 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BASE_PROMPT = `Ты — дружелюбный AI-ассистент приложения subday. Отвечай конкретно и точно. Если у тебя есть данные — давай их сразу, не перенаправляй пользователя в разделы приложения. Отвечай кратко, по делу, на русском языке. Используй эмодзи умеренно.
+const BASE_PROMPT = `Ты — дружелюбный AI-ассистент приложения subday (Служба заботы). Отвечай конкретно и точно. Если у тебя есть данные — давай их сразу, не перенаправляй пользователя в разделы приложения. Отвечай кратко, по делу, на русском языке. Используй эмодзи умеренно.
 
 О приложении subday:
-subday — сервис подписок на кофе и напитки. Пользователи покупают подписку и получают напитки в кофейнях-партнёрах.
+subday — сервис пакетов на кофе и напитки в Казахстане. Пользователи покупают пакет и получают напитки в кофейнях-партнёрах.
+
+Оператор: ТОО "Subday Group", БИН 980102400093
+Адрес: Республика Казахстан, Атырауская область, г. Атырау, мкр. Береке, д.23, кв.37
+Контакты: supp@subday.app, +7 707 700 0994
 
 Разделы приложения:
 🏠 Главная — баланс оставшихся напитков, ближайшие кофейни, рекламные баннеры, быстрые действия.
-☕ Подписки — два типа: "Кофе" (только кофейные напитки) и "Напитки" (любые напитки включая кофе).
+☕ Пакеты — доступные пакеты напитков с ценами и условиями.
 🏪 Кофейни — список кофеен-партнёров с адресами, часами работы, расстоянием и галереей фото.
-📱 QR-код — чтобы получить напиток: открой «Получить кофе» → покажи QR-код бариста → напиток спишется.
+📱 QR-код — чтобы получить напиток: нажми «Получить кофе» → покажи QR-код бариста → напиток спишется.
 🔥 Стрики — за ежедневное получение напитков копится серия (streak). Чем длиннее серия, тем больше бонусов.
 🎁 Бонусы — бонусные баллы за активность.
-📰 subFlow — лента новостей от кофеен с реакциями и комментариями.
-👤 Профиль — настройки: имя, аватар, город, тема, уведомления, техподдержка.
+📰 subFlow — лента новостей от кофеен с реакциями и комментариями (доступна только активным подписчикам).
+👤 Профиль — настройки: имя, аватар, город, тема, уведомления, техподдержка, правила сервиса.
 📊 История — история всех полученных напитков.
 
-Навигация: внизу 5 вкладок — Главная, Подписки, QR-код, subFlow, Профиль.
+Навигация: внизу 5 вкладок — Главная, Пакеты, QR-код (Получить кофе), subFlow, Профиль.
 
-Техподдержка: для связи с поддержкой перейди в Профиль → Техподдержка. Также можно написать в Telegram.
+Техподдержка: для связи с поддержкой перейди в Профиль → Техподдержка. Также можно написать на supp@subday.app или в Telegram.
 
-ВАЖНО: Если пользователь спрашивает цены, подписки, кофейни — давай конкретные данные из раздела ниже. НЕ говори «посмотрите в разделе» — дай ответ сразу.
-Если пользователь спрашивает что-то не связанное с приложением, вежливо направь его к функциям subday.`;
+Оплата: производится через Kaspi.
 
-async function fetchAppData() {
+Возвраты: возвраты по инициативе пользователя ("передумал/не успел") не предусмотрены. Обращения по ошибочным списаниям/сбоям: supp@subday.app.
+
+Гостевой доступ: Пользователь может один раз на один аккаунт предоставить третьему лицу (18+) гостевой доступ на 3 дня. При этом списывается 1 погашение из его активного пакета.
+
+Что входит в "Любой кофе": любой кофейный напиток, доступный у Партнёра. Альтернативное молоко, сиропы и иные добавки — зависит от конкретного пакета (см. "Включает" в описании пакета).
+
+ВАЖНО: 
+- Если пользователь спрашивает цены, пакеты, кофейни — давай КОНКРЕТНЫЕ данные из раздела ниже. НЕ говори «посмотрите в разделе» — дай ответ сразу.
+- Когда описываешь пакеты, ОБЯЗАТЕЛЬНО указывай ВСЕ пункты из поля "Включает" — это ключевая информация для пользователя.
+- Если daily_limit не указан или указан как "безлимит" — это значит БЕЗЛИМИТ напитков в день (без ограничений по количеству в день).
+- Если пользователь спрашивает что-то не связанное с приложением, вежливо направь его к функциям subday.
+- Неиспользованные напитки по окончании срока пакета аннулируются, перенос остатков не допускается.`;
+
+// Cache for app data — refreshes every 12 hours
+let cachedAppData = "";
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+async function fetchAppData(): Promise<string> {
+  const now = Date.now();
+  if (cachedAppData && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    console.log("Using cached app data (age:", Math.round((now - cacheTimestamp) / 60000), "min)");
+    return cachedAppData;
+  }
+
+  console.log("Refreshing app data from database...");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const sb = createClient(supabaseUrl, supabaseKey);
 
   const [shopsRes, subsRes] = await Promise.all([
-    sb.from("shops").select("name, address, addresses, working_hours, city").eq("is_active", true).order("sort_order"),
+    sb.from("shops").select("name, address, addresses, working_hours, city, description").eq("is_active", true).order("sort_order"),
     sb.from("subscription_types").select("name, type, price, cups_count, daily_limit, duration_days, features, description").eq("is_active", true).order("sort_order"),
   ]);
 
-  let dataBlock = "\n\n--- АКТУАЛЬНЫЕ ДАННЫЕ ПРИЛОЖЕНИЯ ---\n";
+  let dataBlock = "\n\n--- АКТУАЛЬНЫЕ ДАННЫЕ ПРИЛОЖЕНИЯ (автообновление каждые 12 часов) ---\n";
 
   if (subsRes.data?.length) {
-    dataBlock += "\n📋 ПОДПИСКИ И ЦЕНЫ:\n";
+    dataBlock += "\n📋 ПАКЕТЫ И ЦЕНЫ:\n";
     for (const s of subsRes.data) {
-      dataBlock += `• "${s.name}" (тип: ${s.type}) — ${s.price} ₸, ${s.cups_count} напитков, лимит ${s.daily_limit || 1}/день, срок ${s.duration_days || '?'} дней`;
-      if (s.description) dataBlock += `. ${s.description}`;
-      if (s.features?.length) dataBlock += `. Включает: ${s.features.join(", ")}`;
+      const limitText = s.daily_limit ? `лимит ${s.daily_limit} напитков в день` : "безлимит напитков в день (без ограничений)";
+      dataBlock += `\n• "${s.name}" (тип: ${s.type}) — ${s.price.toLocaleString()} ₸`;
+      dataBlock += `\n  Количество: ${s.cups_count} напитков`;
+      dataBlock += `\n  Срок действия: ${s.duration_days || '?'} дней`;
+      dataBlock += `\n  Дневной лимит: ${limitText}`;
+      if (s.description) dataBlock += `\n  Описание: ${s.description}`;
+      if (s.features?.length) dataBlock += `\n  Включает: ${s.features.join(" | ")}`;
       dataBlock += "\n";
     }
   }
@@ -57,10 +89,14 @@ async function fetchAppData() {
       const addrs = sh.addresses?.length ? sh.addresses.join("; ") : sh.address || "адрес не указан";
       dataBlock += `• ${sh.name}${sh.city ? ` (${sh.city})` : ""} — ${addrs}`;
       if (sh.working_hours) dataBlock += `, часы работы: ${sh.working_hours}`;
+      if (sh.description) dataBlock += `. ${sh.description}`;
       dataBlock += "\n";
     }
   }
 
+  cachedAppData = dataBlock;
+  cacheTimestamp = now;
+  console.log("App data cached successfully. Subscriptions:", subsRes.data?.length, "Shops:", shopsRes.data?.length);
   return dataBlock;
 }
 
@@ -74,7 +110,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Fetch real app data for context
+    // Fetch real app data (cached with 12h TTL)
     let appData = "";
     try { appData = await fetchAppData(); } catch (e) { console.error("Failed to fetch app data:", e); }
 
