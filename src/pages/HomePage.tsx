@@ -54,7 +54,7 @@ export default function HomePage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="safe-area-top">
           {/* Header */}
-          <div className="px-4 py-4 flex items-center justify-between relative overflow-hidden">
+          <div className="px-4 py-6 flex items-center justify-between relative">
             {/* Kazakh ornament background */}
             <div
               className="absolute inset-0 opacity-15 pointer-events-none"
