@@ -38,7 +38,7 @@ export function PublicOfferDialog({ children }: PublicOfferDialogProps) {
             <div className="space-y-4 text-sm text-foreground">
               <div className="space-y-1">
                 <p><strong>Дата размещения:</strong> 28 января 2026 г.</p>
-                <p><strong>Оператор (Правообладатель):</strong> ТОО «Subday Group», БИН 980102400093</p>
+                <p><strong>Оператор (Правообладатель):</strong> ТОО "Subday Group", БИН 980102400093</p>
                 <p><strong>Адрес:</strong> Республика Казахстан, Атырауская область, г. Атырау, мкр. Береке, д.23, кв.37</p>
                 <p><strong>Контакты:</strong> supp@subday.app, +7 707 700 0994</p>
                 <p><strong>Сервис:</strong> мобильное приложение Subday (далее — «Сервис»)</p>
