@@ -53,7 +53,7 @@ export default function HomePage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="safe-area-top">
           {/* Header */}
-          <div className="px-4 py-4 flex items-center justify-between">
+          <div className="px-4 py-4 flex items-center justify-between relative">
             <div>
               <p className="text-muted-foreground text-sm">Привет,</p>
               {isLoading ? (
@@ -62,7 +62,12 @@ export default function HomePage() {
                 <h1 className="text-xl font-bold text-foreground">{displayName} 👋</h1>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <div className="w-20 h-20">
+                <img src={logo} alt="subday" className="w-full h-full object-contain" />
+              </div>
+            </div>
+            <div>
               {showAdminButton && (
                 <button
                   onClick={handleAdminClick}
@@ -72,9 +77,6 @@ export default function HomePage() {
                   💻
                 </button>
               )}
-              <div className="w-20 h-20">
-                <img src={logo} alt="subday" className="w-full h-full object-contain" />
-              </div>
             </div>
           </div>
           
