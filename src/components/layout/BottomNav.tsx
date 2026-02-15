@@ -27,7 +27,7 @@ export function BottomNav() {
   
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom z-50">
-      <div className="flex items-center justify-around px-0.5 py-1">
+      <div className="flex items-center justify-around px-1 py-1 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -38,16 +38,16 @@ export function BottomNav() {
               to={item.path}
               onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
               onTouchStart={() => handleTouchStart(item.prefetchKey)}
-              className={`nav-item transition-all duration-200 py-1 ${
+              className={`nav-item flex-1 transition-all duration-200 ${
                 isActive ? 'nav-item-active scale-105' : 'nav-item-inactive'
               }`}
             >
               <Icon 
-                size={20} 
+                size={18} 
                 strokeWidth={isActive ? 2.5 : 2}
-                className="transition-all duration-200"
+                className="transition-all duration-200 shrink-0"
               />
-              <span className={`text-[10px] font-medium ${isActive ? 'font-bold' : ''}`}>
+              <span className={`text-[9px] sm:text-[10px] font-medium leading-tight text-center truncate w-full ${isActive ? 'font-bold' : ''}`}>
                 {t(item.labelKey)}
               </span>
             </Link>
