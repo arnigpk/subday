@@ -55,11 +55,13 @@ export default function RedeemPage() {
   const initialShop = location.state?.shop;
   const drinkType = location.state?.drinkType || 'coffee';
   const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? t('balance.coffee') : 'Матча латте');
+  const isGuestCoffee = location.state?.isGuestCoffee || false;
   
-  const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
+  const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
+  const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
   
   const currentSubscription = activeSubscriptions.find(sub => sub.subscription_type === drinkType);
-  const subscriptionName = currentSubscription?.subscription_name;
+  const subscriptionName = isGuestCoffee ? 'Гостевой кофе' : currentSubscription?.subscription_name;
 
   const handleRealtimeRedemption = useCallback(() => {
     setStatus('scanning');
@@ -172,8 +174,9 @@ export default function RedeemPage() {
     return JSON.stringify({
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
+      isGuestCoffee: isGuestCoffee && hasGuestCoffee,
     });
-  }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp]);
+  }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
 
   const goHome = () => navigate('/');
 

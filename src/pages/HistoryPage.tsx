@@ -60,8 +60,9 @@ export default function HistoryPage() {
               {redemptions.map((item, index) => (
                 <div key={item.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
                   {(() => {
-                    const isGuest = item.drinkName.startsWith('Гостевой доступ');
-                    if (isGuest) return (
+                    const isGuestGrant = item.drinkName.startsWith('Гостевой доступ');
+                    const isGuestCoffee = item.drinkName.startsWith('Гостевой кофе');
+                    if (isGuestGrant || isGuestCoffee) return (
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
                         <Gift size={24} className="text-primary" />
                       </div>
