@@ -187,10 +187,10 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <button onClick={() => {
-                  const value = profile?.phone?.startsWith('+telegram_') ? profile.phone.replace('+telegram_', '') : profile?.phone || '';
+                  const value = profile?.publicId || '';
                   if (value) { navigator.clipboard.writeText(value); toast.success(t('profile.copied')); }
                 }} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                  <span>{profile?.phone?.startsWith('+telegram_') ? `ID: ${profile.phone.replace('+telegram_', '')}` : profile?.phone || ''}</span>
+                  <span>ID: {profile?.publicId || '...'}</span>
                   <Copy size={12} className="flex-shrink-0" />
                 </button>
               </>
