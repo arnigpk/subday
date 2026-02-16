@@ -11,6 +11,8 @@ export interface UserStats {
   totalCups: number;
   bonusPoints: number;
   lastRedemptionDate: string | null;
+  guestCoffees: number;
+  guestExpiresAt: string | null;
 }
 
 export interface UserProfile {
@@ -41,6 +43,8 @@ const defaultStats: UserStats = {
   totalCups: 0,
   bonusPoints: 0,
   lastRedemptionDate: null,
+  guestCoffees: 0,
+  guestExpiresAt: null,
 };
 
 export function useUserStats() {
@@ -125,6 +129,8 @@ export function useUserStats() {
         totalCups: statsData.total_cups,
         bonusPoints: statsData.bonus_points,
         lastRedemptionDate: statsData.last_redemption_date,
+        guestCoffees: statsData.guest_coffees ?? 0,
+        guestExpiresAt: statsData.guest_expires_at ?? null,
       });
     }
 

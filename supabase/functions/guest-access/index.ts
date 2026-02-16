@@ -180,6 +180,15 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         return jsonRes({ error: "Ошибка создания приглашения" }, 500);
       }
 
+      // Insert history record for inviter (pending)
+      await supabase.from("redemptions").insert({
+        user_id: inviterId,
+        shop_name: "subday",
+        shop_id: null,
+        drink_name: `Гостевой доступ → ${phone}`,
+        drink_type: "coffee",
+      });
+
       return jsonRes({ status: "pending" });
     }
   } else {
@@ -239,6 +248,16 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     };
     return jsonRes({ error: errorMap[result.error] || "Ошибка" }, 400);
   }
+
+  // Insert history record for inviter
+  const inviteeIdentifier = mode === "phone" ? value : `ID: ${value}`;
+  await supabase.from("redemptions").insert({
+    user_id: inviterId,
+    shop_name: "subday",
+    shop_id: null,
+    drink_name: `Гостевой доступ → ${inviteeIdentifier}`,
+    drink_type: "coffee",
+  });
 
   return jsonRes({ status: "active", expires_at: result.expires_at });
 }
