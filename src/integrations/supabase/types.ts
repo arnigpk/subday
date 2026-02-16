@@ -129,6 +129,39 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_grants: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invitee_phone: string | null
+          invitee_user_id: string | null
+          inviter_user_id: string
+          month_key: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          invitee_phone?: string | null
+          invitee_user_id?: string | null
+          inviter_user_id: string
+          month_key: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_phone?: string | null
+          invitee_user_id?: string | null
+          inviter_user_id?: string
+          month_key?: string
+          status?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           code: string
@@ -215,6 +248,7 @@ export type Database = {
           is_blocked: boolean | null
           name: string | null
           phone: string
+          public_id: string
           subflow_nickname: string | null
           updated_at: string
           user_id: string
@@ -227,6 +261,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone: string
+          public_id?: string
           subflow_nickname?: string | null
           updated_at?: string
           user_id: string
@@ -239,6 +274,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone?: string
+          public_id?: string
           subflow_nickname?: string | null
           updated_at?: string
           user_id?: string
@@ -738,6 +774,9 @@ export type Database = {
           current_streak: number
           drinks_remaining: number
           drinks_total: number
+          guest_coffees: number
+          guest_ever_received: boolean
+          guest_expires_at: string | null
           id: string
           last_redemption_date: string | null
           max_streak: number
@@ -753,6 +792,9 @@ export type Database = {
           current_streak?: number
           drinks_remaining?: number
           drinks_total?: number
+          guest_coffees?: number
+          guest_ever_received?: boolean
+          guest_expires_at?: string | null
           id?: string
           last_redemption_date?: string | null
           max_streak?: number
@@ -768,6 +810,9 @@ export type Database = {
           current_streak?: number
           drinks_remaining?: number
           drinks_total?: number
+          guest_coffees?: number
+          guest_ever_received?: boolean
+          guest_expires_at?: string | null
           id?: string
           last_redemption_date?: string | null
           max_streak?: number
@@ -824,6 +869,10 @@ export type Database = {
         Args: { _subscription_type_id: string; _user_id: string }
         Returns: Json
       }
+      claim_pending_guest_access: {
+        Args: { _invitee_id: string; _invitee_phone: string }
+        Returns: Json
+      }
       expire_subscriptions: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
@@ -835,6 +884,15 @@ export type Database = {
         }[]
       }
       get_staff_shop_id: { Args: { _user_id: string }; Returns: string }
+      grant_guest_access: {
+        Args: {
+          _expires_at: string
+          _invitee_id: string
+          _inviter_id: string
+          _month_key: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

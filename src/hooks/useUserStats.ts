@@ -19,6 +19,7 @@ export interface UserProfile {
   city: string | null;
   avatarUrl: string | null;
   subflowNickname: string | null;
+  publicId: string | null;
 }
 
 export interface Redemption {
@@ -68,7 +69,7 @@ export function useUserStats() {
     // Fetch profile
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('name, phone, city, avatar_url, subflow_nickname')
+      .select('name, phone, city, avatar_url, subflow_nickname, public_id')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -79,6 +80,7 @@ export function useUserStats() {
         city: profileData.city,
         avatarUrl: profileData.avatar_url,
         subflowNickname: profileData.subflow_nickname,
+        publicId: (profileData as any).public_id || null,
       });
     }
 

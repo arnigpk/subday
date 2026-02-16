@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
+import { GuestAccessSection } from '@/components/profile/GuestAccessSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ProfilePage() {
@@ -213,7 +214,9 @@ export default function ProfilePage() {
           </div>
           
           <div style={{ animationDelay: '0.1s' }}><PurchaseHistorySection /></div>
-          
+
+          <div className="mb-3"><GuestAccessSection /></div>
+
           <div className="card-interactive flex items-center justify-between mb-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-3">
               {isDark ? <Moon size={20} className="text-muted-foreground" /> : <Sun size={20} className="text-muted-foreground" />}
