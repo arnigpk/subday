@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -40,18 +40,22 @@ Deno.serve(async (req) => {
     // Create supabase client with service role
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user from token
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    // Verify user via getClaims
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
 
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth error:', claimsError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const user = { id: claimsData.claims.sub as string, email: claimsData.claims.email as string | undefined };
 
     const { subscription_type_id } = await req.json();
 
