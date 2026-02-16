@@ -63,12 +63,15 @@ async function fetchUserContext(supabaseUrl: string, supabaseKey: string, authHe
   if (!authHeader) return "";
   
   try {
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || supabaseKey, {
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || supabaseKey;
+    const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return "";
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) return "";
+    const user = { id: claimsData.claims.sub as string };
 
     const sb = createClient(supabaseUrl, supabaseKey);
     

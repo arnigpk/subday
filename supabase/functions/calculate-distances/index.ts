@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface ShopCoord {
@@ -58,16 +58,27 @@ serve(async (req) => {
       );
     }
 
-    // 2GIS Distance Matrix API
-    // Format: sources=lng,lat and targets=lng,lat (note: longitude first!)
-    const sources = `${user_lng},${user_lat}`;
-    const targets = validShops.map(s => `${s.lng},${s.lat}`).join('|');
+    // 2GIS Distance Matrix API (POST method required)
+    // Format: sources and targets as arrays of {lat, lng} objects
+    const url = `https://routing.api.2gis.com/get_dist_matrix?key=${DGIS_API_KEY}&version=2.0`;
+    
+    const body = {
+      points: [
+        { lat: user_lat, lon: user_lng },
+        ...validShops.map(s => ({ lat: s.lat, lon: s.lng })),
+      ],
+      sources: [0],
+      targets: validShops.map((_, i) => i + 1),
+      mode: "driving",
+    };
 
-    const url = `https://routing.api.2gis.com/get_dist_matrix?key=${DGIS_API_KEY}&version=2.0&sources=${sources}&targets=${targets}&mode=driving`;
+    console.log('Calling 2GIS API (POST)...');
     
-    console.log('Calling 2GIS API...');
-    
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
     const data = await response.json();
 
     console.log('2GIS response status:', response.status);
