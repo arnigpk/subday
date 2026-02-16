@@ -97,6 +97,7 @@ export default function PartnerScanPage() {
           shopName: data.shopName,
           drinkType: data.drinkType,
           drinkName: data.drinkName,
+          isGuestCoffee: data.isGuestCoffee || false,
         },
       });
 
