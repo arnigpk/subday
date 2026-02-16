@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, Droplets } from 'lucide-react';
+import { Coffee, Droplets, Gift } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -59,9 +59,19 @@ export default function HistoryPage() {
             <div className="space-y-3">
               {redemptions.map((item, index) => (
                 <div key={item.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.drinkType === 'coffee' ? 'bg-primary/10' : 'bg-accent/10'}`}>
-                    {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <Droplets size={24} className="text-accent" />}
-                  </div>
+                  {(() => {
+                    const isGuest = item.drinkName.startsWith('Гостевой доступ');
+                    if (isGuest) return (
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
+                        <Gift size={24} className="text-primary" />
+                      </div>
+                    );
+                    return (
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.drinkType === 'coffee' ? 'bg-primary/10' : 'bg-accent/10'}`}>
+                        {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <Droplets size={24} className="text-accent" />}
+                      </div>
+                    );
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{item.drinkName}</p>
                     <p className="text-sm text-muted-foreground truncate">{item.shopName}</p>

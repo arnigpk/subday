@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coffee, Droplets, Clock, AlertTriangle } from 'lucide-react';
+import { Coffee, Droplets, Clock, AlertTriangle, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -99,8 +99,20 @@ export function BalanceCard() {
                     <AlertTriangle size={14} />
                     <span className="text-xs font-medium">{t('balance.dailyLimitReached')}</span>
                   </div>
-                )}
-                
+          )}
+
+          {/* Guest coffee banner */}
+          {stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date() && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10">
+              <Gift size={14} className="text-primary" />
+              <span className="text-xs font-medium text-primary">
+                {language === 'kz' 
+                  ? `Қонақ кофе: ${stats.guestCoffees} (${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} дейін)`
+                  : `Гостевой кофе: ${stats.guestCoffees} (до ${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})`
+                }
+              </span>
+            </div>
+          )}
                 {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
                   <p className="text-xs text-muted-foreground mt-1">
                     {t('balance.todayRemaining')} {remainingToday} {t('balance.of')} {dailyLimit}
