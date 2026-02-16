@@ -212,7 +212,30 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     .maybeSingle();
 
   if (inviteeStats?.guest_ever_received) {
-    return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
+    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
+  }
+
+  // 5b. Check if invitee ever had a subscription
+  const { data: existingSub } = await supabase
+    .from("user_subscriptions")
+    .select("id")
+    .eq("user_id", inviteeProfile.user_id)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingSub) {
+    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
+  }
+
+  const { data: existingTx } = await supabase
+    .from("subscription_transactions")
+    .select("id")
+    .eq("user_id", inviteeProfile.user_id)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingTx) {
+    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
   }
 
   // Check existing grant for this invitee
