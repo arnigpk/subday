@@ -71,6 +71,19 @@ export function BalanceCard() {
         onChange={(tab) => setActiveTab(tab as 'coffee' | 'drinks')}
         className="mb-4"
       />
+
+      {/* Guest coffee banner - always visible regardless of subscription */}
+      {stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date() && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10">
+          <Gift size={14} className="text-primary" />
+          <span className="text-xs font-medium text-primary">
+            {language === 'kz' 
+              ? `Қонақ кофе: ${stats.guestCoffees} (${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} дейін)`
+              : `Гостевой кофе: ${stats.guestCoffees} (до ${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})`
+            }
+          </span>
+        </div>
+      )}
       
       {hasSubscription ? (
         <>
@@ -99,20 +112,8 @@ export function BalanceCard() {
                     <AlertTriangle size={14} />
                     <span className="text-xs font-medium">{t('balance.dailyLimitReached')}</span>
                   </div>
-          )}
+                )}
 
-          {/* Guest coffee banner */}
-          {stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date() && (
-            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10">
-              <Gift size={14} className="text-primary" />
-              <span className="text-xs font-medium text-primary">
-                {language === 'kz' 
-                  ? `Қонақ кофе: ${stats.guestCoffees} (${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} дейін)`
-                  : `Гостевой кофе: ${stats.guestCoffees} (до ${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})`
-                }
-              </span>
-            </div>
-          )}
                 {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
                   <p className="text-xs text-muted-foreground mt-1">
                     {t('balance.todayRemaining')} {remainingToday} {t('balance.of')} {dailyLimit}
