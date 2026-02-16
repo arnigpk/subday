@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.ai-assistant]
 verify_jwt = false
+
+[functions.guest-access]
+verify_jwt = false

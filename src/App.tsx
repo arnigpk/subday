@@ -21,6 +21,7 @@ import HistoryPage from "./pages/HistoryPage";
 import StreaksPage from "./pages/StreaksPage";
 import BonusesPage from "./pages/BonusesPage";
 import ProfilePage from "./pages/ProfilePage";
+import GiftCoffeePage from "./pages/GiftCoffeePage";
 import SubFlowPage from "./pages/SubFlowPage";
 import NotFound from "./pages/NotFound";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
@@ -122,6 +123,21 @@ const AppContent = () => {
       (event, session) => {
         setSession(session);
         setIsAuthLoading(false);
+        // Auto-claim pending guest access on login
+        if (event === 'SIGNED_IN' && session) {
+          supabase.functions.invoke('guest-access', {
+            body: { action: 'claim' },
+          }).then(({ data }) => {
+            if (data?.success) {
+              // Will show toast after page loads
+              setTimeout(() => {
+                import('sonner').then(({ toast }) => {
+                  toast.success('Вам подарили 1 кофе на 10 дней ☕️', { duration: 6000 });
+                });
+              }, 2000);
+            }
+          }).catch(() => {});
+        }
       }
     );
 
@@ -176,6 +192,7 @@ const AppContent = () => {
           <Route path="/streaks" element={<StreaksPage />} />
           <Route path="/bonuses" element={<BonusesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/gift-coffee" element={<GiftCoffeePage />} />
           <Route path="/subflow" element={<SubFlowPage />} />
           
           {/* Admin Routes */}
