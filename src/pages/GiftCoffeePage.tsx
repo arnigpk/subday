@@ -26,10 +26,17 @@ export default function GiftCoffeePage() {
       });
 
       if (error) {
+        // The supabase client wraps the response body in error.context
         let errMsg = 'Ошибка';
         try {
-          const parsed = JSON.parse(error.message);
-          errMsg = parsed.error || errMsg;
+          // Try to get the body from the error context (FunctionsHttpError)
+          if (error.context && typeof error.context.json === 'function') {
+            const body = await error.context.json();
+            errMsg = body?.error || errMsg;
+          } else {
+            const parsed = JSON.parse(error.message);
+            errMsg = parsed.error || errMsg;
+          }
         } catch {
           errMsg = error.message || errMsg;
         }
