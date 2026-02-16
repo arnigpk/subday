@@ -196,7 +196,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
   }
 
   if (!inviteeProfile) {
-    return jsonRes({ error: "Некорректный номер телефона / ID." }, 400);
+    return jsonRes({ error: "Такого пользователя не существует, попробуй ввести правильный ID" }, 400);
   }
 
   // 4. Self-invite check

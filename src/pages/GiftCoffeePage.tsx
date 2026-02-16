@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Gift } from 'lucide-react';
+import { ArrowLeft, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -65,6 +65,11 @@ export default function GiftCoffeePage() {
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
+          <button onClick={() => navigate('/profile')} className="flex items-center gap-2 text-muted-foreground mb-4">
+            <ArrowLeft size={20} />
+            <span>{t('packageDetail.back')}</span>
+          </button>
+
           <div className="text-center mb-6">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
               <Gift size={32} className="text-primary" />
