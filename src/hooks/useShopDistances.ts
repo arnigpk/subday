@@ -28,7 +28,6 @@ interface ShopWithCoords {
 }
 
 const CACHE_DURATION = 30000; // 30 seconds
-const MIN_DISTANCE_CHANGE = 50; // meters - minimum user movement to trigger recalculation
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
   const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());
@@ -57,16 +56,13 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
       return;
     }
 
-    // Check cache - don't recalculate if user hasn't moved much
+    // Check cache - don't recalculate if not enough time passed
     const now = Date.now();
     if (lastCalcPosition.current && now - lastCalcTime.current < CACHE_DURATION) {
-      const movedDistance = haversineDistance(
-        lastCalcPosition.current.lat,
-        lastCalcPosition.current.lng,
-        userLat,
-        userLng
-      );
-      if (movedDistance < MIN_DISTANCE_CHANGE) {
+      const dLat = Math.abs(lastCalcPosition.current.lat - userLat);
+      const dLng = Math.abs(lastCalcPosition.current.lng - userLng);
+      // ~50m threshold in degrees
+      if (dLat < 0.00045 && dLng < 0.00045) {
         return;
       }
     }
@@ -153,34 +149,6 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
       if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Error calculating distances:', err);
         setError(err.message);
-        
-        // Fallback to client-side Haversine - find closest for each shop
-        const fallbackDistances = new Map<string, ShopDistance>();
-        shopsWithCoords.forEach(shop => {
-          let closest: { distance: number; duration: number; index: number } | null = null;
-          
-          shop.coordinates.forEach((coord, index) => {
-            if (coord?.lat && coord?.lng) {
-              const dist = haversineDistance(userLat, userLng, coord.lat, coord.lng);
-              if (!closest || dist < closest.distance) {
-                closest = {
-                  distance: Math.round(dist),
-                  duration: Math.round((dist / 1000) / 50 * 3600),
-                  index,
-                };
-              }
-            }
-          });
-          
-          if (closest) {
-            fallbackDistances.set(shop.id, {
-              distance: closest.distance,
-              duration: closest.duration,
-              closestAddressIndex: closest.index,
-            });
-          }
-        });
-        setDistances(fallbackDistances);
       }
     } finally {
       setLoading(false);
@@ -212,19 +180,3 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
   };
 }
 
-// Haversine formula for fallback
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000; // Earth radius in meters
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function toRad(deg: number): number {
-  return deg * (Math.PI / 180);
-}
