@@ -56,7 +56,17 @@ serve(async (req) => {
       );
     }
 
-    
+    // Mapbox Matrix API requires at least 2 destinations — for 1 shop use Haversine directly
+    if (validShops.length === 1) {
+      console.log('Only 1 shop, using Haversine directly');
+      return new Response(
+        JSON.stringify({ 
+          distances: calculateHaversineDistances(user_lat, user_lng, validShops),
+          source: 'haversine'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Mapbox Matrix API accepts max 25 coordinates per request
     // Format: coordinates as semicolon-separated lng,lat pairs
