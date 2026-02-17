@@ -56,46 +56,19 @@ serve(async (req) => {
       );
     }
 
-    // For 1 shop: use Mapbox Directions API (Matrix requires 2+ destinations)
-    if (validShops.length === 1) {
-      const shop = validShops[0];
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${user_lng},${user_lat};${shop.lng},${shop.lat}?overview=false&access_token=${MAPBOX_TOKEN}`;
+    // Always use Mapbox Matrix API for consistency
+    // Matrix API requires minimum 2 destinations, so duplicate if single shop
+    const needsDummy = validShops.length === 1;
+    const shopCoords = needsDummy
+      ? [...validShops, validShops[0]] // duplicate to satisfy min 2 elements
+      : validShops;
 
-      console.log('Calling Mapbox Directions API for single shop...');
-      const response = await fetch(url);
-      const data = await response.json();
-
-      console.log('Mapbox Directions response status:', response.status, 'code:', data.code);
-
-      if (response.ok && data.code === 'Ok' && data.routes?.[0]) {
-        const route = data.routes[0];
-        return new Response(
-          JSON.stringify({
-            distances: [{
-              shop_id: shop.id,
-              distance: Math.round(route.distance),
-              duration: Math.round(route.duration),
-            }],
-            source: 'mapbox',
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.error('Mapbox Directions API error:', data);
-      return new Response(
-        JSON.stringify({ error: 'Failed to calculate distance', details: data }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // For 2+ shops: use Mapbox Matrix API (max 25 coordinates per request)
     const coordinates = [
       `${user_lng},${user_lat}`,
-      ...validShops.map(s => `${s.lng},${s.lat}`),
+      ...shopCoords.map(s => `${s.lng},${s.lat}`),
     ].join(';');
 
-    const destinations = validShops.map((_, i) => i + 1).join(';');
+    const destinations = shopCoords.map((_, i) => String(i + 1)).join(';');
     
     const url = `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coordinates}?sources=0&destinations=${destinations}&annotations=distance,duration&access_token=${MAPBOX_TOKEN}`;
 
