@@ -82,6 +82,7 @@ const translations: Record<string, Record<Language, string>> = {
   'shops.pickupHere': { ru: 'Забрать здесь', kz: 'Осы жерден алу' },
   'shops.addressNotSet': { ru: 'Адрес не указан', kz: 'Мекенжай көрсетілмеген' },
   'shops.byCar': { ru: 'на авто', kz: 'көлікпен' },
+  'shops.getDirections': { ru: 'Добраться', kz: 'Жету' },
 
   // Redeem page
   'redeem.pickingUp': { ru: 'Забираешь в', kz: 'Алатын жер' },
