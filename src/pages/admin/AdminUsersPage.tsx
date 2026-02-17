@@ -496,6 +496,7 @@ export default function AdminUsersPage() {
                       <TableHead>Имя</TableHead>
                       <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
+                      <TableHead>Регистрация</TableHead>
                       <TableHead>Город</TableHead>
                       <TableHead className="text-center">Кофе</TableHead>
                       <TableHead className="text-center">Напитки</TableHead>
@@ -515,6 +516,9 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           {user.phone.startsWith('+telegram_') ? 'TG' : user.phone}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(user.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </TableCell>
                         <TableCell>{user.city || '—'}</TableCell>
                         <TableCell className="text-center">{user.coffee_remaining}</TableCell>

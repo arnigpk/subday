@@ -45,6 +45,7 @@ interface TransactionWithUser {
   created_at: string;
   user_name: string | null;
   user_phone: string | null;
+  user_public_id: string | null;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -114,7 +115,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const userIds = [...new Set(data.map(t => t.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone')
+        .select('user_id, name, phone, public_id')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
@@ -123,6 +124,7 @@ export default function AdminSubscriptionTransactionsPage() {
         ...t,
         user_name: profileMap.get(t.user_id)?.name || null,
         user_phone: profileMap.get(t.user_id)?.phone || null,
+        user_public_id: profileMap.get(t.user_id)?.public_id || null,
       }));
 
       setTransactions(combined);
@@ -291,6 +293,7 @@ export default function AdminSubscriptionTransactionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Пользователь</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Подписка</TableHead>
                       <TableHead>Тип</TableHead>
@@ -308,7 +311,8 @@ export default function AdminSubscriptionTransactionsPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{t.user_phone || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground">{t.user_public_id || '—'}</TableCell>
+                        <TableCell>{t.user_phone?.startsWith('+telegram_') ? 'TG' : (t.user_phone || '—')}</TableCell>
                         <TableCell>{t.subscription_name}</TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${

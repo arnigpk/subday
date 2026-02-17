@@ -36,6 +36,7 @@ interface RedemptionWithUser {
   subscription_name: string | null;
   user_name: string | null;
   user_phone: string | null;
+  user_public_id: string | null;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -132,7 +133,7 @@ export default function AdminHistoryPage() {
       const userIds = [...new Set(redemptionsData.map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone')
+        .select('user_id, name, phone, public_id')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
@@ -142,6 +143,7 @@ export default function AdminHistoryPage() {
         ...r,
         user_name: profileMap.get(r.user_id)?.name || null,
         user_phone: profileMap.get(r.user_id)?.phone || null,
+        user_public_id: profileMap.get(r.user_id)?.public_id || null,
       }));
 
       // Filter by search
@@ -306,6 +308,7 @@ export default function AdminHistoryPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Пользователь</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Кофейня</TableHead>
                       <TableHead>Напиток</TableHead>
@@ -325,7 +328,8 @@ export default function AdminHistoryPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{r.user_phone || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
+                        <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
                         <TableCell>{r.shop_name}</TableCell>
                         <TableCell>{r.drink_name}</TableCell>
                         <TableCell>
