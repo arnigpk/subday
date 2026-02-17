@@ -56,20 +56,40 @@ serve(async (req) => {
       );
     }
 
-    // Mapbox Matrix API requires at least 2 destinations — for 1 shop use Haversine directly
+    // For 1 shop: use Mapbox Directions API (Matrix requires 2+ destinations)
     if (validShops.length === 1) {
-      console.log('Only 1 shop, using Haversine directly');
+      const shop = validShops[0];
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${user_lng},${user_lat};${shop.lng},${shop.lat}?overview=false&access_token=${MAPBOX_TOKEN}`;
+
+      console.log('Calling Mapbox Directions API for single shop...');
+      const response = await fetch(url);
+      const data = await response.json();
+
+      console.log('Mapbox Directions response status:', response.status, 'code:', data.code);
+
+      if (response.ok && data.code === 'Ok' && data.routes?.[0]) {
+        const route = data.routes[0];
+        return new Response(
+          JSON.stringify({
+            distances: [{
+              shop_id: shop.id,
+              distance: Math.round(route.distance),
+              duration: Math.round(route.duration),
+            }],
+            source: 'mapbox',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.error('Mapbox Directions API error:', data);
       return new Response(
-        JSON.stringify({ 
-          distances: calculateHaversineDistances(user_lat, user_lng, validShops),
-          source: 'haversine'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to calculate distance', details: data }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Mapbox Matrix API accepts max 25 coordinates per request
-    // Format: coordinates as semicolon-separated lng,lat pairs
+    // For 2+ shops: use Mapbox Matrix API (max 25 coordinates per request)
     const coordinates = [
       `${user_lng},${user_lat}`,
       ...validShops.map(s => `${s.lng},${s.lat}`),
@@ -89,15 +109,11 @@ serve(async (req) => {
     if (!response.ok || data.code !== 'Ok') {
       console.error('Mapbox API error:', data);
       return new Response(
-        JSON.stringify({ 
-          distances: calculateHaversineDistances(user_lat, user_lng, validShops),
-          source: 'haversine'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Mapbox API error', details: data }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Parse Mapbox response - distances[0] and durations[0] are arrays from source 0 to all destinations
     const distances: DistanceResult[] = [];
     
     if (data.distances && data.durations && data.distances[0] && data.durations[0]) {
@@ -110,11 +126,8 @@ serve(async (req) => {
       });
     } else {
       return new Response(
-        JSON.stringify({ 
-          distances: calculateHaversineDistances(user_lat, user_lng, validShops),
-          source: 'haversine'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Unexpected Mapbox response format' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -133,30 +146,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Haversine formula fallback
-function calculateHaversineDistances(userLat: number, userLng: number, shops: ShopCoord[]): DistanceResult[] {
-  const R = 6371000;
-  
-  return shops.map(shop => {
-    const dLat = toRad(shop.lat - userLat);
-    const dLon = toRad(shop.lng - userLng);
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(userLat)) * Math.cos(toRad(shop.lat)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    const duration = (distance / 1000) / 50 * 3600;
-    
-    return {
-      shop_id: shop.id,
-      distance: Math.round(distance),
-      duration: Math.round(duration),
-    };
-  });
-}
-
-function toRad(deg: number): number {
-  return deg * (Math.PI / 180);
-}
