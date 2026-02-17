@@ -56,7 +56,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Token starts with:', MAPBOX_TOKEN.substring(0, 10), 'length:', MAPBOX_TOKEN.length);
+    
 
     // Mapbox Matrix API accepts max 25 coordinates per request
     // Format: coordinates as semicolon-separated lng,lat pairs
