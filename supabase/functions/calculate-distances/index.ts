@@ -18,17 +18,16 @@ interface DistanceResult {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const DGIS_API_KEY = Deno.env.get('DGIS_API_KEY');
-    if (!DGIS_API_KEY) {
-      console.error('DGIS_API_KEY not configured');
+    const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
+    if (!MAPBOX_TOKEN) {
+      console.error('MAPBOX_ACCESS_TOKEN not configured');
       return new Response(
-        JSON.stringify({ error: '2GIS API key not configured' }),
+        JSON.stringify({ error: 'Mapbox API token not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -48,7 +47,6 @@ serve(async (req) => {
       );
     }
 
-    // Filter shops with valid coordinates
     const validShops = shops.filter(s => s.lat && s.lng);
     
     if (validShops.length === 0) {
@@ -58,34 +56,26 @@ serve(async (req) => {
       );
     }
 
-    // 2GIS Distance Matrix API (POST method required)
-    // Format: sources and targets as arrays of {lat, lng} objects
-    const url = `https://routing.api.2gis.com/get_dist_matrix?key=${DGIS_API_KEY}&version=2.0`;
-    
-    const body = {
-      points: [
-        { lat: user_lat, lon: user_lng },
-        ...validShops.map(s => ({ lat: s.lat, lon: s.lng })),
-      ],
-      sources: [0],
-      targets: validShops.map((_, i) => i + 1),
-      mode: "driving",
-    };
+    // Mapbox Matrix API accepts max 25 coordinates per request
+    // Format: coordinates as semicolon-separated lng,lat pairs
+    const coordinates = [
+      `${user_lng},${user_lat}`,
+      ...validShops.map(s => `${s.lng},${s.lat}`),
+    ].join(';');
 
-    console.log('Calling 2GIS API (POST)...');
+    const destinations = validShops.map((_, i) => i + 1).join(';');
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const url = `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coordinates}?sources=0&destinations=${destinations}&annotations=distance,duration&access_token=${MAPBOX_TOKEN}`;
+
+    console.log('Calling Mapbox Matrix API...');
+    
+    const response = await fetch(url);
     const data = await response.json();
 
-    console.log('2GIS response status:', response.status);
+    console.log('Mapbox response status:', response.status, 'code:', data.code);
 
-    if (!response.ok || data.error) {
-      console.error('2GIS API error:', data);
-      // Fall back to Haversine formula
+    if (!response.ok || data.code !== 'Ok') {
+      console.error('Mapbox API error:', data);
       return new Response(
         JSON.stringify({ 
           distances: calculateHaversineDistances(user_lat, user_lng, validShops),
@@ -95,20 +85,18 @@ serve(async (req) => {
       );
     }
 
-    // Parse 2GIS response
+    // Parse Mapbox response - distances[0] and durations[0] are arrays from source 0 to all destinations
     const distances: DistanceResult[] = [];
     
-    if (data.routes && Array.isArray(data.routes)) {
+    if (data.distances && data.durations && data.distances[0] && data.durations[0]) {
       validShops.forEach((shop, index) => {
-        const route = data.routes[index];
         distances.push({
           shop_id: shop.id,
-          distance: route?.distance ?? null,
-          duration: route?.duration ?? null,
+          distance: data.distances[0][index] != null ? Math.round(data.distances[0][index]) : null,
+          duration: data.durations[0][index] != null ? Math.round(data.durations[0][index]) : null,
         });
       });
     } else {
-      // Fallback to haversine if response format is unexpected
       return new Response(
         JSON.stringify({ 
           distances: calculateHaversineDistances(user_lat, user_lng, validShops),
@@ -118,10 +106,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Calculated ${distances.length} distances`);
+    console.log(`Calculated ${distances.length} distances via Mapbox`);
 
     return new Response(
-      JSON.stringify({ distances, source: '2gis' }),
+      JSON.stringify({ distances, source: 'mapbox' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -136,7 +124,7 @@ serve(async (req) => {
 
 // Haversine formula fallback
 function calculateHaversineDistances(userLat: number, userLng: number, shops: ShopCoord[]): DistanceResult[] {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   
   return shops.map(shop => {
     const dLat = toRad(shop.lat - userLat);
@@ -147,8 +135,6 @@ function calculateHaversineDistances(userLat: number, userLng: number, shops: Sh
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
-    
-    // Estimate duration: ~50 km/h average city speed
     const duration = (distance / 1000) / 50 * 3600;
     
     return {
