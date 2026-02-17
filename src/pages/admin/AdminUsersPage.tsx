@@ -37,6 +37,7 @@ interface UserWithStats {
   user_id: string;
   name: string | null;
   phone: string;
+  public_id: string;
   city: string | null;
   created_at: string;
   is_blocked: boolean;
@@ -124,10 +125,10 @@ export default function AdminUsersPage() {
     try {
       let query = supabase
         .from('profiles')
-        .select('user_id, name, phone, city, created_at, is_blocked', { count: 'exact' });
+        .select('user_id, name, phone, public_id, city, created_at, is_blocked', { count: 'exact' });
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,public_id.ilike.%${search}%`);
       }
 
       // Registration date filter
@@ -493,6 +494,7 @@ export default function AdminUsersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Имя</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Город</TableHead>
                       <TableHead className="text-center">Кофе</TableHead>
@@ -508,7 +510,12 @@ export default function AdminUsersPage() {
                         <TableCell className="font-medium">
                           {user.name || '—'}
                         </TableCell>
-                        <TableCell>{user.phone}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {user.public_id}
+                        </TableCell>
+                        <TableCell>
+                          {user.phone.startsWith('+telegram_') ? 'TG' : user.phone}
+                        </TableCell>
                         <TableCell>{user.city || '—'}</TableCell>
                         <TableCell className="text-center">{user.coffee_remaining}</TableCell>
                         <TableCell className="text-center">{user.drinks_remaining}</TableCell>
