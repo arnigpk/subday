@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
@@ -114,12 +114,29 @@ export default function ShopDetailPage() {
             {getShopBadges(shop).length > 0 && <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />}
           </div>
 
-          {shopDistance?.distance != null && <div className="flex items-center gap-2 mb-3 text-xs">
-            <div className="flex items-center gap-1 text-foreground font-medium">
-              <Navigation size={14} className="text-green-700 dark:text-green-500" />
-              <span>{formatDistance(shopDistance.distance)}</span>
+          {shopDistance?.distance != null && <div className="flex items-center justify-between gap-2 mb-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-foreground font-medium">
+                <Navigation size={14} className="text-green-700 dark:text-green-500" />
+                <span>{formatDistance(shopDistance.distance)}</span>
+              </div>
+              {shopDistance.duration != null && <span className="text-muted-foreground">~{formatDuration(shopDistance.duration)} {t('shops.byCar')}</span>}
             </div>
-            {shopDistance.duration != null && <span className="text-muted-foreground">~{formatDuration(shopDistance.duration)} {t('shops.byCar')}</span>}
+            <button
+              onClick={() => {
+                const coords = parseCoordinates(shop.coordinates);
+                const idx = shopDistance.closestAddressIndex;
+                const coord = coords[idx] || coords[0];
+                if (coord) {
+                  const url = `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`;
+                  window.open(url, '_blank');
+                }
+              }}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              <ExternalLink size={12} />
+              <span>{t('shops.getDirections') || 'Добраться'}</span>
+            </button>
           </div>}
           
           <div className="flex items-start gap-2 text-muted-foreground">
