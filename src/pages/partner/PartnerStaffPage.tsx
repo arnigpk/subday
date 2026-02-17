@@ -234,7 +234,7 @@ export default function PartnerStaffPage() {
                 <p className="font-medium text-foreground">
                   {foundUser.name || 'Без имени'}
                 </p>
-                <p className="text-sm text-muted-foreground">{foundUser.phone}</p>
+                <p className="text-sm text-muted-foreground">{foundUser.phone.startsWith('+telegram_') ? 'TG' : foundUser.phone}</p>
               </div>
               <Button onClick={handleAddBarista} disabled={isAdding} size="sm">
                 {isAdding ? (
@@ -269,7 +269,7 @@ export default function PartnerStaffPage() {
                     <p className="font-medium text-foreground">
                       {barista.name || 'Без имени'}
                     </p>
-                    <p className="text-sm text-muted-foreground">{barista.phone}</p>
+                    <p className="text-sm text-muted-foreground">{barista.phone.startsWith('+telegram_') ? 'TG' : barista.phone}</p>
                   </div>
                   <Button
                     variant="ghost"

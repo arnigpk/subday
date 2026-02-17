@@ -9,6 +9,7 @@ import { ru } from 'date-fns/locale';
 interface Redemption {
   id: string;
   customerName: string | null;
+  customerPublicId: string | null;
   drinkName: string;
   subscriptionName: string | null;
   redeemedAt: string;
@@ -52,16 +53,17 @@ export default function PartnerHistoryPage() {
 
         // Fetch profiles for all user_ids
         const userIds = [...new Set(data.map(r => r.user_id))];
-        const { data: profiles } = await supabase
+      const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, name')
+          .select('user_id, name, public_id')
           .in('user_id', userIds);
 
-        const profileMap = new Map(profiles?.map(p => [p.user_id, p.name]) || []);
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
         const formattedRedemptions: Redemption[] = data.map(r => ({
           id: r.id,
-          customerName: profileMap.get(r.user_id) || 'Неизвестный',
+          customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
+          customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
           subscriptionName: r.subscription_name,
           redeemedAt: r.redeemed_at,
@@ -115,6 +117,9 @@ export default function PartnerHistoryPage() {
                     <p className="font-medium text-foreground">
                       {redemption.customerName}
                     </p>
+                    {redemption.customerPublicId && (
+                      <p className="text-xs text-muted-foreground font-mono">ID: {redemption.customerPublicId}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {redemption.drinkName}
                     </p>
