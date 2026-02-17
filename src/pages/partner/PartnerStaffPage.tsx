@@ -88,7 +88,7 @@ export default function PartnerStaffPage() {
 
   const handleSearch = async () => {
     if (!searchPhone.trim()) {
-      toast.error('Введите номер телефона');
+      toast.error('Введите ID пользователя');
       return;
     }
 
@@ -96,12 +96,11 @@ export default function PartnerStaffPage() {
     setFoundUser(null);
 
     try {
-      // Search for user by phone
+      // Search for user by public_id
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, name, phone')
-        .ilike('phone', `%${searchPhone.trim()}%`)
-        .limit(1)
+        .select('user_id, name, phone, public_id')
+        .eq('public_id', searchPhone.trim())
         .maybeSingle();
 
       if (error) {
@@ -215,7 +214,7 @@ export default function PartnerStaffPage() {
           
           <div className="flex gap-2">
             <Input
-              placeholder="Номер телефона"
+              placeholder="ID пользователя (6 цифр)"
               value={searchPhone}
               onChange={(e) => setSearchPhone(e.target.value)}
               className="flex-1"
