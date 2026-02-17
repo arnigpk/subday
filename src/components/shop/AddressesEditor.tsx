@@ -103,7 +103,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
               </div>
               {(item.lat === null || item.lng === null) && (
                 <p className="text-xs text-muted-foreground pl-6">
-                  Найти координаты: 2gis.kz → правый клик на точке → Что здесь?
+                  Найти координаты: Google Maps → правый клик на точке → Что здесь?
                 </p>
               )}
             </div>
