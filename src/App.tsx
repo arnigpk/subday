@@ -60,11 +60,6 @@ const AppContent = () => {
   
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
-  // Hide native HTML preloader as soon as React mounts
-  useEffect(() => {
-    const el = document.getElementById('html-preloader');
-    if (el) el.style.display = 'none';
-  }, []);
   
   // Minimum preloader display time (2 seconds)
   useEffect(() => {
