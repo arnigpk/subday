@@ -60,8 +60,7 @@ const AppContent = () => {
   
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
-  
-  // Minimum preloader display time (2 seconds)
+  // Минимальное время показа прелоадера (1.5 секунды)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
@@ -158,44 +157,13 @@ const AppContent = () => {
   
   if (isLoading) {
     return (
-      <>
-        {/* Desktop: no preloader, just blank background */}
-        <div className="hidden lg:flex fixed inset-0 bg-background" />
-
-        {/* Mobile & Tablet: aesthetic centered preloader */}
-        <div className="lg:hidden fixed inset-0 flex flex-col items-center justify-center bg-background overflow-hidden">
-          {/* Subtle radial glow behind the GIF */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(ellipse 60% 50% at 50% 50%, hsl(var(--primary) / 0.08) 0%, transparent 70%)',
-            }}
-          />
-
-          {/* GIF container — fixed size, never stretches */}
-          <div className="relative z-10 flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
-            <img
-              src={preloader}
-              alt="Loading"
-              className="w-full h-full object-contain drop-shadow-lg"
-            />
-          </div>
-
-          {/* Subtle loading dots */}
-          <div className="relative z-10 flex gap-1.5 mt-8">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-primary/40"
-                style={{
-                  animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </>
+      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+        <img 
+          src={preloader} 
+          alt="Loading" 
+          className="w-full h-full object-contain max-w-screen max-h-screen"
+        />
+      </div>
     );
   }
   
