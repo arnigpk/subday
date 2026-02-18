@@ -7,6 +7,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="theme-color" content="#f5f0e8" />
     <link rel="icon" href="/favicon.jpg" type="image/jpeg" />
+    <!-- Preload the preloader GIF so it displays instantly without delay -->
+    <link rel="preload" href="/preloader.gif" as="image" type="image/gif" />
     <title>subday — specialty coffee & HoReCa subscriptions</title>
     <meta name="description" content="subday — specialty coffee & HoReCa subscriptions. Grab your drinks fast and save more." />
 
@@ -16,6 +18,10 @@
   </head>
 
   <body>
+    <!-- Native HTML preloader shown before React loads -->
+    <div id="html-preloader" style="position:fixed;inset:0;background:#FAF9F6;display:flex;align-items:center;justify-content:center;z-index:9999;overflow:hidden;">
+      <img src="/preloader.gif" alt="Loading" style="width:100%;height:100%;object-fit:cover;" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

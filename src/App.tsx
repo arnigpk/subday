@@ -60,7 +60,13 @@ const AppContent = () => {
   
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
-  // Минимальное время показа прелоадера (1.5 секунды)
+  // Hide native HTML preloader as soon as React mounts
+  useEffect(() => {
+    const el = document.getElementById('html-preloader');
+    if (el) el.style.display = 'none';
+  }, []);
+  
+  // Minimum preloader display time (2 seconds)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
@@ -157,11 +163,11 @@ const AppContent = () => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+      <div className="fixed inset-0 bg-background flex items-center justify-center overflow-hidden">
         <img 
           src={preloader} 
           alt="Loading" 
-          className="w-full h-full object-contain max-w-screen max-h-screen"
+          className="w-full h-full object-cover"
         />
       </div>
     );
