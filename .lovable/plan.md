@@ -1,30 +1,51 @@
 
 
-# Vibration Feedback on App Load
+# Кроссплатформенная вибрация через Capacitor Haptics
 
-## What will happen
-When the app finishes loading (preloader disappears and main content appears), the phone will give a short vibration buzz as tactile feedback that the app is ready.
+## Что изменится
+Хук `useVibration` будет обновлён: на нативных платформах (iOS/Android) используется плагин `@capacitor/haptics` для настоящего тактильного отклика, а в браузере остаётся стандартный `navigator.vibrate()` как фолбэк.
 
-## Technical Details
-
-### File: `src/App.tsx`
-
-1. Import the existing `useVibration` hook
-2. Add a `useEffect` that triggers `vibrateShort()` (50ms buzz) when `isLoading` transitions from `true` to `false`
-3. The vibration will only fire once per app launch
+## Как это работает
 
 ```text
-Loading flow:
-  [Preloader GIF/Logo] --> isLoading becomes false --> vibrateShort() --> [Main App]
+useVibration()
+  |
+  +--> Capacitor Native? (iOS / Android app)
+  |      YES --> @capacitor/haptics (Taptic Engine на iPhone, Vibrator на Android)
+  |
+  +--> Web Browser?
+         YES --> navigator.vibrate() (работает на Android Chrome, игнорируется на Safari)
 ```
 
-### Compatibility
-- Works on Android Chrome, Samsung Internet, Firefox Mobile
-- Safari/iOS does NOT support the Vibration API (this is an Apple limitation), so the call will silently do nothing -- no errors, no crashes
-- The existing `useVibration` hook already handles this gracefully with a `'vibrate' in navigator` check
+## Совместимость
 
-### Impact
-- Zero performance cost (single API call)
-- No changes to loading logic or timing
-- No new dependencies needed
+| Платформа | Текущее поведение | После изменений |
+|-----------|------------------|-----------------|
+| Android (Play Store) | Работает через navigator.vibrate | Работает через Haptics (лучше) |
+| iOS (App Store) | НЕ работает | Работает через Taptic Engine |
+| Android браузер | Работает | Работает (без изменений) |
+| iOS Safari | Не работает | Не работает (ограничение Apple) |
 
+## Технические детали
+
+### Новая зависимость
+- `@capacitor/haptics` -- нативный плагин для вибрации
+
+### Файл: `src/hooks/useVibration.ts`
+
+Обновить логику:
+1. Импортировать `Haptics` и `ImpactStyle` из `@capacitor/haptics`
+2. Определять, запущено ли приложение в нативном контейнере Capacitor (через `Capacitor.isNativePlatform()`)
+3. Если нативное -- использовать `Haptics.impact()` с разными стилями:
+   - `vibrateShort` -- `ImpactStyle.Light` (лёгкий тап)
+   - `vibrateSuccess` -- `ImpactStyle.Medium` (двойной средний тап через `Haptics.notification({ type: 'SUCCESS' })`)
+   - `vibrateError` -- `ImpactStyle.Heavy` (сильная вибрация через `Haptics.notification({ type: 'ERROR' })`)
+4. Если браузер -- оставить текущий `navigator.vibrate()` без изменений
+
+### Файл: `src/App.tsx`
+Никаких изменений -- хук уже подключён и используется.
+
+## Итог
+- Одна строка установки (`@capacitor/haptics`)
+- Один файл изменений (`useVibration.ts`)
+- Вибрация заработает на обеих платформах при запуске через Capacitor
