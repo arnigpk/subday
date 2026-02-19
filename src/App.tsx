@@ -22,13 +22,20 @@ import ShopDetailPage from "./pages/ShopDetailPage";
 import RedeemPage from "./pages/RedeemPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
+import SubFlowPage from "./pages/SubFlowPage";
 
 // Lazy-loaded secondary pages
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
 const StreaksPage = lazy(() => import("./pages/StreaksPage"));
 const BonusesPage = lazy(() => import("./pages/BonusesPage"));
 const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
-const SubFlowPage = lazy(() => import("./pages/SubFlowPage"));
+
+// Register service worker for PWA  
+if ('serviceWorker' in navigator) {
+  import('virtual:pwa-register').then(({ registerSW }) => {
+    registerSW({ immediate: true });
+  });
+}
 
 // Lazy-loaded admin pages
 const AdminProtectedRoute = lazy(() => import("@/components/admin/AdminProtectedRoute").then(m => ({ default: m.AdminProtectedRoute })));
