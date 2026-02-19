@@ -7,6 +7,7 @@ import { SubFlowComments } from './SubFlowComments';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useVibration } from '@/hooks/useVibration';
 
 interface Post {
   id: string;
@@ -48,7 +49,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
-  
+  const { vibrateShort } = useVibration();
   // Check if current user is admin
   useEffect(() => {
     if (!currentUserId) {
@@ -217,6 +218,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       toast.error(t('subflow.loginToReact'));
       return;
     }
+
+    vibrateShort();
 
     const hasReaction = localUserReactions.includes(reaction);
     const reactionKey = `${currentUserId}-${reaction}`;
