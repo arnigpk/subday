@@ -158,7 +158,7 @@ export default function ShopsPage() {
                       <Link to={`/shops/${shop.id}`} className="card-interactive block">
                         <div className="flex items-start gap-3">
                           {(shop.gallery_urls?.[0] || shop.logo_url) ? (
-                            <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                            <img src={shop.gallery_urls?.[0] || shop.logo_url!} alt={shop.name} loading="lazy" className="w-16 h-16 rounded-xl object-cover shrink-0" />
                           ) : (
                             <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center text-2xl shrink-0">☕</div>
                           )}
