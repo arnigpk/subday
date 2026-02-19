@@ -12,6 +12,7 @@ import { AuthScreen } from "@/components/auth/AuthScreen";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { useVibration } from "@/hooks/useVibration";
 
 // Eager-loaded core pages
 import HomePage from "./pages/HomePage";
@@ -113,6 +114,8 @@ const AppContent = () => {
   const [gifFailed, setGifFailed] = useState(false);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
   
+  const { vibrateShort } = useVibration();
+  
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
   useEffect(() => {
@@ -121,7 +124,9 @@ const AppContent = () => {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
-  
+
+
+
   // Telegram Mini App auto-login
   useEffect(() => {
     if (!isTelegramReady || telegramAuthAttempted) return;
@@ -195,6 +200,13 @@ const AppContent = () => {
   
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
   const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
+
+  // Vibrate when loading completes
+  useEffect(() => {
+    if (!isLoading) {
+      vibrateShort();
+    }
+  }, [isLoading, vibrateShort]);
   
   const handleAuthComplete = () => {};
   
