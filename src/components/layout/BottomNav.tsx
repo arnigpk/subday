@@ -3,11 +3,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useVibration } from '@/hooks/useVibration';
 
 export function BottomNav() {
   const location = useLocation();
   const { prefetchPage } = usePrefetch();
   const { t } = useLanguage();
+  const { vibrateShort } = useVibration();
   
   const navItems = [
     { icon: Home, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
@@ -38,6 +40,7 @@ export function BottomNav() {
               to={item.path}
               onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
               onTouchStart={() => handleTouchStart(item.prefetchKey)}
+              onClick={() => vibrateShort()}
               className={`nav-item flex-1 transition-all duration-200 ${
                 isActive ? 'nav-item-active scale-105' : 'nav-item-inactive'
               }`}
