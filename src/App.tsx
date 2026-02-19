@@ -70,8 +70,38 @@ const queryClient = new QueryClient({
 
 function LazyFallback() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <img src={logo} alt="Loading" className="w-16 h-16 animate-pulse" />
+    <div className="min-h-screen bg-background">
+      <div className="safe-area-top">
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-muted animate-pulse" />
+            <div className="h-6 w-32 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            <div className="card-static animate-pulse">
+              <div className="h-20 w-full bg-muted rounded-xl" />
+            </div>
+            <div className="card-static animate-pulse">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-xl bg-muted" />
+                <div className="flex-1">
+                  <div className="h-4 w-24 bg-muted rounded mb-2" />
+                  <div className="h-3 w-32 bg-muted rounded" />
+                </div>
+              </div>
+            </div>
+            <div className="card-static animate-pulse">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-xl bg-muted" />
+                <div className="flex-1">
+                  <div className="h-4 w-28 bg-muted rounded mb-2" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
