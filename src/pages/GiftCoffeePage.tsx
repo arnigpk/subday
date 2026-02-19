@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ArrowLeft, Gift } from 'lucide-react';
+import { ArrowLeft, Gift, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -110,6 +110,14 @@ export default function GiftCoffeePage() {
             >
               {isLoading ? t('guest.granting') : t('guest.grantButton')}
             </button>
+
+            <div className="bg-muted/50 rounded-xl p-4 flex gap-3 items-start">
+              <Info size={20} className="text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{t('guest.whereToFindId')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('guest.whereToFindIdDesc')}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
