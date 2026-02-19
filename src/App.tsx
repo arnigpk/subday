@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import preloader from '@/assets/preloader.gif';
+import logo from '@/assets/logo.png';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,56 +12,72 @@ import { AuthScreen } from "@/components/auth/AuthScreen";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+
+// Eager-loaded core pages
 import HomePage from "./pages/HomePage";
 import PackagesPage from "./pages/PackagesPage";
 import PackageDetailPage from "./pages/PackageDetailPage";
 import ShopsPage from "./pages/ShopsPage";
 import ShopDetailPage from "./pages/ShopDetailPage";
 import RedeemPage from "./pages/RedeemPage";
-import HistoryPage from "./pages/HistoryPage";
-import StreaksPage from "./pages/StreaksPage";
-import BonusesPage from "./pages/BonusesPage";
 import ProfilePage from "./pages/ProfilePage";
-import GiftCoffeePage from "./pages/GiftCoffeePage";
-import SubFlowPage from "./pages/SubFlowPage";
 import NotFound from "./pages/NotFound";
-import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminUsersPage from "./pages/admin/AdminUsersPage";
-import AdminHistoryPage from "./pages/admin/AdminHistoryPage";
-import AdminShopsPage from "./pages/admin/AdminShopsPage";
-import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
-import AdminSubscriptionsPage from "./pages/admin/AdminSubscriptionsPage";
-import AdminBroadcastPage from "./pages/admin/AdminBroadcastPage";
-import AdminPushBroadcastPage from "./pages/admin/AdminPushBroadcastPage";
-import AdminSubscriptionTransactionsPage from "./pages/admin/AdminSubscriptionTransactionsPage";
-import AdminBannersPage from "./pages/admin/AdminBannersPage";
-import { PartnerProtectedRoute } from "@/components/partner/PartnerProtectedRoute";
-import PartnerDashboard from "./pages/partner/PartnerDashboard";
-import PartnerScanPage from "./pages/partner/PartnerScanPage";
-import PartnerHistoryPage from "./pages/partner/PartnerHistoryPage";
-import PartnerStaffPage from "./pages/partner/PartnerStaffPage";
+
+// Lazy-loaded secondary pages
+const HistoryPage = lazy(() => import("./pages/HistoryPage"));
+const StreaksPage = lazy(() => import("./pages/StreaksPage"));
+const BonusesPage = lazy(() => import("./pages/BonusesPage"));
+const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
+const SubFlowPage = lazy(() => import("./pages/SubFlowPage"));
+
+// Lazy-loaded admin pages
+const AdminProtectedRoute = lazy(() => import("@/components/admin/AdminProtectedRoute").then(m => ({ default: m.AdminProtectedRoute })));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
+const AdminHistoryPage = lazy(() => import("./pages/admin/AdminHistoryPage"));
+const AdminShopsPage = lazy(() => import("./pages/admin/AdminShopsPage"));
+const AdminSettingsPage = lazy(() => import("./pages/admin/AdminSettingsPage"));
+const AdminSubscriptionsPage = lazy(() => import("./pages/admin/AdminSubscriptionsPage"));
+const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage"));
+const AdminPushBroadcastPage = lazy(() => import("./pages/admin/AdminPushBroadcastPage"));
+const AdminSubscriptionTransactionsPage = lazy(() => import("./pages/admin/AdminSubscriptionTransactionsPage"));
+const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
+
+// Lazy-loaded partner pages
+const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
+const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
+const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
+const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
+const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000, // 30 seconds before data is considered stale
-      gcTime: 5 * 60 * 1000, // 5 minutes cache time
-      refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
-      retry: 1, // Reduce retries for faster failure
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });
+
+function LazyFallback() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <img src={logo} alt="Loading" className="w-16 h-16 animate-pulse" />
+    </div>
+  );
+}
 
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
+  const [gifFailed, setGifFailed] = useState(false);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
   
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
-  // Минимальное время показа прелоадера (1.5 секунды)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
@@ -74,19 +91,15 @@ const AppContent = () => {
     
     const attemptTelegramAuth = async () => {
       if (!isTelegramMiniApp) {
-        console.log('Not a Telegram Mini App, skipping auto-login');
         setTelegramAuthAttempted(true);
         return;
       }
       
       const initData = getInitData();
       if (!initData) {
-        console.log('No initData available');
         setTelegramAuthAttempted(true);
         return;
       }
-      
-      console.log('Attempting Telegram Mini App auto-login...');
       
       try {
         const { data, error } = await supabase.functions.invoke('telegram-miniapp-auth', {
@@ -94,19 +107,15 @@ const AppContent = () => {
         });
         
         if (error) {
-          console.error('Telegram Mini App auth error:', error);
           setTelegramAuthAttempted(true);
           return;
         }
         
         if (data?.session) {
-          console.log('Telegram Mini App auto-login successful');
           await supabase.auth.setSession({
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token
           });
-        } else if (data?.error) {
-          console.error('Auth error:', data.error);
         }
       } catch (err) {
         console.error('Telegram auth error:', err);
@@ -123,13 +132,11 @@ const AppContent = () => {
       (event, session) => {
         setSession(session);
         setIsAuthLoading(false);
-        // Auto-claim pending guest access on login
         if (event === 'SIGNED_IN' && session) {
           supabase.functions.invoke('guest-access', {
             body: { action: 'claim' },
           }).then(({ data }) => {
             if (data?.success) {
-              // Will show toast after page loads
               setTimeout(() => {
                 import('sonner').then(({ toast }) => {
                   toast.success('Вам подарили 1 кофе на 10 дней ☕️', { duration: 6000 });
@@ -149,7 +156,6 @@ const AppContent = () => {
     return () => subscription.unsubscribe();
   }, []);
   
-  // Wait for both auth loading and telegram auth attempt (if applicable)
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
   const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
   
@@ -158,11 +164,20 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-        <img 
-          src={preloader} 
-          alt="Loading" 
-          className="w-full h-full object-contain max-w-screen max-h-screen"
-        />
+        {gifFailed ? (
+          <img 
+            src={logo} 
+            alt="Loading" 
+            className="w-24 h-24 animate-pulse"
+          />
+        ) : (
+          <img 
+            src={preloader} 
+            alt="Loading" 
+            className="w-full h-full object-contain max-w-screen max-h-screen"
+            onError={() => setGifFailed(true)}
+          />
+        )}
       </div>
     );
   }
@@ -181,40 +196,42 @@ const AppContent = () => {
       <BrowserRouter>
         <Toaster />
         <Sonner />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/packages" element={<PackagesPage />} />
-          <Route path="/packages/:id" element={<PackageDetailPage />} />
-          <Route path="/shops" element={<ShopsPage />} />
-          <Route path="/shops/:id" element={<ShopDetailPage />} />
-          <Route path="/redeem" element={<RedeemPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/streaks" element={<StreaksPage />} />
-          <Route path="/bonuses" element={<BonusesPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/gift-coffee" element={<GiftCoffeePage />} />
-          <Route path="/subflow" element={<SubFlowPage />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
-          <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
-          <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
-          <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
-          <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
-          <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
-          <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
-          <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
-          
-          {/* Partner Routes */}
-          <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
-          <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
-          <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
-          <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<LazyFallback />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/packages" element={<PackagesPage />} />
+            <Route path="/packages/:id" element={<PackageDetailPage />} />
+            <Route path="/shops" element={<ShopsPage />} />
+            <Route path="/shops/:id" element={<ShopDetailPage />} />
+            <Route path="/redeem" element={<RedeemPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/streaks" element={<StreaksPage />} />
+            <Route path="/bonuses" element={<BonusesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/gift-coffee" element={<GiftCoffeePage />} />
+            <Route path="/subflow" element={<SubFlowPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
+            <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
+            <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
+            <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
+            <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
+            
+            {/* Partner Routes */}
+            <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
+            <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
+            <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
+            <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </UserStatsProvider>
   );
