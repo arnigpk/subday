@@ -10,6 +10,7 @@ import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate, useAutoTranslateArray } from '@/hooks/useAutoTranslate';
+import { useVibration } from '@/hooks/useVibration';
 
 interface SubscriptionType {
   id: string;
@@ -36,6 +37,7 @@ export default function PackageDetailPage() {
   const { isProcessing, createPayment } = usePayment();
   const { activeSubscriptionTypeId } = useActiveSubscription();
   const { t, language } = useLanguage();
+  const { vibrateSuccess } = useVibration();
 
   useEffect(() => {
     if (id) {
@@ -45,6 +47,7 @@ export default function PackageDetailPage() {
 
   const handlePurchase = () => {
     if (subscription) {
+      vibrateSuccess();
       createPayment(subscription.id);
     }
   };

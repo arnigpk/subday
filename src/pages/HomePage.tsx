@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { BalanceCard } from '@/components/home/BalanceCard';
@@ -15,6 +15,7 @@ import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useQueryClient } from '@tanstack/react-query';
+import { useVibration } from '@/hooks/useVibration';
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
@@ -22,6 +23,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { prefetchAll } = usePrefetch();
   const queryClient = useQueryClient();
+  const { vibrateShort } = useVibration();
   
   usePaymentResult();
   
@@ -34,7 +36,8 @@ export default function HomePage() {
       refetch(),
       queryClient.invalidateQueries({ queryKey: ['shops'] }),
     ]);
-  }, [refetch, queryClient]);
+    vibrateShort();
+  }, [refetch, queryClient, vibrateShort]);
   
   const showAdminButton = isAdmin || role === 'moderator' || isPartner || isBarista;
   
