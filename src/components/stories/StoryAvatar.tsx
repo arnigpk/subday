@@ -3,6 +3,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { StoryViewer } from './StoryViewer';
 import { useStoriesCache } from '@/hooks/useStoriesCache';
+import { useVibration } from '@/hooks/useVibration';
 
 interface StoryAvatarProps {
   userId: string;
@@ -35,9 +36,11 @@ export const StoryAvatar = memo(function StoryAvatar({
 }: StoryAvatarProps) {
   const { hasStory, stories, invalidateCache } = useStoriesCache(userId);
   const [showViewer, setShowViewer] = useState(false);
+  const { vibrateShort } = useVibration();
 
   const handleClick = () => {
     if (hasStory && stories.length > 0) {
+      vibrateShort();
       setShowViewer(true);
     }
   };

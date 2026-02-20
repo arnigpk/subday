@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function ProfilePage() {
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
+  const { vibrateShort, vibrateSuccess, vibrate } = useVibration();
   
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchSubscription()]);
@@ -46,6 +48,7 @@ export default function ProfilePage() {
       const { error } = await supabase.from('profiles').update({ name: editName.trim() }).eq('user_id', user.id);
       if (error) throw error;
       toast.success(t('profile.nameSaved'));
+      vibrateSuccess();
       setIsEditingName(false);
       refetch();
     } catch (error) {
@@ -188,7 +191,7 @@ export default function ProfilePage() {
                 )}
                 <button onClick={() => {
                   const value = profile?.publicId || '';
-                  if (value) { navigator.clipboard.writeText(value); toast.success(t('profile.copied')); }
+                  if (value) { navigator.clipboard.writeText(value); toast.success(t('profile.copied')); vibrateShort(); }
                 }} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
                   <span>ID: {profile?.publicId || '...'}</span>
                   <Copy size={12} className="flex-shrink-0" />
@@ -275,7 +278,7 @@ export default function ProfilePage() {
               setIsLoggingOut(true);
               const { error } = await supabase.auth.signOut();
               if (error) { toast.error(t('profile.logoutError')); setIsLoggingOut(false); }
-              else toast.success(t('profile.goodbye'));
+              else { vibrate(); toast.success(t('profile.goodbye')); }
             }}
             disabled={isLoggingOut}
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
