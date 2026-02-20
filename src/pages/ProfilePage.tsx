@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -14,6 +14,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
 import { GuestAccessSection } from '@/components/profile/GuestAccessSection';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -24,6 +25,9 @@ export default function ProfilePage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   
@@ -115,6 +119,36 @@ export default function ProfilePage() {
   const handleAvatarClick = () => handleCameraClick();
   const handleCameraClick = () => setShowAvatarMenu(!showAvatarMenu);
   const handleAvatarMenuSelect = () => { setShowAvatarMenu(false); avatarInputRef.current?.click(); };
+
+  const handleDeleteAccount = async () => {
+    const confirmWord = t('profile.deleteWord');
+    if (deleteConfirmText !== confirmWord) return;
+    setIsDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+      
+      const response = await supabase.functions.invoke('delete-account', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      
+      if (response.error) throw response.error;
+      const result = response.data;
+      if (!result?.success) throw new Error(result?.error || 'Delete failed');
+      
+      toast.success(t('profile.deleteAccountSuccess'));
+      vibrate();
+      // Sign out locally after account deletion
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error(t('profile.deleteAccountError'));
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      setDeleteConfirmText('');
+    }
+  };
   
   const menuItems = [
     { icon: MapPin, label: t('profile.city'), value: profile?.city || 'Атырау', type: 'static' as const },
@@ -288,6 +322,47 @@ export default function ProfilePage() {
             <span className="font-medium">{isLoggingOut ? t('profile.loggingOut') : t('profile.logout')}</span>
           </button>
           
+          
+          <button 
+            onClick={() => setShowDeleteDialog(true)}
+            className="w-full mt-3 card-interactive flex items-center gap-3 text-destructive/70 animate-slide-up" 
+            style={{ animationDelay: '0.3s' }}
+          >
+            <Trash2 size={20} />
+            <span className="font-medium">{t('profile.deleteAccount')}</span>
+          </button>
+
+          <AlertDialog open={showDeleteDialog} onOpenChange={(open) => { setShowDeleteDialog(open); if (!open) setDeleteConfirmText(''); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('profile.deleteAccountTitle')}</AlertDialogTitle>
+                <AlertDialogDescription className="text-sm text-muted-foreground">
+                  {t('profile.deleteAccountWarning')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-2">
+                <label className="text-sm text-muted-foreground mb-1.5 block">{t('profile.typeDeleteToConfirm')}</label>
+                <input 
+                  type="text" 
+                  value={deleteConfirmText} 
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={t('profile.deleteWord')}
+                  className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive"
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>{t('profile.deleteAccountCancel')}</AlertDialogCancel>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting || deleteConfirmText !== t('profile.deleteWord')}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-destructive text-destructive-foreground px-4 py-2 disabled:opacity-50 transition-colors"
+                >
+                  {isDeleting ? t('profile.deleteAccountDeleting') : t('profile.deleteAccountConfirm')}
+                </button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
         </div>
       </div>
