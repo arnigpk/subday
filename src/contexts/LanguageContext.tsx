@@ -241,6 +241,18 @@ const translations: Record<string, Record<Language, string>> = {
   'guest.successMessage': { ru: 'Готово! Друг получил 1 кофе на 10 дней ☕️\nСписание с вашей подписки выполнено.', kz: 'Дайын! Досыңыз 10 күнге 1 кофе алды ☕️\nЖазылымыңыздан есептелді.' },
   'guest.pendingMessage': { ru: 'Приглашение отправлено ✅\nКак только друг зарегистрируется по этому номеру, он сразу получит 1 кофе на 10 дней.', kz: 'Шақыру жіберілді ✅\nДосыңыз осы нөмірмен тіркелген кезде 10 күнге 1 кофе алады.' },
   'guest.giftReceived': { ru: 'Вам подарили 1 кофе на 10 дней ☕️', kz: 'Сізге 10 күнге 1 кофе сыйлады ☕️' },
+
+  // Delete account
+  'profile.deleteAccount': { ru: 'Удалить аккаунт', kz: 'Аккаунтты жою' },
+  'profile.deleteAccountTitle': { ru: 'Удаление аккаунта', kz: 'Аккаунтты жою' },
+  'profile.deleteAccountWarning': { ru: 'Это действие необратимо. Все ваши данные, подписки, история и бонусы будут удалены навсегда.', kz: 'Бұл әрекетті қайтару мүмкін емес. Барлық деректеріңіз, жазылымдар, тарих және бонустар мәңгілікке жойылады.' },
+  'profile.deleteAccountConfirm': { ru: 'Да, удалить аккаунт', kz: 'Иә, аккаунтты жою' },
+  'profile.deleteAccountCancel': { ru: 'Отмена', kz: 'Болдырмау' },
+  'profile.deleteAccountDeleting': { ru: 'Удаление...', kz: 'Жойылуда...' },
+  'profile.deleteAccountSuccess': { ru: 'Аккаунт удалён', kz: 'Аккаунт жойылды' },
+  'profile.deleteAccountError': { ru: 'Ошибка удаления аккаунта', kz: 'Аккаунтты жою қатесі' },
+  'profile.typeDeleteToConfirm': { ru: 'Введите «УДАЛИТЬ» для подтверждения', kz: '«ЖОЮ» деп жазыңыз' },
+  'profile.deleteWord': { ru: 'УДАЛИТЬ', kz: 'ЖОЮ' },
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
