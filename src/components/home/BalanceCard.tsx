@@ -10,17 +10,30 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { getKzSuffix, formatDateKzWithYear } from '@/utils/kazakh';
 
 export function BalanceCard() {
-  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const { stats, isLoading } = useUserStatsContext();
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
-  const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   
-  const tabs = [
-    { id: 'coffee', label: t('balance.coffee') },
-    { id: 'drinks', label: t('balance.drinks') },
-  ];
+  // Determine tab order: active subscription type goes first
+  const coffeeSub = activeSubscriptions.find(s => s.subscription_type === 'coffee');
+  const lunchSub = activeSubscriptions.find(s => s.subscription_type === 'drinks');
+  const hasLunchOnly = !!lunchSub && !coffeeSub;
+  
+  const defaultTab = hasLunchOnly ? 'drinks' : 'coffee';
+  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>(defaultTab);
+  
+  const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
+  
+  const tabs = hasLunchOnly
+    ? [
+        { id: 'drinks', label: t('balance.drinks') },
+        { id: 'coffee', label: t('balance.coffee') },
+      ]
+    : [
+        { id: 'coffee', label: t('balance.coffee') },
+        { id: 'drinks', label: t('balance.drinks') },
+      ];
 
   const isCoffee = activeTab === 'coffee';
   const remaining = isCoffee ? stats.coffeeRemaining : stats.drinksRemaining;

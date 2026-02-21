@@ -213,7 +213,7 @@ export default function PartnerScanPage() {
                 )}
                 {result.drinkName && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Напиток</p>
+                    <p className="text-sm text-muted-foreground">Выбор</p>
                     <p className="font-semibold text-foreground">{result.drinkName}</p>
                   </div>
                 )}
