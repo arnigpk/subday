@@ -192,10 +192,10 @@ Deno.serve(async (req) => {
 
     interface SubscriptionTypeInfo { daily_limit: number | null; type: string; name: string; }
     
-    // Find matching subscription: exact type match or combo
+    // Find matching subscription: exact type match
     const matchingSub = subscriptions?.find(s => {
       const subTypes = s.subscription_types as unknown as SubscriptionTypeInfo | null;
-      return subTypes && (subTypes.type === drinkType || subTypes.type === 'combo');
+      return subTypes && subTypes.type === drinkType;
     });
     const subTypes = matchingSub?.subscription_types as unknown as SubscriptionTypeInfo | null;
     
@@ -241,25 +241,30 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase
       .from('profiles').select('name, phone').eq('user_id', userId).maybeSingle();
 
-    // Low balance notification
+    // Low balance notification - triggers when remaining <= 5 OR days remaining <= 5
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
-    if (newRemaining === 5 && profile?.phone) {
+    if (profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
       if (telegramId) {
         const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
         if (telegramBotToken) {
+          // Check days remaining for the matching subscription
           const { data: sub } = await supabase
             .from('user_subscriptions').select('expires_at')
-            .eq('user_id', userId).eq('is_active', true).maybeSingle();
-          let daysRemaining = 0;
+            .eq('user_id', userId).eq('is_active', true)
+            .order('expires_at', { ascending: true }).limit(1).maybeSingle();
+          let daysRemaining = 999;
           if (sub?.expires_at) {
             daysRemaining = Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
           }
-          const label = drinkType === 'coffee' ? 'кофе' : 'ланчей';
-          const message = `❗Подписка на исходе❗\n\nОсталось ${newRemaining} ${label} на ${daysRemaining} дней 🥹\n\nПродлевайте подписку легко в приложении 🙂`;
-          sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
-            console.error('Failed to send low balance notification:', err);
-          });
+          
+          // Send notification if remaining cups <= 5 OR days remaining <= 5
+          if (newRemaining <= 5 || daysRemaining <= 5) {
+            const message = `⚠️ У вас по подписке осталось очень мало на ${daysRemaining} дней.`;
+            sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
+              console.error('Failed to send low balance notification:', err);
+            });
+          }
         }
       }
     }

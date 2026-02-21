@@ -38,7 +38,6 @@ export default function PackagesPage() {
   const tabs = [
     { id: 'coffee', label: t('balance.coffee') },
     { id: 'drinks', label: t('balance.drinks') },
-    { id: 'combo', label: 'Комбо' },
   ];
 
   const { data: subscriptions = [], isLoading, refetch } = useQuery({

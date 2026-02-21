@@ -49,8 +49,8 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       // Type assertion for subscription_types
       const subTypes = subscription?.subscription_types as { daily_limit: number | null; type: string } | null;
 
-      // No active subscription - check for combo or matching type
-      if (!subscription || !subTypes || (subTypes.type !== subscriptionType && subTypes.type !== 'combo')) {
+      // No active subscription - check for matching type
+      if (!subscription || !subTypes || subTypes.type !== subscriptionType) {
         setStatus({
           dailyLimit: null,
           usedToday: 0,

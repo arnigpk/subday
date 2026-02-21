@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAdminAuth';
 
@@ -48,6 +48,8 @@ interface UserWithStats {
   role?: UserRole;
   role_id?: string;
   shop_id?: string | null;
+  coffee_subscription?: { name: string; expires_at: string | null } | null;
+  lunch_subscription?: { name: string; expires_at: string | null } | null;
 }
 
 interface SubscriptionType {
@@ -164,8 +166,8 @@ export default function AdminUsersPage() {
 
       const userIds = profiles.map(p => p.user_id);
       
-      // Fetch stats and roles in parallel
-      const [statsResult, rolesResult] = await Promise.all([
+      // Fetch stats, roles and subscriptions in parallel
+      const [statsResult, rolesResult, subsResult] = await Promise.all([
         supabase
           .from('user_stats')
           .select('user_id, coffee_remaining, drinks_remaining, total_cups, current_streak')
@@ -173,11 +175,29 @@ export default function AdminUsersPage() {
         supabase
           .from('user_roles')
           .select('id, user_id, role, shop_id')
+          .in('user_id', userIds),
+        supabase
+          .from('user_subscriptions')
+          .select('user_id, expires_at, is_active, subscription_types(name, type)')
           .in('user_id', userIds)
+          .eq('is_active', true),
       ]);
 
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
       const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
+      
+      // Build subscription maps per user
+      const coffeeSubMap = new Map<string, { name: string; expires_at: string | null }>();
+      const lunchSubMap = new Map<string, { name: string; expires_at: string | null }>();
+      for (const sub of (subsResult.data || [])) {
+        const subType = sub.subscription_types as unknown as { name: string; type: string } | null;
+        if (!subType) continue;
+        if (subType.type === 'coffee') {
+          coffeeSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+        } else if (subType.type === 'drinks') {
+          lunchSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+        }
+      }
 
       const usersWithStats: UserWithStats[] = profiles.map(profile => {
         const roleData = rolesMap.get(profile.user_id);
@@ -191,6 +211,8 @@ export default function AdminUsersPage() {
           role: (roleData?.role as UserRole) || 'user',
           role_id: roleData?.id,
           shop_id: roleData?.shop_id,
+          coffee_subscription: coffeeSubMap.get(profile.user_id) || null,
+          lunch_subscription: lunchSubMap.get(profile.user_id) || null,
         };
       });
 
@@ -342,7 +364,7 @@ export default function AdminUsersPage() {
       if (error) throw error;
 
       // Parse the response (it's a JSON object from the function)
-      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string; duration_days?: number } | null;
+      const result = data as { success: boolean; error?: string; cups_count?: number; expires_at?: string; subscription_id?: string; duration_days?: number; subscription_name?: string } | null;
 
       if (!result?.success) {
         throw new Error(result?.error || 'Unknown error');
@@ -376,6 +398,7 @@ export default function AdminUsersPage() {
           userId: editingUser.user_id,
           cupsCount: result.cups_count || subType.cups_count,
           daysCount: durationDays,
+          subscriptionName: result.subscription_name || subType.name,
         },
       }).then(({ error: notifError }) => {
         if (notifError) {
@@ -499,7 +522,7 @@ export default function AdminUsersPage() {
                       <TableHead>Регистрация</TableHead>
                       <TableHead>Город</TableHead>
                       <TableHead className="text-center">Кофе</TableHead>
-                      <TableHead className="text-center">Напитки</TableHead>
+                      <TableHead className="text-center">Ланч</TableHead>
                       <TableHead className="text-center">Всего</TableHead>
                       <TableHead>Статус</TableHead>
                       <TableHead>Действия</TableHead>
@@ -642,7 +665,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="drinks">Остаток напитков</Label>
+                <Label htmlFor="drinks">Остаток ланчей</Label>
                 <Input
                   id="drinks"
                   type="number"
@@ -701,6 +724,39 @@ export default function AdminUsersPage() {
               <Label htmlFor="is_blocked">Заблокирован</Label>
             </div>
 
+            {/* Active subscriptions display */}
+            {(editingUser?.coffee_subscription || editingUser?.lunch_subscription) && (
+              <div className="border-t pt-4 space-y-2">
+                <Label>Активные подписки</Label>
+                {editingUser?.coffee_subscription && (
+                  <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Coffee className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      до {editingUser.coffee_subscription.expires_at 
+                        ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </span>
+                  </div>
+                )}
+                {editingUser?.lunch_subscription && (
+                  <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <UtensilsCrossed className="w-4 h-4 text-purple-600" />
+                      <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      до {editingUser.lunch_subscription.expires_at 
+                        ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="border-t pt-4">
               <Label>Управление подпиской</Label>
               <div className="flex gap-2 mt-2">
@@ -714,7 +770,7 @@ export default function AdminUsersPage() {
                     </SelectItem>
                     {subscriptionTypes.map(sub => (
                       <SelectItem key={sub.id} value={sub.id}>
-                        {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'})
+                        {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'})
                       </SelectItem>
                     ))}
                   </SelectContent>

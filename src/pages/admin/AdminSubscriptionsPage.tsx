@@ -335,15 +335,13 @@ export default function AdminSubscriptionsPage() {
                           <div className="flex items-center gap-2">
                             {sub.type === 'coffee' ? (
                               <Coffee className="w-5 h-5 text-amber-600" />
-                            ) : sub.type === 'combo' ? (
-                              <UtensilsCrossed className="w-5 h-5 text-blue-600" />
                             ) : (
                               <UtensilsCrossed className="w-5 h-5 text-purple-600" />
                             )}
                             <div>
                               <h3 className="font-semibold">{sub.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : sub.type === 'combo' ? 'кофе + ланч' : 'ланчей'} • {formatDurationLabel(sub.duration_days)}
+                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'} • {formatDurationLabel(sub.duration_days)}
                               </p>
                             </div>
                           </div>
@@ -419,7 +417,6 @@ export default function AdminSubscriptionsPage() {
                 <SelectContent>
                   <SelectItem value="coffee">Кофе</SelectItem>
                   <SelectItem value="drinks">Ланч</SelectItem>
-                  <SelectItem value="combo">Комбо (Кофе + Ланч)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
