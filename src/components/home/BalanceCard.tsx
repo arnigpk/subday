@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coffee, Droplets, Clock, AlertTriangle, Gift } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Clock, AlertTriangle, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -95,7 +95,7 @@ export function BalanceCard() {
                 {isCoffee ? (
                   <Coffee size={32} className="text-primary" />
                 ) : (
-                  <Droplets size={32} className="text-accent" />
+                  <UtensilsCrossed size={32} className="text-accent" />
                 )}
               </div>
               
@@ -153,7 +153,7 @@ export function BalanceCard() {
       ) : (
         <div className="flex flex-col items-center justify-center py-4 gap-4">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isCoffee ? 'bg-primary/10' : 'bg-accent/10'}`}>
-            {isCoffee ? <Coffee size={32} className="text-primary" /> : <Droplets size={32} className="text-accent" />}
+            {isCoffee ? <Coffee size={32} className="text-primary" /> : <UtensilsCrossed size={32} className="text-accent" />}
           </div>
           <p className="text-muted-foreground text-sm font-medium text-center">{t('balance.noSubscription')}</p>
           <Button onClick={() => navigate('/packages')} className="w-full">{t('balance.subscribe')}</Button>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -28,6 +28,7 @@ interface Shop {
   working_hours: string | null;
   is_active: boolean;
   logo_url: string | null;
+  supported_types: string[];
 }
 
 interface ShopWithStatus extends Shop {
@@ -53,15 +54,24 @@ export default function RedeemPage() {
   const { t } = useLanguage();
   
   const initialShop = location.state?.shop;
-  const drinkType = location.state?.drinkType || 'coffee';
-  const drinkName = location.state?.drinkName || (drinkType === 'coffee' ? t('balance.coffee') : 'Матча латте');
+  const initialDrinkType = location.state?.drinkType || 'coffee';
   const isGuestCoffee = location.state?.isGuestCoffee || false;
+  
+  const [selectedDrinkType, setSelectedDrinkType] = useState<'coffee' | 'drinks'>(initialDrinkType);
+  
+  const drinkType = selectedDrinkType;
+  const drinkName = drinkType === 'coffee' ? t('balance.coffee') : t('balance.drinks');
   
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
   const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
   
-  const currentSubscription = activeSubscriptions.find(sub => sub.subscription_type === drinkType);
-  const subscriptionName = isGuestCoffee ? 'Гостевой кофе' : currentSubscription?.subscription_name;
+  // Check if user has combo or both subscription types
+  const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee' || sub.subscription_type === 'combo');
+  const hasLunch = activeSubscriptions.some(sub => sub.subscription_type === 'drinks' || sub.subscription_type === 'combo');
+  const showTypeToggle = hasCoffee && hasLunch && !isGuestCoffee;
+  
+  // Check if selected shop supports lunch
+  const shopSupportsLunch = selectedShop?.supported_types?.includes('drinks') ?? false;
 
   const handleRealtimeRedemption = useCallback(() => {
     setStatus('scanning');
@@ -114,10 +124,10 @@ export default function RedeemPage() {
     const fetchShops = async () => {
       try {
         const { data, error } = await supabase
-          .from('shops').select('*').eq('is_active', true).order('name');
+          .from('shops').select('id, name, address, city, working_hours, is_active, logo_url, supported_types').eq('is_active', true).order('name');
         if (error) throw error;
         const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => ({
-          ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+          ...shop, supported_types: (shop as any).supported_types || ['coffee'], isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
         }));
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
@@ -283,6 +293,35 @@ export default function RedeemPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
             <div className="text-center animate-slide-up">
+              {/* Type toggle */}
+              {showTypeToggle && (
+                <div className="flex gap-2 justify-center mb-4">
+                  <button
+                    onClick={() => setSelectedDrinkType('coffee')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                      selectedDrinkType === 'coffee' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                    }`}
+                  >
+                    <Coffee size={16} />
+                    {t('redeem.typeCoffee')}
+                  </button>
+                  <button
+                    onClick={() => shopSupportsLunch ? setSelectedDrinkType('drinks') : null}
+                    disabled={!shopSupportsLunch}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                      selectedDrinkType === 'drinks' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                    } ${!shopSupportsLunch ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    <UtensilsCrossed size={16} />
+                    {t('redeem.typeLunch')}
+                  </button>
+                </div>
+              )}
+              
+              {showTypeToggle && !shopSupportsLunch && selectedDrinkType === 'coffee' && (
+                <p className="text-xs text-muted-foreground mb-3">{t('redeem.lunchNotAvailable')}</p>
+              )}
+
               <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
                   <QRCodeSVG value={qrCodeData} size={260} level="L" includeMargin={false} bgColor="white" fgColor="#000000" />
@@ -291,13 +330,6 @@ export default function RedeemPage() {
                 )}
               </div>
               <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
-              
-              {subscriptionName && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full mb-2">
-                  <Info size={14} />
-                  <span className="text-sm font-medium">{subscriptionName}</span>
-                </div>
-              )}
               
               <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
               <p className="text-sm text-muted-foreground mb-4">

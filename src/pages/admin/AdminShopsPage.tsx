@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Coffee, MapPin, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Coffee, MapPin, Clock, Plus, Pencil, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
@@ -63,6 +63,7 @@ interface Shop {
   badges: unknown;
   coordinates: unknown;
   description: string | null;
+  supported_types: string[];
 }
 
 interface Coordinate {
@@ -94,6 +95,7 @@ export default function AdminShopsPage() {
     gallery_urls: [] as string[],
     badges: [] as ShopBadgeData[],
     description: '',
+    supported_types: ['coffee'] as string[],
   });
 
   const sensors = useSensors(
@@ -168,6 +170,7 @@ export default function AdminShopsPage() {
       gallery_urls: [],
       badges: [],
       description: '',
+      supported_types: ['coffee'],
     });
     setIsDialogOpen(true);
   };
@@ -204,6 +207,7 @@ export default function AdminShopsPage() {
       gallery_urls: shop.gallery_urls || [],
       badges: parsedBadges,
       description: (shop as any).description || '',
+      supported_types: shop.supported_types || ['coffee'],
     });
     setIsDialogOpen(true);
   };
@@ -239,6 +243,7 @@ export default function AdminShopsPage() {
             badge_text: formData.badges[0]?.text || null,
             badge_color: formData.badges[0]?.color || null,
             description: formData.description.trim() || null,
+            supported_types: formData.supported_types,
           })
           .eq('id', editingShop.id);
 
@@ -266,6 +271,7 @@ export default function AdminShopsPage() {
             badge_color: formData.badges[0]?.color || null,
             description: formData.description.trim() || null,
             sort_order: maxOrder + 1,
+            supported_types: formData.supported_types,
           }]);
 
         if (error) throw error;
@@ -465,6 +471,41 @@ export default function AdminShopsPage() {
               badges={formData.badges}
               onChange={(badges) => setFormData({ ...formData, badges })}
             />
+            <div>
+              <Label className="mb-2 block">Поддерживаемые типы</Label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.supported_types.includes('coffee')}
+                    onChange={(e) => {
+                      const types = e.target.checked
+                        ? [...formData.supported_types, 'coffee']
+                        : formData.supported_types.filter(t => t !== 'coffee');
+                      setFormData({ ...formData, supported_types: types.length > 0 ? types : ['coffee'] });
+                    }}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <Coffee className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm">Кофе</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.supported_types.includes('drinks')}
+                    onChange={(e) => {
+                      const types = e.target.checked
+                        ? [...formData.supported_types, 'drinks']
+                        : formData.supported_types.filter(t => t !== 'drinks');
+                      setFormData({ ...formData, supported_types: types.length > 0 ? types : ['coffee'] });
+                    }}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <UtensilsCrossed className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm">Ланч</span>
+                </label>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Switch
                 id="is_active"

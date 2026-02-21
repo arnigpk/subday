@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   DndContext,
@@ -335,13 +335,15 @@ export default function AdminSubscriptionsPage() {
                           <div className="flex items-center gap-2">
                             {sub.type === 'coffee' ? (
                               <Coffee className="w-5 h-5 text-amber-600" />
+                            ) : sub.type === 'combo' ? (
+                              <UtensilsCrossed className="w-5 h-5 text-blue-600" />
                             ) : (
-                              <GlassWater className="w-5 h-5 text-purple-600" />
+                              <UtensilsCrossed className="w-5 h-5 text-purple-600" />
                             )}
                             <div>
                               <h3 className="font-semibold">{sub.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'напитков'} • {formatDurationLabel(sub.duration_days)}
+                                {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : sub.type === 'combo' ? 'кофе + ланч' : 'ланчей'} • {formatDurationLabel(sub.duration_days)}
                               </p>
                             </div>
                           </div>
@@ -416,7 +418,8 @@ export default function AdminSubscriptionsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="coffee">Кофе</SelectItem>
-                  <SelectItem value="drinks">Напитки</SelectItem>
+                  <SelectItem value="drinks">Ланч</SelectItem>
+                  <SelectItem value="combo">Комбо (Кофе + Ланч)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
