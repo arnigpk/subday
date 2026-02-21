@@ -14,7 +14,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySection';
 import { GuestAccessSection } from '@/components/profile/GuestAccessSection';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -219,8 +219,9 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 max-w-full">
-                    <h2 className="text-xl font-bold text-foreground truncate max-w-[160px]">{profile?.name || t('profile.user')}</h2>
+                    <h2 className="text-xl font-bold text-foreground truncate max-w-[140px]">{profile?.name || t('profile.user')}</h2>
                     <button onClick={() => setIsEditingName(true)} className="p-1 text-muted-foreground hover:text-primary transition-colors"><Pencil size={14} /></button>
+                    <button onClick={() => setShowDeleteDialog(true)} className="p-1 text-destructive/60 hover:text-destructive transition-colors"><Trash2 size={14} /></button>
                   </div>
                 )}
                 <button onClick={() => {
@@ -323,45 +324,47 @@ export default function ProfilePage() {
           </button>
           
           
-          <button 
-            onClick={() => setShowDeleteDialog(true)}
-            className="w-full mt-3 card-interactive flex items-center gap-3 text-destructive/70 animate-slide-up" 
-            style={{ animationDelay: '0.3s' }}
-          >
-            <Trash2 size={20} />
-            <span className="font-medium">{t('profile.deleteAccount')}</span>
-          </button>
-
-          <AlertDialog open={showDeleteDialog} onOpenChange={(open) => { setShowDeleteDialog(open); if (!open) setDeleteConfirmText(''); }}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t('profile.deleteAccountTitle')}</AlertDialogTitle>
-                <AlertDialogDescription className="text-sm text-muted-foreground">
+          <Dialog open={showDeleteDialog} onOpenChange={(open) => { setShowDeleteDialog(open); if (!open) setDeleteConfirmText(''); }}>
+            <DialogContent className="max-w-sm p-0">
+              <DialogHeader className="p-5 pb-0">
+                <DialogTitle className="text-lg font-bold text-destructive flex items-center gap-2">
+                  <Trash2 size={20} />
+                  {t('profile.deleteAccountTitle')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="px-5 pb-5 space-y-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {t('profile.deleteAccountWarning')}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="py-2">
-                <label className="text-sm text-muted-foreground mb-1.5 block">{t('profile.typeDeleteToConfirm')}</label>
-                <input 
-                  type="text" 
-                  value={deleteConfirmText} 
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder={t('profile.deleteWord')}
-                  className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive"
-                />
+                </p>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t('profile.typeDeleteToConfirm')}</label>
+                  <input 
+                    type="text" 
+                    value={deleteConfirmText} 
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={t('profile.deleteWord')}
+                    className="w-full px-3 py-2.5 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/50 transition-all"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText(''); }}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-secondary text-foreground transition-colors hover:bg-secondary/80"
+                  >
+                    {t('profile.deleteAccountCancel')}
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting || deleteConfirmText !== t('profile.deleteWord')}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-destructive text-destructive-foreground disabled:opacity-40 transition-all"
+                  >
+                    {isDeleting ? t('profile.deleteAccountDeleting') : t('profile.deleteAccountConfirm')}
+                  </button>
+                </div>
               </div>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>{t('profile.deleteAccountCancel')}</AlertDialogCancel>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={isDeleting || deleteConfirmText !== t('profile.deleteWord')}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-destructive text-destructive-foreground px-4 py-2 disabled:opacity-50 transition-colors"
-                >
-                  {isDeleting ? t('profile.deleteAccountDeleting') : t('profile.deleteAccountConfirm')}
-                </button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            </DialogContent>
+          </Dialog>
 
           <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
         </div>
