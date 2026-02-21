@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Coffee, UtensilsCrossed, Clock, AlertTriangle, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
@@ -21,7 +21,17 @@ export function BalanceCard() {
   const hasLunchOnly = !!lunchSub && !coffeeSub;
   
   const defaultTab = hasLunchOnly ? 'drinks' : 'coffee';
-  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
+  const hasSetDefault = useRef(false);
+  
+  useEffect(() => {
+    if (!hasSetDefault.current && activeSubscriptions.length > 0) {
+      hasSetDefault.current = true;
+      if (hasLunchOnly) {
+        setActiveTab('drinks');
+      }
+    }
+  }, [activeSubscriptions, hasLunchOnly]);
   
   const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   
@@ -145,13 +155,13 @@ export function BalanceCard() {
               </div>
             </div>
             
-            <div className="relative w-16 h-16">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+            <div className="relative shrink-0" style={{ width: 64, height: 64 }}>
+              <svg className="-rotate-90" width="64" height="64" viewBox="0 0 36 36">
                 <path className="text-secondary" stroke="currentColor" strokeWidth="4" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 <path className={isCoffee ? 'text-primary' : 'text-accent'} stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" strokeDasharray={`${percentage}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-bold text-foreground">{Math.round(percentage)}%</span>
+                <span className="text-xs font-bold text-foreground whitespace-nowrap">{Math.round(percentage)}%</span>
               </div>
             </div>
           </div>

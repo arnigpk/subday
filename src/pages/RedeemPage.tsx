@@ -54,24 +54,40 @@ export default function RedeemPage() {
   const { t } = useLanguage();
   
   const initialShop = location.state?.shop;
-  const initialDrinkType = location.state?.drinkType || 'coffee';
+  const initialDrinkType = location.state?.drinkType || null; // null = auto-detect
   const isGuestCoffee = location.state?.isGuestCoffee || false;
   
-  const [selectedDrinkType, setSelectedDrinkType] = useState<'coffee' | 'drinks'>(initialDrinkType);
+  // Auto-detect drink type based on active subscriptions
+  const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee');
+  const hasLunch = activeSubscriptions.some(sub => sub.subscription_type === 'drinks');
   
+  const autoDetectedType: 'coffee' | 'drinks' = (() => {
+    if (initialDrinkType) return initialDrinkType;
+    if (hasLunch && !hasCoffee) return 'drinks';
+    return 'coffee';
+  })();
+  
+  const [selectedDrinkType, setSelectedDrinkType] = useState<'coffee' | 'drinks'>(autoDetectedType);
+  
+  // Update when subscriptions load
+  useEffect(() => {
+    if (!initialDrinkType && activeSubscriptions.length > 0) {
+      if (hasLunch && !hasCoffee) {
+        setSelectedDrinkType('drinks');
+      }
+    }
+  }, [activeSubscriptions, hasCoffee, hasLunch, initialDrinkType]);
+  
+  const showTypeToggle = hasCoffee && hasLunch && !isGuestCoffee;
+  
+  // Check if selected shop supports lunch
+  const shopSupportsLunch = selectedShop?.supported_types?.includes('drinks') ?? false;
+
   const drinkType = selectedDrinkType;
   const drinkName = drinkType === 'coffee' ? t('balance.coffee') : t('balance.drinks');
   
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
   const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
-  
-  // Check if user has both subscription types (coffee + lunch)
-  const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee');
-  const hasLunch = activeSubscriptions.some(sub => sub.subscription_type === 'drinks');
-  const showTypeToggle = hasCoffee && hasLunch && !isGuestCoffee;
-  
-  // Check if selected shop supports lunch
-  const shopSupportsLunch = selectedShop?.supported_types?.includes('drinks') ?? false;
 
   const handleRealtimeRedemption = useCallback(() => {
     setStatus('scanning');
