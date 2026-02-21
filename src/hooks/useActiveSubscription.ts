@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ActiveSubscription {
-  id: string;
-  subscription_type_id: string | null;
-}
-
 export function useActiveSubscription() {
-  const [activeSubscriptionTypeId, setActiveSubscriptionTypeId] = useState<string | null>(null);
+  const [activeSubscriptionTypeIds, setActiveSubscriptionTypeIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -26,14 +21,15 @@ export function useActiveSubscription() {
         .from('user_subscriptions')
         .select('subscription_type_id')
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
+        .eq('is_active', true);
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching active subscription:', error);
       }
 
-      setActiveSubscriptionTypeId(data?.subscription_type_id || null);
+      setActiveSubscriptionTypeIds(
+        (data || []).map(s => s.subscription_type_id).filter(Boolean) as string[]
+      );
     } catch (error) {
       console.error('Error in useActiveSubscription:', error);
     } finally {
@@ -41,8 +37,12 @@ export function useActiveSubscription() {
     }
   };
 
+  // Keep backward compat
+  const activeSubscriptionTypeId = activeSubscriptionTypeIds[0] || null;
+
   return {
     activeSubscriptionTypeId,
+    activeSubscriptionTypeIds,
     isLoading,
     refetch: fetchActiveSubscription
   };

@@ -121,7 +121,7 @@ export default function PartnerScanPage() {
       } else {
         setResult({
           success: true,
-          message: 'Напиток успешно списан!',
+          message: 'Успешно списано!',
           customerName: response.customerName,
           drinkName: response.drinkName,
           remaining: response.remaining,

@@ -35,7 +35,7 @@ export default function PackageDetailPage() {
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessing, createPayment } = usePayment();
-  const { activeSubscriptionTypeId } = useActiveSubscription();
+  const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
 
@@ -78,9 +78,9 @@ export default function PackageDetailPage() {
         'Во всех партнёрских кофейнях',
       ]
     : [
-        'Выбранная категория напитков',
+        'Выбранная категория ланчей',
         'Стандартный размер',
-        '1 напиток за визит',
+        '1 ланч за визит',
         'Во всех партнёрских кофейнях',
       ];
 
@@ -119,7 +119,7 @@ export default function PackageDetailPage() {
   }
 
   const period = getPeriodText(subscription.duration_days, language);
-  const isActive = activeSubscriptionTypeId === subscription.id;
+  const isActive = activeSubscriptionTypeIds.includes(subscription.id);
 
   const formatBenefit = (benefit: number) => {
     return new Intl.NumberFormat('ru-RU').format(benefit);

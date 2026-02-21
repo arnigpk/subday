@@ -211,7 +211,7 @@ export default function PartnerDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-foreground">{stats.today}</p>
-              <p className="text-xs text-muted-foreground">напитков</p>
+              <p className="text-xs text-muted-foreground">списаний</p>
             </CardContent>
           </Card>
 
@@ -224,7 +224,7 @@ export default function PartnerDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-foreground">{stats.week}</p>
-              <p className="text-xs text-muted-foreground">напитков</p>
+              <p className="text-xs text-muted-foreground">списаний</p>
             </CardContent>
           </Card>
 
