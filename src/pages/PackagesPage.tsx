@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Sparkles, Coffee, Check } from 'lucide-react';
+import { Sparkles, Coffee, Check, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';
@@ -31,7 +31,7 @@ const formatBenefit = (benefit: number) => new Intl.NumberFormat('ru-RU').format
 
 export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState('coffee');
-  const { activeSubscriptionTypeId, refetch: refetchSubscription } = useActiveSubscription();
+  const { activeSubscriptionTypeIds, refetch: refetchSubscription } = useActiveSubscription();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
 
@@ -89,7 +89,7 @@ export default function PackagesPage() {
             ) : (
               <div className="space-y-4">
               {filteredSubscriptions.map((sub, index) => (
-                <SubscriptionCard key={sub.id} sub={sub} index={index} activeSubscriptionTypeId={activeSubscriptionTypeId} t={t} language={language} daysWord={daysWord} />
+                <SubscriptionCard key={sub.id} sub={sub} index={index} activeSubscriptionTypeIds={activeSubscriptionTypeIds} t={t} language={language} daysWord={daysWord} />
               ))}
               </div>
             )}
@@ -100,8 +100,8 @@ export default function PackagesPage() {
   );
 }
 
-function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, daysWord }: {
-  sub: SubscriptionType; index: number; activeSubscriptionTypeId: string | null;
+function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, daysWord }: {
+  sub: SubscriptionType; index: number; activeSubscriptionTypeIds: string[];
   t: (key: string) => string; language: string; daysWord: (days: number) => string;
 }) {
   const translatedName = useAutoTranslate(sub.name);
@@ -109,7 +109,8 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
   const translatedBadge = sub.badge; // badges stay in original language
   
   const period = getPeriodText(sub.duration_days, language);
-  const isActive = activeSubscriptionTypeId === sub.id;
+  const isActive = activeSubscriptionTypeIds.includes(sub.id);
+  const isLunch = sub.type === 'drinks';
 
   return (
     <Link
@@ -141,7 +142,11 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
         <div className="relative">
           <div className="mb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Coffee size={14} className="text-accent" />
+              {isLunch ? (
+                <UtensilsCrossed size={14} className="text-accent" />
+              ) : (
+                <Coffee size={14} className="text-accent" />
+              )}
               <h3 className="text-lg font-bold text-foreground tracking-tight">{translatedName}</h3>
             </div>
             {sub.description && (
@@ -149,9 +154,9 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeId, t, language, d
             )}
             <div className="mt-2 pl-5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
-                {language === 'kz' 
-                  ? `☕ ${sub.duration_days} ${daysWord(sub.duration_days)}ге ${sub.cups_count} кофе`
-                  : `☕ ${sub.cups_count} ${t('packages.coffeeFor')} ${sub.duration_days} ${daysWord(sub.duration_days)}`
+                {isLunch ? '🍽' : '☕'} {language === 'kz' 
+                  ? `${sub.duration_days} ${daysWord(sub.duration_days)}ге ${sub.cups_count} ${isLunch ? 'ланч' : 'кофе'}`
+                  : `${sub.cups_count} ${isLunch ? 'ланчей на' : t('packages.coffeeFor')} ${sub.duration_days} ${daysWord(sub.duration_days)}`
                 }
               </span>
             </div>

@@ -30,6 +30,16 @@ export function BalanceCard() {
   const currentTypeSub = activeSubscriptions.find(s => s.subscription_type === activeTab);
   const hasSubscription = !!currentTypeSub && total > 0 && remaining > 0;
   
+  // Calculate per-type days remaining
+  const typeDaysRemaining = (() => {
+    if (!currentTypeSub?.expires_at) return null;
+    const expiryDate = new Date(currentTypeSub.expires_at);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  })();
+  const typeIsExpiringSoon = typeDaysRemaining !== null && typeDaysRemaining <= 7 && typeDaysRemaining > 0;
+  
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
     if (days <= 0) return t('balance.expired');
@@ -133,19 +143,17 @@ export function BalanceCard() {
             </div>
           </div>
           
-          {currentTypeSub?.expires_at && daysRemaining !== null && (
-            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${isExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'}`}>
-              <Clock size={14} className={isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
-              <span className={`text-xs font-medium ${isExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {t('balance.subscription')} {formatDaysRemaining(daysRemaining)}
-                {currentTypeSub.expires_at && (
-                  <span className="ml-1">
-                    {language === 'kz' 
-                      ? `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), daysRemaining > 30)} дейін)`
-                      : `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: daysRemaining > 30 ? 'numeric' : undefined })})`
-                    }
-                  </span>
-                )}
+          {currentTypeSub?.expires_at && typeDaysRemaining !== null && (
+            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${typeIsExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'}`}>
+              <Clock size={14} className={typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
+              <span className={`text-xs font-medium ${typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {t('balance.subscription')} {formatDaysRemaining(typeDaysRemaining)}
+                <span className="ml-1">
+                  {language === 'kz' 
+                    ? `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), typeDaysRemaining > 30)} дейін)`
+                    : `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`
+                  }
+                </span>
               </span>
             </div>
           )}
