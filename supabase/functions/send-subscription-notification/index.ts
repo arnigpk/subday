@@ -10,6 +10,7 @@ interface NotificationRequest {
   userId: string;
   cupsCount: number;
   daysCount: number;
+  subscriptionName?: string;
 }
 
 /**
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
 
   try {
     const body: NotificationRequest = await req.json();
-    const { type, userId, cupsCount, daysCount } = body;
+    const { type, userId, cupsCount, daysCount, subscriptionName } = body;
 
     console.log('Processing notification:', { type, userId, cupsCount, daysCount });
 
@@ -116,9 +117,10 @@ Deno.serve(async (req) => {
     let message: string;
     
     if (type === 'activated') {
-      message = `🎉 Подписка активирована ☕\nБаланс: ${cupsCount} кофе · срок: ${daysCount} дней. Наслаждайтесь😌`;
+      const subName = subscriptionName || 'Подписка';
+      message = `🎉 Подписка ${subName} активирована 🚀 Наслаждайтесь😌`;
     } else if (type === 'low_balance') {
-      message = `❗Подписка на исходе❗\n\nОсталось ${cupsCount} кофе на ${daysCount} дней 🥹\n\nПродлевайте подписку легко в приложении 🙂`;
+      message = `⚠️ У вас по подписке осталось очень мало на ${daysCount} дней.`;
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid notification type' }),

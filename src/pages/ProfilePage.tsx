@@ -204,11 +204,17 @@ export default function ProfilePage() {
                 </div>
               ) : (
               <>
-                {!isSubLoading && hasActiveSubscription && activeSubscriptions[0]?.subscription_name && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-1">
-                    {activeSubscriptions[0].subscription_name}
-                  </span>
-                )}
+                {!isSubLoading && hasActiveSubscription && (() => {
+                  const hasCoffee = activeSubscriptions.some(s => s.subscription_type === 'coffee');
+                  const hasLunch = activeSubscriptions.some(s => s.subscription_type === 'drinks');
+                  const hasBoth = hasCoffee && hasLunch;
+                  const label = hasBoth ? 'subday Combo🚀' : activeSubscriptions[0]?.subscription_name || 'subday';
+                  return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-1">
+                      {label}
+                    </span>
+                  );
+                })()}
                 {isEditingName ? (
                   <div className="flex items-center gap-1.5">
                     <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t('profile.enterName')} maxLength={50}

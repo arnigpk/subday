@@ -65,9 +65,9 @@ export default function RedeemPage() {
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
   const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
   
-  // Check if user has combo or both subscription types
-  const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee' || sub.subscription_type === 'combo');
-  const hasLunch = activeSubscriptions.some(sub => sub.subscription_type === 'drinks' || sub.subscription_type === 'combo');
+  // Check if user has both subscription types (coffee + lunch)
+  const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee');
+  const hasLunch = activeSubscriptions.some(sub => sub.subscription_type === 'drinks');
   const showTypeToggle = hasCoffee && hasLunch && !isGuestCoffee;
   
   // Check if selected shop supports lunch
