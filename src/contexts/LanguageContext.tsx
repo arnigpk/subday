@@ -100,7 +100,7 @@ const translations: Record<string, Record<Language, string>> = {
   'redeem.scanning': { ru: 'Сканируют...', kz: 'Сканерленуде...' },
   'redeem.waitSec': { ru: 'Подожди секунду', kz: 'Бір секунд күтіңіз' },
   'redeem.success': { ru: 'Засчитано!', kz: 'Есептелді!' },
-  'redeem.enjoy': { ru: 'Наслаждайся напитком ☕', kz: 'Сусыныңыздан ләззат алыңыз ☕' },
+  'redeem.enjoy': { ru: 'Наслаждайся 🚀', kz: 'Ләззат алыңыз 🚀' },
   'redeem.goHome': { ru: 'На главную', kz: 'Басты бетке' },
   'redeem.error': { ru: 'Ошибка', kz: 'Қате' },
   'redeem.tryAgain': { ru: 'Попробуй ещё раз', kz: 'Қайта байқаңыз' },

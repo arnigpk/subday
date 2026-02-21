@@ -313,44 +313,6 @@ export default function AdminUsersPage() {
   const handleAddSubscription = async () => {
     if (!editingUser || !selectedSubscription) return;
 
-    // Handle "no subscription" option - deactivate all subscriptions and reset balance
-    if (selectedSubscription === 'no_subscription') {
-      try {
-        // Deactivate all active subscriptions for this user
-        await supabase
-          .from('user_subscriptions')
-          .update({ is_active: false })
-          .eq('user_id', editingUser.user_id)
-          .eq('is_active', true);
-
-        // Reset user stats to 0
-        await supabase
-          .from('user_stats')
-          .update({
-            coffee_remaining: 0,
-            coffee_total: 0,
-            drinks_remaining: 0,
-            drinks_total: 0,
-          })
-          .eq('user_id', editingUser.user_id);
-
-        setFormData(prev => ({ 
-          ...prev, 
-          coffee_remaining: 0,
-          drinks_remaining: 0,
-        }));
-
-        toast({ title: 'Подписка отменена', description: 'Баланс пользователя обнулён' });
-        setSelectedSubscription('');
-        fetchUsers();
-        return;
-      } catch (error) {
-        console.error('Error removing subscription:', error);
-        toast({ title: 'Ошибка отмены подписки', variant: 'destructive' });
-        return;
-      }
-    }
-
     const subType = subscriptionTypes.find(s => s.id === selectedSubscription);
     if (!subType) return;
 
@@ -417,6 +379,40 @@ export default function AdminUsersPage() {
     } catch (error) {
       console.error('Error adding subscription:', error);
       toast({ title: 'Ошибка добавления подписки', variant: 'destructive' });
+    }
+  };
+
+  const handleResetSubscription = async (type: 'coffee' | 'drinks') => {
+    if (!editingUser) return;
+    try {
+      // Deactivate subscriptions of this type
+      const { data: subs } = await supabase
+        .from('user_subscriptions')
+        .select('id, subscription_types(type)')
+        .eq('user_id', editingUser.user_id)
+        .eq('is_active', true);
+
+      for (const sub of (subs || [])) {
+        const subType = sub.subscription_types as unknown as { type: string } | null;
+        if (subType?.type === type) {
+          await supabase.from('user_subscriptions').update({ is_active: false }).eq('id', sub.id);
+        }
+      }
+
+      // Reset balance for this type
+      if (type === 'coffee') {
+        await supabase.from('user_stats').update({ coffee_remaining: 0, coffee_total: 0 }).eq('user_id', editingUser.user_id);
+        setFormData(prev => ({ ...prev, coffee_remaining: 0 }));
+      } else {
+        await supabase.from('user_stats').update({ drinks_remaining: 0, drinks_total: 0 }).eq('user_id', editingUser.user_id);
+        setFormData(prev => ({ ...prev, drinks_remaining: 0 }));
+      }
+
+      toast({ title: `Подписка ${type === 'coffee' ? 'Кофе' : 'Ланч'} обнулена` });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error resetting subscription:', error);
+      toast({ title: 'Ошибка обнуления', variant: 'destructive' });
     }
   };
 
@@ -734,11 +730,21 @@ export default function AdminUsersPage() {
                       <Coffee className="w-4 h-4 text-amber-600" />
                       <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      до {editingUser.coffee_subscription.expires_at 
-                        ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                        : '—'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        до {editingUser.coffee_subscription.expires_at 
+                          ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                        onClick={() => handleResetSubscription('coffee')}
+                      >
+                        Обнулить
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {editingUser?.lunch_subscription && (
@@ -747,27 +753,34 @@ export default function AdminUsersPage() {
                       <UtensilsCrossed className="w-4 h-4 text-purple-600" />
                       <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      до {editingUser.lunch_subscription.expires_at 
-                        ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                        : '—'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        до {editingUser.lunch_subscription.expires_at 
+                          ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                        onClick={() => handleResetSubscription('drinks')}
+                      >
+                        Обнулить
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
             <div className="border-t pt-4">
-              <Label>Управление подпиской</Label>
+              <Label>Добавить подписку</Label>
               <div className="flex gap-2 mt-2">
                 <Select value={selectedSubscription} onValueChange={setSelectedSubscription}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Выберите подписку" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="no_subscription">
-                      <span className="text-destructive">Нет подписки (обнулить)</span>
-                    </SelectItem>
                     {subscriptionTypes.map(sub => (
                       <SelectItem key={sub.id} value={sub.id}>
                         {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'})
@@ -776,7 +789,7 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
                 <Button onClick={handleAddSubscription} disabled={!selectedSubscription}>
-                  {selectedSubscription === 'no_subscription' ? 'Применить' : 'Добавить'}
+                  Добавить
                 </Button>
               </div>
             </div>
