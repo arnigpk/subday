@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, Droplets, Gift } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -69,7 +69,7 @@ export default function HistoryPage() {
                     );
                     return (
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.drinkType === 'coffee' ? 'bg-primary/10' : 'bg-accent/10'}`}>
-                        {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <Droplets size={24} className="text-accent" />}
+                        {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <UtensilsCrossed size={24} className="text-accent" />}
                       </div>
                     );
                   })()}

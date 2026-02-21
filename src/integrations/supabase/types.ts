@@ -358,6 +358,7 @@ export type Database = {
           logo_url: string | null
           name: string
           sort_order: number | null
+          supported_types: string[]
           updated_at: string | null
           working_hours: string | null
         }
@@ -377,6 +378,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           sort_order?: number | null
+          supported_types?: string[]
           updated_at?: string | null
           working_hours?: string | null
         }
@@ -396,6 +398,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           sort_order?: number | null
+          supported_types?: string[]
           updated_at?: string | null
           working_hours?: string | null
         }

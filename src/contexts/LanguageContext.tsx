@@ -26,7 +26,7 @@ const translations: Record<string, Record<Language, string>> = {
 
   // Balance Card
   'balance.coffee': { ru: 'Кофе', kz: 'Кофе' },
-  'balance.drinks': { ru: 'Напитки', kz: 'Сусындар' },
+  'balance.drinks': { ru: 'Ланч', kz: 'Ланч' },
   'balance.remaining': { ru: 'По подписке осталось', kz: 'Жазылым бойынша қалды' },
   'balance.of': { ru: 'из', kz: 'ішінен' },
   'balance.dailyLimitReached': { ru: 'У вас закончился дневной лимит, попробуйте завтра', kz: 'Күндік лимит біткен, ертең байқап көріңіз' },
@@ -91,7 +91,11 @@ const translations: Record<string, Record<Language, string>> = {
   'redeem.showBarista': { ru: 'Покажи бариста для сканирования', kz: 'Бариста сканерлеу үшін көрсетіңіз' },
   'redeem.remaining': { ru: 'Осталось:', kz: 'Қалды:' },
   'redeem.coffee': { ru: 'кофе', kz: 'кофе' },
-  'redeem.drinks': { ru: 'напитков', kz: 'сусын' },
+  'redeem.drinks': { ru: 'ланчей', kz: 'ланч' },
+  'redeem.selectType': { ru: 'Выберите тип', kz: 'Түрін таңдаңыз' },
+  'redeem.typeCoffee': { ru: 'Кофе', kz: 'Кофе' },
+  'redeem.typeLunch': { ru: 'Ланч', kz: 'Ланч' },
+  'redeem.lunchNotAvailable': { ru: 'Ланч недоступен в этой кофейне', kz: 'Бұл кофеханада ланч қолжетімді емес' },
   'redeem.shopClosed': { ru: 'Кофейня сейчас закрыта', kz: 'Кофехана қазір жабық' },
   'redeem.scanning': { ru: 'Сканируют...', kz: 'Сканерленуде...' },
   'redeem.waitSec': { ru: 'Подожди секунду', kz: 'Бір секунд күтіңіз' },
