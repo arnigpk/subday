@@ -121,19 +121,21 @@ export function BalanceCard() {
       {hasSubscription ? (
         <>
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-4">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-                isCoffee ? 'bg-primary/10' : 'bg-accent/10'
-              }`}>
-                {isCoffee ? (
-                  <Coffee size={32} className="text-primary" />
-                ) : (
-                  <UtensilsCrossed size={32} className="text-accent" />
-                )}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="shrink-0" style={{ width: 48, height: 48 }}>
+                <div className={`w-full h-full rounded-2xl flex items-center justify-center ${
+                  isCoffee ? 'bg-primary/10' : 'bg-accent/10'
+                }`}>
+                  {isCoffee ? (
+                    <Coffee size={24} className="text-primary" />
+                  ) : (
+                    <UtensilsCrossed size={24} className="text-accent" />
+                  )}
+                </div>
               </div>
               
-              <div>
-                <p className="text-muted-foreground text-sm font-medium">
+              <div className="min-w-0 flex-1">
+                <p className="text-muted-foreground text-sm font-medium leading-tight">
                   {language === 'kz' 
                     ? `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} қалды`
                     : `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total}`
@@ -141,14 +143,14 @@ export function BalanceCard() {
                 </p>
                 
                 {!isLimitLoading && isLimitReached && (
-                  <div className="flex items-center gap-1.5 mt-1.5 text-destructive">
-                    <AlertTriangle size={14} />
-                    <span className="text-xs font-medium">{t('balance.dailyLimitReached')}</span>
+                  <div className="flex items-center gap-1 mt-1 text-destructive">
+                    <AlertTriangle size={12} className="shrink-0" />
+                    <span className="text-[11px] font-medium leading-tight">{t('balance.dailyLimitReached')}</span>
                   </div>
                 )}
 
                 {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
                     {t('balance.todayRemaining')} {remainingToday} {t('balance.of')} {dailyLimit}
                   </p>
                 )}
