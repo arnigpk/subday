@@ -356,14 +356,6 @@ export default function RedeemPage() {
                 <p className="text-xs text-muted-foreground mb-3">{t('redeem.lunchNotAvailable')}</p>
               )}
 
-              {/* Warning: user has only lunch sub but shop doesn't support it */}
-              {!hasCoffee && hasLunch && !shopSupportsLunch && (
-                <div className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-xl mb-4 text-sm font-medium">
-                  <Info size={16} className="shrink-0" />
-                  {t('redeem.lunchNotAvailable')}
-                </div>
-              )}
-
               <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
                   <QRCodeSVG value={qrCodeData} size={260} level="L" includeMargin={false} bgColor="white" fgColor="#000000" />
