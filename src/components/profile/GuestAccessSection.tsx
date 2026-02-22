@@ -9,7 +9,8 @@ export function GuestAccessSection() {
   const { t } = useLanguage();
   const [monthlyUsed, setMonthlyUsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { hasActiveSubscription } = useSubscriptionStatus();
+  const { activeSubscriptions } = useSubscriptionStatus();
+  const hasCoffeeSubscription = activeSubscriptions.some(s => s.subscription_type === 'coffee');
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -30,7 +31,7 @@ export function GuestAccessSection() {
     fetchStatus();
   }, [fetchStatus]);
 
-  if (!hasActiveSubscription) return null;
+  if (!hasCoffeeSubscription) return null;
 
   return (
     <div className="space-y-2 animate-slide-up" style={{ animationDelay: '0.12s' }}>

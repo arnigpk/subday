@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ArrowLeft, Gift, User, Copy } from 'lucide-react';
@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 
 export default function GiftCoffeePage() {
   const navigate = useNavigate();
@@ -13,6 +14,15 @@ export default function GiftCoffeePage() {
   const [publicId, setPublicId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { vibrateSuccess, vibrateError } = useVibration();
+  const { activeSubscriptions, isLoading: subLoading } = useSubscriptionStatus();
+  const hasCoffeeSubscription = activeSubscriptions.some(s => s.subscription_type === 'coffee');
+
+  // Redirect if no coffee subscription
+  useEffect(() => {
+    if (!subLoading && !hasCoffeeSubscription) {
+      navigate('/profile');
+    }
+  }, [subLoading, hasCoffeeSubscription, navigate]);
 
   const handleGrant = async () => {
     const value = publicId.trim();

@@ -77,6 +77,7 @@ const translations: Record<string, Record<Language, string>> = {
   'shops.closedOpensAt': { ru: 'Закрыто · откроется в', kz: 'Жабық · ашылады' },
   'shops.bySubscription': { ru: 'Доступно по подписке', kz: 'Жазылым бойынша қолжетімді' },
   'shops.remaining': { ru: 'осталось', kz: 'қалды' },
+  'shops.notAvailable': { ru: 'Не доступно', kz: 'Қолжетімсіз' },
   'shops.shopClosed': { ru: 'Кофейня закрыта', kz: 'Кофехана жабық' },
   'shops.noDrinks': { ru: 'Нет доступных напитков', kz: 'Қолжетімді сусындар жоқ' },
   'shops.pickupHere': { ru: 'Забрать здесь', kz: 'Осы жерден алу' },
