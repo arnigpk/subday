@@ -78,10 +78,26 @@ export default function RedeemPage() {
     }
   }, [activeSubscriptions, hasCoffee, hasLunch, initialDrinkType]);
   
-  const showTypeToggle = hasCoffee && hasLunch && !isGuestCoffee;
-  
-  // Check if selected shop supports lunch
+  // Shop capabilities
+  const shopSupportsCoffee = selectedShop?.supported_types?.includes('coffee') ?? true;
   const shopSupportsLunch = selectedShop?.supported_types?.includes('drinks') ?? false;
+
+  // Show toggle if user has at least one subscription and not guest
+  const showTypeToggle = (hasCoffee || hasLunch) && !isGuestCoffee;
+
+  // Button states: active only if user has sub AND shop supports it
+  const coffeeButtonActive = hasCoffee && shopSupportsCoffee;
+  const lunchButtonActive = hasLunch && shopSupportsLunch;
+
+  // Auto-correct selected type if current selection is not possible
+  useEffect(() => {
+    if (isGuestCoffee) return;
+    if (selectedDrinkType === 'drinks' && !lunchButtonActive && coffeeButtonActive) {
+      setSelectedDrinkType('coffee');
+    } else if (selectedDrinkType === 'coffee' && !coffeeButtonActive && lunchButtonActive) {
+      setSelectedDrinkType('drinks');
+    }
+  }, [selectedShop, coffeeButtonActive, lunchButtonActive, selectedDrinkType, isGuestCoffee]);
 
   const drinkType = selectedDrinkType;
   const drinkName = drinkType === 'coffee' ? t('balance.coffee') : t('balance.drinks');
@@ -311,22 +327,23 @@ export default function RedeemPage() {
             <div className="text-center animate-slide-up">
               {/* Type toggle */}
               {showTypeToggle && (
-                <div className="flex gap-2 justify-center mb-4">
+                <div className="flex gap-2 justify-center mb-2">
                   <button
-                    onClick={() => setSelectedDrinkType('coffee')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                      selectedDrinkType === 'coffee' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
-                    }`}
+                    onClick={() => coffeeButtonActive ? setSelectedDrinkType('coffee') : null}
+                    disabled={!coffeeButtonActive}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                      selectedDrinkType === 'coffee' && coffeeButtonActive ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                    } ${!coffeeButtonActive ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <Coffee size={16} />
                     {t('redeem.typeCoffee')}
                   </button>
                   <button
-                    onClick={() => shopSupportsLunch ? setSelectedDrinkType('drinks') : null}
-                    disabled={!shopSupportsLunch}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                      selectedDrinkType === 'drinks' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
-                    } ${!shopSupportsLunch ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    onClick={() => lunchButtonActive ? setSelectedDrinkType('drinks') : null}
+                    disabled={!lunchButtonActive}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                      selectedDrinkType === 'drinks' && lunchButtonActive ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                    } ${!lunchButtonActive ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <UtensilsCrossed size={16} />
                     {t('redeem.typeLunch')}
@@ -334,20 +351,12 @@ export default function RedeemPage() {
                 </div>
               )}
               
-              {/* Warning when lunch selected but shop doesn't support it */}
-              {!shopSupportsLunch && selectedDrinkType === 'drinks' && (
-                <div className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-xl mb-4 text-sm font-medium">
-                  <Info size={16} className="shrink-0" />
-                  {t('redeem.lunchNotAvailable')}
-                </div>
-              )}
-
-              {/* Hint when toggle visible but lunch unavailable at this shop */}
-              {showTypeToggle && !shopSupportsLunch && selectedDrinkType === 'coffee' && (
+              {/* Single hint when lunch unavailable at this shop */}
+              {hasLunch && !shopSupportsLunch && (
                 <p className="text-xs text-muted-foreground mb-3">{t('redeem.lunchNotAvailable')}</p>
               )}
 
-              {/* Warning for lunch-only users at a coffee-only shop */}
+              {/* Warning: user has only lunch sub but shop doesn't support it */}
               {!hasCoffee && hasLunch && !shopSupportsLunch && (
                 <div className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-xl mb-4 text-sm font-medium">
                   <Info size={16} className="shrink-0" />
