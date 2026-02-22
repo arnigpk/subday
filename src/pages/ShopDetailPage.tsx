@@ -27,6 +27,7 @@ interface Shop {
   badges: unknown;
   coordinates: unknown;
   description: string | null;
+  supported_types: string[];
 }
 
 function parseCoordinates(coords: unknown): Coordinate[] {
@@ -185,10 +186,14 @@ export default function ShopDetailPage() {
                 <Droplets size={20} className="text-accent" />
                 <span className="font-semibold text-foreground">{t('balance.drinks')}</span>
               </div>
-              <p className="text-2xl font-black text-foreground">
-                {stats.drinksRemaining}
-                <span className="text-sm text-muted-foreground font-medium ml-1">{t('shops.remaining')}</span>
-              </p>
+              {shop.supported_types?.includes('drinks') ? (
+                <p className="text-2xl font-black text-foreground">
+                  {stats.drinksRemaining}
+                  <span className="text-sm text-muted-foreground font-medium ml-1">{t('shops.remaining')}</span>
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-muted-foreground">{t('shops.notAvailable') || 'Не доступно'}</p>
+              )}
             </div>
           </div>
         </div>
