@@ -10,6 +10,8 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
+import { useSpecialOffer } from '@/hooks/useSpecialOffer';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
@@ -25,6 +27,7 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const { vibrateShort } = useVibration();
   
+  const { offer, showPopup, eligibleUntil, dismissPopup } = useSpecialOffer();
   usePaymentResult();
   
   useEffect(() => {
@@ -95,6 +98,16 @@ export default function HomePage() {
             <AdBannerCarousel location="home" />
           </div>
         </div>
+        
+        {offer && (
+          <SpecialOfferPopup
+            open={showPopup}
+            onDismiss={dismissPopup}
+            offerPrice={offer.offer_price}
+            offerCups={offer.offer_cups_count}
+            eligibleUntil={eligibleUntil}
+          />
+        )}
       </PullToRefresh>
     </AppLayout>
   );

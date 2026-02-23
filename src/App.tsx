@@ -50,6 +50,7 @@ const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage")
 const AdminPushBroadcastPage = lazy(() => import("./pages/admin/AdminPushBroadcastPage"));
 const AdminSubscriptionTransactionsPage = lazy(() => import("./pages/admin/AdminSubscriptionTransactionsPage"));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
+const AdminSpecialOffersPage = lazy(() => import("./pages/admin/AdminSpecialOffersPage"));
 
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
@@ -270,6 +271,7 @@ const AppContent = () => {
             <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
             <Route path="/admin/subscription-transactions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionTransactionsPage /></AdminProtectedRoute>} />
             <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
+            <Route path="/admin/special-offers" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSpecialOffersPage /></AdminProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
             
             {/* Partner Routes */}

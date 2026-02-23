@@ -128,19 +128,113 @@ Deno.serve(async (req) => {
         })
         .eq('id', paymentOrder.id);
 
-      // Activate subscription using RPC
-      const { data: activationResult, error: activationError } = await supabase
-        .rpc('activate_subscription', {
-          _user_id: paymentOrder.user_id,
-          _subscription_type_id: paymentOrder.subscription_type_id,
-        });
+      const metadata = (paymentOrder.metadata || {}) as Record<string, unknown>;
+      const isSpecialOffer = metadata.is_special_offer === true;
 
-      if (activationError) {
-        console.error('Subscription activation error:', activationError);
-        return new Response(JSON.stringify({ error: 'Activation failed' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      // If special offer, use custom activation instead of standard RPC
+      let activationResult: Record<string, unknown>;
+      
+      if (isSpecialOffer) {
+        console.log('Activating special offer subscription');
+        const offerCups = Number(metadata.cups_count) || 7;
+        const offerDays = Number(metadata.duration_days) || 7;
+
+        // Get subscription type info
+        const { data: subType } = await supabase
+          .from('subscription_types')
+          .select('*')
+          .eq('id', paymentOrder.subscription_type_id)
+          .single();
+
+        if (!subType) {
+          return new Response(JSON.stringify({ error: 'Subscription type not found' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Deactivate existing subs of same type
+        await supabase
+          .from('user_subscriptions')
+          .update({ is_active: false })
+          .eq('user_id', paymentOrder.user_id)
+          .eq('is_active', true)
+          .in('subscription_type_id', 
+            (await supabase.from('subscription_types').select('id').eq('type', subType.type)).data?.map(s => s.id) || []
+          );
+
+        // Create subscription with offer params
+        const expiresAt = new Date(Date.now() + offerDays * 24 * 60 * 60 * 1000);
+        await supabase
+          .from('user_subscriptions')
+          .insert({
+            user_id: paymentOrder.user_id,
+            subscription_type_id: paymentOrder.subscription_type_id,
+            started_at: new Date().toISOString(),
+            expires_at: expiresAt.toISOString(),
+            is_active: true,
+          });
+
+        // Update user_stats
+        if (subType.type === 'coffee') {
+          const { error: statsErr } = await supabase
+            .from('user_stats')
+            .update({ coffee_remaining: offerCups, coffee_total: offerCups, updated_at: new Date().toISOString() })
+            .eq('user_id', paymentOrder.user_id);
+          if (statsErr) {
+            await supabase.from('user_stats').insert({
+              user_id: paymentOrder.user_id,
+              coffee_remaining: offerCups,
+              coffee_total: offerCups,
+            });
+          }
+        }
+
+        // Mark offer as redeemed
+        await supabase
+          .from('profiles')
+          .update({ special_offer_redeemed_at: new Date().toISOString() })
+          .eq('user_id', paymentOrder.user_id);
+
+        // Record offer redemption
+        const { data: activeOffers } = await supabase
+          .from('special_offers')
+          .select('id')
+          .eq('target_subscription_type_id', paymentOrder.subscription_type_id)
+          .eq('is_active', true)
+          .limit(1);
+        
+        if (activeOffers && activeOffers.length > 0) {
+          await supabase
+            .from('user_offer_redemptions')
+            .insert({
+              user_id: paymentOrder.user_id,
+              offer_id: activeOffers[0].id,
+            });
+        }
+
+        activationResult = {
+          success: true,
+          cups_count: offerCups,
+          duration_days: offerDays,
+          subscription_name: subType.name,
+        };
+      } else {
+        // Standard activation via RPC
+        const { data, error: activationError } = await supabase
+          .rpc('activate_subscription', {
+            _user_id: paymentOrder.user_id,
+            _subscription_type_id: paymentOrder.subscription_type_id,
+          });
+
+        if (activationError) {
+          console.error('Subscription activation error:', activationError);
+          return new Response(JSON.stringify({ error: 'Activation failed' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        activationResult = data as Record<string, unknown>;
       }
 
       console.log('Subscription activated:', activationResult);
@@ -152,7 +246,7 @@ Deno.serve(async (req) => {
         .eq('id', paymentOrder.subscription_type_id)
         .single();
 
-      // Send user notification via Telegram (@subday_lgbot)
+      // Send user notification via Telegram
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
@@ -161,11 +255,10 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             type: 'activated',
             userId: paymentOrder.user_id,
-            cupsCount: subType?.cups_count || activationResult.cups_count,
-            daysCount: subType?.duration_days || activationResult.duration_days,
+            cupsCount: isSpecialOffer ? Number(metadata.cups_count) : (subType?.cups_count || (activationResult as any).cups_count),
+            daysCount: isSpecialOffer ? Number(metadata.duration_days) : (subType?.duration_days || (activationResult as any).duration_days),
           }),
         });
-        console.log('User notification sent for subscription activation');
       } catch (notifError) {
         console.error('Failed to send user notification:', notifError);
       }
@@ -176,24 +269,26 @@ Deno.serve(async (req) => {
         .insert({
           user_id: paymentOrder.user_id,
           subscription_type_id: paymentOrder.subscription_type_id,
-          subscription_name: subType?.name || (paymentOrder.metadata as Record<string, unknown>)?.subscription_name || 'Unknown',
+          subscription_name: subType?.name || metadata.subscription_name || 'Unknown',
           transaction_type: 'purchase',
           payment_method: 'paylink',
           amount: paymentOrder.amount,
           payment_order_id: paymentOrder.id,
+          is_special_offer: isSpecialOffer,
         });
 
       if (transactionError) {
         console.error('Transaction log error:', transactionError);
       }
 
-      // Send notification to Telegram (optional)
+      // Send notification to Telegram
       try {
         const telegramBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
         const telegramChatId = Deno.env.get('NOTIFICATION_CHAT_ID');
         
         if (telegramBotToken && telegramChatId) {
-          const message = `🎉 Новая оплата подписки!\n\n` +
+          const offerLabel = isSpecialOffer ? ' (спецпредложение)' : '';
+          const message = `🎉 Новая оплата подписки!${offerLabel}\n\n` +
             `📦 Подписка: ${subType?.name || 'Unknown'}\n` +
             `💰 Сумма: ${paymentOrder.amount} ₸\n` +
             `🆔 Заказ: ${orderId}`;
@@ -201,10 +296,7 @@ Deno.serve(async (req) => {
           await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: telegramChatId,
-              text: message,
-            }),
+            body: JSON.stringify({ chat_id: telegramChatId, text: message }),
           });
         }
       } catch (telegramError) {

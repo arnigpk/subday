@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
+import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 
 interface RegisterScreenProps {
   onComplete: () => void;
@@ -10,23 +11,18 @@ interface RegisterScreenProps {
   initialPhone?: string;
 }
 
-export function RegisterScreen({
-  onComplete,
-  onSwitchToLogin,
-  initialPhone = ''
-}: RegisterScreenProps) {
+export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' }: RegisterScreenProps) {
   const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'code'>('form');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
+  const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   const formatPhoneInput = (value: string) => {
     let digits = value.replace(/\D/g, '');
-    if (digits.length > 11) {
-      digits = digits.slice(0, 11);
-    }
+    if (digits.length > 11) digits = digits.slice(0, 11);
     if (digits.length === 0) return '';
     if (digits.length <= 1) return `+${digits}`;
     if (digits.length <= 4) return `+${digits.slice(0, 1)} ${digits.slice(1)}`;
@@ -41,36 +37,26 @@ export function RegisterScreen({
 
   const handleSendCode = async () => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 11) {
-      toast.error('Введи полный номер телефона');
-      return;
-    }
-    if (!name.trim()) {
-      toast.error('Введи имя и фамилию');
-      return;
-    }
+    if (digits.length < 11) { toast.error('Введи полный номер телефона'); return; }
+    if (!name.trim()) { toast.error('Введи имя и фамилию'); return; }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: {
-          phone: digits,
-          isRegistration: true
-        }
+        body: { phone: digits, isRegistration: true }
       });
-      if (error) {
-        console.error('Send OTP error:', error);
-        toast.error('Ошибка отправки кода');
-        return;
-      }
-      if (data.error) {
+      if (error) { toast.error('Ошибка отправки кода'); return; }
+      if (data?.error) {
+        if (data.cooldown) {
+          startCooldown(data.cooldown);
+        }
         toast.error(data.error);
         return;
       }
       setFormattedPhone(data.phone);
       setStep('code');
+      startCooldown(59);
       toast.success('Код отправлен!');
     } catch (err) {
-      console.error('Error sending code:', err);
       toast.error('Ошибка отправки');
     } finally {
       setIsLoading(false);
@@ -79,29 +65,14 @@ export function RegisterScreen({
 
   const handleVerifyCode = async (codeToVerify?: string) => {
     const verifyCode = codeToVerify || code;
-    if (verifyCode.length < 4) {
-      toast.error('Введи 4-значный код');
-      return;
-    }
+    if (verifyCode.length < 4) { toast.error('Введи 4-значный код'); return; }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: {
-          phone: formattedPhone,
-          code: verifyCode,
-          isRegistration: true,
-          name: name.trim()
-        }
+        body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim() }
       });
-      if (error) {
-        console.error('Verify OTP error:', error);
-        toast.error('Ошибка проверки кода');
-        return;
-      }
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
+      if (error) { toast.error('Ошибка проверки кода'); return; }
+      if (data.error) { toast.error(data.error); return; }
       if (data.success) {
         toast.success('Регистрация успешна! Теперь войди');
         onComplete();
@@ -109,7 +80,6 @@ export function RegisterScreen({
         toast.error('Ошибка регистрации');
       }
     } catch (err) {
-      console.error('Error verifying code:', err);
       toast.error('Ошибка проверки');
     } finally {
       setIsLoading(false);
@@ -122,10 +92,7 @@ export function RegisterScreen({
         <div className="w-24 h-24 mb-4 animate-pop">
           <img src={logo} alt="subday" className="w-full h-full object-contain" />
         </div>
-        
-        <h1 className="text-2xl font-black text-foreground mb-1 animate-slide-up">
-          Регистрация
-        </h1>
+        <h1 className="text-2xl font-black text-foreground mb-1 animate-slide-up">Регистрация</h1>
         <p className="text-muted-foreground text-center mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
           Создай аккаунт subday
         </p>
@@ -134,45 +101,19 @@ export function RegisterScreen({
           {step === 'form' ? (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Имя и Фамилия
-                </label>
-                <input
-                  type="text"
-                  placeholder="Иван Иванов"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="input-field w-full"
-                  autoComplete="name"
-                />
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Имя и Фамилия</label>
+                <input type="text" placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} className="input-field w-full" autoComplete="name" />
               </div>
-              
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Номер телефона
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+7 7XX XXX XX XX"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  className="input-field w-full"
-                  autoComplete="tel"
-                />
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Номер телефона</label>
+                <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full" autoComplete="tel" />
               </div>
-              
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
               </p>
-              
-              <button
-                onClick={handleSendCode}
-                disabled={phone.replace(/\D/g, '').length < 11 || !name.trim() || isLoading}
-                className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Отправляем...' : 'Получить код'}
+              <button onClick={handleSendCode} disabled={phone.replace(/\D/g, '').length < 11 || !name.trim() || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                {isCoolingDown ? `Повторно через ${remaining} сек.` : isLoading ? 'Отправляем...' : 'Получить код'}
               </button>
-              
               <button onClick={onSwitchToLogin} className="btn-secondary w-full">
                 Уже есть аккаунт? Войти
               </button>
@@ -180,52 +121,36 @@ export function RegisterScreen({
           ) : (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                  Код из SMS
-                </label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Код из SMS</label>
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="0000"
-                  value={code}
+                  type="text" inputMode="numeric" placeholder="0000" value={code}
                   onChange={e => {
                     const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
                     setCode(newCode);
-                    if (newCode.length === 4 && !isLoading) {
-                      handleVerifyCode(newCode);
-                    }
+                    if (newCode.length === 4 && !isLoading) handleVerifyCode(newCode);
                   }}
-                  className="input-field w-full text-2xl text-center tracking-[0.5em]"
-                  maxLength={4}
-                  autoComplete="one-time-code"
+                  className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code"
                 />
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Отправили на {formattedPhone}
-                </p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">Отправили на {formattedPhone}</p>
               </div>
-              
               {isLoading && (
                 <div className="flex items-center justify-center py-3">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <span className="ml-2 text-muted-foreground">Проверяем...</span>
                 </div>
               )}
-              
-              <button
-                onClick={() => {
-                  setStep('form');
-                  setCode('');
-                }}
-                className="btn-secondary w-full"
-                disabled={isLoading}
-              >
-                Изменить данные
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => { setStep('form'); setCode(''); }} className="btn-secondary flex-1" disabled={isLoading}>
+                  Изменить данные
+                </button>
+                <button onClick={handleSendCode} className="btn-secondary flex-1" disabled={isLoading || isCoolingDown}>
+                  {isCoolingDown ? `${remaining} сек.` : 'Отправить снова'}
+                </button>
+              </div>
             </>
           )}
         </div>
       </div>
-      
       <div className="p-6 text-center">
         <p className="text-xs text-muted-foreground">
           Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">правилами сервиса</button></ServiceRulesDialog>.
