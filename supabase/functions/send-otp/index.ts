@@ -76,6 +76,28 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Anti-fraud: check cooldown (59 seconds between SMS)
+    const { data: lastOtp } = await supabase
+      .from('otp_codes')
+      .select('created_at')
+      .eq('phone', formattedPhone)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (lastOtp) {
+      const lastSentAt = new Date(lastOtp.created_at).getTime()
+      const cooldownMs = 59 * 1000
+      const elapsed = Date.now() - lastSentAt
+      if (elapsed < cooldownMs) {
+        const remainingSec = Math.ceil((cooldownMs - elapsed) / 1000)
+        return new Response(
+          JSON.stringify({ error: `Повторная отправка через ${remainingSec} сек.`, cooldown: remainingSec }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 

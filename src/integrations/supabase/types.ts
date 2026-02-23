@@ -249,6 +249,8 @@ export type Database = {
           name: string | null
           phone: string
           public_id: string
+          special_offer_popup_shown_at: string | null
+          special_offer_redeemed_at: string | null
           subflow_nickname: string | null
           updated_at: string
           user_id: string
@@ -262,6 +264,8 @@ export type Database = {
           name?: string | null
           phone: string
           public_id?: string
+          special_offer_popup_shown_at?: string | null
+          special_offer_redeemed_at?: string | null
           subflow_nickname?: string | null
           updated_at?: string
           user_id: string
@@ -275,6 +279,8 @@ export type Database = {
           name?: string | null
           phone?: string
           public_id?: string
+          special_offer_popup_shown_at?: string | null
+          special_offer_redeemed_at?: string | null
           subflow_nickname?: string | null
           updated_at?: string
           user_id?: string
@@ -403,6 +409,62 @@ export type Database = {
           working_hours?: string | null
         }
         Relationships: []
+      }
+      special_offers: {
+        Row: {
+          badge_text: string | null
+          created_at: string
+          description: string | null
+          eligibility_days: number
+          eligibility_type: string
+          id: string
+          is_active: boolean
+          name: string
+          offer_cups_count: number
+          offer_duration_days: number
+          offer_price: number
+          target_subscription_type_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          badge_text?: string | null
+          created_at?: string
+          description?: string | null
+          eligibility_days?: number
+          eligibility_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          offer_cups_count: number
+          offer_duration_days: number
+          offer_price: number
+          target_subscription_type_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          badge_text?: string | null
+          created_at?: string
+          description?: string | null
+          eligibility_days?: number
+          eligibility_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          offer_cups_count?: number
+          offer_duration_days?: number
+          offer_price?: number
+          target_subscription_type_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_offers_target_subscription_type_id_fkey"
+            columns: ["target_subscription_type_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stories: {
         Row: {
@@ -600,6 +662,7 @@ export type Database = {
           amount: number | null
           created_at: string
           id: string
+          is_special_offer: boolean | null
           payment_method: string | null
           payment_order_id: string | null
           subscription_name: string
@@ -612,6 +675,7 @@ export type Database = {
           amount?: number | null
           created_at?: string
           id?: string
+          is_special_offer?: boolean | null
           payment_method?: string | null
           payment_order_id?: string | null
           subscription_name: string
@@ -624,6 +688,7 @@ export type Database = {
           amount?: number | null
           created_at?: string
           id?: string
+          is_special_offer?: boolean | null
           payment_method?: string | null
           payment_order_id?: string | null
           subscription_name?: string
@@ -743,6 +808,35 @@ export type Database = {
           verified?: boolean
         }
         Relationships: []
+      }
+      user_offer_redemptions: {
+        Row: {
+          id: string
+          offer_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          offer_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          offer_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_offer_redemptions_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "special_offers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

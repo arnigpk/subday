@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { Sparkles, Coffee, Check, UtensilsCrossed } from 'lucide-react';
+import { Sparkles, Coffee, Check, UtensilsCrossed, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';
@@ -11,6 +11,7 @@ import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { useSpecialOffer } from '@/hooks/useSpecialOffer';
 
 interface SubscriptionType {
   id: string;
@@ -34,6 +35,7 @@ export default function PackagesPage() {
   const { activeSubscriptionTypeIds, refetch: refetchSubscription } = useActiveSubscription();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
+  const { offer, isEligible, eligibleUntil } = useSpecialOffer();
 
   const tabs = [
     { id: 'coffee', label: t('balance.coffee') },
@@ -89,7 +91,17 @@ export default function PackagesPage() {
             ) : (
               <div className="space-y-4">
               {filteredSubscriptions.map((sub, index) => (
-                <SubscriptionCard key={sub.id} sub={sub} index={index} activeSubscriptionTypeIds={activeSubscriptionTypeIds} t={t} language={language} daysWord={daysWord} />
+                <SubscriptionCard
+                  key={sub.id}
+                  sub={sub}
+                  index={index}
+                  activeSubscriptionTypeIds={activeSubscriptionTypeIds}
+                  t={t}
+                  language={language}
+                  daysWord={daysWord}
+                  specialOffer={isEligible && offer?.target_subscription_type_id === sub.id ? offer : null}
+                  eligibleUntil={eligibleUntil}
+                />
               ))}
               </div>
             )}
@@ -100,17 +112,26 @@ export default function PackagesPage() {
   );
 }
 
-function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, daysWord }: {
+function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, daysWord, specialOffer, eligibleUntil }: {
   sub: SubscriptionType; index: number; activeSubscriptionTypeIds: string[];
   t: (key: string) => string; language: string; daysWord: (days: number) => string;
+  specialOffer?: { offer_price: number; offer_cups_count: number; offer_duration_days: number; badge_text: string | null } | null;
+  eligibleUntil?: Date | null;
 }) {
   const translatedName = useAutoTranslate(sub.name);
   const translatedDescription = useAutoTranslate(sub.description);
-  const translatedBadge = sub.badge; // badges stay in original language
+  const translatedBadge = sub.badge;
   
-  const period = getPeriodText(sub.duration_days, language);
+  const hasOffer = !!specialOffer;
+  const displayPrice = hasOffer ? specialOffer!.offer_price : sub.price;
+  const displayCups = hasOffer ? specialOffer!.offer_cups_count : sub.cups_count;
+  const displayDays = hasOffer ? specialOffer!.offer_duration_days : sub.duration_days;
+
+  const period = getPeriodText(displayDays, language);
   const isActive = activeSubscriptionTypeIds.includes(sub.id);
   const isLunch = sub.type === 'drinks';
+
+  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
   return (
     <Link
@@ -118,10 +139,19 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
       className="block animate-slide-up"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''}`}>
+      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''} ${hasOffer ? 'ring-2 ring-accent/50' : ''}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {sub.badge && !isActive && (
+        {hasOffer && !isActive && (
+          <div className="absolute top-4 right-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg animate-pulse">
+              <Gift size={12} />
+              {specialOffer!.badge_text || '-50%'}
+            </span>
+          </div>
+        )}
+
+        {!hasOffer && sub.badge && !isActive && (
           <div className="absolute top-4 right-4">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
               <Sparkles size={12} />
@@ -155,21 +185,30 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
             <div className="mt-2 pl-5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
                 {isLunch ? '🍽' : '☕'} {language === 'kz' 
-                  ? `${sub.duration_days} ${daysWord(sub.duration_days)}ге ${sub.cups_count} ${isLunch ? 'ланч' : 'кофе'}`
-                  : `${sub.cups_count} ${isLunch ? 'ланчей на' : t('packages.coffeeFor')} ${sub.duration_days} ${daysWord(sub.duration_days)}`
+                  ? `${displayDays} ${daysWord(displayDays)}ге ${displayCups} ${isLunch ? 'ланч' : 'кофе'}`
+                  : `${displayCups} ${isLunch ? 'ланчей на' : t('packages.coffeeFor')} ${displayDays} ${daysWord(displayDays)}`
                 }
               </span>
             </div>
+            {hasOffer && eligibleUntil && (
+              <p className="text-xs text-accent font-medium pl-5 mt-1">
+                ⏰ Действует до {formatDate(eligibleUntil)}
+              </p>
+            )}
           </div>
           
           <div className="mb-4">
             <div className="flex items-end gap-1.5">
-              <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(sub.price)}</span>
+              <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(displayPrice)}</span>
               <span className="text-sm font-medium text-muted-foreground mb-0.5">₸</span>
               <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
             </div>
-          
-            {sub.benefit && sub.benefit > 0 && (
+            {hasOffer && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-muted-foreground line-through">{formatPrice(sub.price)} ₸</span>
+              </div>
+            )}
+            {!hasOffer && sub.benefit && sub.benefit > 0 && (
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-xs font-semibold text-accent">{t('packages.benefit')} {formatBenefit(sub.benefit)} ₸</span>
               </div>

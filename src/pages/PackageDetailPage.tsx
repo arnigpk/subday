@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { usePayment } from '@/hooks/usePayment';
@@ -11,6 +11,7 @@ import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeE
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate, useAutoTranslateArray } from '@/hooks/useAutoTranslate';
 import { useVibration } from '@/hooks/useVibration';
+import { useSpecialOffer } from '@/hooks/useSpecialOffer';
 
 interface SubscriptionType {
   id: string;
@@ -38,6 +39,7 @@ export default function PackageDetailPage() {
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
+  const { offer, isEligible, eligibleUntil } = useSpecialOffer();
 
   useEffect(() => {
     if (id) {
@@ -118,12 +120,19 @@ export default function PackageDetailPage() {
     );
   }
 
-  const period = getPeriodText(subscription.duration_days, language);
+  const hasOffer = isEligible && offer?.target_subscription_type_id === subscription.id;
+  const displayPrice = hasOffer ? offer!.offer_price : subscription.price;
+  const displayCups = hasOffer ? offer!.offer_cups_count : subscription.cups_count;
+  const displayDays = hasOffer ? offer!.offer_duration_days : subscription.duration_days;
+
+  const period = getPeriodText(displayDays, language);
   const isActive = activeSubscriptionTypeIds.includes(subscription.id);
 
   const formatBenefit = (benefit: number) => {
     return new Intl.NumberFormat('ru-RU').format(benefit);
   };
+
+  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
   return (
     <AppLayout>
@@ -146,7 +155,13 @@ export default function PackageDetailPage() {
                   <p className="text-muted-foreground">{translatedDescription}</p>
                 )}
               </div>
-              {subscription.badge && (
+              {hasOffer && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg animate-pulse">
+                  <Gift size={12} />
+                  {offer!.badge_text || '-50%'}
+                </span>
+              )}
+              {!hasOffer && subscription.badge && (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(subscription.badge, subscription.badge_color)}`}>
                   <Sparkles size={12} />
                   {translatedBadge}
@@ -154,14 +169,26 @@ export default function PackageDetailPage() {
               )}
             </div>
 
-            <div className="flex items-baseline gap-2 mb-6">
+            <div className="flex items-baseline gap-2 mb-2">
               <span className="text-3xl font-black text-foreground">
-                {formatPrice(subscription.price)}
+                {formatPrice(displayPrice)}
               </span>
               <span className="text-muted-foreground">/ {period}</span>
             </div>
+            
+            {hasOffer && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-muted-foreground line-through">{formatPrice(subscription.price)}</span>
+              </div>
+            )}
+            
+            {hasOffer && eligibleUntil && (
+              <p className="text-xs text-accent font-medium mb-4">
+                ⏰ Спецпредложение действует до {formatDate(eligibleUntil)}
+              </p>
+            )}
 
-            {subscription.benefit && subscription.benefit > 0 && (
+            {!hasOffer && subscription.benefit && subscription.benefit > 0 && (
               <div className="bg-accent/10 rounded-xl p-3 mb-4">
                 <p className="text-sm text-accent font-semibold">
                   {t('packages.benefit')} {formatBenefit(subscription.benefit)} ₸
@@ -192,8 +219,8 @@ export default function PackageDetailPage() {
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   <p className="text-xs text-muted-foreground">
                     {language === 'kz' 
-                      ? `Рәсімдегеннен кейін ${period}ге ${subscription.cups_count} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
-                      : `${t('packageDetail.howItWorksText')} ${subscription.cups_count} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`
+                      ? `Рәсімдегеннен кейін ${period}ге ${displayCups} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
+                      : `${t('packageDetail.howItWorksText')} ${displayCups} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`
                     }
                   </p>
                 </div>
@@ -220,7 +247,7 @@ export default function PackageDetailPage() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
-                    {t('packageDetail.subscribeFor')} {formatPrice(subscription.price)}
+                    {t('packageDetail.subscribeFor')} {formatPrice(displayPrice)}
                   </>
                 )}
               </Button>

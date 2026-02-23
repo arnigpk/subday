@@ -81,6 +81,54 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Check for special offer eligibility
+    let finalPrice = subscriptionType.price;
+    let finalCups = subscriptionType.cups_count;
+    let finalDays = subscriptionType.duration_days;
+    let isSpecialOffer = false;
+
+    const { data: offers } = await supabaseClient
+      .from('special_offers')
+      .select('*')
+      .eq('target_subscription_type_id', subscription_type_id)
+      .eq('is_active', true);
+
+    if (offers && offers.length > 0) {
+      const offer = offers[0];
+      
+      // Get user profile to check eligibility
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('created_at, special_offer_redeemed_at')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        const createdAt = new Date(profile.created_at);
+        const eligibleUntil = new Date(createdAt.getTime() + offer.eligibility_days * 24 * 60 * 60 * 1000);
+        const now = new Date();
+
+        // Check not redeemed and within eligibility window
+        if (now < eligibleUntil && !profile.special_offer_redeemed_at) {
+          // Check not already redeemed this specific offer
+          const { data: redemptions } = await supabaseClient
+            .from('user_offer_redemptions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('offer_id', offer.id)
+            .limit(1);
+
+          if (!redemptions || redemptions.length === 0) {
+            finalPrice = offer.offer_price;
+            finalCups = offer.offer_cups_count;
+            finalDays = offer.offer_duration_days;
+            isSpecialOffer = true;
+            console.log('Special offer applied:', { finalPrice, finalCups, finalDays });
+          }
+        }
+      }
+    }
+
     // Generate unique order ID with subscription name
     const cleanName = subscriptionType.name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_').substring(0, 20);
     const orderId = `${cleanName}_${Date.now()}`;
@@ -92,12 +140,13 @@ Deno.serve(async (req) => {
         order_id: orderId,
         user_id: user.id,
         subscription_type_id: subscription_type_id,
-        amount: subscriptionType.price,
+        amount: finalPrice,
         status: 'pending',
         metadata: {
           subscription_name: subscriptionType.name,
-          cups_count: subscriptionType.cups_count,
-          duration_days: subscriptionType.duration_days,
+          cups_count: finalCups,
+          duration_days: finalDays,
+          is_special_offer: isSpecialOffer,
         }
       })
       .select()
@@ -145,7 +194,7 @@ Deno.serve(async (req) => {
 
     // Payload format per Paylink documentation
     const paylinkPayload = {
-      amount: subscriptionType.price, // in KZT (tenge)
+      amount: finalPrice, // in KZT (tenge) - may be special offer price
       currency: 'KZT',
       requestId: requestId,
       trackingId: orderId,
