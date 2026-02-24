@@ -31,6 +31,7 @@ interface SpecialOffer {
   badge_text: string | null;
   eligibility_type: string;
   eligibility_days: number;
+  offer_valid_days: number | null;
   is_active: boolean;
   created_at: string;
 }
@@ -50,7 +51,8 @@ const defaultForm = {
   offer_duration_days: 7,
   badge_text: '-50%',
   eligibility_type: 'new_users',
-  eligibility_days: 7,
+  eligibility_days: 0,
+  offer_valid_days: 0,
   is_active: true,
 };
 
@@ -94,6 +96,7 @@ export default function AdminSpecialOffersPage() {
       badge_text: offer.badge_text || '',
       eligibility_type: offer.eligibility_type,
       eligibility_days: offer.eligibility_days,
+      offer_valid_days: offer.offer_valid_days || 0,
       is_active: offer.is_active,
     });
     setDialogOpen(true);
@@ -102,6 +105,10 @@ export default function AdminSpecialOffersPage() {
   const handleSave = async () => {
     if (!form.name || !form.target_subscription_type_id) {
       toast.error('Заполните название и целевую подписку');
+      return;
+    }
+    if (!form.eligibility_days && !form.offer_valid_days) {
+      toast.error('Заполните хотя бы одно из полей: «Дней для eligible» или «Срок действия (дней)»');
       return;
     }
 
@@ -115,6 +122,7 @@ export default function AdminSpecialOffersPage() {
       badge_text: form.badge_text || null,
       eligibility_type: form.eligibility_type,
       eligibility_days: form.eligibility_days,
+      offer_valid_days: form.offer_valid_days || null,
       is_active: form.is_active,
     };
 
@@ -269,6 +277,11 @@ export default function AdminSpecialOffersPage() {
                 <label className="text-sm font-medium mb-1 block">Дней для eligible</label>
                 <Input type="number" value={form.eligibility_days} onChange={e => setForm(f => ({ ...f, eligibility_days: Number(e.target.value) }))} />
               </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Срок действия (дней)</label>
+              <Input type="number" value={form.offer_valid_days} onChange={e => setForm(f => ({ ...f, offer_valid_days: Number(e.target.value) }))} placeholder="Например: 14" />
+              <p className="text-xs text-muted-foreground mt-1">Одно из двух полей обязательно: «Дней для eligible» или «Срок действия»</p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Тип аудитории</label>

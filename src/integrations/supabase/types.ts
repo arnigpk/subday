@@ -426,6 +426,7 @@ export type Database = {
           offer_cups_count: number
           offer_duration_days: number
           offer_price: number
+          offer_valid_days: number | null
           target_subscription_type_id: string | null
           updated_at: string
         }
@@ -441,6 +442,7 @@ export type Database = {
           offer_cups_count: number
           offer_duration_days: number
           offer_price: number
+          offer_valid_days?: number | null
           target_subscription_type_id?: string | null
           updated_at?: string
         }
@@ -456,6 +458,7 @@ export type Database = {
           offer_cups_count?: number
           offer_duration_days?: number
           offer_price?: number
+          offer_valid_days?: number | null
           target_subscription_type_id?: string | null
           updated_at?: string
         }

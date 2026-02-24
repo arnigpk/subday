@@ -12,6 +12,7 @@ interface SpecialOffer {
   badge_text: string | null;
   eligibility_type: string;
   eligibility_days: number;
+  offer_valid_days: number | null;
 }
 
 interface EligibleOffer {
@@ -92,14 +93,17 @@ export function useSpecialOffer(): UseSpecialOfferResult {
         let eligUntil: Date | null = null;
 
         if (o.eligibility_type === 'new_users') {
-          eligUntil = new Date(createdAt.getTime() + o.eligibility_days * 24 * 60 * 60 * 1000);
-          eligible = now < eligUntil;
+          if (o.eligibility_days > 0) {
+            eligUntil = new Date(createdAt.getTime() + o.eligibility_days * 24 * 60 * 60 * 1000);
+            eligible = now < eligUntil;
+          } else {
+            eligible = true;
+          }
         } else if (o.eligibility_type === 'all_users') {
           eligible = true;
         } else if (o.eligibility_type === 'no_subscription') {
           eligible = !activeSubs || activeSubs.length === 0;
         } else if (o.eligibility_type === 'expiring_soon') {
-          // Users whose subscription expires within 5 days
           if (activeSubs && activeSubs.length > 0) {
             for (const sub of activeSubs) {
               if (!sub.expires_at) continue;
@@ -111,6 +115,16 @@ export function useSpecialOffer(): UseSpecialOfferResult {
                 break;
               }
             }
+          }
+        }
+
+        // Override eligibleUntil with offer_valid_days if set (absolute deadline from offer creation)
+        if (eligible && o.offer_valid_days && o.offer_valid_days > 0) {
+          const offerCreatedAt = new Date((raw as any).created_at);
+          eligUntil = new Date(offerCreatedAt.getTime() + o.offer_valid_days * 24 * 60 * 60 * 1000);
+          // If the offer validity has passed, it's no longer eligible
+          if (now > eligUntil) {
+            eligible = false;
           }
         }
 
