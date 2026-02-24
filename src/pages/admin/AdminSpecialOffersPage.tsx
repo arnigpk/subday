@@ -149,6 +149,7 @@ export default function AdminSpecialOffersPage() {
     new_users: 'Новые пользователи',
     all_users: 'Все пользователи',
     no_subscription: 'Без активной подписки',
+    expiring_soon: 'Осталось ≤5 дней',
   };
 
   const formatPrice = (p: number) => new Intl.NumberFormat('ru-RU').format(p);
@@ -277,6 +278,7 @@ export default function AdminSpecialOffersPage() {
                   <SelectItem value="new_users">Новые пользователи</SelectItem>
                   <SelectItem value="all_users">Все пользователи</SelectItem>
                   <SelectItem value="no_subscription">Без активной подписки</SelectItem>
+                  <SelectItem value="expiring_soon">Осталось ≤5 дней до конца подписки</SelectItem>
                 </SelectContent>
               </Select>
             </div>

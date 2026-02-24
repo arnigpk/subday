@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Gift, Sparkles } from 'lucide-react';
+import { Gift } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,10 +14,14 @@ interface SpecialOfferPopupProps {
   onDismiss: () => void;
   offerPrice: number;
   offerCups: number;
+  offerDays: number;
   eligibleUntil: Date | null;
+  offerName?: string | null;
+  badgeText?: string | null;
+  description?: string | null;
 }
 
-export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, eligibleUntil }: SpecialOfferPopupProps) {
+export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offerDays, eligibleUntil, offerName, description }: SpecialOfferPopupProps) {
   const navigate = useNavigate();
 
   const formatPrice = (price: number) => new Intl.NumberFormat('ru-RU').format(price);
@@ -32,38 +36,39 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, elig
     navigate('/packages');
   };
 
+  const displayText = description || `${offerCups} кофе за ${formatPrice(offerPrice)} ₸ — чтобы вы попробовали subday.`;
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onDismiss(); }}>
-      <DialogContent className="sm:max-w-md mx-4 rounded-2xl">
-        <DialogHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
-            <Gift className="w-8 h-8 text-accent" />
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm rounded-2xl p-4 sm:p-6">
+        <DialogHeader className="text-center space-y-3">
+          <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+            <Gift className="w-7 h-7 sm:w-8 sm:h-8 text-accent" />
           </div>
-          <DialogTitle className="text-2xl font-black">
+          <DialogTitle className="text-xl sm:text-2xl font-black">
             Спецпредложение 🎁
           </DialogTitle>
-          <DialogDescription className="text-base text-foreground/80 leading-relaxed">
-            {offerCups} кофе за {formatPrice(offerPrice)} ₸ — чтобы вы попробовали subday. 
+          <DialogDescription className="text-sm sm:text-base text-foreground/80 leading-relaxed">
+            {displayText}
             {eligibleUntil && (
-              <span className="block mt-2 text-sm text-muted-foreground">
+              <span className="block mt-2 text-xs sm:text-sm text-muted-foreground">
                 Предложение действует до {formatDate(eligibleUntil)}
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-3 mt-4">
+        <div className="space-y-2.5 mt-3 sm:mt-4">
           <Button 
             onClick={handleActivate}
-            className="w-full h-12 text-base font-bold bg-accent hover:bg-accent/90 text-accent-foreground gap-2"
+            className="w-full h-11 sm:h-12 text-xs sm:text-sm font-bold bg-accent hover:bg-accent/90 text-accent-foreground tracking-wide px-3"
           >
-            <Sparkles className="w-5 h-5" />
-            Активировать спецпредложение
+            АКТИВИРОВАТЬ СПЕЦПРЕДЛОЖЕНИЕ🚀
           </Button>
           <Button 
             variant="ghost" 
             onClick={onDismiss}
-            className="w-full text-muted-foreground"
+            className="w-full text-sm text-muted-foreground"
           >
             Позже
           </Button>

@@ -35,7 +35,7 @@ export default function PackagesPage() {
   const { activeSubscriptionTypeIds, refetch: refetchSubscription } = useActiveSubscription();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
-  const { offer, isEligible, eligibleUntil } = useSpecialOffer();
+  const { eligibleOffers } = useSpecialOffer();
 
   const tabs = [
     { id: 'coffee', label: t('balance.coffee') },
@@ -54,6 +54,23 @@ export default function PackagesPage() {
   }, [refetch, refetchSubscription]);
 
   const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
+
+  // Build a map of subscription_type_id -> eligible offer(s)
+  const offerMap = new Map<string, typeof eligibleOffers[0]>();
+  for (const eo of eligibleOffers) {
+    if (!offerMap.has(eo.offer.target_subscription_type_id)) {
+      offerMap.set(eo.offer.target_subscription_type_id, eo);
+    }
+  }
+
+  // Sort: subscriptions with special offers first
+  const sortedSubscriptions = [...filteredSubscriptions].sort((a: SubscriptionType, b: SubscriptionType) => {
+    const aHasOffer = offerMap.has(a.id) && !activeSubscriptionTypeIds.includes(a.id);
+    const bHasOffer = offerMap.has(b.id) && !activeSubscriptionTypeIds.includes(b.id);
+    if (aHasOffer && !bHasOffer) return -1;
+    if (!aHasOffer && bHasOffer) return 1;
+    return 0;
+  });
 
   const daysWord = (days: number) => {
     if (language === 'kz') return 'күн';
@@ -83,26 +100,29 @@ export default function PackagesPage() {
                   <div key={i} className="card-base h-48 animate-pulse bg-muted rounded-2xl" />
                 ))}
               </div>
-            ) : filteredSubscriptions.length === 0 ? (
+            ) : sortedSubscriptions.length === 0 ? (
               <div className="text-center py-12">
                 <Coffee className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">{t('packages.noPackages')}</p>
               </div>
             ) : (
               <div className="space-y-4">
-              {filteredSubscriptions.map((sub, index) => (
-                <SubscriptionCard
-                  key={sub.id}
-                  sub={sub}
-                  index={index}
-                  activeSubscriptionTypeIds={activeSubscriptionTypeIds}
-                  t={t}
-                  language={language}
-                  daysWord={daysWord}
-                  specialOffer={isEligible && offer?.target_subscription_type_id === sub.id ? offer : null}
-                  eligibleUntil={eligibleUntil}
-                />
-              ))}
+              {sortedSubscriptions.map((sub, index) => {
+                const eo = offerMap.get(sub.id);
+                return (
+                  <SubscriptionCard
+                    key={sub.id}
+                    sub={sub}
+                    index={index}
+                    activeSubscriptionTypeIds={activeSubscriptionTypeIds}
+                    t={t}
+                    language={language}
+                    daysWord={daysWord}
+                    specialOffer={eo && !activeSubscriptionTypeIds.includes(sub.id) ? eo.offer : null}
+                    eligibleUntil={eo?.eligibleUntil}
+                  />
+                );
+              })}
               </div>
             )}
           </div>

@@ -94,37 +94,64 @@ Deno.serve(async (req) => {
       .eq('is_active', true);
 
     if (offers && offers.length > 0) {
-      const offer = offers[0];
-      
-      // Get user profile to check eligibility
       const { data: profile } = await supabaseClient
         .from('profiles')
         .select('created_at, special_offer_redeemed_at')
         .eq('user_id', user.id)
         .single();
 
-      if (profile) {
-        const createdAt = new Date(profile.created_at);
-        const eligibleUntil = new Date(createdAt.getTime() + offer.eligibility_days * 24 * 60 * 60 * 1000);
-        const now = new Date();
+      // Get user's redeemed offers
+      const { data: allRedemptions } = await supabaseClient
+        .from('user_offer_redemptions')
+        .select('offer_id')
+        .eq('user_id', user.id);
+      const redeemedIds = new Set((allRedemptions || []).map((r: any) => r.offer_id));
 
-        // Check not redeemed and within eligibility window
-        if (now < eligibleUntil && !profile.special_offer_redeemed_at) {
-          // Check not already redeemed this specific offer
-          const { data: redemptions } = await supabaseClient
-            .from('user_offer_redemptions')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('offer_id', offer.id)
-            .limit(1);
+      // Get user's active subscriptions
+      const { data: activeSubs } = await supabaseClient
+        .from('user_subscriptions')
+        .select('subscription_type_id, expires_at')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
 
-          if (!redemptions || redemptions.length === 0) {
-            finalPrice = offer.offer_price;
-            finalCups = offer.offer_cups_count;
-            finalDays = offer.offer_duration_days;
-            isSpecialOffer = true;
-            console.log('Special offer applied:', { finalPrice, finalCups, finalDays });
+      const now = new Date();
+
+      for (const offer of offers) {
+        if (redeemedIds.has(offer.id)) continue;
+
+        let eligible = false;
+
+        if (offer.eligibility_type === 'new_users') {
+          if (profile) {
+            const createdAt = new Date(profile.created_at);
+            const eligibleUntil = new Date(createdAt.getTime() + offer.eligibility_days * 24 * 60 * 60 * 1000);
+            eligible = now < eligibleUntil && !profile.special_offer_redeemed_at;
           }
+        } else if (offer.eligibility_type === 'all_users') {
+          eligible = true;
+        } else if (offer.eligibility_type === 'no_subscription') {
+          eligible = !activeSubs || activeSubs.length === 0;
+        } else if (offer.eligibility_type === 'expiring_soon') {
+          if (activeSubs && activeSubs.length > 0) {
+            for (const sub of activeSubs) {
+              if (!sub.expires_at) continue;
+              const expiresAt = new Date(sub.expires_at);
+              const daysLeft = (expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+              if (daysLeft <= 5 && daysLeft > 0) {
+                eligible = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (eligible) {
+          finalPrice = offer.offer_price;
+          finalCups = offer.offer_cups_count;
+          finalDays = offer.offer_duration_days;
+          isSpecialOffer = true;
+          console.log('Special offer applied:', { offerId: offer.id, finalPrice, finalCups, finalDays });
+          break; // apply first matching offer
         }
       }
     }
