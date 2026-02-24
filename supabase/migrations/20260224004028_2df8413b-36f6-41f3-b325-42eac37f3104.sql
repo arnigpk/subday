@@ -1,0 +1,1 @@
+ALTER TABLE public.special_offers ADD COLUMN offer_valid_days integer DEFAULT NULL;

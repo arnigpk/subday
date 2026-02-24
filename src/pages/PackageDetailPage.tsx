@@ -68,6 +68,16 @@ export default function PackageDetailPage() {
     }
   };
 
+  // Find matching eligible offer for this subscription (moved up to avoid reference error)
+  const matchedOffer = subscription ? eligibleOffers.find(eo => eo.offer.target_subscription_type_id === subscription.id) : undefined;
+  const hasOffer = !!matchedOffer;
+  const offer = matchedOffer?.offer;
+  const eligibleUntil = matchedOffer?.eligibleUntil;
+
+  const displayPrice = hasOffer ? offer!.offer_price : (subscription?.price ?? 0);
+  const displayCups = hasOffer ? offer!.offer_cups_count : (subscription?.cups_count ?? 0);
+  const displayDays = hasOffer ? offer!.offer_duration_days : (subscription?.duration_days ?? 0);
+
   const isCoffee = subscription?.type === 'coffee';
   const defaultFeatures = isCoffee
     ? ['Любой кофейный напиток', 'Без ограничений по размеру', '1 напиток за визит', 'Во всех партнёрских кофейнях']
@@ -75,10 +85,8 @@ export default function PackageDetailPage() {
 
   const rawFeatures = subscription?.features && subscription.features.length > 0 ? subscription.features : defaultFeatures;
   
-  // When a special offer is active, replace the cups/days feature line with offer values
   const adjustedFeatures = rawFeatures.map(f => {
     if (hasOffer) {
-      // Match patterns like "15 кофе на 15 дней" or "X ланчей на Y дней"
       if (/\d+\s*(кофе|ланч|напит)/i.test(f) && /\d+\s*(дн|день)/i.test(f)) {
         const isLunchType = subscription?.type === 'drinks';
         return `${displayCups} ${isLunchType ? 'ланчей' : 'кофе'} на ${displayDays} ${displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}`;
@@ -115,16 +123,6 @@ export default function PackageDetailPage() {
       </AppLayout>
     );
   }
-
-  // Find matching eligible offer for this subscription
-  const matchedOffer = eligibleOffers.find(eo => eo.offer.target_subscription_type_id === subscription.id);
-  const hasOffer = !!matchedOffer;
-  const offer = matchedOffer?.offer;
-  const eligibleUntil = matchedOffer?.eligibleUntil;
-
-  const displayPrice = hasOffer ? offer!.offer_price : subscription.price;
-  const displayCups = hasOffer ? offer!.offer_cups_count : subscription.cups_count;
-  const displayDays = hasOffer ? offer!.offer_duration_days : subscription.duration_days;
 
   const period = getPeriodText(displayDays, language);
   const isActive = activeSubscriptionTypeIds.includes(subscription.id);
