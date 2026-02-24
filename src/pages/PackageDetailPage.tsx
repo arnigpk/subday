@@ -39,12 +39,10 @@ export default function PackageDetailPage() {
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
-  const { offer, isEligible, eligibleUntil } = useSpecialOffer();
+  const { eligibleOffers } = useSpecialOffer();
 
   useEffect(() => {
-    if (id) {
-      fetchSubscription();
-    }
+    if (id) fetchSubscription();
   }, [id]);
 
   const handlePurchase = () => {
@@ -61,7 +59,6 @@ export default function PackageDetailPage() {
         .select('*')
         .eq('id', id)
         .single();
-
       if (error) throw error;
       setSubscription(data);
     } catch (error) {
@@ -73,27 +70,13 @@ export default function PackageDetailPage() {
 
   const isCoffee = subscription?.type === 'coffee';
   const defaultFeatures = isCoffee
-    ? [
-        'Любой кофейный напиток',
-        'Без ограничений по размеру',
-        '1 напиток за визит',
-        'Во всех партнёрских кофейнях',
-      ]
-    : [
-        'Выбранная категория ланчей',
-        'Стандартный размер',
-        '1 ланч за визит',
-        'Во всех партнёрских кофейнях',
-      ];
+    ? ['Любой кофейный напиток', 'Без ограничений по размеру', '1 напиток за визит', 'Во всех партнёрских кофейнях']
+    : ['Выбранная категория ланчей', 'Стандартный размер', '1 ланч за визит', 'Во всех партнёрских кофейнях'];
 
-  const rawFeatures = subscription?.features && subscription.features.length > 0
-    ? subscription.features
-    : defaultFeatures;
-
-  // Auto-translate dynamic content
+  const rawFeatures = subscription?.features && subscription.features.length > 0 ? subscription.features : defaultFeatures;
   const translatedName = useAutoTranslate(subscription?.name);
   const translatedDescription = useAutoTranslate(subscription?.description);
-  const translatedBadge = subscription?.badge; // badges stay in original language
+  const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(rawFeatures);
 
   if (isLoading) {
@@ -120,7 +103,12 @@ export default function PackageDetailPage() {
     );
   }
 
-  const hasOffer = isEligible && offer?.target_subscription_type_id === subscription.id;
+  // Find matching eligible offer for this subscription
+  const matchedOffer = eligibleOffers.find(eo => eo.offer.target_subscription_type_id === subscription.id);
+  const hasOffer = !!matchedOffer;
+  const offer = matchedOffer?.offer;
+  const eligibleUntil = matchedOffer?.eligibleUntil;
+
   const displayPrice = hasOffer ? offer!.offer_price : subscription.price;
   const displayCups = hasOffer ? offer!.offer_cups_count : subscription.cups_count;
   const displayDays = hasOffer ? offer!.offer_duration_days : subscription.duration_days;
@@ -128,16 +116,12 @@ export default function PackageDetailPage() {
   const period = getPeriodText(displayDays, language);
   const isActive = activeSubscriptionTypeIds.includes(subscription.id);
 
-  const formatBenefit = (benefit: number) => {
-    return new Intl.NumberFormat('ru-RU').format(benefit);
-  };
-
+  const formatBenefit = (benefit: number) => new Intl.NumberFormat('ru-RU').format(benefit);
   const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 
   return (
     <AppLayout>
       <div className="safe-area-top">
-        {/* Header */}
         <div className="px-4 py-4 flex items-center gap-3">
           <Link to="/packages" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
             <ArrowLeft size={20} className="text-foreground" />
@@ -145,7 +129,6 @@ export default function PackageDetailPage() {
           <h1 className="text-xl font-bold text-foreground">{t('packageDetail.title')}</h1>
         </div>
 
-        {/* Content */}
         <div className="px-4 space-y-6">
           <div className="card-static animate-slide-up">
             <div className="flex items-start justify-between mb-4">
@@ -170,15 +153,22 @@ export default function PackageDetailPage() {
             </div>
 
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-3xl font-black text-foreground">
-                {formatPrice(displayPrice)}
-              </span>
+              <span className="text-3xl font-black text-foreground">{formatPrice(displayPrice)}</span>
               <span className="text-muted-foreground">/ {period}</span>
             </div>
             
             {hasOffer && (
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm text-muted-foreground line-through">{formatPrice(subscription.price)}</span>
+              </div>
+            )}
+
+            {/* Dynamic offer details from offer data */}
+            {hasOffer && (
+              <div className="bg-accent/10 rounded-xl p-3 mb-2">
+                <p className="text-sm text-accent font-semibold">
+                  ☕ {displayCups} кофе на {displayDays} {displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}
+                </p>
               </div>
             )}
             

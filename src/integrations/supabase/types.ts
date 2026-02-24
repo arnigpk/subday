@@ -248,6 +248,7 @@ export type Database = {
           is_blocked: boolean | null
           name: string | null
           phone: string
+          popup_shown_offer_ids: string[] | null
           public_id: string
           special_offer_popup_shown_at: string | null
           special_offer_redeemed_at: string | null
@@ -263,6 +264,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone: string
+          popup_shown_offer_ids?: string[] | null
           public_id?: string
           special_offer_popup_shown_at?: string | null
           special_offer_redeemed_at?: string | null
@@ -278,6 +280,7 @@ export type Database = {
           is_blocked?: boolean | null
           name?: string | null
           phone?: string
+          popup_shown_offer_ids?: string[] | null
           public_id?: string
           special_offer_popup_shown_at?: string | null
           special_offer_redeemed_at?: string | null

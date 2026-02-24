@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { BalanceCard } from '@/components/home/BalanceCard';
@@ -27,7 +27,7 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const { vibrateShort } = useVibration();
   
-  const { offer, showPopup, eligibleUntil, dismissPopup } = useSpecialOffer();
+  const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
   usePaymentResult();
   
   useEffect(() => {
@@ -58,7 +58,6 @@ export default function HomePage() {
         <div className="safe-area-top">
           {/* Header */}
           <div className="px-4 py-6 flex items-center justify-between relative">
-            {/* Kazakh ornament background */}
             <div
               className="absolute inset-0 opacity-15 pointer-events-none"
               style={{
@@ -99,13 +98,16 @@ export default function HomePage() {
           </div>
         </div>
         
-        {offer && (
+        {popupOffer && (
           <SpecialOfferPopup
             open={showPopup}
             onDismiss={dismissPopup}
-            offerPrice={offer.offer_price}
-            offerCups={offer.offer_cups_count}
-            eligibleUntil={eligibleUntil}
+            offerPrice={popupOffer.offer.offer_price}
+            offerCups={popupOffer.offer.offer_cups_count}
+            offerDays={popupOffer.offer.offer_duration_days}
+            eligibleUntil={popupOffer.eligibleUntil}
+            offerName={popupOffer.offer.name}
+            description={popupOffer.offer.description}
           />
         )}
       </PullToRefresh>
