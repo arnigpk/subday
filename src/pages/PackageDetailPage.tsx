@@ -74,10 +74,23 @@ export default function PackageDetailPage() {
     : ['Выбранная категория ланчей', 'Стандартный размер', '1 ланч за визит', 'Во всех партнёрских кофейнях'];
 
   const rawFeatures = subscription?.features && subscription.features.length > 0 ? subscription.features : defaultFeatures;
+  
+  // When a special offer is active, replace the cups/days feature line with offer values
+  const adjustedFeatures = rawFeatures.map(f => {
+    if (hasOffer) {
+      // Match patterns like "15 кофе на 15 дней" or "X ланчей на Y дней"
+      if (/\d+\s*(кофе|ланч|напит)/i.test(f) && /\d+\s*(дн|день)/i.test(f)) {
+        const isLunchType = subscription?.type === 'drinks';
+        return `${displayCups} ${isLunchType ? 'ланчей' : 'кофе'} на ${displayDays} ${displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}`;
+      }
+    }
+    return f;
+  });
+
   const translatedName = useAutoTranslate(subscription?.name);
   const translatedDescription = useAutoTranslate(subscription?.description);
   const translatedBadge = subscription?.badge;
-  const translatedFeatures = useAutoTranslateArray(rawFeatures);
+  const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
 
   if (isLoading) {
     return (
@@ -172,9 +185,11 @@ export default function PackageDetailPage() {
               </div>
             )}
             
-            {hasOffer && eligibleUntil && (
+            {hasOffer && (
               <p className="text-xs text-accent font-medium mb-4">
-                ⏰ Спецпредложение действует до {formatDate(eligibleUntil)}
+                {eligibleUntil
+                  ? `⏰ Спецпредложение действует до ${formatDate(eligibleUntil)}`
+                  : '⏰ Спецпредложение активно'}
               </p>
             )}
 
