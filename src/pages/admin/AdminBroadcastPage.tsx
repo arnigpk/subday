@@ -12,6 +12,7 @@ import { Send, Users, User, Loader2, Search, MessageSquare, History } from 'luci
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
+import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 
 interface TelegramUser {
   id: string;
@@ -28,6 +29,7 @@ export default function AdminBroadcastPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [audienceType, setAudienceType] = useState<AudienceType>('all');
 
   useEffect(() => {
     fetchTelegramUsers();
@@ -69,6 +71,7 @@ export default function AdminBroadcastPage() {
         body: {
           message: message.trim(),
           targetType,
+          audienceType,
           userIds: targetType === 'specific' ? selectedUsers : undefined,
         },
       });
@@ -153,6 +156,8 @@ export default function AdminBroadcastPage() {
                   Поддерживается HTML разметка: &lt;b&gt;жирный&lt;/b&gt;, &lt;i&gt;курсив&lt;/i&gt;
                 </p>
               </div>
+
+              <AudienceTypeSelector value={audienceType} onChange={setAudienceType} disabled={isLoading} />
 
               <div className="space-y-3">
                 <Label>Кому отправить</Label>

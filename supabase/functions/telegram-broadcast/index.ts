@@ -5,9 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' | 'new_users' | 'inactive';
+
 interface BroadcastRequest {
   message: string;
   targetType: 'all' | 'specific';
+  audienceType?: AudienceType;
   userIds?: string[];
 }
 
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { message, targetType, userIds }: BroadcastRequest = await req.json();
+    const { message, targetType, audienceType = 'all', userIds }: BroadcastRequest = await req.json();
 
     if (!message || message.trim() === '') {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -71,14 +74,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Resolve user IDs based on audience type ---
+    let filteredUserIds: string[] | null = null; // null = no filter (all telegram users)
+
+    if (targetType === 'specific' && userIds && userIds.length > 0) {
+      filteredUserIds = userIds;
+    } else if (audienceType !== 'all') {
+      filteredUserIds = await resolveAudienceUserIds(supabase, audienceType);
+    }
+
     // Get telegram users to send to
     let query = supabase
       .from('profiles')
       .select('id, phone, name')
       .like('phone', '+telegram_%');
 
-    if (targetType === 'specific' && userIds && userIds.length > 0) {
-      query = query.in('id', userIds);
+    if (filteredUserIds !== null) {
+      if (filteredUserIds.length === 0) {
+        return new Response(JSON.stringify({ success: true, sent: 0, failed: 0, total: 0, message: 'Нет пользователей в выбранной аудитории' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      query = query.in('id', filteredUserIds);
     }
 
     const { data: profiles, error: profilesError } = await query;
@@ -95,13 +112,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         sent: 0, 
+        total: 0,
         message: 'No Telegram users found' 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Sending broadcast to ${profiles.length} users`);
+    console.log(`Sending broadcast to ${profiles.length} users (audience: ${audienceType})`);
 
     let successCount = 0;
     let failCount = 0;
@@ -109,7 +127,6 @@ Deno.serve(async (req) => {
 
     for (const profile of profiles) {
       try {
-        // Extract telegram ID from phone (+telegram_XXXXXXX)
         const telegramId = profile.phone.replace('+telegram_', '');
 
         const telegramResponse = await fetch(
@@ -129,16 +146,15 @@ Deno.serve(async (req) => {
 
         if (result.ok) {
           successCount++;
-          console.log(`Message sent to ${profile.name || telegramId}`);
         } else {
           failCount++;
-          errors.push(`Failed to send to ${profile.name || telegramId}: ${result.description}`);
+          errors.push(`Failed: ${profile.name || telegramId}: ${result.description}`);
           console.error(`Failed to send to ${telegramId}:`, result.description);
         }
       } catch (err) {
         failCount++;
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        errors.push(`Error sending to ${profile.name}: ${errorMsg}`);
+        errors.push(`Error: ${profile.name}: ${errorMsg}`);
         console.error(`Error sending to ${profile.phone}:`, err);
       }
     }
@@ -152,7 +168,7 @@ Deno.serve(async (req) => {
         .insert({
           message: message.trim(),
           broadcast_type: 'telegram',
-          target_type: targetType,
+          target_type: audienceType,
           recipient_count: profiles.length,
           sent_count: successCount,
           failed_count: failCount,
@@ -160,7 +176,6 @@ Deno.serve(async (req) => {
         });
     } catch (historyError) {
       console.error('Error saving broadcast history:', historyError);
-      // Don't fail the whole operation if history save fails
     }
 
     return new Response(JSON.stringify({
@@ -182,3 +197,79 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function resolveAudienceUserIds(supabase: any, audienceType: AudienceType): Promise<string[]> {
+  const now = new Date();
+
+  switch (audienceType) {
+    case 'subscribers': {
+      const { data } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('is_active', true);
+      return [...new Set((data || []).map((r: any) => r.user_id))];
+    }
+
+    case 'no_subscription': {
+      // All profile user_ids minus those with active subscriptions
+      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
+      const { data: activeSubs } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('is_active', true);
+
+      const activeSet = new Set((activeSubs || []).map((r: any) => r.user_id));
+      return (allProfiles || [])
+        .map((p: any) => p.user_id)
+        .filter((uid: string) => !activeSet.has(uid));
+    }
+
+    case 'expiring_soon': {
+      const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('is_active', true)
+        .lte('expires_at', fiveDaysLater)
+        .gte('expires_at', now.toISOString());
+      return [...new Set((data || []).map((r: any) => r.user_id))];
+    }
+
+    case 'new_users': {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .gte('created_at', sevenDaysAgo);
+      return (data || []).map((p: any) => p.user_id);
+    }
+
+    case 'inactive': {
+      // Users who registered but have no redemptions in last 30 days and no active subscription
+      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: recentActive } = await supabase
+        .from('redemptions')
+        .select('user_id')
+        .gte('redeemed_at', thirtyDaysAgo);
+
+      const { data: activeSubs } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('is_active', true);
+
+      const activeSet = new Set([
+        ...(recentActive || []).map((r: any) => r.user_id),
+        ...(activeSubs || []).map((r: any) => r.user_id),
+      ]);
+
+      return (allProfiles || [])
+        .map((p: any) => p.user_id)
+        .filter((uid: string) => !activeSet.has(uid));
+    }
+
+    default:
+      return [];
+  }
+}
