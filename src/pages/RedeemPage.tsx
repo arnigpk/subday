@@ -48,6 +48,7 @@ export default function RedeemPage() {
   const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
   const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(59);
   
   const { stats, refetch } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
@@ -227,26 +228,35 @@ export default function RedeemPage() {
     fetchShops();
   }, [initialShop]);
 
+  // QR countdown timer - refresh every 60 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setQrTimestamp(Date.now());
-      setShops(prevShops => {
-        const updated = prevShops.map(shop => ({
-          ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
-        }));
-        updated.sort((a, b) => {
-          if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
-          if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        return updated;
+      setQrSecondsLeft(prev => {
+        if (prev <= 1) {
+          // Regenerate QR
+          setQrTimestamp(Date.now());
+          // Also refresh shop open/closed status
+          setShops(prevShops => {
+            const updated = prevShops.map(shop => ({
+              ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+            }));
+            updated.sort((a, b) => {
+              if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+              if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+              return a.name.localeCompare(b.name);
+            });
+            return updated;
+          });
+          if (selectedShop) {
+            setSelectedShop(prev => prev ? {
+              ...prev, isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
+            } : null);
+          }
+          return 59;
+        }
+        return prev - 1;
       });
-      if (selectedShop) {
-        setSelectedShop(prev => prev ? {
-          ...prev, isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
-        } : null);
-      }
-    }, 60000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [selectedShop]);
 
@@ -403,7 +413,7 @@ export default function RedeemPage() {
                 )}
               </div>
               <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
-              
+              <p className="text-2xl font-mono font-bold text-muted-foreground mb-1">{qrSecondsLeft} {t('redeem.sec') || 'сек'}</p>
               <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
               <p className="text-sm text-muted-foreground mb-4">
                 {t('redeem.remaining')} <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')}
