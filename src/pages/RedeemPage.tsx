@@ -413,7 +413,7 @@ export default function RedeemPage() {
                 )}
               </div>
               <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
-              <p className="text-2xl font-mono font-bold text-muted-foreground mb-1">{qrSecondsLeft} {t('redeem.sec') || 'сек'}</p>
+              <p className="text-xs text-muted-foreground mb-1">QR действителен {qrSecondsLeft} сек</p>
               <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
               <p className="text-sm text-muted-foreground mb-4">
                 {t('redeem.remaining')} <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')}
