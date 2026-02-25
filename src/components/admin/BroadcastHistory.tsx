@@ -33,6 +33,19 @@ interface BroadcastHistoryProps {
   type: 'telegram' | 'push';
   refreshTrigger?: number;
 }
+const audienceLabels: Record<string, string> = {
+  all: 'Все',
+  subscribers: 'С подпиской',
+  no_subscription: 'Без подписки',
+  expiring_soon: '≤5 дней',
+  new_users: 'Новые',
+  inactive: 'Неактивные',
+  specific: 'Выборочно',
+};
+
+function getAudienceLabel(targetType: string) {
+  return audienceLabels[targetType] || targetType;
+}
 
 export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps) {
   const [messages, setMessages] = useState<BroadcastMessage[]>([]);
@@ -159,18 +172,8 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(msg.created_at), 'd MMM yyyy, HH:mm', { locale: ru })}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      {msg.target_type === 'all' ? (
-                        <>
-                          <Users className="w-3 h-3" />
-                          Всем
-                        </>
-                      ) : (
-                        <>
-                          <User className="w-3 h-3" />
-                          Выборочно
-                        </>
-                      )}
+                    <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                      {getAudienceLabel(msg.target_type)}
                     </span>
                   </div>
                   <p className="text-sm text-foreground line-clamp-3 whitespace-pre-line">

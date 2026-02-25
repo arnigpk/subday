@@ -8,11 +8,13 @@ import { toast } from '@/components/ui/sonner';
 import { Send, Bell, Loader2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
+import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 
 export default function AdminPushBroadcastPage() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [audienceType, setAudienceType] = useState<AudienceType>('all');
 
   const handleSendPush = async () => {
     if (!message.trim()) {
@@ -50,7 +52,7 @@ export default function AdminPushBroadcastPage() {
         .insert({
           message: trimmed,
           broadcast_type: 'push',
-          target_type: 'all',
+          target_type: audienceType,
           recipient_count: 0,
           sent_count: 0,
           failed_count: 0,
@@ -99,6 +101,8 @@ export default function AdminPushBroadcastPage() {
                 Максимум 200 символов. Осталось: {200 - message.length}
               </p>
             </div>
+
+            <AudienceTypeSelector value={audienceType} onChange={setAudienceType} disabled={isLoading} />
 
             <Button
               onClick={handleSendPush}
