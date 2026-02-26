@@ -14,7 +14,7 @@ export default function AdminPushBroadcastPage() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
-  const [audienceType, setAudienceType] = useState<AudienceType>('all');
+  const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   const handleSendPush = async () => {
     if (!message.trim()) {
@@ -52,7 +52,7 @@ export default function AdminPushBroadcastPage() {
         .insert({
           message: trimmed,
           broadcast_type: 'push',
-          target_type: audienceType,
+          target_type: audienceTypes.join(','),
           recipient_count: 0,
           sent_count: 0,
           failed_count: 0,
@@ -102,7 +102,7 @@ export default function AdminPushBroadcastPage() {
               </p>
             </div>
 
-            <AudienceTypeSelector value={audienceType} onChange={setAudienceType} disabled={isLoading} />
+            <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
             <Button
               onClick={handleSendPush}

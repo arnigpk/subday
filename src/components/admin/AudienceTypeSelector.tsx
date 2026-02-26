@@ -1,5 +1,5 @@
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Users, UserCheck, UserX, Clock, UserPlus, UserMinus } from 'lucide-react';
 
 export type AudienceType =
@@ -26,43 +26,55 @@ const audienceOptions: AudienceOption[] = [
   { value: 'inactive', label: 'Неактивные', description: 'Не заходили 30+ дней', icon: <UserMinus className="w-4 h-4" /> },
 ];
 
+export { audienceOptions };
+
 interface AudienceTypeSelectorProps {
-  value: AudienceType;
-  onChange: (value: AudienceType) => void;
+  value: AudienceType[];
+  onChange: (value: AudienceType[]) => void;
   disabled?: boolean;
 }
 
 export function AudienceTypeSelector({ value, onChange, disabled }: AudienceTypeSelectorProps) {
-  const selected = audienceOptions.find(o => o.value === value);
+  const toggle = (type: AudienceType) => {
+    if (disabled) return;
+    if (type === 'all') {
+      onChange(['all']);
+      return;
+    }
+    // Remove 'all' when selecting specific types
+    const without = value.filter(v => v !== 'all');
+    if (without.includes(type)) {
+      const next = without.filter(v => v !== type);
+      onChange(next.length === 0 ? ['all'] : next);
+    } else {
+      onChange([...without, type]);
+    }
+  };
 
   return (
     <div className="space-y-2">
       <Label>Тип аудитории</Label>
-      <Select value={value} onValueChange={(v) => onChange(v as AudienceType)} disabled={disabled}>
-        <SelectTrigger>
-          <SelectValue>
-            {selected && (
-              <span className="flex items-center gap-2">
-                {selected.icon}
-                {selected.label}
-              </span>
-            )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {audienceOptions.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              <div className="flex items-center gap-2">
-                {opt.icon}
-                <div>
-                  <p className="font-medium">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.description}</p>
-                </div>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap gap-2">
+        {audienceOptions.map((opt) => {
+          const isActive = value.includes(opt.value);
+          return (
+            <Badge
+              key={opt.value}
+              variant={isActive ? 'default' : 'outline'}
+              className={`cursor-pointer select-none transition-colors gap-1.5 py-1.5 px-3 ${
+                disabled ? 'opacity-50 pointer-events-none' : ''
+              } ${isActive ? '' : 'hover:bg-muted'}`}
+              onClick={() => toggle(opt.value)}
+            >
+              {opt.icon}
+              {opt.label}
+            </Badge>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Можно комбинировать несколько типов аудитории
+      </p>
     </div>
   );
 }

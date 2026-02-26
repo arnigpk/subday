@@ -101,6 +101,7 @@ export type Database = {
           id: string
           message: string
           recipient_count: number
+          recipients: Json | null
           sent_by: string
           sent_count: number
           target_type: string
@@ -112,6 +113,7 @@ export type Database = {
           id?: string
           message: string
           recipient_count?: number
+          recipients?: Json | null
           sent_by: string
           sent_count?: number
           target_type: string
@@ -123,6 +125,7 @@ export type Database = {
           id?: string
           message?: string
           recipient_count?: number
+          recipients?: Json | null
           sent_by?: string
           sent_count?: number
           target_type?: string

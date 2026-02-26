@@ -1,0 +1,1 @@
+ALTER TABLE public.broadcast_messages ADD COLUMN recipients jsonb DEFAULT '[]'::jsonb;

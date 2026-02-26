@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ interface TelegramUser {
   id: string;
   phone: string;
   name: string | null;
+  user_id: string;
 }
 
 export default function AdminBroadcastPage() {
@@ -29,17 +30,24 @@ export default function AdminBroadcastPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [historyRefresh, setHistoryRefresh] = useState(0);
-  const [audienceType, setAudienceType] = useState<AudienceType>('all');
+  const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
+
+  // Audience filtering data
+  const [activeSubUserIds, setActiveSubUserIds] = useState<Set<string>>(new Set());
+  const [expiringSoonUserIds, setExpiringSoonUserIds] = useState<Set<string>>(new Set());
+  const [newUserIds, setNewUserIds] = useState<Set<string>>(new Set());
+  const [inactiveUserIds, setInactiveUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchTelegramUsers();
+    fetchAudienceData();
   }, []);
 
   const fetchTelegramUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, phone, name')
+        .select('id, phone, name, user_id')
         .like('phone', '+telegram_%')
         .order('name');
 
@@ -52,6 +60,59 @@ export default function AdminBroadcastPage() {
       setIsFetching(false);
     }
   };
+
+  const fetchAudienceData = async () => {
+    try {
+      const now = new Date();
+      const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [subsRes, expiringRes, newRes, recentActiveRes] = await Promise.all([
+        supabase.from('user_subscriptions').select('user_id').eq('is_active', true),
+        supabase.from('user_subscriptions').select('user_id').eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString()),
+        supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo),
+        supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo),
+      ]);
+
+      const activeSet = new Set((subsRes.data || []).map(r => r.user_id));
+      setActiveSubUserIds(activeSet);
+      setExpiringSoonUserIds(new Set((expiringRes.data || []).map(r => r.user_id)));
+      setNewUserIds(new Set((newRes.data || []).map(r => r.user_id)));
+
+      // Inactive = not in recent redemptions AND not in active subs
+      const recentSet = new Set((recentActiveRes.data || []).map(r => r.user_id));
+      const combinedActive = new Set([...recentSet, ...activeSet]);
+      setInactiveUserIds(combinedActive); // store active set, filter will invert
+    } catch (error) {
+      console.error('Error fetching audience data:', error);
+    }
+  };
+
+  const audienceFilteredUsers = useMemo(() => {
+    if (audienceTypes.includes('all')) return telegramUsers;
+
+    return telegramUsers.filter(user => {
+      const uid = user.user_id;
+      for (const t of audienceTypes) {
+        if (t === 'subscribers' && activeSubUserIds.has(uid)) return true;
+        if (t === 'no_subscription' && !activeSubUserIds.has(uid)) return true;
+        if (t === 'expiring_soon' && expiringSoonUserIds.has(uid)) return true;
+        if (t === 'new_users' && newUserIds.has(uid)) return true;
+        if (t === 'inactive' && !inactiveUserIds.has(uid)) return true; // inactiveUserIds stores "active" users
+      }
+      return false;
+    });
+  }, [telegramUsers, audienceTypes, activeSubUserIds, expiringSoonUserIds, newUserIds, inactiveUserIds]);
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery) return audienceFilteredUsers;
+    const query = searchQuery.toLowerCase();
+    return audienceFilteredUsers.filter(user => {
+      const telegramId = user.phone.replace('+telegram_', '');
+      return user.name?.toLowerCase().includes(query) || telegramId.includes(query);
+    });
+  }, [audienceFilteredUsers, searchQuery]);
 
   const handleSendBroadcast = async () => {
     if (!message.trim()) {
@@ -71,7 +132,7 @@ export default function AdminBroadcastPage() {
         body: {
           message: message.trim(),
           targetType,
-          audienceType,
+          audienceTypes,
           userIds: targetType === 'specific' ? selectedUsers : undefined,
         },
       });
@@ -87,7 +148,7 @@ export default function AdminBroadcastPage() {
         setSelectedUsers([]);
         setHistoryRefresh(prev => prev + 1);
       } else {
-        toast.warning('Сообщения не отправлены');
+        toast.warning(data.message || 'Сообщения не отправлены');
       }
     } catch (error) {
       console.error('Broadcast error:', error);
@@ -112,16 +173,6 @@ export default function AdminBroadcastPage() {
       setSelectedUsers(filteredUsers.map(u => u.id));
     }
   };
-
-  const filteredUsers = telegramUsers.filter(user => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    const telegramId = user.phone.replace('+telegram_', '');
-    return (
-      user.name?.toLowerCase().includes(query) ||
-      telegramId.includes(query)
-    );
-  });
 
   const getTelegramUsername = (phone: string) => {
     return phone.replace('+telegram_', '@');
@@ -157,7 +208,7 @@ export default function AdminBroadcastPage() {
                 </p>
               </div>
 
-              <AudienceTypeSelector value={audienceType} onChange={setAudienceType} disabled={isLoading} />
+              <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
               <div className="space-y-3">
                 <Label>Кому отправить</Label>
@@ -170,7 +221,7 @@ export default function AdminBroadcastPage() {
                     <RadioGroupItem value="all" id="all" />
                     <Label htmlFor="all" className="flex items-center gap-2 cursor-pointer">
                       <Users className="w-4 h-4" />
-                      Всем ({telegramUsers.length})
+                      Всем ({audienceFilteredUsers.length})
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -209,7 +260,7 @@ export default function AdminBroadcastPage() {
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Получатели
+                  Получатели ({filteredUsers.length})
                 </span>
                 {targetType === 'specific' && (
                   <Button
@@ -243,7 +294,7 @@ export default function AdminBroadcastPage() {
                 </div>
               ) : filteredUsers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей с Telegram'}
+                  {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей в выбранной аудитории'}
                 </div>
               ) : (
                 <ScrollArea className="h-[300px]">
