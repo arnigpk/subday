@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Trash2, MessageSquare, Bell, Users, User } from 'lucide-react';
+import { Loader2, Trash2, MessageSquare, Bell, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -27,12 +27,14 @@ interface BroadcastMessage {
   sent_count: number;
   failed_count: number;
   created_at: string;
+  recipients: { name: string; telegram_id: string }[] | null;
 }
 
 interface BroadcastHistoryProps {
   type: 'telegram' | 'push';
   refreshTrigger?: number;
 }
+
 const audienceLabels: Record<string, string> = {
   all: 'Все',
   subscribers: 'С подпиской',
@@ -44,12 +46,17 @@ const audienceLabels: Record<string, string> = {
 };
 
 function getAudienceLabel(targetType: string) {
+  // Could be comma-separated for combined types
+  if (targetType.includes(',')) {
+    return targetType.split(',').map(t => audienceLabels[t.trim()] || t.trim()).join(' + ');
+  }
   return audienceLabels[targetType] || targetType;
 }
 
 export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps) {
   const [messages, setMessages] = useState<BroadcastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -65,7 +72,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
         .limit(50);
 
       if (error) throw error;
-      setMessages(data || []);
+      setMessages((data as any[]) || []);
     } catch (error) {
       console.error('Error fetching broadcast history:', error);
     } finally {
@@ -81,7 +88,6 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
         .eq('id', id);
 
       if (error) throw error;
-      
       setMessages(prev => prev.filter(m => m.id !== id));
       toast.success('Запись удалена');
     } catch (error) {
@@ -98,7 +104,6 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
         .eq('broadcast_type', type);
 
       if (error) throw error;
-      
       setMessages([]);
       toast.success('История очищена');
     } catch (error) {
@@ -156,51 +161,77 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
 
       <ScrollArea className="h-[400px]">
         <div className="space-y-3">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className="p-4 rounded-lg border bg-card"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    {type === 'telegram' ? (
-                      <MessageSquare className="w-4 h-4 text-blue-500" />
-                    ) : (
-                      <Bell className="w-4 h-4 text-orange-500" />
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(msg.created_at), 'd MMM yyyy, HH:mm', { locale: ru })}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
-                      {getAudienceLabel(msg.target_type)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground line-clamp-3 whitespace-pre-line">
-                    {msg.message}
-                  </p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <span className="text-green-600">
-                      Отправлено: {msg.sent_count}
-                    </span>
-                    {msg.failed_count > 0 && (
-                      <span className="text-red-600">
-                        Ошибки: {msg.failed_count}
+          {messages.map((msg) => {
+            const recipients = msg.recipients || [];
+            const isExpanded = expandedId === msg.id;
+
+            return (
+              <div key={msg.id} className="p-4 rounded-lg border bg-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      {type === 'telegram' ? (
+                        <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+                      ) : (
+                        <Bell className="w-4 h-4 text-orange-500 shrink-0" />
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(msg.created_at), 'd MMM yyyy, HH:mm', { locale: ru })}
                       </span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                        {getAudienceLabel(msg.target_type)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground line-clamp-3 whitespace-pre-line">
+                      {msg.message}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <span className="text-green-600">
+                        Отправлено: {msg.sent_count}
+                      </span>
+                      {msg.failed_count > 0 && (
+                        <span className="text-red-600">
+                          Ошибки: {msg.failed_count}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Recipients list */}
+                    {recipients.length > 0 && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : msg.id)}
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          Получатели ({recipients.length})
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-1.5 p-2 bg-muted rounded-md max-h-[150px] overflow-y-auto">
+                            <div className="flex flex-wrap gap-1">
+                              {recipients.map((r, i) => (
+                                <span key={i} className="text-xs bg-background px-2 py-0.5 rounded border">
+                                  {r.name || `@${r.telegram_id}`}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => handleDelete(msg.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => handleDelete(msg.id)}
-                >
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
-                </Button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </ScrollArea>
     </div>

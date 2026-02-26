@@ -10,7 +10,8 @@ type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' 
 interface BroadcastRequest {
   message: string;
   targetType: 'all' | 'specific';
-  audienceType?: AudienceType;
+  audienceTypes?: AudienceType[];
+  audienceType?: AudienceType; // backward compat
   userIds?: string[];
 }
 
@@ -23,15 +24,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the user is admin
+    // Verify admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -44,50 +43,43 @@ Deno.serve(async (req) => {
 
     if (authError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     const user = { id: claimsData.claims.sub as string };
 
-    // Check if user is admin
     const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
+      .from('user_roles').select('role')
+      .eq('user_id', user.id).eq('role', 'admin').maybeSingle();
 
     if (!roleData) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { message, targetType, audienceType = 'all', userIds }: BroadcastRequest = await req.json();
+    const body: BroadcastRequest = await req.json();
+    const { message, targetType, userIds } = body;
+    // Support both old single audienceType and new array audienceTypes
+    const audienceTypes: AudienceType[] = body.audienceTypes || (body.audienceType ? [body.audienceType] : ['all']);
 
     if (!message || message.trim() === '') {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // --- Resolve user IDs based on audience type ---
-    let filteredUserIds: string[] | null = null; // null = no filter (all telegram users)
+    // Resolve user IDs based on audience
+    let filteredUserIds: string[] | null = null;
 
     if (targetType === 'specific' && userIds && userIds.length > 0) {
       filteredUserIds = userIds;
-    } else if (audienceType !== 'all') {
-      filteredUserIds = await resolveAudienceUserIds(supabase, audienceType);
+    } else if (!audienceTypes.includes('all')) {
+      filteredUserIds = await resolveAudienceUserIds(supabase, audienceTypes);
     }
 
-    // Get telegram users to send to
-    let query = supabase
-      .from('profiles')
-      .select('id, phone, name')
-      .like('phone', '+telegram_%');
+    // Get telegram users
+    let query = supabase.from('profiles').select('id, phone, name').like('phone', '+telegram_%');
 
     if (filteredUserIds !== null) {
       if (filteredUserIds.length === 0) {
@@ -99,90 +91,70 @@ Deno.serve(async (req) => {
     }
 
     const { data: profiles, error: profilesError } = await query;
-
     if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
       return new Response(JSON.stringify({ error: 'Failed to fetch users' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (!profiles || profiles.length === 0) {
-      return new Response(JSON.stringify({ 
-        success: true, 
-        sent: 0, 
-        total: 0,
-        message: 'No Telegram users found' 
-      }), {
+      return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No Telegram users found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Sending broadcast to ${profiles.length} users (audience: ${audienceType})`);
+    console.log(`Sending broadcast to ${profiles.length} users (audience: ${audienceTypes.join(',')})`);
 
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
+    const recipientsList: { name: string; telegram_id: string }[] = [];
 
     for (const profile of profiles) {
       try {
         const telegramId = profile.phone.replace('+telegram_', '');
+        recipientsList.push({ name: profile.name || '', telegram_id: telegramId });
 
         const telegramResponse = await fetch(
           `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: telegramId,
-              text: message,
-              parse_mode: 'HTML',
-            }),
+            body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
           }
         );
-
         const result = await telegramResponse.json();
-
         if (result.ok) {
           successCount++;
         } else {
           failCount++;
           errors.push(`Failed: ${profile.name || telegramId}: ${result.description}`);
-          console.error(`Failed to send to ${telegramId}:`, result.description);
         }
       } catch (err) {
         failCount++;
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         errors.push(`Error: ${profile.name}: ${errorMsg}`);
-        console.error(`Error sending to ${profile.phone}:`, err);
       }
     }
 
-    console.log(`Broadcast complete: ${successCount} sent, ${failCount} failed`);
-
-    // Save broadcast to history
+    // Save broadcast history with recipients
     try {
-      await supabase
-        .from('broadcast_messages')
-        .insert({
-          message: message.trim(),
-          broadcast_type: 'telegram',
-          target_type: audienceType,
-          recipient_count: profiles.length,
-          sent_count: successCount,
-          failed_count: failCount,
-          sent_by: user.id,
-        });
+      await supabase.from('broadcast_messages').insert({
+        message: message.trim(),
+        broadcast_type: 'telegram',
+        target_type: audienceTypes.join(','),
+        recipient_count: profiles.length,
+        sent_count: successCount,
+        failed_count: failCount,
+        sent_by: user.id,
+        recipients: recipientsList,
+      });
     } catch (historyError) {
       console.error('Error saving broadcast history:', historyError);
     }
 
     return new Response(JSON.stringify({
-      success: true,
-      sent: successCount,
-      failed: failCount,
-      total: profiles.length,
+      success: true, sent: successCount, failed: failCount, total: profiles.length,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -190,85 +162,58 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('Broadcast error:', err);
-    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMsg }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-async function resolveAudienceUserIds(supabase: any, audienceType: AudienceType): Promise<string[]> {
+async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType[]): Promise<string[]> {
   const now = new Date();
+  const allResults: Set<string> = new Set();
 
+  for (const audienceType of audienceTypes) {
+    const ids = await resolveOneAudience(supabase, audienceType, now);
+    ids.forEach(id => allResults.add(id));
+  }
+
+  return [...allResults];
+}
+
+async function resolveOneAudience(supabase: any, audienceType: AudienceType, now: Date): Promise<string[]> {
   switch (audienceType) {
     case 'subscribers': {
-      const { data } = await supabase
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('is_active', true);
+      const { data } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
       return [...new Set((data || []).map((r: any) => r.user_id))];
     }
-
     case 'no_subscription': {
-      // All profile user_ids minus those with active subscriptions
       const { data: allProfiles } = await supabase.from('profiles').select('user_id');
-      const { data: activeSubs } = await supabase
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('is_active', true);
-
+      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
       const activeSet = new Set((activeSubs || []).map((r: any) => r.user_id));
-      return (allProfiles || [])
-        .map((p: any) => p.user_id)
-        .filter((uid: string) => !activeSet.has(uid));
+      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
     }
-
     case 'expiring_soon': {
       const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('is_active', true)
-        .lte('expires_at', fiveDaysLater)
-        .gte('expires_at', now.toISOString());
+      const { data } = await supabase.from('user_subscriptions').select('user_id')
+        .eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString());
       return [...new Set((data || []).map((r: any) => r.user_id))];
     }
-
     case 'new_users': {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .gte('created_at', sevenDaysAgo);
+      const { data } = await supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo);
       return (data || []).map((p: any) => p.user_id);
     }
-
     case 'inactive': {
-      // Users who registered but have no redemptions in last 30 days and no active subscription
       const { data: allProfiles } = await supabase.from('profiles').select('user_id');
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      const { data: recentActive } = await supabase
-        .from('redemptions')
-        .select('user_id')
-        .gte('redeemed_at', thirtyDaysAgo);
-
-      const { data: activeSubs } = await supabase
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('is_active', true);
-
+      const { data: recentActive } = await supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo);
+      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
       const activeSet = new Set([
         ...(recentActive || []).map((r: any) => r.user_id),
         ...(activeSubs || []).map((r: any) => r.user_id),
       ]);
-
-      return (allProfiles || [])
-        .map((p: any) => p.user_id)
-        .filter((uid: string) => !activeSet.has(uid));
+      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
     }
-
     default:
       return [];
   }
