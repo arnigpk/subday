@@ -1,28 +1,39 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
-import { SubFlowCreatePost } from '@/components/subflow/SubFlowCreatePost';
+import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Lock } from 'lucide-react';
+import { Lock, ChevronUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import logo from '@/assets/logo.png';
 
 export default function SubFlowPage() {
   const { hasActiveSubscription, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
-  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const { t } = useLanguage();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id || null));
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handlePostCreated = () => {
-    setShowCreatePost(false);
+    setShowCreateDialog(false);
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -30,6 +41,10 @@ export default function SubFlowPage() {
     await refetchSubscription();
     setRefreshTrigger(prev => prev + 1);
   }, [refetchSubscription]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   if (!isSubLoading && !hasActiveSubscription) {
     return (
@@ -86,27 +101,50 @@ export default function SubFlowPage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top">
+        <div className="safe-area-top" ref={scrollContainerRef}>
           <div className="px-4 py-4">
+            {/* Header */}
             <div className="flex items-center justify-between mb-1">
               <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
-              {!isSubLoading && hasActiveSubscription && (
-                <Button size="sm" onClick={() => setShowCreatePost(true)} className="rounded-xl btn-accent text-sm py-2 px-4">
-                  <Plus size={16} className="mr-1" />
-                  {t('subflow.createPost')}
-                </Button>
-              )}
+              <img src={logo} alt="subday" className="h-8 w-auto object-contain" />
             </div>
             <p className="text-xs text-muted-foreground mb-4">{t('subflow.subtitle')}</p>
-
-            {showCreatePost && (
-              <SubFlowCreatePost onClose={() => setShowCreatePost(false)} onPostCreated={handlePostCreated} />
-            )}
 
             <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} />
           </div>
         </div>
       </PullToRefresh>
+
+      {/* Floating Action Button - Create Post */}
+      {!isSubLoading && hasActiveSubscription && (
+        <button
+          onClick={() => setShowCreateDialog(true)}
+          className="fixed bottom-24 right-4 z-40 flex items-center gap-2 px-5 py-3 rounded-full bg-accent text-accent-foreground font-semibold text-sm shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+          style={{
+            boxShadow: '0 0 20px hsl(var(--accent) / 0.4), 0 4px 16px hsl(var(--accent) / 0.3)',
+          }}
+        >
+          <Pencil size={18} />
+          Сделать пост
+        </button>
+      )}
+
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 left-4 z-40 w-11 h-11 rounded-full bg-secondary/90 backdrop-blur-sm border border-border flex items-center justify-center text-foreground shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 animate-fade-in"
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
+
+      {/* Create Post Dialog */}
+      <SubFlowCreatePostDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onPostCreated={handlePostCreated}
+      />
     </AppLayout>
   );
 }
