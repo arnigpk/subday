@@ -106,7 +106,7 @@ export default function SubFlowPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-1">
               <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
-              <img src={logo} alt="subday" className="h-8 w-auto object-contain" />
+              <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-xs text-muted-foreground mb-4">{t('subflow.subtitle')}</p>
 
@@ -119,12 +119,12 @@ export default function SubFlowPage() {
       {!isSubLoading && hasActiveSubscription && (
         <button
           onClick={() => setShowCreateDialog(true)}
-          className="fixed bottom-24 right-4 z-40 flex items-center gap-2 px-5 py-3 rounded-full bg-accent text-accent-foreground font-semibold text-sm shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-accent text-accent-foreground font-semibold text-sm shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
           style={{
-            boxShadow: '0 0 20px hsl(var(--accent) / 0.4), 0 4px 16px hsl(var(--accent) / 0.3)',
+            boxShadow: '0 0 12px hsl(var(--accent) / 0.3), 0 2px 8px hsl(var(--accent) / 0.2)',
           }}
         >
-          <Pencil size={18} />
+          <Pencil size={16} />
           Сделать пост
         </button>
       )}
