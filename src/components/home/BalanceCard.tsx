@@ -9,7 +9,12 @@ import { Button } from '../ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getKzSuffix, formatDateKzWithYear } from '@/utils/kazakh';
 
-export function BalanceCard() {
+interface BalanceCardProps {
+  activeTab: 'coffee' | 'drinks';
+  onTabChange: (tab: 'coffee' | 'drinks') => void;
+}
+
+export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const { stats, isLoading } = useUserStatsContext();
   const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
   const navigate = useNavigate();
@@ -20,18 +25,16 @@ export function BalanceCard() {
   const lunchSub = activeSubscriptions.find(s => s.subscription_type === 'drinks');
   const hasLunchOnly = !!lunchSub && !coffeeSub;
   
-  const defaultTab = hasLunchOnly ? 'drinks' : 'coffee';
-  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const hasSetDefault = useRef(false);
   
   useEffect(() => {
     if (!hasSetDefault.current && activeSubscriptions.length > 0) {
       hasSetDefault.current = true;
       if (hasLunchOnly) {
-        setActiveTab('drinks');
+        onTabChange('drinks');
       }
     }
-  }, [activeSubscriptions, hasLunchOnly]);
+  }, [activeSubscriptions, hasLunchOnly, onTabChange]);
   
   const { isLimitReached, dailyLimit, remainingToday, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   
@@ -101,7 +104,7 @@ export function BalanceCard() {
       <TabSwitcher
         tabs={tabs}
         activeTab={activeTab}
-        onChange={(tab) => setActiveTab(tab as 'coffee' | 'drinks')}
+        onChange={(tab) => onTabChange(tab as 'coffee' | 'drinks')}
         className="mb-4"
       />
 
