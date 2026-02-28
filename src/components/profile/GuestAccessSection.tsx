@@ -14,11 +14,22 @@ export function GuestAccessSection() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('guest-access', {
-        body: { action: 'status' },
-      });
-      if (!error && data) {
-        setMonthlyUsed(data.monthlyUsed || false);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setIsLoading(false); return; }
+
+      // Direct DB query - much faster than edge function
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      
+      const { data, error } = await supabase
+        .from('guest_grants')
+        .select('id')
+        .eq('inviter_user_id', user.id)
+        .eq('month_key', monthKey)
+        .limit(1);
+      
+      if (!error) {
+        setMonthlyUsed((data?.length ?? 0) > 0);
       }
     } catch (err) {
       console.error('Guest status error:', err);
@@ -39,19 +50,14 @@ export function GuestAccessSection() {
         {t('guest.title')}
       </h3>
 
-      {/* Monthly status */}
       <div className="card-static">
         <p className="text-sm text-muted-foreground">
           {isLoading ? '...' : monthlyUsed ? t('guest.usedThisMonth') : t('guest.availableThisMonth')}
         </p>
       </div>
 
-      {/* Invite button */}
       {!monthlyUsed && (
-        <Link
-          to="/gift-coffee"
-          className="w-full card-interactive flex items-center gap-3"
-        >
+        <Link to="/gift-coffee" className="w-full card-interactive flex items-center gap-3">
           <Gift size={20} className="text-primary" />
           <span className="flex-1 font-medium text-foreground">{t('guest.inviteFriend')}</span>
           <ChevronRight size={18} className="text-muted-foreground" />

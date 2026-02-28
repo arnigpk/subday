@@ -59,7 +59,7 @@ export default function RedeemPage() {
   // Distance-based sorting
   const shopsForDistance = useMemo(() => shops.map(s => ({ id: s.id, coordinates: s.coordinates })), [shops]);
   const { distances } = useShopDistances(shopsForDistance);
-  const [distanceSortApplied, setDistanceSortApplied] = useState(false);
+  const [lastDistanceKey, setLastDistanceKey] = useState('');
   
   const initialShop = location.state?.shop;
   const initialDrinkType = location.state?.drinkType || null; // null = auto-detect
@@ -67,7 +67,11 @@ export default function RedeemPage() {
   
   // Re-sort shops by distance when distances are calculated
   useEffect(() => {
-    if (distances.size === 0 || shops.length === 0 || distanceSortApplied) return;
+    if (distances.size === 0 || shops.length === 0) return;
+    
+    // Create a key from distances to detect actual changes
+    const distKey = Array.from(distances.entries()).map(([id, d]) => `${id}:${d.distance}`).join(',');
+    if (distKey === lastDistanceKey) return;
     
     const sorted = [...shops].sort((a, b) => {
       const distA = distances.get(a.id)?.distance;
@@ -81,11 +85,12 @@ export default function RedeemPage() {
     });
     
     setShops(sorted);
-    if (!initialShop && sorted.length > 0) {
+    // Auto-select nearest shop only on first sort
+    if (!lastDistanceKey && !initialShop && sorted.length > 0) {
       setSelectedShop(sorted[0]);
     }
-    setDistanceSortApplied(true);
-  }, [distances, shops, distanceSortApplied, initialShop]);
+    setLastDistanceKey(distKey);
+  }, [distances, shops.length, lastDistanceKey, initialShop]);
   
   // Auto-detect drink type based on active subscriptions
   const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee');
