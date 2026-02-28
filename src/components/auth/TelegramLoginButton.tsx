@@ -106,13 +106,19 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             Назад
           </button>
           <button
-            onClick={() => window.open(`https://t.me/${botName}?start=login`, '_blank')}
+            onClick={() => {
+              setCode('');
+              window.open(`https://t.me/${botName}?start=login`, '_blank');
+            }}
             className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
           >
             <Send size={16} />
-            Открыть бот
+            Новый код
           </button>
         </div>
+        <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+          ⚠️ При повторном открытии бота старый код станет недействительным
+        </p>
       </div>
     );
   }

@@ -117,7 +117,7 @@ serve(async (req) => {
     if (findError || !authCode) {
       console.log('Code not found or expired:', code);
       return new Response(
-        JSON.stringify({ error: 'Неверный или истёкший код' }),
+        JSON.stringify({ error: 'Неверный или истёкший код. Если вы повторно открыли бот — используйте новый код.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
