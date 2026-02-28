@@ -26,8 +26,8 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
         return;
       }
 
-      // Get active subscription with daily_limit info
-      const { data: subscription, error: subError } = await supabase
+      // Get active subscriptions with daily_limit info
+      const { data: subscriptions, error: subError } = await supabase
         .from('user_subscriptions')
         .select(`
           id,
@@ -37,8 +37,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
           )
         `)
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
 
       if (subError) {
         console.error('Error fetching subscription:', subError);
@@ -46,11 +45,15 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
         return;
       }
 
-      // Type assertion for subscription_types
+      // Find subscription matching the requested type
+      const subscription = (subscriptions || []).find(sub => {
+        const st = sub.subscription_types as { daily_limit: number | null; type: string } | null;
+        return st?.type === subscriptionType;
+      });
+
       const subTypes = subscription?.subscription_types as { daily_limit: number | null; type: string } | null;
 
-      // No active subscription - check for matching type
-      if (!subscription || !subTypes || subTypes.type !== subscriptionType) {
+      if (!subscription || !subTypes) {
         setStatus({
           dailyLimit: null,
           usedToday: 0,
