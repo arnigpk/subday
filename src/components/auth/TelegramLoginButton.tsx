@@ -116,9 +116,6 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             Новый код
           </button>
         </div>
-        <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-          {"\n"}
-        </p>
       </div>
     );
   }
