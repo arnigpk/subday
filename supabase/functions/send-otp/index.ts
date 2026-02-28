@@ -47,38 +47,17 @@ Deno.serve(async (req) => {
     const smscPassword = Deno.env.get('SMSC_PASSWORD')!
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Fast user lookup by email (instead of listing ALL users)
-    const emailPattern = `${formattedPhone.replace('+', '')}@phone.subday.app`
-    const { data: existingUserData } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-      // @ts-ignore - filter by email supported in admin API
-    })
+    // FAST: Check profiles table directly (indexed by phone) + cooldown in parallel
+    const [profileResult, cooldownResult] = await Promise.all([
+      supabase.from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle(),
+      supabase.from('otp_codes').select('created_at').eq('phone', formattedPhone)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ])
     
-    // Direct lookup: try to get user by email
-    let existingUser = null
-    try {
-      // Use getUserByEmail for instant lookup instead of listing all users
-      const { data: userData } = await supabase.auth.admin.getUserById(emailPattern)
-      existingUser = userData?.user || null
-    } catch {
-      // getUserById won't work with email, fall back to profiles table
-    }
-    
-    // Fast: check profiles table directly (indexed by phone)
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('phone', formattedPhone)
-      .maybeSingle()
-    
-    const userExists = !!profileData
+    const userExists = !!profileResult.data
 
     if (isRegistration && userExists) {
       return new Response(
@@ -94,17 +73,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Anti-fraud: check cooldown (59 seconds between SMS) — run in parallel with code generation
-    const [cooldownResult] = await Promise.all([
-      supabase
-        .from('otp_codes')
-        .select('created_at')
-        .eq('phone', formattedPhone)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    ])
-
+    // Check cooldown
     const lastOtp = cooldownResult.data
     if (lastOtp) {
       const lastSentAt = new Date(lastOtp.created_at).getTime()
@@ -126,9 +95,7 @@ Deno.serve(async (req) => {
     const [, insertResult] = await Promise.all([
       supabase.from('otp_codes').delete().eq('phone', formattedPhone),
       supabase.from('otp_codes').insert({
-        phone: formattedPhone,
-        code,
-        expires_at: expiresAt.toISOString(),
+        phone: formattedPhone, code, expires_at: expiresAt.toISOString(),
       })
     ])
 
@@ -140,7 +107,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Send SMS (non-blocking response pattern: send SMS in parallel)
+    // Send SMS
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)
@@ -166,11 +133,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Код отправлен',
-        phone: formattedPhone 
-      }),
+      JSON.stringify({ success: true, message: 'Код отправлен', phone: formattedPhone }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

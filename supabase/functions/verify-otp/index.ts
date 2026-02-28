@@ -13,37 +13,25 @@ function formatPhone(phone: string): string {
   return '+' + digits
 }
 
-async function sendLoginNotification(
+function sendLoginNotification(
   phone: string,
   name: string | null,
   isNewUser: boolean
-): Promise<void> {
+): void {
   const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN')
   const chatId = Deno.env.get('NOTIFICATION_CHAT_ID')
-  
-  if (!notificationBotToken || !chatId) {
-    console.log('Notification bot not configured')
-    return
-  }
+  if (!notificationBotToken || !chatId) return
 
   const action = isNewUser ? '🆕 Новая регистрация' : '🔑 Вход'
   const nameText = name || 'не указано'
   const message = `${action} через SMS\n\n👤 Имя: ${nameText}\n📞 Телефон: ${phone}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`
 
-  try {
-    await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'HTML'
-      })
-    })
-    console.log('Login notification sent')
-  } catch (error) {
-    console.error('Failed to send notification:', error)
-  }
+  // Fire-and-forget
+  fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+  }).catch(e => console.error('Notification failed:', e))
 }
 
 Deno.serve(async (req) => {
@@ -62,15 +50,11 @@ Deno.serve(async (req) => {
     }
 
     const formattedPhone = formatPhone(phone)
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     })
 
     // Verify OTP
@@ -98,16 +82,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Mark OTP as used
-    await supabase
-      .from('otp_codes')
-      .update({ verified: true })
-      .eq('id', otpData.id)
+    // Mark OTP as used (don't await - fire and forget)
+    supabase.from('otp_codes').update({ verified: true }).eq('id', otpData.id).then(() => {})
 
     if (isRegistration) {
-      // Registration flow - create user and profile, but don't create session
-      console.log('Creating new user for phone:', formattedPhone)
-      
+      // Registration flow
       const tempPassword = crypto.randomUUID()
       const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
         email: `${formattedPhone.replace('+', '')}@phone.subday.app`,
@@ -125,54 +104,42 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Create profile with name
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: signUpData.user.id,
-          phone: formattedPhone,
-          name: name || null,
-          city: 'Атырау'
-        })
+      // Create profile (don't await notification)
+      await supabase.from('profiles').insert({
+        user_id: signUpData.user.id,
+        phone: formattedPhone,
+        name: name || null,
+        city: 'Атырау'
+      })
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError)
-      }
-
-      // Send notification for new user
-      await sendLoginNotification(formattedPhone, name, true)
-      
-      // Delete used OTP
-      await supabase
-        .from('otp_codes')
-        .delete()
-        .eq('phone', formattedPhone)
+      // Fire-and-forget: notification + cleanup
+      sendLoginNotification(formattedPhone, name, true)
+      supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
       return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'Регистрация успешна'
-        }),
+        JSON.stringify({ success: true, message: 'Регистрация успешна' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
-      // Login flow - find user by email pattern
-      const emailPattern = `${formattedPhone.replace('+', '')}@phone.subday.app`
-      const { data: existingUsers } = await supabase.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find(u => u.email === emailPattern)
+      // Login flow - FAST: lookup user via profiles table (indexed), not listUsers()
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('user_id, name')
+        .eq('phone', formattedPhone)
+        .maybeSingle()
 
-      if (!existingUser) {
+      if (!profileData) {
         return new Response(
           JSON.stringify({ error: 'Пользователь не найден' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      console.log('Logging in user:', existingUser.id)
+      console.log('Logging in user:', profileData.user_id)
       
-      // Update password and login
+      // Update password and login in sequence (required)
       const tempPassword = crypto.randomUUID()
-      await supabase.auth.admin.updateUserById(existingUser.id, {
+      await supabase.auth.admin.updateUserById(profileData.user_id, {
         password: tempPassword
       })
 
@@ -189,30 +156,18 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get user profile for notification
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('user_id', existingUser.id)
-        .single()
+      // Return session IMMEDIATELY, do cleanup in background
+      const session = loginData.session
 
-      // Send login notification
-      await sendLoginNotification(formattedPhone, profile?.name || null, false)
-
-      // Delete used OTP
-      await supabase
-        .from('otp_codes')
-        .delete()
-        .eq('phone', formattedPhone)
+      // Fire-and-forget: notification + OTP cleanup
+      sendLoginNotification(formattedPhone, profileData.name, false)
+      supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
       return new Response(
         JSON.stringify({ 
           success: true,
-          session: loginData.session,
-          user: {
-            id: loginData.user?.id,
-            phone: formattedPhone
-          }
+          session,
+          user: { id: loginData.user?.id, phone: formattedPhone }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

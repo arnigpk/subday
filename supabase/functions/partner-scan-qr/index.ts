@@ -19,18 +19,13 @@ function extractTelegramId(phone: string): string | null {
   return match ? match[1] : null;
 }
 
-async function sendTelegramMessage(telegramId: string, message: string, botToken: string): Promise<boolean> {
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
-    });
-    const result = await response.json();
-    if (!result.ok) { console.error('Telegram API error:', result); return false; }
-    console.log('Low balance notification sent to:', telegramId);
-    return true;
-  } catch (error) { console.error('Error sending Telegram message:', error); return false; }
+function sendTelegramMessage(telegramId: string, message: string, botToken: string): void {
+  // Fire-and-forget
+  fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
+  }).catch(err => console.error('Telegram notification error:', err));
 }
 
 function calculateStreak(stats: any, today: string) {
@@ -41,13 +36,9 @@ function calculateStreak(stats: any, today: string) {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     if (stats.last_redemption_date === yesterdayStr) newStreak = stats.current_streak + 1;
-    else if (!stats.last_redemption_date) newStreak = 1;
     else newStreak = 1;
   }
-  return {
-    newStreak,
-    newMaxStreak: Math.max(newStreak, stats.max_streak),
-  };
+  return { newStreak, newMaxStreak: Math.max(newStreak, stats.max_streak) };
 }
 
 Deno.serve(async (req) => {
@@ -81,50 +72,56 @@ Deno.serve(async (req) => {
     const scannerId = claimsData.claims.sub;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: scannerRole } = await supabase
+    // Parse body and check scanner role in parallel
+    const bodyPromise = req.json() as Promise<ScanRequest>;
+    const rolePromise = supabase
       .from('user_roles').select('role, shop_id')
       .eq('user_id', scannerId).in('role', ['partner', 'barista']).maybeSingle();
 
+    const [body, { data: scannerRole }] = await Promise.all([bodyPromise, rolePromise]);
+    
     if (!scannerRole) {
       return new Response(JSON.stringify({ error: 'У вас нет прав на сканирование' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const body: ScanRequest = await req.json();
     const { userId, shopId, shopName, drinkType, drinkName, isGuestCoffee } = body;
-
-    console.log('Processing scan:', { userId, shopId, drinkType, drinkName, scannerId, isGuestCoffee });
 
     if (scannerRole.shop_id !== shopId) {
       return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check shop supports this drink type
-    if (drinkType === 'drinks') {
-      const { data: shop } = await supabase.from('shops').select('supported_types').eq('id', shopId).maybeSingle();
-      const supportedTypes = shop?.supported_types || ['coffee'];
+    // Fetch stats + profile + shop info in parallel
+    const [statsResult, profileResult, shopResult] = await Promise.all([
+      supabase.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
+      supabase.from('profiles').select('name, phone').eq('user_id', userId).maybeSingle(),
+      drinkType === 'drinks' 
+        ? supabase.from('shops').select('supported_types').eq('id', shopId).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const stats = statsResult.data;
+    if (!stats) {
+      return new Response(JSON.stringify({ error: 'Пользователь не найден' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (drinkType === 'drinks' && shopResult.data) {
+      const supportedTypes = shopResult.data.supported_types || ['coffee'];
       if (!supportedTypes.includes('drinks')) {
         return new Response(JSON.stringify({ error: 'Эта кофейня не поддерживает ланч' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
-    // Get customer stats
-    const { data: stats, error: statsError } = await supabase
-      .from('user_stats').select('*').eq('user_id', userId).maybeSingle();
-
-    if (statsError || !stats) {
-      return new Response(JSON.stringify({ error: 'Пользователь не найден' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const profile = profileResult.data;
+    const today = new Date().toISOString().split('T')[0];
+    const bonusForRedemption = 10;
 
     // Determine if this is a guest coffee redemption
     const useGuestCoffee = isGuestCoffee && stats.guest_coffees > 0 && 
       stats.guest_expires_at && new Date(stats.guest_expires_at) > new Date();
-
-    const today = new Date().toISOString().split('T')[0];
-    const bonusForRedemption = 10;
 
     if (useGuestCoffee) {
       // ===== GUEST COFFEE REDEMPTION =====
@@ -142,33 +139,30 @@ Deno.serve(async (req) => {
 
       const { newStreak, newMaxStreak } = calculateStreak(stats, today);
 
-      const { error: updateError } = await supabase
-        .from('user_stats').update({
+      // Update stats + insert redemption in parallel
+      const [updateResult] = await Promise.all([
+        supabase.from('user_stats').update({
           guest_coffees: stats.guest_coffees - 1,
           current_streak: newStreak, max_streak: newMaxStreak,
           total_cups: stats.total_cups + 1, bonus_points: stats.bonus_points + bonusForRedemption,
           last_redemption_date: today,
-        }).eq('user_id', userId);
+        }).eq('user_id', userId),
+        supabase.from('redemptions').insert({
+          user_id: userId, shop_name: shopName, shop_id: shopId,
+          drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
+          drink_type: 'coffee', subscription_name: 'Гостевой доступ',
+        }),
+      ]);
 
-      if (updateError) {
-        console.error('Update error:', updateError);
+      if (updateResult.error) {
         return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       if (stats.guest_coffees - 1 <= 0 && grant) {
-        await supabase.from('guest_grants').update({ status: 'consumed' })
-          .eq('invitee_user_id', userId).eq('status', 'active');
+        supabase.from('guest_grants').update({ status: 'consumed' })
+          .eq('invitee_user_id', userId).eq('status', 'active').then(() => {});
       }
-
-      await supabase.from('redemptions').insert({
-        user_id: userId, shop_name: shopName, shop_id: shopId,
-        drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
-        drink_type: 'coffee', subscription_name: 'Гостевой доступ',
-      });
-
-      const { data: profile } = await supabase
-        .from('profiles').select('name').eq('user_id', userId).maybeSingle();
 
       return new Response(JSON.stringify({
         success: true, customerName: profile?.name || 'Клиент',
@@ -184,20 +178,19 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check daily limit - find matching subscription (direct type or combo)
+    // Check daily limit + get subscription info
     const { data: subscriptions } = await supabase
       .from('user_subscriptions')
       .select(`id, subscription_types ( daily_limit, type, name )`)
       .eq('user_id', userId).eq('is_active', true);
 
-    interface SubscriptionTypeInfo { daily_limit: number | null; type: string; name: string; }
+    interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
     
-    // Find matching subscription: exact type match
     const matchingSub = subscriptions?.find(s => {
-      const subTypes = s.subscription_types as unknown as SubscriptionTypeInfo | null;
-      return subTypes && subTypes.type === drinkType;
+      const st = s.subscription_types as unknown as SubTypeInfo | null;
+      return st && st.type === drinkType;
     });
-    const subTypes = matchingSub?.subscription_types as unknown as SubscriptionTypeInfo | null;
+    const subTypes = matchingSub?.subscription_types as unknown as SubTypeInfo | null;
     
     if (subTypes && subTypes.daily_limit !== null) {
       const { count: todayCount } = await supabase
@@ -222,54 +215,34 @@ Deno.serve(async (req) => {
       last_redemption_date: today,
     };
 
-    const { error: updateError } = await supabase
-      .from('user_stats').update(newStats).eq('user_id', userId);
+    const subscriptionName = subTypes?.name || null;
 
-    if (updateError) {
-      console.error('Update error:', updateError);
+    // Update stats + insert redemption in parallel
+    const [updateResult] = await Promise.all([
+      supabase.from('user_stats').update(newStats).eq('user_id', userId),
+      supabase.from('redemptions').insert({
+        user_id: userId, shop_name: shopName, shop_id: shopId,
+        drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
+      }),
+    ]);
+
+    if (updateResult.error) {
       return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const subscriptionName = subTypes?.name || null;
-
-    await supabase.from('redemptions').insert({
-      user_id: userId, shop_name: shopName, shop_id: shopId,
-      drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
-    });
-
-    const { data: profile } = await supabase
-      .from('profiles').select('name, phone').eq('user_id', userId).maybeSingle();
-
-    // Low balance notification - triggers when remaining <= 5 OR days remaining <= 5
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
+
+    // Fire-and-forget: low balance notification
     if (profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
       if (telegramId) {
         const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-        if (telegramBotToken) {
-          // Check days remaining for the matching subscription
-          const { data: sub } = await supabase
-            .from('user_subscriptions').select('expires_at')
-            .eq('user_id', userId).eq('is_active', true)
-            .order('expires_at', { ascending: true }).limit(1).maybeSingle();
-          let daysRemaining = 999;
-          if (sub?.expires_at) {
-            daysRemaining = Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-          }
-          
-          // Send notification if remaining cups <= 5 OR days remaining <= 5
-          if (newRemaining <= 5 || daysRemaining <= 5) {
-            const message = `⚠️ У вас по подписке осталось очень мало на ${daysRemaining} дней.`;
-            sendTelegramMessage(telegramId, message, telegramBotToken).catch(err => {
-              console.error('Failed to send low balance notification:', err);
-            });
-          }
+        if (telegramBotToken && newRemaining <= 5) {
+          sendTelegramMessage(telegramId, `⚠️ У вас осталось ${newRemaining} напитков по подписке.`, telegramBotToken);
         }
       }
     }
-
-    console.log('Scan successful:', { userId, drinkName, drinkType, remaining: newRemaining });
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',
