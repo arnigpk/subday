@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
 import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
@@ -36,34 +36,31 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
       if (isInitial) {
         setIsLoading(true);
         setPosts([]);
-        setLastCreatedAt(null);
+        lastCreatedAtRef.current = null;
         setHasMore(true);
       } else {
         setIsLoadingMore(true);
       }
 
-      // Build query
       let query = supabase
         .from('subflow_posts')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(POSTS_PER_PAGE);
 
-      // Apply shop filter
       if (shopFilter) {
         query = query.eq('shop_id', shopFilter);
       }
 
-      // Cursor pagination
-      if (!isInitial && lastCreatedAt) {
-        query = query.lt('created_at', lastCreatedAt);
+      if (!isInitial && lastCreatedAtRef.current) {
+        query = query.lt('created_at', lastCreatedAtRef.current);
       }
 
       const { data: postsData, error: postsError } = await query;
@@ -80,8 +77,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         return;
       }
 
-      // Update cursor
-      setLastCreatedAt(postsData[postsData.length - 1].created_at);
+      lastCreatedAtRef.current = postsData[postsData.length - 1].created_at;
       setHasMore(postsData.length === POSTS_PER_PAGE);
 
       // Get unique user IDs
@@ -172,7 +168,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [currentUserId, shopFilter, lastCreatedAt]);
+  }, [currentUserId, shopFilter]);
 
   const loadMore = useCallback(() => {
     if (!isLoadingMore && hasMore) {
