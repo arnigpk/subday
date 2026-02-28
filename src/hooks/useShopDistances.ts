@@ -62,7 +62,7 @@ function calcHaversineDistances(
   return result;
 }
 
-const API_CACHE_DURATION = 60000; // Only call API every 60s for accurate durations
+const API_CACHE_DURATION = 120000; // Only call API every 2min for accurate durations
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
   const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());
