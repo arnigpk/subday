@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useGeolocation } from './useGeolocation';
 
 export interface ShopDistance {
-  distance: number | null; // meters
-  duration: number | null; // seconds
-  closestAddressIndex: number; // index of closest address in coordinates array
+  distance: number | null;
+  duration: number | null;
+  closestAddressIndex: number;
 }
 
 export interface UseShopDistancesResult {
@@ -27,67 +27,87 @@ interface ShopWithCoords {
   coordinates: Coordinate[];
 }
 
-const CACHE_DURATION = 120000; // 2 minutes - reduce API calls
+// Haversine for instant local calculation (no API call needed)
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (x: number) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const API_CACHE_DURATION = 120000; // 2 min - for Mapbox API calls only
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
   const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const lastCalcPosition = useRef<{ lat: number; lng: number } | null>(null);
-  const lastCalcTime = useRef<number>(0);
+
+  const lastApiPosition = useRef<{ lat: number; lng: number } | null>(null);
+  const lastApiTime = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const { latitude, longitude, error: geoError, permissionDenied, loading: geoLoading } = useGeolocation();
 
-  // Stabilize shops array to prevent infinite re-renders
-  const shopsKey = useMemo(() => {
-    return shops.map(s => s.id).sort().join(',');
-  }, [shops]);
-  
+  const shopsKey = useMemo(() => shops.map(s => s.id).sort().join(','), [shops]);
   const stableShops = useMemo(() => shops, [shopsKey]);
 
-  const calculateDistances = useCallback(async (userLat: number, userLng: number) => {
-    // Filter shops with valid coordinates
-    const shopsWithCoords = stableShops.filter(s => s.coordinates && s.coordinates.length > 0);
-    
-    if (shopsWithCoords.length === 0) {
-      setDistances(new Map());
-      return;
-    }
+  // Instant local distance calculation using Haversine (runs on every position update)
+  const calculateLocalDistances = useCallback((userLat: number, userLng: number) => {
+    const shopsWithCoords = stableShops.filter(s => s.coordinates?.length > 0);
+    if (shopsWithCoords.length === 0) return;
 
-    // Check cache - don't recalculate if not enough time passed
-    const now = Date.now();
-    if (lastCalcPosition.current && now - lastCalcTime.current < CACHE_DURATION) {
-      const dLat = Math.abs(lastCalcPosition.current.lat - userLat);
-      const dLng = Math.abs(lastCalcPosition.current.lng - userLng);
-      // ~50m threshold in degrees
-      if (dLat < 0.00045 && dLng < 0.00045) {
-        return;
+    const newDistances = new Map<string, ShopDistance>();
+    shopsWithCoords.forEach(shop => {
+      let minDist = Infinity;
+      let closestIdx = 0;
+      shop.coordinates.forEach((coord, idx) => {
+        if (coord?.lat && coord?.lng) {
+          const dist = haversineDistance(userLat, userLng, coord.lat, coord.lng);
+          if (dist < minDist) {
+            minDist = dist;
+            closestIdx = idx;
+          }
+        }
+      });
+      if (minDist < Infinity) {
+        // Keep existing duration from API if available
+        const existing = distances.get(shop.id);
+        newDistances.set(shop.id, {
+          distance: Math.round(minDist),
+          duration: existing?.duration ?? null,
+          closestAddressIndex: closestIdx,
+        });
       }
+    });
+    setDistances(newDistances);
+  }, [stableShops, distances]);
+
+  // Mapbox API call for accurate driving distances (throttled)
+  const fetchApiDistances = useCallback(async (userLat: number, userLng: number) => {
+    const shopsWithCoords = stableShops.filter(s => s.coordinates?.length > 0);
+    if (shopsWithCoords.length === 0) return;
+
+    const now = Date.now();
+    if (lastApiPosition.current && now - lastApiTime.current < API_CACHE_DURATION) {
+      const dLat = Math.abs(lastApiPosition.current.lat - userLat);
+      const dLng = Math.abs(lastApiPosition.current.lng - userLng);
+      if (dLat < 0.00045 && dLng < 0.00045) return; // ~50m threshold
     }
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (abortControllerRef.current) abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
 
     setLoading(true);
     setError(null);
 
     try {
-      // Flatten all coordinates with shop reference for edge function
       const allCoords: { id: string; addressIndex: number; lat: number; lng: number }[] = [];
       shopsWithCoords.forEach(shop => {
         shop.coordinates.forEach((coord, index) => {
           if (coord?.lat && coord?.lng) {
-            allCoords.push({
-              id: shop.id,
-              addressIndex: index,
-              lat: coord.lat,
-              lng: coord.lng,
-            });
+            allCoords.push({ id: shop.id, addressIndex: index, lat: coord.lat, lng: coord.lng });
           }
         });
       });
@@ -96,55 +116,35 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
         body: {
           user_lat: userLat,
           user_lng: userLng,
-          shops: allCoords.map(c => ({
-            id: `${c.id}_${c.addressIndex}`, // unique id per address
-            lat: c.lat,
-            lng: c.lng,
-          })),
+          shops: allCoords.map(c => ({ id: `${c.id}_${c.addressIndex}`, lat: c.lat, lng: c.lng })),
         },
       });
 
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
+      if (fnError) throw new Error(fnError.message);
 
-      // Process results - find closest address for each shop
       const shopDistances = new Map<string, { distance: number; duration: number; addressIndex: number }>();
-      
       if (data?.distances) {
         data.distances.forEach((d: { shop_id: string; distance: number | null; duration: number | null }) => {
-          // Parse composite id back to shop_id and addressIndex
           const parts = d.shop_id.split('_');
           const addressIndex = parseInt(parts.pop() || '0', 10);
           const shopId = parts.join('_');
-          
           if (d.distance != null) {
             const existing = shopDistances.get(shopId);
             if (!existing || d.distance < existing.distance) {
-              shopDistances.set(shopId, {
-                distance: d.distance,
-                duration: d.duration ?? 0,
-                addressIndex,
-              });
+              shopDistances.set(shopId, { distance: d.distance, duration: d.duration ?? 0, addressIndex });
             }
           }
         });
       }
 
-      // Convert to final format
       const newDistances = new Map<string, ShopDistance>();
       shopDistances.forEach((value, shopId) => {
-        newDistances.set(shopId, {
-          distance: value.distance,
-          duration: value.duration,
-          closestAddressIndex: value.addressIndex,
-        });
+        newDistances.set(shopId, { distance: value.distance, duration: value.duration, closestAddressIndex: value.addressIndex });
       });
 
       setDistances(newDistances);
-      lastCalcPosition.current = { lat: userLat, lng: userLng };
-      lastCalcTime.current = now;
-      
+      lastApiPosition.current = { lat: userLat, lng: userLng };
+      lastApiTime.current = now;
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Error calculating distances:', err);
@@ -155,18 +155,23 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
     }
   }, [stableShops]);
 
+  // On every geolocation update → instant local recalc
   useEffect(() => {
     if (latitude != null && longitude != null && !geoLoading) {
-      calculateDistances(latitude, longitude);
+      calculateLocalDistances(latitude, longitude);
     }
-  }, [latitude, longitude, geoLoading, calculateDistances]);
+  }, [latitude, longitude, geoLoading]); // intentionally exclude calculateLocalDistances to avoid loops
 
-  // Cleanup on unmount
+  // Fetch accurate API distances (throttled, runs once then on significant movement)
+  useEffect(() => {
+    if (latitude != null && longitude != null && !geoLoading) {
+      fetchApiDistances(latitude, longitude);
+    }
+  }, [latitude, longitude, geoLoading, fetchApiDistances]);
+
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -179,4 +184,3 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
     permissionDenied,
   };
 }
-
