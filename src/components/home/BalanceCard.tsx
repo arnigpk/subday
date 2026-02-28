@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coffee, UtensilsCrossed, Clock, AlertTriangle, Gift } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Clock, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -145,16 +145,17 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
                   }
                 </p>
                 
-                {!isLimitLoading && isLimitReached && (
-                  <div className="flex items-center gap-1 mt-1 text-destructive">
-                    <AlertTriangle size={12} className="shrink-0" />
-                    <span className="text-[11px] font-medium leading-tight">{t('balance.dailyLimitReached')}</span>
-                  </div>
-                )}
-
-                {!isLimitLoading && dailyLimit && !isLimitReached && remainingToday !== null && (
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                    {t('balance.todayRemaining')} {remainingToday} {t('balance.of')} {dailyLimit}
+                {/* Daily limit info - always show */}
+                {dailyLimit === null && !isLimitLoading ? (
+                  <p className="text-[11px] text-primary font-medium mt-0.5 leading-tight">
+                    {language === 'kz' ? 'Сізде күніне безлимит! ♾️' : 'У вас безлимит на день! ♾️'}
+                  </p>
+                ) : dailyLimit !== null && (
+                  <p className={`text-[11px] font-medium mt-0.5 leading-tight ${isLimitReached ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {language === 'kz' 
+                      ? `Бүгін ${remainingToday ?? 0} / ${dailyLimit} қолжетімді`
+                      : `Сегодня доступно ${remainingToday ?? 0} из ${dailyLimit}`
+                    }
                   </p>
                 )}
               </div>
