@@ -154,10 +154,6 @@ export default function ShopsPage() {
                   const shopDistance = distances.get(shop.id);
                   const closestIndex = shopDistance?.closestAddressIndex ?? 0;
                   const addresses = shop.addresses || (shop.address ? [shop.address] : []);
-                  // Show only the closest address to avoid duplicate distance display
-                  const displayAddress = addresses.length > 0 
-                    ? [addresses[closestIndex] || addresses[0]]
-                    : addresses;
                   
                   return (
                     <div key={shop.id} className="block animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
@@ -177,7 +173,7 @@ export default function ShopsPage() {
                               </span>
                             </div>
                             <div onClick={(e) => e.preventDefault()}>
-                              <AddressesList addresses={displayAddress} variant="compact" className="mt-2" />
+                              <AddressesList addresses={addresses} variant="compact" className="mt-2" closestIndex={addresses.length > 1 ? closestIndex : undefined} />
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {shop.city && (
