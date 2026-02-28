@@ -27,7 +27,7 @@ interface ShopWithCoords {
   coordinates: Coordinate[];
 }
 
-const CACHE_DURATION = 30000; // 30 seconds
+const CACHE_DURATION = 120000; // 2 minutes - reduce API calls
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
   const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());

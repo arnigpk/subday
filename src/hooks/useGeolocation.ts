@@ -200,9 +200,9 @@ export function useGeolocation(options?: PositionOptions) {
       }
 
       const positionOptions: PositionOptions = {
-        enableHighAccuracy: false, // Use low accuracy to avoid extra permission prompts
-        timeout: 10000,
-        maximumAge: 300000, // Accept cached position up to 5 minutes old
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 600000, // Accept cached position up to 10 minutes old
         ...options,
       };
 
@@ -253,44 +253,7 @@ export function useGeolocation(options?: PositionOptions) {
     };
   }, [updatePosition, handleError, options]);
 
-  // Separate effect for watching position - only if already granted
-  useEffect(() => {
-    const storedPermission = getStoredPermissionState();
-    
-    // Only watch if permission was previously granted
-    if (storedPermission !== 'granted' || !navigator.geolocation) {
-      return;
-    }
-
-    // Start watching after initial position is obtained
-    const startWatching = () => {
-      if (watchIdRef.current !== null) return;
-      
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        updatePosition,
-        (error) => {
-          // Only log, don't update state for watch errors
-          console.log('Watch position error:', error.message);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 30000,
-          maximumAge: 60000,
-        }
-      );
-    };
-
-    // Delay watch to avoid immediate permission prompt
-    const timeoutId = setTimeout(startWatching, 5000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-    };
-  }, [updatePosition]);
+  // No continuous watching - use cached position to avoid battery drain and slowness
 
   return state;
 }
