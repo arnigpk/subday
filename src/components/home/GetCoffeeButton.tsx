@@ -6,26 +6,34 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export function GetCoffeeButton() {
+interface GetCoffeeButtonProps {
+  activeTab: 'coffee' | 'drinks';
+}
+
+export function GetCoffeeButton({ activeTab }: GetCoffeeButtonProps) {
   const navigate = useNavigate();
-  const { hasActiveSubscription, isLoading } = useSubscriptionStatus();
-  const { isLimitReached, isLoading: isLimitLoading } = useDailyLimit('coffee');
+  const { hasActiveSubscription, isLoading, activeSubscriptions } = useSubscriptionStatus();
+  const { isLimitReached, isLoading: isLimitLoading } = useDailyLimit(activeTab);
   const { stats } = useUserStatsContext();
   const { t } = useLanguage();
 
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
-  const isDisabled = isLoading || isLimitLoading || (isLimitReached && !hasGuestCoffee);
+  
+  // Check if user has active subscription for the current tab type
+  const hasActiveSubForType = activeSubscriptions.some(s => s.subscription_type === activeTab);
+  
+  const isDisabled = isLoading || isLimitLoading || (isLimitReached && !hasGuestCoffee) || (!hasActiveSubForType && !hasGuestCoffee);
 
   const handleClick = () => {
     if (isDisabled) return;
     
-    if (hasGuestCoffee) {
+    if (hasGuestCoffee && activeTab === 'coffee') {
       navigate('/redeem', { state: { drinkType: 'coffee', drinkName: 'Кофе', isGuestCoffee: true } });
-    } else if (!hasActiveSubscription) {
+    } else if (!hasActiveSubForType) {
       toast.info(t('home.pleaseSubscribe'));
       navigate('/packages');
     } else {
-      navigate('/redeem');
+      navigate('/redeem', { state: { drinkType: activeTab } });
     }
   };
 

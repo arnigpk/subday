@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { BalanceCard } from '@/components/home/BalanceCard';
@@ -21,6 +21,7 @@ import { useVibration } from '@/hooks/useVibration';
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
+  const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
   const navigate = useNavigate();
   const { prefetchAll } = usePrefetch();
@@ -92,8 +93,8 @@ export default function HomePage() {
           {/* Content */}
           <div className="px-4 space-y-5">
             <TopShopsCarousel />
-            <BalanceCard />
-            <GetCoffeeButton />
+            <BalanceCard activeTab={activeTab} onTabChange={setActiveTab} />
+            <GetCoffeeButton activeTab={activeTab} />
             <AdBannerCarousel location="home" />
           </div>
         </div>
