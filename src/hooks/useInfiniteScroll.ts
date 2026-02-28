@@ -14,7 +14,7 @@ export function useInfiniteScroll({
   threshold = 200,
 }: UseInfiniteScrollOptions) {
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -26,25 +26,34 @@ export function useInfiniteScroll({
     [hasMore, isLoading, onLoadMore]
   );
 
+  // Callback ref so observer re-attaches whenever the DOM node mounts
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+
+      if (!node) {
+        nodeRef.current = null;
+        return;
+      }
+
+      nodeRef.current = node;
+      observerRef.current = new IntersectionObserver(handleObserver, {
+        rootMargin: `${threshold}px`,
+      });
+      observerRef.current.observe(node);
+    },
+    [handleObserver, threshold]
+  );
+
   useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(handleObserver, {
-      rootMargin: `${threshold}px`,
-    });
-
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
     };
-  }, [handleObserver, threshold]);
+  }, []);
 
   return { loadMoreRef };
 }
