@@ -43,14 +43,22 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const smscLogin = Deno.env.get('SMSC_LOGIN')!
-    const smscPassword = Deno.env.get('SMSC_PASSWORD')!
+    const smscLogin = Deno.env.get('SMSC_LOGIN')
+    const smscPassword = Deno.env.get('SMSC_PASSWORD')
+
+    if (!smscLogin || !smscPassword) {
+      console.error('SMSC credentials not configured!')
+      return new Response(
+        JSON.stringify({ error: 'SMS сервис временно недоступен. Используйте Telegram для входа.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // FAST: Check profiles table directly (indexed by phone) + cooldown in parallel
+    // Check profiles + cooldown in parallel
     const [profileResult, cooldownResult] = await Promise.all([
       supabase.from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle(),
       supabase.from('otp_codes').select('created_at').eq('phone', formattedPhone)
@@ -91,23 +99,22 @@ Deno.serve(async (req) => {
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
-    // Delete old codes and insert new one in parallel
-    const [, insertResult] = await Promise.all([
-      supabase.from('otp_codes').delete().eq('phone', formattedPhone),
-      supabase.from('otp_codes').insert({
-        phone: formattedPhone, code, expires_at: expiresAt.toISOString(),
-      })
-    ])
+    // Delete old codes and insert new one
+    await supabase.from('otp_codes').delete().eq('phone', formattedPhone)
+    
+    const { error: insertError } = await supabase.from('otp_codes').insert({
+      phone: formattedPhone, code, expires_at: expiresAt.toISOString(),
+    })
 
-    if (insertResult.error) {
-      console.error('Error inserting OTP:', insertResult.error)
+    if (insertError) {
+      console.error('Error inserting OTP:', insertError)
       return new Response(
         JSON.stringify({ error: 'Ошибка сохранения кода' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Send SMS
+    // Send SMS via SMSC
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)
@@ -117,17 +124,39 @@ Deno.serve(async (req) => {
     smsUrl.searchParams.set('fmt', '3')
     smsUrl.searchParams.set('charset', 'utf-8')
 
-    console.log(`Sending SMS to ${formattedPhone}`)
+    console.log(`Sending SMS to ${formattedPhone}, code: ${code}`)
 
-    const smsResponse = await fetch(smsUrl.toString())
-    const smsResult = await smsResponse.json()
+    try {
+      const smsResponse = await fetch(smsUrl.toString(), {
+        signal: AbortSignal.timeout(10000), // 10 sec timeout
+      })
+      const smsText = await smsResponse.text()
+      console.log('SMSC raw response:', smsText)
+      
+      let smsResult: any
+      try {
+        smsResult = JSON.parse(smsText)
+      } catch {
+        console.error('SMSC returned non-JSON:', smsText)
+        return new Response(
+          JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
-    console.log('SMSC response:', smsResult)
+      if (smsResult.error) {
+        console.error('SMS error:', smsResult.error_code, smsResult.error)
+        return new Response(
+          JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
-    if (smsResult.error) {
-      console.error('SMS error:', smsResult.error_code, smsResult.error)
+      console.log('SMS sent successfully, id:', smsResult.id)
+    } catch (smsErr) {
+      console.error('SMS fetch error:', smsErr)
       return new Response(
-        JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}` }),
+        JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +47,6 @@ function sendLoginNotification(displayName: string, telegramUsername: string | n
   const usernameText = telegramUsername ? `@${telegramUsername}` : 'нет username';
   const message = `${action}\n\n👤 Имя: ${displayName}\n📱 Telegram: ${usernameText}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`;
 
-  // Fire-and-forget
   fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -56,47 +54,25 @@ function sendLoginNotification(displayName: string, telegramUsername: string | n
   }).catch(e => console.error('Notification failed:', e));
 }
 
-async function downloadAndUploadAvatar(
-  supabase: any, telegramAvatarUrl: string, userId: string
-): Promise<string | null> {
-  try {
-    const response = await fetch(telegramAvatarUrl);
-    if (!response.ok) return null;
-    const uint8Array = new Uint8Array(await (await response.blob()).arrayBuffer());
-    const filePath = `${userId}/avatar.jpg`;
-    const { error } = await supabase.storage.from('avatars').upload(filePath, uint8Array, {
-      contentType: 'image/jpeg', upsert: true,
-    });
-    if (error) return null;
-    return supabase.storage.from('avatars').getPublicUrl(filePath).data.publicUrl;
-  } catch { return null; }
-}
-
-async function getTelegramAvatarUrl(botToken: string, telegramId: number): Promise<string | null> {
-  try {
-    const photosResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${telegramId}&limit=1`
-    );
-    const photosData = await photosResponse.json();
-    if (!photosData.ok || !photosData.result?.photos?.length) return null;
-    const photos = photosData.result.photos[0];
-    const largestPhoto = photos[photos.length - 1];
-    const fileResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getFile?file_id=${largestPhoto.file_id}`
-    );
-    const fileData = await fileResponse.json();
-    if (!fileData.ok || !fileData.result?.file_path) return null;
-    return `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-  } catch { return null; }
-}
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { initData } = await req.json();
+    // CRITICAL: Handle aborted/truncated requests gracefully
+    let body: any;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error('Body parse error (likely aborted request):', e);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { initData } = body;
     if (!initData) {
       return new Response(JSON.stringify({ error: 'initData is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -131,7 +107,9 @@ serve(async (req) => {
     const displayName = [userData.first_name, userData.last_name].filter(Boolean).join(' ') || userData.username || `User ${telegramId}`;
     const username = userData.username || null;
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
     const email = `tg_${telegramId}@telegram.subday.app`;
     const password = `tg_${telegramId}_${botToken.slice(0, 10)}`;
 
@@ -141,7 +119,6 @@ serve(async (req) => {
     });
 
     if (signInData?.session) {
-      // RETURN IMMEDIATELY - notification is fire-and-forget
       sendLoginNotification(displayName, username, false);
       return new Response(
         JSON.stringify({ session: signInData.session }),
@@ -161,7 +138,6 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Create profile and stats in parallel (no avatar - do it in background)
       if (signUpData.user) {
         await Promise.all([
           supabase.from('profiles').insert({
@@ -176,7 +152,6 @@ serve(async (req) => {
         ]);
       }
 
-      // Sign in the new user
       const { data: newSignInData, error: newSignInError } = await supabase.auth.signInWithPassword({
         email, password,
       });
@@ -186,27 +161,10 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Return session IMMEDIATELY, do avatar + notification in background
-      const session = newSignInData.session;
       sendLoginNotification(displayName, username, true);
-      
-      // Background: upload avatar
-      if (signUpData.user) {
-        (async () => {
-          try {
-            const avatarUrl = await getTelegramAvatarUrl(botToken, telegramId);
-            if (avatarUrl) {
-              const permanentUrl = await downloadAndUploadAvatar(supabase, avatarUrl, signUpData.user!.id);
-              if (permanentUrl) {
-                await supabase.from('profiles').update({ avatar_url: permanentUrl }).eq('user_id', signUpData.user!.id);
-              }
-            }
-          } catch (e) { console.error('Background avatar error:', e); }
-        })();
-      }
 
       return new Response(
-        JSON.stringify({ session }),
+        JSON.stringify({ session: newSignInData.session }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
