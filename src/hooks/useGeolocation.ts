@@ -20,7 +20,7 @@ export interface GeolocationState {
   permissionDenied: boolean;
 }
 
-function getCachedLocation(): CachedLocation | null {
+export function getCachedLocation(): CachedLocation | null {
   try {
     const cached = localStorage.getItem(LOCATION_CACHE_KEY);
     if (!cached) return null;

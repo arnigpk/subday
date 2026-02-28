@@ -12,6 +12,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
+import { getCachedLocation } from '@/hooks/useGeolocation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,15 +60,15 @@ export default function RedeemPage() {
   // Distance-based sorting
   const shopsForDistance = useMemo(() => shops.map(s => ({ id: s.id, coordinates: s.coordinates })), [shops]);
   const { distances } = useShopDistances(shopsForDistance);
-  const [distanceSortApplied, setDistanceSortApplied] = useState(false);
+  
   
   const initialShop = location.state?.shop;
   const initialDrinkType = location.state?.drinkType || null; // null = auto-detect
   const isGuestCoffee = location.state?.isGuestCoffee || false;
   
-  // Re-sort shops by distance when distances are calculated
+  // Re-sort shops by live distance when distances update
   useEffect(() => {
-    if (distances.size === 0 || shops.length === 0 || distanceSortApplied) return;
+    if (distances.size === 0 || shops.length === 0) return;
     
     const sorted = [...shops].sort((a, b) => {
       const distA = distances.get(a.id)?.distance;
@@ -81,11 +82,11 @@ export default function RedeemPage() {
     });
     
     setShops(sorted);
+    // Update selected shop to nearest if no explicit shop was chosen
     if (!initialShop && sorted.length > 0) {
       setSelectedShop(sorted[0]);
     }
-    setDistanceSortApplied(true);
-  }, [distances, shops, distanceSortApplied, initialShop]);
+  }, [distances]);
   
   // Auto-detect drink type based on active subscriptions
   const hasCoffee = activeSubscriptions.some(sub => sub.subscription_type === 'coffee');
@@ -203,20 +204,47 @@ export default function RedeemPage() {
             isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
           };
         });
-        // Initial sort: open first, then alphabetical (will be re-sorted by distance later)
-        shopsWithStatus.sort((a, b) => {
-          if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
-          if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        setShops(shopsWithStatus);
-        // Don't auto-select here — will be handled after distance calculation
-        if (!initialShop) {
-          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
-          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+
+        // Sort by cached geolocation immediately (Haversine) for instant nearest-first
+        const cached = getCachedLocation();
+        if (cached) {
+          const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+            const R = 6371000;
+            const toRad = (x: number) => (x * Math.PI) / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          };
+          const getMinDist = (shop: ShopWithStatus) => {
+            if (!shop.coordinates.length) return Infinity;
+            return Math.min(...shop.coordinates.map(c => haversine(cached.latitude, cached.longitude, c.lat, c.lng)));
+          };
+          shopsWithStatus.sort((a, b) => {
+            const dA = getMinDist(a);
+            const dB = getMinDist(b);
+            if (dA !== Infinity && dB !== Infinity) return dA - dB;
+            if (dA !== Infinity) return -1;
+            if (dB !== Infinity) return 1;
+            if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+            if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+            return a.name.localeCompare(b.name);
+          });
         } else {
+          shopsWithStatus.sort((a, b) => {
+            if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+            if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+            return a.name.localeCompare(b.name);
+          });
+        }
+
+        setShops(shopsWithStatus);
+        if (initialShop) {
           const foundShop = shopsWithStatus.find(s => s.id === initialShop.id);
-          setSelectedShop(foundShop || shopsWithStatus.find(s => s.isCurrentlyOpen) || shopsWithStatus[0] || null);
+          setSelectedShop(foundShop || shopsWithStatus[0] || null);
+        } else {
+          // Nearest shop is already first after sorting
+          setSelectedShop(shopsWithStatus[0] || null);
         }
       } catch (error) {
         console.error('Error fetching shops:', error);
