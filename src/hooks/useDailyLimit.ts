@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DailyLimitStatus {
@@ -17,25 +17,28 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
     isLimitReached: false,
     isLoading: true,
   });
+  
+  // Cache results per type to avoid loading flash on tab switch
+  const cacheRef = useRef<Record<string, DailyLimitStatus>>({});
 
   const fetchDailyLimitStatus = useCallback(async () => {
+    // Use cached value instantly if available (no loading flash)
+    const cached = cacheRef.current[subscriptionType];
+    if (cached) {
+      setStatus(cached);
+    }
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setStatus(prev => ({ ...prev, isLoading: false }));
+        const result = { ...status, isLoading: false };
+        setStatus(result);
         return;
       }
 
-      // Get active subscriptions with daily_limit info
       const { data: subscriptions, error: subError } = await supabase
         .from('user_subscriptions')
-        .select(`
-          id,
-          subscription_types (
-            daily_limit,
-            type
-          )
-        `)
+        .select(`id, subscription_types (daily_limit, type)`)
         .eq('user_id', user.id)
         .eq('is_active', true);
 
@@ -45,7 +48,6 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
         return;
       }
 
-      // Find subscription matching the requested type
       const subscription = (subscriptions || []).find(sub => {
         const st = sub.subscription_types as { daily_limit: number | null; type: string } | null;
         return st?.type === subscriptionType;
@@ -54,31 +56,21 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       const subTypes = subscription?.subscription_types as { daily_limit: number | null; type: string } | null;
 
       if (!subscription || !subTypes) {
-        setStatus({
-          dailyLimit: null,
-          usedToday: 0,
-          remainingToday: null,
-          isLimitReached: false,
-          isLoading: false,
-        });
+        const result: DailyLimitStatus = { dailyLimit: null, usedToday: 0, remainingToday: null, isLimitReached: false, isLoading: false };
+        cacheRef.current[subscriptionType] = result;
+        setStatus(result);
         return;
       }
 
       const dailyLimit = subTypes.daily_limit;
 
-      // Unlimited
       if (dailyLimit === null) {
-        setStatus({
-          dailyLimit: null,
-          usedToday: 0,
-          remainingToday: null,
-          isLimitReached: false,
-          isLoading: false,
-        });
+        const result: DailyLimitStatus = { dailyLimit: null, usedToday: 0, remainingToday: null, isLimitReached: false, isLoading: false };
+        cacheRef.current[subscriptionType] = result;
+        setStatus(result);
         return;
       }
 
-      // Count today's redemptions
       const today = new Date().toISOString().split('T')[0];
       const { count, error: countError } = await supabase
         .from('redemptions')
@@ -98,13 +90,9 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       const remainingToday = Math.max(0, dailyLimit - usedToday);
       const isLimitReached = remainingToday <= 0;
 
-      setStatus({
-        dailyLimit,
-        usedToday,
-        remainingToday,
-        isLimitReached,
-        isLoading: false,
-      });
+      const result: DailyLimitStatus = { dailyLimit, usedToday, remainingToday, isLimitReached, isLoading: false };
+      cacheRef.current[subscriptionType] = result;
+      setStatus(result);
     } catch (error) {
       console.error('Error in useDailyLimit:', error);
       setStatus(prev => ({ ...prev, isLoading: false }));
@@ -112,6 +100,13 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
   }, [subscriptionType]);
 
   useEffect(() => {
+    // If cached, set immediately without loading
+    const cached = cacheRef.current[subscriptionType];
+    if (cached) {
+      setStatus(cached);
+    } else {
+      setStatus(prev => ({ ...prev, isLoading: true }));
+    }
     fetchDailyLimitStatus();
   }, [fetchDailyLimitStatus]);
 
