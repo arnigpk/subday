@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useGeolocation } from './useGeolocation';
+import { useGeolocation, getCachedLocation } from './useGeolocation';
 
 export interface ShopDistance {
   distance: number | null;
@@ -40,7 +40,27 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 const API_CACHE_DURATION = 120000; // 2 min - for Mapbox API calls only
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
-  const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());
+  const [distances, setDistances] = useState<Map<string, ShopDistance>>(() => {
+    // Initialize with cached location for instant distances
+    const cached = getCachedLocation();
+    if (!cached || shops.length === 0) return new Map();
+    const initial = new Map<string, ShopDistance>();
+    shops.forEach(shop => {
+      if (!shop.coordinates?.length) return;
+      let minDist = Infinity;
+      let closestIdx = 0;
+      shop.coordinates.forEach((coord, idx) => {
+        if (coord?.lat && coord?.lng) {
+          const dist = haversineDistance(cached.latitude, cached.longitude, coord.lat, coord.lng);
+          if (dist < minDist) { minDist = dist; closestIdx = idx; }
+        }
+      });
+      if (minDist < Infinity) {
+        initial.set(shop.id, { distance: Math.round(minDist), duration: null, closestAddressIndex: closestIdx });
+      }
+    });
+    return initial;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,12 +157,19 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
         });
       }
 
-      const newDistances = new Map<string, ShopDistance>();
-      shopDistances.forEach((value, shopId) => {
-        newDistances.set(shopId, { distance: value.distance, duration: value.duration, closestAddressIndex: value.addressIndex });
+      // Only update duration from API, keep Haversine distance for consistency (no flickering)
+      setDistances(prev => {
+        const updated = new Map(prev);
+        shopDistances.forEach((value, shopId) => {
+          const existing = updated.get(shopId);
+          updated.set(shopId, {
+            distance: existing?.distance ?? Math.round(value.distance),
+            duration: value.duration,
+            closestAddressIndex: existing?.closestAddressIndex ?? value.addressIndex,
+          });
+        });
+        return updated;
       });
-
-      setDistances(newDistances);
       lastApiPosition.current = { lat: userLat, lng: userLng };
       lastApiTime.current = now;
     } catch (err) {
