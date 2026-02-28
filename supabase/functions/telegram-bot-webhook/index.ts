@@ -1,12 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface TelegramUpdate {
+  update_id: number;
   message?: {
     chat: { id: number };
     from: {
@@ -19,58 +19,18 @@ interface TelegramUpdate {
   };
 }
 
+// In-memory dedup to prevent processing same update_id twice
+const processedUpdates = new Set<number>();
+
 async function sendTelegramMessage(botToken: string, chatId: number, text: string, parseMode = 'HTML') {
-  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-  await fetch(url, {
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: parseMode,
-    }),
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: parseMode }),
   });
 }
 
-async function getTelegramAvatarUrl(botToken: string, userId: number): Promise<string | null> {
-  try {
-    // Get user profile photos
-    const photosResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${userId}&limit=1`
-    );
-    const photosData = await photosResponse.json();
-    
-    if (!photosData.ok || !photosData.result?.photos?.length) {
-      console.log('No profile photos found for user:', userId);
-      return null;
-    }
-
-    // Get the largest photo (last in array)
-    const photos = photosData.result.photos[0];
-    const largestPhoto = photos[photos.length - 1];
-    
-    // Get file path
-    const fileResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getFile?file_id=${largestPhoto.file_id}`
-    );
-    const fileData = await fileResponse.json();
-    
-    if (!fileData.ok || !fileData.result?.file_path) {
-      console.log('Could not get file path');
-      return null;
-    }
-
-    // Return the full URL to the file
-    const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-    console.log('Got avatar URL for user:', userId);
-    return fileUrl;
-  } catch (error) {
-    console.error('Error getting avatar:', error);
-    return null;
-  }
-}
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -83,7 +43,23 @@ serve(async (req) => {
 
   try {
     const update: TelegramUpdate = await req.json();
-    console.log('Received update:', JSON.stringify(update));
+    
+    // CRITICAL: Deduplicate - Telegram may retry the same update
+    if (processedUpdates.has(update.update_id)) {
+      console.log('Skipping duplicate update_id:', update.update_id);
+      return new Response('OK', { status: 200 });
+    }
+    processedUpdates.add(update.update_id);
+    
+    // Keep set small - remove old entries after 100
+    if (processedUpdates.size > 100) {
+      const arr = Array.from(processedUpdates);
+      for (let i = 0; i < arr.length - 50; i++) {
+        processedUpdates.delete(arr[i]);
+      }
+    }
+
+    console.log('Processing update_id:', update.update_id);
 
     if (!update.message?.text) {
       return new Response('OK', { status: 200 });
@@ -93,26 +69,23 @@ serve(async (req) => {
     const user = update.message.from;
     const text = update.message.text.trim();
 
-    // Handle /start and /login commands
     if (text === '/start' || text.startsWith('/start ') || text === '/login') {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-      // Get user's Telegram avatar
-      const avatarUrl = await getTelegramAvatarUrl(botToken, user.id);
+      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
 
       // Generate 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-      // Delete any existing codes for this telegram_id
+      // Delete old codes, then insert new one
       await supabase
         .from('telegram_auth_codes')
         .delete()
         .eq('telegram_id', user.id.toString());
 
-      // Insert new code with avatar URL
       const { error: insertError } = await supabase
         .from('telegram_auth_codes')
         .insert({
@@ -121,7 +94,7 @@ serve(async (req) => {
           first_name: user.first_name || null,
           last_name: user.last_name || null,
           username: user.username || null,
-          photo_url: avatarUrl,
+          photo_url: null, // Skip avatar fetch to speed up response
           expires_at: expiresAt.toISOString(),
         });
 
@@ -131,7 +104,7 @@ serve(async (req) => {
         return new Response('OK', { status: 200 });
       }
 
-      console.log(`Generated code ${code} for user ${user.id}, avatar: ${avatarUrl ? 'yes' : 'no'}`);
+      console.log(`Generated code ${code} for user ${user.id}`);
 
       await sendTelegramMessage(
         botToken,
@@ -141,17 +114,43 @@ serve(async (req) => {
         `Введите этот код на сайте.\n` +
         `⏱ Код действителен 5 минут.`
       );
+
+      // Background: fetch and store avatar
+      (async () => {
+        try {
+          const photosResponse = await fetch(
+            `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${user.id}&limit=1`
+          );
+          const photosData = await photosResponse.json();
+          if (photosData.ok && photosData.result?.photos?.length) {
+            const photos = photosData.result.photos[0];
+            const largestPhoto = photos[photos.length - 1];
+            const fileResponse = await fetch(
+              `https://api.telegram.org/bot${botToken}/getFile?file_id=${largestPhoto.file_id}`
+            );
+            const fileData = await fileResponse.json();
+            if (fileData.ok && fileData.result?.file_path) {
+              const avatarUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
+              await supabase
+                .from('telegram_auth_codes')
+                .update({ photo_url: avatarUrl })
+                .eq('telegram_id', user.id.toString())
+                .eq('code', code);
+            }
+          }
+        } catch (e) {
+          console.error('Background avatar error:', e);
+        }
+      })();
     } else {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `👋 Привет! Это бот <b>subday</b>.\n\n` +
-        `Для входа в приложение нажмите /login`
+        `👋 Привет! Это бот <b>subday</b>.\n\nДля входа в приложение нажмите /login`
       );
     }
 
     return new Response('OK', { status: 200 });
-
   } catch (error) {
     console.error('Webhook error:', error);
     return new Response('OK', { status: 200 });
