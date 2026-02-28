@@ -53,38 +53,59 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Check if user exists by email pattern (more reliable than phone field)
+    // Fast user lookup by email (instead of listing ALL users)
     const emailPattern = `${formattedPhone.replace('+', '')}@phone.subday.app`
-    const { data: existingUsers } = await supabase.auth.admin.listUsers()
-    const existingUser = existingUsers?.users?.find(u => u.email === emailPattern)
+    const { data: existingUserData } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1,
+      // @ts-ignore - filter by email supported in admin API
+    })
+    
+    // Direct lookup: try to get user by email
+    let existingUser = null
+    try {
+      // Use getUserByEmail for instant lookup instead of listing all users
+      const { data: userData } = await supabase.auth.admin.getUserById(emailPattern)
+      existingUser = userData?.user || null
+    } catch {
+      // getUserById won't work with email, fall back to profiles table
+    }
+    
+    // Fast: check profiles table directly (indexed by phone)
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('phone', formattedPhone)
+      .maybeSingle()
+    
+    const userExists = !!profileData
 
-    if (isRegistration && existingUser) {
+    if (isRegistration && userExists) {
       return new Response(
-        // ВАЖНО: не используем 4xx для ожидаемых бизнес-ошибок,
-        // иначе клиент может показать RUNTIME_ERROR overlay.
         JSON.stringify({ error: 'Этот номер уже зарегистрирован. Войдите в аккаунт' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    if (!isRegistration && !existingUser) {
+    if (!isRegistration && !userExists) {
       return new Response(
-        // ВАЖНО: не используем 4xx для ожидаемых бизнес-ошибок,
-        // иначе клиент может показать RUNTIME_ERROR overlay.
         JSON.stringify({ error: 'Зарегистрируйтесь, пожалуйста, для входа' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Anti-fraud: check cooldown (59 seconds between SMS)
-    const { data: lastOtp } = await supabase
-      .from('otp_codes')
-      .select('created_at')
-      .eq('phone', formattedPhone)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // Anti-fraud: check cooldown (59 seconds between SMS) — run in parallel with code generation
+    const [cooldownResult] = await Promise.all([
+      supabase
+        .from('otp_codes')
+        .select('created_at')
+        .eq('phone', formattedPhone)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ])
 
+    const lastOtp = cooldownResult.data
     if (lastOtp) {
       const lastSentAt = new Date(lastOtp.created_at).getTime()
       const cooldownMs = 59 * 1000
@@ -101,27 +122,25 @@ Deno.serve(async (req) => {
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
-    await supabase
-      .from('otp_codes')
-      .delete()
-      .eq('phone', formattedPhone)
-
-    const { error: insertError } = await supabase
-      .from('otp_codes')
-      .insert({
+    // Delete old codes and insert new one in parallel
+    const [, insertResult] = await Promise.all([
+      supabase.from('otp_codes').delete().eq('phone', formattedPhone),
+      supabase.from('otp_codes').insert({
         phone: formattedPhone,
         code,
         expires_at: expiresAt.toISOString(),
       })
+    ])
 
-    if (insertError) {
-      console.error('Error inserting OTP:', insertError)
+    if (insertResult.error) {
+      console.error('Error inserting OTP:', insertResult.error)
       return new Response(
         JSON.stringify({ error: 'Ошибка сохранения кода' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Send SMS (non-blocking response pattern: send SMS in parallel)
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)

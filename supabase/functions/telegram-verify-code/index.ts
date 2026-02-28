@@ -142,33 +142,25 @@ serve(async (req) => {
     if (signInData?.session) {
       console.log('User signed in via Telegram code:', telegramId);
       
-      // Send login notification
-      await sendLoginNotification(displayName, authCode.username, false);
+      // Return session IMMEDIATELY, do cleanup in background
+      const session = signInData.session;
       
-      // Update avatar if available and user exists
-      if (authCode.photo_url) {
-        const permanentAvatarUrl = await downloadAndUploadAvatar(
-          supabase,
-          authCode.photo_url,
-          signInData.session.user.id
-        );
-        
-        if (permanentAvatarUrl) {
-          await supabase
-            .from('profiles')
-            .update({ avatar_url: permanentAvatarUrl })
-            .eq('user_id', signInData.session.user.id);
-        }
-      }
-      
-      // Clean up old codes
-      await supabase
-        .from('telegram_auth_codes')
-        .delete()
-        .eq('telegram_id', telegramId);
+      // Fire-and-forget: notification, avatar, cleanup
+      const bgWork = async () => {
+        try {
+          await sendLoginNotification(displayName, authCode.username, false);
+          if (authCode.photo_url) {
+            const url = await downloadAndUploadAvatar(supabase, authCode.photo_url, session.user.id);
+            if (url) await supabase.from('profiles').update({ avatar_url: url }).eq('user_id', session.user.id);
+          }
+          await supabase.from('telegram_auth_codes').delete().eq('telegram_id', telegramId);
+        } catch (e) { console.error('Background work error:', e); }
+      };
+      // Don't await — let it run in background
+      bgWork();
         
       return new Response(
-        JSON.stringify({ session: signInData.session }),
+        JSON.stringify({ session }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
