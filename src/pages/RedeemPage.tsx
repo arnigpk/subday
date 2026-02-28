@@ -74,20 +74,23 @@ export default function RedeemPage() {
     if (distKey === lastDistanceKey) return;
     
     const sorted = [...shops].sort((a, b) => {
+      // Open shops first
+      if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+      if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+      // Then by distance
       const distA = distances.get(a.id)?.distance;
       const distB = distances.get(b.id)?.distance;
       if (distA != null && distB != null) return distA - distB;
       if (distA != null) return -1;
       if (distB != null) return 1;
-      if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
-      if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
       return a.name.localeCompare(b.name);
     });
     
     setShops(sorted);
-    // Auto-select nearest shop only on first sort
-    if (!lastDistanceKey && !initialShop && sorted.length > 0) {
-      setSelectedShop(sorted[0]);
+    // Auto-select nearest open shop on first distance calc
+    if (!lastDistanceKey && sorted.length > 0) {
+      const nearestOpen = sorted.find(s => s.isCurrentlyOpen);
+      setSelectedShop(nearestOpen || sorted[0]);
     }
     setLastDistanceKey(distKey);
   }, [distances, shops.length, lastDistanceKey, initialShop]);
@@ -215,14 +218,9 @@ export default function RedeemPage() {
           return a.name.localeCompare(b.name);
         });
         setShops(shopsWithStatus);
-        // Don't auto-select here — will be handled after distance calculation
-        if (!initialShop) {
-          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
-          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
-        } else {
-          const foundShop = shopsWithStatus.find(s => s.id === initialShop.id);
-          setSelectedShop(foundShop || shopsWithStatus.find(s => s.isCurrentlyOpen) || shopsWithStatus[0] || null);
-        }
+        // Set temporary selection; will be overridden by distance-based sort
+        const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+        setSelectedShop(firstOpen || shopsWithStatus[0] || null);
       } catch (error) {
         console.error('Error fetching shops:', error);
         toast.error(t('redeem.loadError'));
