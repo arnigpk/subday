@@ -57,9 +57,12 @@ export function TopShopsCarousel() {
   );
   const { distances, userLocation } = useShopDistances(shopCoordinates);
   const sortedShops = useMemo(() => {
+    // Filter out closed shops, only show open ones in nearby section
+    const openShops = shops.filter(s => s.working_hours ? isShopOpen(s.working_hours) : false);
+    const shopsToSort = openShops.length > 0 ? openShops : shops;
     const sorted = userLocation && distances.size > 0
-      ? sortByDistance(shops, distances)
-      : shops;
+      ? sortByDistance(shopsToSort, distances)
+      : shopsToSort;
     return sorted.slice(0, 4);
   }, [shops, distances, userLocation]);
 

@@ -104,6 +104,11 @@ export default function ShopsPage() {
       return true;
     });
     if (userLocation && distances.size > 0) filtered = sortByDistance(filtered, distances);
+    // Sort closed shops to the bottom
+    filtered.sort((a, b) => {
+      if (a.isCurrentlyOpen === b.isCurrentlyOpen) return 0;
+      return a.isCurrentlyOpen ? -1 : 1;
+    });
     return filtered;
   }, [shopsWithStatus, activeFilter, distances, userLocation]);
   
@@ -149,8 +154,9 @@ export default function ShopsPage() {
                   const shopDistance = distances.get(shop.id);
                   const closestIndex = shopDistance?.closestAddressIndex ?? 0;
                   const addresses = shop.addresses || (shop.address ? [shop.address] : []);
-                  const reorderedAddresses = addresses.length > 1 && closestIndex > 0
-                    ? [addresses[closestIndex], ...addresses.filter((_, i) => i !== closestIndex)]
+                  // Show only the closest address to avoid duplicate distance display
+                  const displayAddress = addresses.length > 0 
+                    ? [addresses[closestIndex] || addresses[0]]
                     : addresses;
                   
                   return (
@@ -171,7 +177,7 @@ export default function ShopsPage() {
                               </span>
                             </div>
                             <div onClick={(e) => e.preventDefault()}>
-                              <AddressesList addresses={reorderedAddresses} variant="compact" className="mt-2" />
+                              <AddressesList addresses={displayAddress} variant="compact" className="mt-2" />
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {shop.city && (
