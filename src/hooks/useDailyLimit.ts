@@ -26,22 +26,19 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
         return;
       }
 
-      // Get active subscription with daily_limit info, filtered by type
-      const { data: subscriptions, error: subError } = await supabase
+      // Get active subscription with daily_limit info
+      const { data: subscription, error: subError } = await supabase
         .from('user_subscriptions')
         .select(`
           id,
-          subscription_types!inner (
+          subscription_types (
             daily_limit,
             type
           )
         `)
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .eq('subscription_types.type', subscriptionType)
-        .limit(1);
-
-      const subscription = subscriptions?.[0] ?? null;
+        .maybeSingle();
 
       if (subError) {
         console.error('Error fetching subscription:', subError);
