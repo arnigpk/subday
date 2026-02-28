@@ -27,7 +27,7 @@ interface ShopWithCoords {
   coordinates: Coordinate[];
 }
 
-const CACHE_DURATION = 120000; // 2 minutes - reduce API calls
+const CACHE_DURATION = 30000; // 30 seconds for responsive distance updates
 
 export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResult {
   const [distances, setDistances] = useState<Map<string, ShopDistance>>(new Map());
@@ -61,8 +61,8 @@ export function useShopDistances(shops: ShopWithCoords[]): UseShopDistancesResul
     if (lastCalcPosition.current && now - lastCalcTime.current < CACHE_DURATION) {
       const dLat = Math.abs(lastCalcPosition.current.lat - userLat);
       const dLng = Math.abs(lastCalcPosition.current.lng - userLng);
-      // ~50m threshold in degrees
-      if (dLat < 0.00045 && dLng < 0.00045) {
+      // ~20m threshold in degrees for responsive updates
+      if (dLat < 0.00018 && dLng < 0.00018) {
         return;
       }
     }

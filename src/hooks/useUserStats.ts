@@ -56,66 +56,34 @@ export function useUserStats() {
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    
+    if (!user) { setIsLoading(false); return; }
     setUserId(user.id);
 
-    // Check for expired subscriptions on app load (runs the DB function)
-    try {
-      await supabase.rpc('expire_subscriptions');
-    } catch (error) {
-      console.log('Subscription expiration check completed or skipped');
-    }
+    // Fetch profile, stats, and redemptions in parallel for speed
+    const [profileResult, statsResult, redemptionsResult] = await Promise.all([
+      supabase.from('profiles').select('name, phone, city, avatar_url, subflow_nickname, public_id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('user_stats').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase.from('redemptions').select('*').eq('user_id', user.id).order('redeemed_at', { ascending: false }).limit(50),
+    ]);
 
-    // Fetch profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('name, phone, city, avatar_url, subflow_nickname, public_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (profileData) {
+    if (profileResult.data) {
       setProfile({
-        name: profileData.name,
-        phone: profileData.phone,
-        city: profileData.city,
-        avatarUrl: profileData.avatar_url,
-        subflowNickname: profileData.subflow_nickname,
-        publicId: (profileData as any).public_id || null,
+        name: profileResult.data.name,
+        phone: profileResult.data.phone,
+        city: profileResult.data.city,
+        avatarUrl: profileResult.data.avatar_url,
+        subflowNickname: profileResult.data.subflow_nickname,
+        publicId: (profileResult.data as any).public_id || null,
       });
     }
 
-    // Fetch or create stats
-    let { data: statsData } = await supabase
-      .from('user_stats')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    let statsData = statsResult.data;
     if (!statsData) {
-      // Create default stats for new user (no balance until subscription is purchased)
       const { data: newStats, error } = await supabase
         .from('user_stats')
-        .insert({
-          user_id: user.id,
-          coffee_remaining: 0,
-          coffee_total: 0,
-          drinks_remaining: 0,
-          drinks_total: 0,
-          current_streak: 0,
-          max_streak: 0,
-          total_cups: 0,
-          bonus_points: 0,
-        })
-        .select()
-        .single();
-
-      if (!error && newStats) {
-        statsData = newStats;
-      }
+        .insert({ user_id: user.id, coffee_remaining: 0, coffee_total: 0, drinks_remaining: 0, drinks_total: 0, current_streak: 0, max_streak: 0, total_cups: 0, bonus_points: 0 })
+        .select().single();
+      if (!error && newStats) statsData = newStats;
     }
 
     if (statsData) {
@@ -134,22 +102,11 @@ export function useUserStats() {
       });
     }
 
-    // Fetch redemptions
-    const { data: redemptionsData } = await supabase
-      .from('redemptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('redeemed_at', { ascending: false })
-      .limit(50);
-
-    if (redemptionsData) {
+    if (redemptionsResult.data) {
       setRedemptions(
-        redemptionsData.map((r) => ({
-          id: r.id,
-          shopName: r.shop_name,
-          shopId: r.shop_id,
-          drinkName: r.drink_name,
-          drinkType: r.drink_type as 'coffee' | 'drinks',
+        redemptionsResult.data.map((r) => ({
+          id: r.id, shopName: r.shop_name, shopId: r.shop_id,
+          drinkName: r.drink_name, drinkType: r.drink_type as 'coffee' | 'drinks',
           redeemedAt: r.redeemed_at,
         }))
       );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ActiveSubscription {
@@ -22,49 +22,47 @@ interface SubscriptionStatus {
   isLoading: boolean;
 }
 
+// Module-level cache for instant access across components
+let cachedStatus: SubscriptionStatus | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 60000; // 1 minute
+
 export function useSubscriptionStatus() {
-  const [status, setStatus] = useState<SubscriptionStatus>({
-    hasActiveSubscription: false,
-    activeSubscriptions: [],
-    daysRemaining: null,
-    isExpiringSoon: false,
-    isLoading: true,
+  const [status, setStatus] = useState<SubscriptionStatus>(() => {
+    // Return cached data instantly if available
+    if (cachedStatus && Date.now() - cacheTimestamp < CACHE_TTL) {
+      return cachedStatus;
+    }
+    return {
+      hasActiveSubscription: false,
+      activeSubscriptions: [],
+      daysRemaining: null,
+      isExpiringSoon: false,
+      isLoading: true,
+    };
   });
+  
+  const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    fetchSubscriptionStatus();
-  }, []);
-
-  const fetchSubscriptionStatus = async () => {
+  const fetchSubscriptionStatus = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setStatus(prev => ({ ...prev, isLoading: false }));
+        const result = { ...status, isLoading: false };
+        setStatus(result);
         return;
       }
 
-      // Fetch active subscriptions with type info
       const { data: subscriptions, error } = await supabase
         .from('user_subscriptions')
         .select(`
-          id,
-          subscription_type_id,
-          started_at,
-          expires_at,
-          is_active,
-          subscription_types (
-            name,
-            type,
-            cups_count,
-            duration_days,
-            features
-          )
+          id, subscription_type_id, started_at, expires_at, is_active,
+          subscription_types (name, type, cups_count, duration_days, features)
         `)
         .eq('user_id', user.id)
         .eq('is_active', true);
 
       if (error) {
-        console.error('Error fetching subscription status:', error);
         setStatus(prev => ({ ...prev, isLoading: false }));
         return;
       }
@@ -75,14 +73,13 @@ export function useSubscriptionStatus() {
         started_at: sub.started_at,
         expires_at: sub.expires_at,
         is_active: sub.is_active,
-        subscription_name: (sub.subscription_types as { name: string } | null)?.name,
-        subscription_type: (sub.subscription_types as { type: string } | null)?.type,
-        cups_count: (sub.subscription_types as { cups_count: number } | null)?.cups_count,
-        duration_days: (sub.subscription_types as { duration_days: number } | null)?.duration_days,
-        features: (sub.subscription_types as { features: string[] } | null)?.features,
+        subscription_name: (sub.subscription_types as any)?.name,
+        subscription_type: (sub.subscription_types as any)?.type,
+        cups_count: (sub.subscription_types as any)?.cups_count,
+        duration_days: (sub.subscription_types as any)?.duration_days,
+        features: (sub.subscription_types as any)?.features,
       }));
 
-      // Calculate days remaining for the soonest expiring subscription
       let daysRemaining: number | null = null;
       let isExpiringSoon = false;
 
@@ -92,26 +89,41 @@ export function useSubscriptionStatus() {
           .sort((a, b) => new Date(a.expires_at!).getTime() - new Date(b.expires_at!).getTime())[0];
 
         if (soonestExpiry?.expires_at) {
-          const expiryDate = new Date(soonestExpiry.expires_at);
-          const now = new Date();
-          const diffTime = expiryDate.getTime() - now.getTime();
+          const diffTime = new Date(soonestExpiry.expires_at).getTime() - Date.now();
           daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           isExpiringSoon = daysRemaining <= 7 && daysRemaining > 0;
         }
       }
 
-      setStatus({
+      const newStatus: SubscriptionStatus = {
         hasActiveSubscription: activeSubscriptions.length > 0,
         activeSubscriptions,
         daysRemaining,
         isExpiringSoon,
         isLoading: false,
-      });
+      };
+
+      // Update module-level cache
+      cachedStatus = newStatus;
+      cacheTimestamp = Date.now();
+      
+      setStatus(newStatus);
     } catch (error) {
       console.error('Error in useSubscriptionStatus:', error);
       setStatus(prev => ({ ...prev, isLoading: false }));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Skip fetch if we have fresh cache
+    if (cachedStatus && Date.now() - cacheTimestamp < CACHE_TTL && !fetchedRef.current) {
+      fetchedRef.current = true;
+      // Still refresh in background
+      fetchSubscriptionStatus();
+      return;
+    }
+    fetchSubscriptionStatus();
+  }, [fetchSubscriptionStatus]);
 
   return {
     ...status,
