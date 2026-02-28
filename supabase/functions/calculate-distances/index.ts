@@ -13,8 +13,8 @@ interface ShopCoord {
 
 interface DistanceResult {
   shop_id: string;
-  distance: number | null; // meters
-  duration: number | null; // seconds
+  distance: number | null;
+  duration: number | null;
 }
 
 serve(async (req) => {
@@ -22,23 +22,29 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let body: { user_lat: number; user_lng: number; shops: ShopCoord[] };
+
+  try {
+    body = await req.json();
+  } catch (e) {
+    // Request body was aborted/truncated — return empty gracefully
+    console.log('Request body read failed (likely aborted):', e.message);
+    return new Response(
+      JSON.stringify({ distances: [], source: 'aborted' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const MAPBOX_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
     if (!MAPBOX_TOKEN) {
-      console.error('MAPBOX_ACCESS_TOKEN not configured');
       return new Response(
         JSON.stringify({ error: 'Mapbox API token not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { user_lat, user_lng, shops } = await req.json() as {
-      user_lat: number;
-      user_lng: number;
-      shops: ShopCoord[];
-    };
-
-    console.log(`Calculating distances from user (${user_lat}, ${user_lng}) to ${shops.length} shops`);
+    const { user_lat, user_lng, shops } = body;
 
     if (!user_lat || !user_lng || !shops || shops.length === 0) {
       return new Response(
@@ -48,7 +54,6 @@ serve(async (req) => {
     }
 
     const validShops = shops.filter(s => s.lat && s.lng);
-    
     if (validShops.length === 0) {
       return new Response(
         JSON.stringify({ distances: [] }),
@@ -56,12 +61,8 @@ serve(async (req) => {
       );
     }
 
-    // Always use Mapbox Matrix API for consistency
-    // Matrix API requires minimum 2 destinations, so duplicate if single shop
     const needsDummy = validShops.length === 1;
-    const shopCoords = needsDummy
-      ? [...validShops, validShops[0]] // duplicate to satisfy min 2 elements
-      : validShops;
+    const shopCoords = needsDummy ? [...validShops, validShops[0]] : validShops;
 
     const coordinates = [
       `${user_lng},${user_lat}`,
@@ -69,27 +70,21 @@ serve(async (req) => {
     ].join(';');
 
     const destinations = shopCoords.map((_, i) => String(i + 1)).join(';');
-    
     const url = `https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${coordinates}?sources=0&destinations=${destinations}&annotations=distance,duration&access_token=${MAPBOX_TOKEN}`;
 
-    console.log('Calling Mapbox Matrix API...');
-    
     const response = await fetch(url);
     const data = await response.json();
 
-    console.log('Mapbox response status:', response.status, 'code:', data.code);
-
     if (!response.ok || data.code !== 'Ok') {
-      console.error('Mapbox API error:', data);
+      console.error('Mapbox API error:', data.code);
       return new Response(
-        JSON.stringify({ error: 'Mapbox API error', details: data }),
+        JSON.stringify({ error: 'Mapbox API error' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const distances: DistanceResult[] = [];
-    
-    if (data.distances && data.durations && data.distances[0] && data.durations[0]) {
+    if (data.distances?.[0] && data.durations?.[0]) {
       validShops.forEach((shop, index) => {
         distances.push({
           shop_id: shop.id,
@@ -97,14 +92,7 @@ serve(async (req) => {
           duration: data.durations[0][index] != null ? Math.round(data.durations[0][index]) : null,
         });
       });
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Unexpected Mapbox response format' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
-
-    console.log(`Calculated ${distances.length} distances via Mapbox`);
 
     return new Response(
       JSON.stringify({ distances, source: 'mapbox' }),
