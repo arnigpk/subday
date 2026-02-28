@@ -122,7 +122,7 @@ const AppContent = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPreloaderDone(true);
-    }, 1200);
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
