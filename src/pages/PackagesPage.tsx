@@ -232,7 +232,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
             )}
             {!hasOffer && sub.benefit && sub.benefit > 0 && (
               <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs font-semibold text-accent">{t('packages.benefit')} {formatBenefit(sub.benefit)} ₸</span>
+                <span className="text-xs font-semibold text-accent">{formatBenefit(sub.benefit)} ₸ {sub.type === 'coffee' ? t('packages.benefitCoffee') : t('packages.benefitDrinks')}</span>
               </div>
             )}
           </div>

@@ -194,7 +194,7 @@ export default function PackageDetailPage() {
             {!hasOffer && subscription.benefit && subscription.benefit > 0 && (
               <div className="bg-accent/10 rounded-xl p-3 mb-4">
                 <p className="text-sm text-accent font-semibold">
-                  {t('packages.benefit')} {formatBenefit(subscription.benefit)} ₸
+                  {formatBenefit(subscription.benefit)} ₸ {subscription.type === 'coffee' ? t('packages.benefitCoffee') : t('packages.benefitDrinks')}
                 </p>
               </div>
             )}

@@ -50,7 +50,8 @@ const translations: Record<string, Record<Language, string>> = {
   'packages.coffeeFor': { ru: 'кофе на', kz: 'кофе' },
   'packages.yourActive': { ru: 'Ваша активная подписка', kz: 'Сіздің белсенді жазылымыңыз' },
   'packages.subscribe': { ru: 'Оформить', kz: 'Рәсімдеу' },
-  'packages.benefit': { ru: 'Выгода', kz: 'Үнемдеу' },
+  'packages.benefitCoffee': { ru: 'за напиток', kz: 'сусынға' },
+  'packages.benefitDrinks': { ru: 'за ланч', kz: 'түскі асқа' },
 
   // Package detail
   'packageDetail.title': { ru: 'Детали подписки', kz: 'Жазылым мәліметтері' },

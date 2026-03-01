@@ -475,17 +475,17 @@ export default function AdminSubscriptionsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="benefit">Выгода (₸)</Label>
+                <Label htmlFor="benefit">За 1 единицу (₸)</Label>
                 <Input
                   id="benefit"
                   type="number"
                   min="0"
                   value={formData.benefit}
                   onChange={(e) => setFormData({ ...formData, benefit: parseInt(e.target.value) || 0 })}
-                  placeholder="Сумма выгоды"
+                  placeholder="Цена за 1 единицу"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  "Выгода X ₸" в приложении
+                  "X₸ за напиток/ланч" в приложении
                 </p>
               </div>
               <div>
