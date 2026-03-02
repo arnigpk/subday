@@ -51,6 +51,7 @@ export function TopShopsByVisits() {
   const { t } = useLanguage();
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const { data: shops = [], isLoading: shopsLoading } = useQuery({
     queryKey: queryKeys.shops,
@@ -70,14 +71,18 @@ export function TopShopsByVisits() {
 
   const topShops = useMemo(() => {
     return [...shops]
-      .filter(s => !s.country || s.country === userCountry)
+      .filter(s => {
+        if (s.country && s.country !== userCountry) return false;
+        if (userCity && s.city && s.city !== userCity) return false;
+        return true;
+      })
       .sort((a, b) => {
         const countA = visitCounts.get(a.id) || 0;
         const countB = visitCounts.get(b.id) || 0;
         return countB - countA;
       })
       .slice(0, 3);
-  }, [shops, visitCounts, userCountry]);
+  }, [shops, visitCounts, userCountry, userCity]);
 
   if (isLoading) {
     return (

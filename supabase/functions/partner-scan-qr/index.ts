@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
     // Check daily limit + get subscription info
     const { data: subscriptions } = await supabase
       .from('user_subscriptions')
-      .select(`id, subscription_types ( daily_limit, type, name )`)
+      .select(`id, expires_at, subscription_types ( daily_limit, type, name )`)
       .eq('user_id', userId).eq('is_active', true);
 
     interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
@@ -233,13 +233,29 @@ Deno.serve(async (req) => {
 
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
 
-    // Fire-and-forget: low balance notification
+    // Fire-and-forget: low balance & expiry notifications
     if (profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
       if (telegramId) {
         const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-        if (telegramBotToken && newRemaining <= 5) {
-          sendTelegramMessage(telegramId, `⚠️ У вас осталось ${newRemaining} напитков по подписке.`, telegramBotToken);
+        if (telegramBotToken) {
+          const subName = subscriptionName || (drinkType === 'coffee' ? 'Кофе' : 'Ланч');
+          
+          // Low balance notification (≤5 remaining)
+          if (newRemaining <= 5 && newRemaining > 0) {
+            const unitWord = drinkType === 'coffee' ? 'напитков' : 'ланчей';
+            sendTelegramMessage(telegramId, `⚠️ У вас осталось ${newRemaining} ${unitWord} по подписке ${subName}`, telegramBotToken);
+          }
+
+          // Expiry notification (≤5 days left)
+          if (matchingSub?.expires_at) {
+            const expiresAt = new Date(matchingSub.expires_at);
+            const now = new Date();
+            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+            if (daysLeft <= 5 && daysLeft > 0) {
+              sendTelegramMessage(telegramId, `⚠️ У вас осталось ${daysLeft} дней до окончания подписки ${subName}`, telegramBotToken);
+            }
+          }
         }
       }
     }

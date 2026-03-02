@@ -6,25 +6,19 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'low_balance';
+  type: 'activated' | 'low_balance' | 'expiring_soon';
   userId: string;
-  cupsCount: number;
-  daysCount: number;
+  cupsCount?: number;
+  daysCount?: number;
   subscriptionName?: string;
+  drinkType?: 'coffee' | 'drinks';
 }
 
-/**
- * Extracts Telegram ID from phone field
- * Format: +telegram_123456789
- */
 function extractTelegramId(phone: string): string | null {
   const match = phone.match(/^\+telegram_(\d+)$/);
   return match ? match[1] : null;
 }
 
-/**
- * Sends a message via Telegram Bot API
- */
 async function sendTelegramMessage(telegramId: string, message: string, botToken: string): Promise<boolean> {
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -53,19 +47,17 @@ async function sendTelegramMessage(telegramId: string, message: string, botToken
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const body: NotificationRequest = await req.json();
-    const { type, userId, cupsCount, daysCount, subscriptionName } = body;
+    const { type, userId, cupsCount, daysCount, subscriptionName, drinkType } = body;
 
-    console.log('Processing notification:', { type, userId, cupsCount, daysCount });
+    console.log('Processing notification:', { type, userId, cupsCount, daysCount, subscriptionName });
 
-    // Validate required fields
-    if (!type || !userId || cupsCount === undefined || daysCount === undefined) {
+    if (!type || !userId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -86,7 +78,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's phone from profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('phone, name')
@@ -101,11 +92,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if user is a Telegram user
     const telegramId = extractTelegramId(profile.phone);
     
     if (!telegramId) {
-      // Not a Telegram user, skip notification silently
       console.log('User is not a Telegram user, skipping notification:', profile.phone);
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: 'Not a Telegram user' }),
@@ -113,14 +102,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build message based on type
     let message: string;
+    const subName = subscriptionName || 'Подписка';
     
     if (type === 'activated') {
-      const subName = subscriptionName || 'Подписка';
       message = `🎉 Подписка ${subName} активирована 🚀 Наслаждайтесь😌`;
     } else if (type === 'low_balance') {
-      message = `⚠️ У вас по подписке осталось очень мало на ${daysCount} дней.`;
+      const unitWord = drinkType === 'drinks' ? 'ланчей' : 'напитков';
+      message = `⚠️ У вас осталось ${cupsCount || 5} ${unitWord} по подписке ${subName}`;
+    } else if (type === 'expiring_soon') {
+      message = `⚠️ У вас осталось ${daysCount || 5} дней до окончания подписки ${subName}`;
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid notification type' }),
@@ -128,7 +119,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Send notification
     const sent = await sendTelegramMessage(telegramId, message, telegramBotToken);
 
     return new Response(

@@ -70,6 +70,7 @@ export default function ShopsPage() {
   const { t } = useLanguage();
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const filters = [
     { id: 'all', label: t('shops.all') },
@@ -94,13 +95,17 @@ export default function ShopsPage() {
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
   const shopsWithStatus = useMemo(() => shops
-    .filter(shop => !shop.country || shop.country === userCountry)
+    .filter(shop => {
+      if (shop.country && shop.country !== userCountry) return false;
+      if (userCity && shop.city && shop.city !== userCity) return false;
+      return true;
+    })
     .map(shop => ({
       ...shop,
       isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
       allBadges: getShopBadges(shop),
       isSpecialty: hasSpecialtyBadge(shop),
-    })), [shops, userCountry]);
+    })), [shops, userCountry, userCity]);
   
   const filteredAndSortedShops = useMemo(() => {
     let filtered = shopsWithStatus.filter(shop => {

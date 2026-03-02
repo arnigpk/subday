@@ -19,6 +19,7 @@ interface AdBanner {
   autoplay_delay: number;
   display_location: string;
   country: string | null;
+  city: string | null;
 }
 
 // Preload images for instant display
@@ -42,6 +43,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const preloadedRef = useRef(false);
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
@@ -56,9 +58,9 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
       
       const filtered = (data as AdBanner[]).filter(banner => {
         const locationMatch = banner.display_location === location || banner.display_location === 'both';
-        // Filter by country: show if no country set (global) or matches user's country
         const countryMatch = !banner.country || banner.country === userCountry;
-        return locationMatch && countryMatch;
+        const cityMatch = !banner.city || !userCity || banner.city === userCity;
+        return locationMatch && countryMatch && cityMatch;
       });
       
       return filtered;
