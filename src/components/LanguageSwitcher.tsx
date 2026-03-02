@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, Language } from '@/contexts/LanguageContext';
+
+const options: { value: Language; label: string; code: string }[] = [
+  { value: 'ru', label: 'Русский', code: 'RU' },
+  { value: 'kz', label: 'Қазақша', code: 'KZ' },
+  { value: 'en', label: 'English', code: 'EN' },
+  { value: 'uz', label: 'O\'zbek', code: 'UZ' },
+  { value: 'kg', label: 'Кыргызча', code: 'KG' },
+];
 
 export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
@@ -16,11 +24,6 @@ export function LanguageSwitcher() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const options = [
-    { value: 'ru' as const, label: 'Русский', code: 'RU' },
-    { value: 'kz' as const, label: 'Қазақша', code: 'KZ' },
-  ];
 
   const current = options.find(o => o.value === language)!;
 

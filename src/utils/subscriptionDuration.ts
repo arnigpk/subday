@@ -11,11 +11,23 @@ export function getSubscriptionDurationDays(cupsCount: number): number {
  * Formats duration for display
  */
 export function formatDurationLabel(days: number, lang: string = 'ru'): string {
-  if (lang === 'kz') {
+  if (lang === 'kz' || lang === 'kg') {
     if (days >= 365) return '1 жыл';
     if (days >= 180) return '6 ай';
     if (days >= 30) return '1 ай';
     return `${days} күн`;
+  }
+  if (lang === 'en') {
+    if (days >= 365) return '1 year';
+    if (days >= 180) return '6 months';
+    if (days >= 30) return '1 month';
+    return `${days} days`;
+  }
+  if (lang === 'uz') {
+    if (days >= 365) return '1 yil';
+    if (days >= 180) return '6 oy';
+    if (days >= 30) return '1 oy';
+    return `${days} kun`;
   }
   if (days >= 365) return '1 год';
   if (days >= 180) return '6 месяцев';
@@ -27,11 +39,23 @@ export function formatDurationLabel(days: number, lang: string = 'ru'): string {
  * Returns period text for UI display
  */
 export function getPeriodText(days: number, lang: string = 'ru'): string {
-  if (lang === 'kz') {
+  if (lang === 'kz' || lang === 'kg') {
     if (days >= 365) return 'жыл';
     if (days >= 180) return '6 ай';
     if (days >= 30) return 'ай';
     return `${days} күн`;
+  }
+  if (lang === 'en') {
+    if (days >= 365) return 'year';
+    if (days >= 180) return '6 months';
+    if (days >= 30) return 'month';
+    return `${days} days`;
+  }
+  if (lang === 'uz') {
+    if (days >= 365) return 'yil';
+    if (days >= 180) return '6 oy';
+    if (days >= 30) return 'oy';
+    return `${days} kun`;
   }
   if (days >= 365) return 'год';
   if (days >= 180) return '6 месяцев';

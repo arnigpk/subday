@@ -226,8 +226,12 @@ export default function PackageDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {language === 'kz' 
+                    {(language === 'kz' || language === 'kg')
                       ? `Рәсімдегеннен кейін ${period}ге ${displayCups} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
+                      : language === 'en'
+                      ? `After subscribing you get ${displayCups} drinks for ${period}. Visit any partner café, show your QR — and grab your drink. Simple.`
+                      : language === 'uz'
+                      ? `Obuna bo'lganingizdan so'ng ${period}ga ${displayCups} ichimlik olasiz. Istalgan hamkor qahvaxonaga kiring, QR ko'rsating — ichimligingizni oling. Hammasi oddiy.`
                       : `${t('packageDetail.howItWorksText')} ${displayCups} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`
                     }
                   </p>

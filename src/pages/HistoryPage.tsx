@@ -3,6 +3,7 @@ import { Coffee, UtensilsCrossed, Gift } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatDateKz } from '@/utils/kazakh';
 
@@ -13,7 +14,9 @@ export default function HistoryPage() {
   const formatDate = (dateStr: string) => {
     try {
       const d = parseISO(dateStr);
-      return language === 'kz' ? formatDateKz(d) : format(d, 'd MMM', { locale: ru });
+      if (language === 'kz' || language === 'kg') return formatDateKz(d);
+      if (language === 'en') return format(d, 'd MMM', { locale: enUS });
+      return format(d, 'd MMM', { locale: ru });
     } catch { return dateStr; }
   };
   

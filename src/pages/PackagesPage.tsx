@@ -78,7 +78,9 @@ export default function PackagesPage() {
   });
 
   const daysWord = (days: number) => {
-    if (language === 'kz') return 'күн';
+    if (language === 'kz' || language === 'kg') return 'күн';
+    if (language === 'en') return days === 1 ? 'day' : 'days';
+    if (language === 'uz') return 'kun';
     if (days === 1) return 'день';
     if (days >= 2 && days <= 4) return 'дня';
     if (days >= 5 && days <= 20) return 'дней';
@@ -211,8 +213,12 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
             )}
             <div className="mt-2 pl-5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 text-accent text-xs font-semibold rounded-lg">
-                {isLunch ? '🍽' : '☕'} {language === 'kz' 
+                {isLunch ? '🍽' : '☕'} {(language === 'kz' || language === 'kg')
                   ? `${displayDays} ${daysWord(displayDays)}ге ${displayCups} ${isLunch ? 'ланч' : 'кофе'}`
+                  : language === 'en'
+                  ? `${displayCups} ${isLunch ? 'lunches' : 'coffees'} for ${displayDays} ${daysWord(displayDays)}`
+                  : language === 'uz'
+                  ? `${displayDays} ${daysWord(displayDays)}ga ${displayCups} ${isLunch ? 'tushlik' : 'qahva'}`
                   : `${displayCups} ${isLunch ? 'ланчей на' : t('packages.coffeeFor')} ${displayDays} ${daysWord(displayDays)}`
                 }
               </span>

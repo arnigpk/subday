@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const LANG_CONFIG: Record<string, { from: string; to: string; systemPrompt: string }> = {
+  kz: { from: 'русского', to: 'казахский', systemPrompt: 'Ты профессиональный переводчик с русского на казахский язык. Переводи точно и естественно.' },
+  en: { from: 'Russian', to: 'English', systemPrompt: 'You are a professional translator from Russian to English. Translate accurately and naturally.' },
+  uz: { from: 'русского', to: 'узбекский (латиница)', systemPrompt: 'Siz professional tarjimon. Rus tilidan o\'zbek tiliga (lotin alifbosida) aniq va tabiiy tarjima qiling.' },
+  kg: { from: 'русского', to: 'кыргызский', systemPrompt: 'Сиз орус тилинен кыргыз тилине которуучу профессионал котормочусуз. Так жана табигый которуңуз.' },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,14 +26,14 @@ serve(async (req) => {
       });
     }
 
-    // Limit batch size
+    const lang = targetLang || 'kz';
+    const config = LANG_CONFIG[lang] || LANG_CONFIG.kz;
     const batch = texts.slice(0, 20);
-
     const numberedTexts = batch.map((t: string, i: number) => `${i + 1}. ${t}`).join('\n');
 
-    const prompt = `Переведи следующие тексты с русского на казахский язык. Верни ТОЛЬКО переведённые тексты, по одному на строку, с номерами. Сохрани форматирование, эмодзи и специальные символы. Не добавляй ничего лишнего.
-
-${numberedTexts}`;
+    const prompt = lang === 'en'
+      ? `Translate the following texts from Russian to English. Return ONLY translated texts, one per line, with numbers. Preserve formatting, emojis and special characters. Don't add anything extra.\n\n${numberedTexts}`
+      : `Переведи следующие тексты с ${config.from} на ${config.to} язык. Верни ТОЛЬКО переведённые тексты, по одному на строку, с номерами. Сохрани форматирование, эмодзи и специальные символы. Не добавляй ничего лишнего.\n\n${numberedTexts}`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -42,7 +49,7 @@ ${numberedTexts}`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
         messages: [
-          { role: "system", content: "Ты профессиональный переводчик с русского на казахский язык. Переводи точно и естественно." },
+          { role: "system", content: config.systemPrompt },
           { role: "user", content: prompt },
         ],
         temperature: 0.1,
@@ -56,18 +63,15 @@ ${numberedTexts}`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
 
-    // Parse numbered translations
     const lines = content.split('\n').filter((l: string) => l.trim());
     const translations: string[] = [];
 
     for (let i = 0; i < batch.length; i++) {
-      // Try to find line starting with number
       const linePrefix = `${i + 1}.`;
       const matchedLine = lines.find((l: string) => l.trim().startsWith(linePrefix));
       if (matchedLine) {
         translations.push(matchedLine.trim().substring(linePrefix.length).trim());
       } else if (lines[i]) {
-        // Fallback: use line by index
         const cleaned = lines[i].replace(/^\d+\.\s*/, '').trim();
         translations.push(cleaned || batch[i]);
       } else {
