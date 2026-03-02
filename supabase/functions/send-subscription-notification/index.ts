@@ -108,10 +108,15 @@ Deno.serve(async (req) => {
     if (type === 'activated') {
       message = `🎉 Подписка ${subName} активирована 🚀 Наслаждайтесь😌`;
     } else if (type === 'low_balance') {
-      const unitWord = drinkType === 'drinks' ? 'ланчей' : 'напитков';
-      message = `⚠️ У вас осталось ${cupsCount || 5} ${unitWord} по подписке ${subName}`;
+      const count = cupsCount || 5;
+      const unitWord = drinkType === 'drinks'
+        ? (count === 2 ? 'ланча' : 'ланчей')
+        : (count === 2 ? 'напитка' : 'напитков');
+      message = `⚠️ У вас осталось ${count} ${unitWord} по подписке ${subName}`;
     } else if (type === 'expiring_soon') {
-      message = `⚠️ У вас осталось ${daysCount || 5} дней до окончания подписки ${subName}`;
+      const days = daysCount || 5;
+      const daysWord = days === 2 ? 'дня' : 'дней';
+      message = `⚠️ У вас осталось ${days} ${daysWord} до окончания подписки ${subName}`;
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid notification type' }),
