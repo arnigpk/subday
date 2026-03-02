@@ -264,19 +264,22 @@ Deno.serve(async (req) => {
         if (telegramBotToken) {
           const subName = subscriptionName || (drinkType === 'coffee' ? 'Кофе' : 'Ланч');
           
-          // Low balance notification (≤5 remaining)
-          if (newRemaining <= 5 && newRemaining > 0) {
-            const unitWord = drinkType === 'coffee' ? 'напитков' : 'ланчей';
+          // Low balance notification (only at exactly 5 or 2 remaining)
+          if (newRemaining === 5 || newRemaining === 2) {
+            const unitWord = drinkType === 'coffee'
+              ? (newRemaining === 2 ? 'напитка' : 'напитков')
+              : (newRemaining === 2 ? 'ланча' : 'ланчей');
             sendTelegramMessage(telegramId, `⚠️ У вас осталось ${newRemaining} ${unitWord} по подписке ${subName}`, telegramBotToken);
           }
 
-          // Expiry notification (≤5 days left)
+          // Expiry notification (only at exactly 5 or 2 days left)
           if (matchingSub?.expires_at) {
             const expiresAt = new Date(matchingSub.expires_at);
             const now = new Date();
             const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-            if (daysLeft <= 5 && daysLeft > 0) {
-              sendTelegramMessage(telegramId, `⚠️ У вас осталось ${daysLeft} дней до окончания подписки ${subName}`, telegramBotToken);
+            if (daysLeft === 5 || daysLeft === 2) {
+              const daysWord = daysLeft === 2 ? 'дня' : 'дней';
+              sendTelegramMessage(telegramId, `⚠️ У вас осталось ${daysLeft} ${daysWord} до окончания подписки ${subName}`, telegramBotToken);
             }
           }
         }
