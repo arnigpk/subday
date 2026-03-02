@@ -6,7 +6,8 @@ import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
-import { CountryCodePicker, Country, COUNTRIES, useDetectedCountry } from './CountryCodePicker';
+import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -14,6 +15,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps) {
+  const { t } = useLanguage();
   const detectedCountry = useDetectedCountry();
   const [country, setCountry] = useState<Country>(detectedCountry);
   const [countryManuallySet, setCountryManuallySet] = useState(false);
@@ -24,21 +26,17 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [formattedPhone, setFormattedPhone] = useState('');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
-  // Sync with IP detection result unless user manually changed
   useEffect(() => {
     if (!countryManuallySet) setCountry(detectedCountry);
   }, [detectedCountry, countryManuallySet]);
 
   const formatPhoneInput = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, country.phoneLength);
-    return digits;
+    return value.replace(/\D/g, '').slice(0, country.phoneLength);
   };
 
   const getDisplayPhone = (digits: string) => {
     if (!digits) return '';
-    // Simple grouping for display
     if (country.code === 'KZ' || country.code === 'RU') {
-      // XXX XXX XX XX
       let r = '';
       if (digits.length > 0) r += digits.slice(0, 3);
       if (digits.length > 3) r += ' ' + digits.slice(3, 6);
@@ -46,7 +44,6 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       if (digits.length > 8) r += ' ' + digits.slice(8, 10);
       return r;
     }
-    // KG/UZ: XXX XXX XXX
     let r = '';
     if (digits.length > 0) r += digits.slice(0, 3);
     if (digits.length > 3) r += ' ' + digits.slice(3, 6);
@@ -161,6 +158,9 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
 
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
+      <div className="absolute top-4 left-4 z-50">
+        <span className="text-2xl">🇰🇿</span>
+      </div>
       <div className="absolute top-4 right-4 z-50">
         <LanguageSwitcher />
       </div>
@@ -176,7 +176,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
           {step === 'phone' ? (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Введите ваш номер👇</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.enterPhone')}</label>
                 <div className="flex gap-2">
                   <CountryCodePicker selectedCountry={country} onSelect={c => { setCountry(c); setCountryManuallySet(true); setPhone(''); }} />
                   <input
@@ -190,19 +190,19 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                 </div>
               </div>
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
+                {t('auth.beelineWarning')}
               </p>
               <button onClick={handleSendCode} disabled={!isPhoneComplete || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
-                {isCoolingDown ? `Повторно через ${remaining} сек.` : isLoading ? 'Отправляем...' : 'Войти'}
+                {isCoolingDown ? t('auth.resendIn').replace('{sec}', String(remaining)) : isLoading ? t('auth.sending') : t('auth.login')}
               </button>
               <button onClick={() => onSwitchToRegister(undefined, country)} className="btn-secondary w-full">
-                Нет аккаунта? Регистрация
+                {t('auth.noAccount')}
               </button>
             </>
           ) : (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Код из SMS</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.smsCode')}</label>
                 <input
                   type="text" inputMode="numeric" placeholder="0000" value={code}
                   onChange={e => {
@@ -212,20 +212,20 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                   }}
                   className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code"
                 />
-                <p className="text-xs text-muted-foreground mt-2 text-center">Отправили на {formattedPhone}</p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">{t('auth.sentTo')} {formattedPhone}</p>
               </div>
               {isLoading && (
                 <div className="flex items-center justify-center py-3">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="ml-2 text-muted-foreground">Проверяем...</span>
+                  <span className="ml-2 text-muted-foreground">{t('auth.checking')}</span>
                 </div>
               )}
               <div className="flex gap-2">
                 <button onClick={() => { setStep('phone'); setCode(''); }} className="btn-secondary flex-1" disabled={isLoading}>
-                  Изменить номер
+                  {t('auth.changeNumber')}
                 </button>
                 <button onClick={handleResendCode} className="btn-secondary flex-1" disabled={isLoading || isCoolingDown}>
-                  {isCoolingDown ? `${remaining} сек.` : 'Отправить снова'}
+                  {isCoolingDown ? t('auth.secLeft').replace('{sec}', String(remaining)) : t('auth.resend')}
                 </button>
               </div>
             </>
@@ -237,14 +237,14 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         <div className="relative">
           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">или</span>
+            <span className="bg-background px-2 text-muted-foreground">{t('auth.or')}</span>
           </div>
         </div>
         <div className="w-full max-w-sm mx-auto">
           <TelegramLoginButton botName="subday_lgbot" onSuccess={onComplete} />
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">правилами сервиса</button></ServiceRulesDialog>.
+          {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
       </div>
     </div>

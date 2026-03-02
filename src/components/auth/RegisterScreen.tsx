@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
-import { CountryCodePicker, Country, COUNTRIES, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
+import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RegisterScreenProps {
   onComplete: () => void;
@@ -15,6 +17,7 @@ interface RegisterScreenProps {
 }
 
 export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '', initialCountry }: RegisterScreenProps) {
+  const { t } = useLanguage();
   const detectedCountry = useDetectedCountry();
   const [country, setCountry] = useState<Country>(initialCountry || detectedCountry);
   const [countryManuallySet, setCountryManuallySet] = useState(!!initialCountry);
@@ -120,24 +123,30 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
 
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
+      <div className="absolute top-4 left-4 z-50">
+        <span className="text-2xl">🇰🇿</span>
+      </div>
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-24 h-24 mb-4 animate-pop">
           <img src={logo} alt="subday" className="w-full h-full object-contain" />
         </div>
-        <h1 className="text-2xl font-black text-foreground mb-1 animate-slide-up">Регистрация</h1>
+        <h1 className="text-2xl font-black text-foreground mb-1 animate-slide-up">{t('auth.registration')}</h1>
         <p className="text-muted-foreground text-center mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          Создай аккаунт subday
+          {t('auth.createAccount')}
         </p>
         
         <div className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           {step === 'form' ? (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Имя и Фамилия</label>
-                <input type="text" placeholder="Иван Ануар" value={name} onChange={e => setName(e.target.value)} className="input-field w-full" autoComplete="name" />
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.nameLabel')}</label>
+                <input type="text" placeholder={t('auth.namePlaceholder')} value={name} onChange={e => setName(e.target.value)} className="input-field w-full" autoComplete="name" />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Номер телефона</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.phoneLabel')}</label>
                 <div className="flex gap-2">
                   <CountryCodePicker selectedCountry={country} onSelect={handleCountryChange} />
                   <input
@@ -151,7 +160,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Город</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.cityLabel')}</label>
                 <div className="relative">
                   <button
                     type="button"
@@ -159,7 +168,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                     className="input-field w-full flex items-center justify-between text-left"
                   >
                     <span className={city ? 'text-foreground' : 'text-muted-foreground'}>
-                      {city || 'Выберите город'}
+                      {city || t('auth.cityPlaceholder')}
                     </span>
                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   </button>
@@ -180,19 +189,19 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                 </div>
               </div>
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
+                {t('auth.beelineWarning')}
               </p>
               <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
-                {isCoolingDown ? `Повторно через ${remaining} сек.` : isLoading ? 'Отправляем...' : 'Получить код'}
+                {isCoolingDown ? t('auth.resendIn').replace('{sec}', String(remaining)) : isLoading ? t('auth.sending') : t('auth.getCode')}
               </button>
               <button onClick={onSwitchToLogin} className="btn-secondary w-full">
-                Уже есть аккаунт? Войти
+                {t('auth.haveAccount')}
               </button>
             </>
           ) : (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Код из SMS</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.smsCode')}</label>
                 <input
                   type="text" inputMode="numeric" placeholder="0000" value={code}
                   onChange={e => {
@@ -202,20 +211,20 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                   }}
                   className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code"
                 />
-                <p className="text-xs text-muted-foreground mt-2 text-center">Отправили на {formattedPhone}</p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">{t('auth.sentTo')} {formattedPhone}</p>
               </div>
               {isLoading && (
                 <div className="flex items-center justify-center py-3">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="ml-2 text-muted-foreground">Проверяем...</span>
+                  <span className="ml-2 text-muted-foreground">{t('auth.checking')}</span>
                 </div>
               )}
               <div className="flex gap-2">
                 <button onClick={() => { setStep('form'); setCode(''); }} className="btn-secondary flex-1" disabled={isLoading}>
-                  Изменить данные
+                  {t('auth.changeData')}
                 </button>
                 <button onClick={handleSendCode} className="btn-secondary flex-1" disabled={isLoading || isCoolingDown}>
-                  {isCoolingDown ? `${remaining} сек.` : 'Отправить снова'}
+                  {isCoolingDown ? t('auth.secLeft').replace('{sec}', String(remaining)) : t('auth.resend')}
                 </button>
               </div>
             </>
@@ -224,7 +233,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       </div>
       <div className="p-6 text-center">
         <p className="text-xs text-muted-foreground">
-          Продолжая пользоваться приложением, вы соглашаетесь с <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">правилами сервиса</button></ServiceRulesDialog>.
+          {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
       </div>
     </div>
