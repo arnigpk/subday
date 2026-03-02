@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
-import { CountryCodePicker, Country, COUNTRIES, CITIES_BY_COUNTRY, detectCountryByTimezone } from './CountryCodePicker';
+import { CountryCodePicker, Country, COUNTRIES, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
 
 interface RegisterScreenProps {
@@ -15,7 +15,9 @@ interface RegisterScreenProps {
 }
 
 export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '', initialCountry }: RegisterScreenProps) {
-  const [country, setCountry] = useState<Country>(initialCountry || detectCountryByTimezone());
+  const detectedCountry = useDetectedCountry();
+  const [country, setCountry] = useState<Country>(initialCountry || detectedCountry);
+  const [countryManuallySet, setCountryManuallySet] = useState(!!initialCountry);
   const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -25,6 +27,10 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
+
+  useEffect(() => {
+    if (!countryManuallySet) setCountry(detectedCountry);
+  }, [detectedCountry, countryManuallySet]);
 
   const cities = CITIES_BY_COUNTRY[country.code] || [];
 
@@ -55,6 +61,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
 
   const handleCountryChange = (c: Country) => {
     setCountry(c);
+    setCountryManuallySet(true);
     setPhone('');
     setCity('');
   };
@@ -127,7 +134,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Имя и Фамилия</label>
-                <input type="text" placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} className="input-field w-full" autoComplete="name" />
+                <input type="text" placeholder="Иван Ануар" value={name} onChange={e => setName(e.target.value)} className="input-field w-full" autoComplete="name" />
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Номер телефона</label>
