@@ -325,19 +325,19 @@ export default function RedeemPage() {
             <p className="text-sm text-muted-foreground">{t('redeem.pickingUp')}</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors">
-                  <span className="flex items-center gap-2">
-                    {selectedShop?.name || t('redeem.selectShop')}
+                <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors max-w-full">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{selectedShop?.name || t('redeem.selectShop')}</span>
                     {selectedShop && (
-                      <span className={`text-xs font-medium ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
+                      <span className={`text-xs font-medium shrink-0 ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
                         · {selectedShop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
                       </span>
                     )}
                   </span>
-                  <ChevronDown size={16} />
+                  <ChevronDown size={16} className="shrink-0" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72 bg-card border border-border shadow-lg z-50">
+              <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50">
                 {shops.map((shop) => (
                   <DropdownMenuItem
                     key={shop.id}
@@ -418,9 +418,9 @@ export default function RedeemPage() {
                 <p className="text-xs text-muted-foreground mb-3">{t('redeem.lunchNotAvailable')}</p>
               )}
 
-              <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
+              <div className="w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
-                  <QRCodeSVG value={qrCodeData} size={260} level="L" includeMargin={false} bgColor="white" fgColor="#000000" />
+                  <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
                 ) : selectedShop && !selectedShop.isCurrentlyOpen ? (
                   <div className="text-center p-4">
                     <Clock size={48} className="text-destructive mx-auto mb-3" />
@@ -446,7 +446,7 @@ export default function RedeemPage() {
           
           {status === 'scanning' && (
             <div className="text-center animate-pop">
-              <div className="w-64 h-64 bg-card rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-primary">
+              <div className="w-full max-w-[256px] aspect-square bg-card rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-primary">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
               <p className="text-lg font-bold text-foreground mb-2">{t('redeem.scanning')}</p>
@@ -468,11 +468,11 @@ export default function RedeemPage() {
                   ))}
                 </div>
               )}
-              <div className="w-64 h-64 bg-accent rounded-3xl shadow-glow flex items-center justify-center mb-6 mx-auto">
+              <div className="w-full max-w-[256px] aspect-square bg-accent rounded-3xl shadow-glow flex items-center justify-center mb-6 mx-auto">
                 <Check size={100} className="text-accent-foreground" strokeWidth={3} />
               </div>
               <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
-              <p className="text-muted-foreground mb-2">{t('redeem.enjoy')}, {selectedShop?.name}!</p>
+              <p className="text-sm text-muted-foreground mb-2 px-2 break-words">{t('redeem.enjoy')}, {selectedShop?.name}!</p>
               <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-4">
                 <Sparkles size={16} />
                 +10 {t('bonuses.points')}
@@ -485,7 +485,7 @@ export default function RedeemPage() {
           
           {status === 'error' && (
             <div className="text-center animate-pop">
-              <div className="w-64 h-64 bg-destructive/20 rounded-3xl flex items-center justify-center mb-6 mx-auto border-4 border-destructive">
+              <div className="w-full max-w-[256px] aspect-square bg-destructive/20 rounded-3xl flex items-center justify-center mb-6 mx-auto border-4 border-destructive">
                 <span className="text-6xl">❌</span>
               </div>
               <p className="text-lg font-bold text-foreground mb-2">{t('redeem.error')}</p>
