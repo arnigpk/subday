@@ -112,7 +112,7 @@ const translations: Record<string, Record<Language, string>> = {
   'redeem.shopClosed': { ru: 'Кофейня сейчас закрыта', kz: 'Кофехана қазір жабық', en: 'Café is currently closed', uz: 'Qahvaxona hozir yopiq', kg: 'Кофейна азыр жабык' },
   'redeem.scanning': { ru: 'Сканируют...', kz: 'Сканерленуде...', en: 'Scanning...', uz: 'Skanerlanmoqda...', kg: 'Сканерленүүдө...' },
   'redeem.waitSec': { ru: 'Подожди секунду', kz: 'Бір секунд күтіңіз', en: 'Wait a moment', uz: 'Bir soniya kuting', kg: 'Бир секунд күтүңүз' },
-  'redeem.success': { ru: 'Засчитано!', kz: 'Есептелді!', en: 'Done!', uz: 'Hisoblandi!', kg: 'Эсептелди!' },
+  'redeem.success': { ru: 'Списано!', kz: 'Есептелді!', en: 'Redeemed!', uz: 'Yechildi!', kg: 'Эсептелди!' },
   'redeem.enjoy': { ru: 'Наслаждайся 🚀', kz: 'Ләззат алыңыз 🚀', en: 'Enjoy! 🚀', uz: 'Rohatdan oling! 🚀', kg: 'Ырахат алыңыз 🚀' },
   'redeem.goHome': { ru: 'На главную', kz: 'Басты бетке', en: 'Go home', uz: 'Bosh sahifaga', kg: 'Башкы бетке' },
   'redeem.error': { ru: 'Ошибка', kz: 'Қате', en: 'Error', uz: 'Xato', kg: 'Ката' },

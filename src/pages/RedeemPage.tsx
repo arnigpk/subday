@@ -471,7 +471,7 @@ export default function RedeemPage() {
               <div className="w-64 h-64 bg-accent rounded-3xl shadow-glow flex items-center justify-center mb-6 mx-auto">
                 <Check size={100} className="text-accent-foreground" strokeWidth={3} />
               </div>
-              <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
+              <p className="text-2xl font-black text-foreground mb-1">{t('redeem.success')} 1 {drinkName}</p>
               <p className="text-muted-foreground mb-2">{t('redeem.enjoy')}</p>
               <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-4">
                 <Sparkles size={16} />
