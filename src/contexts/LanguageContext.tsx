@@ -226,13 +226,6 @@ const translations: Record<string, Record<Language, string>> = {
   'subflow.allShops': { ru: 'Все кофейни', kz: 'Барлық кофеханалар', en: 'All cafés', uz: 'Barcha qahvaxonalar', kg: 'Бардык кофейналар' },
   'subflow.user': { ru: 'Пользователь', kz: 'Пайдаланушы', en: 'User', uz: 'Foydalanuvchi', kg: 'Колдонуучу' },
 
-  // AI Assistant
-  'ai.title': { ru: 'Служба заботы subday', kz: 'subday қамқорлық қызметі', en: 'subday Support', uz: 'subday qo\'llab-quvvatlash', kg: 'subday колдоо кызматы' },
-  'ai.greeting': { ru: 'Привет! 👋 Задайте вопрос или выберите тему:', kz: 'Сәлем! 👋 Сұрақ қойыңыз немесе тақырып таңдаңыз:', en: 'Hi! 👋 Ask a question or choose a topic:', uz: 'Salom! 👋 Savol bering yoki mavzu tanlang:', kg: 'Салам! 👋 Суроо бериңиз же тема тандаңыз:' },
-  'ai.placeholder': { ru: 'Задайте вопрос...', kz: 'Сұрақ қойыңыз...', en: 'Ask a question...', uz: 'Savol bering...', kg: 'Суроо бериңиз...' },
-  'ai.clearChat': { ru: 'Очистить чат', kz: 'Чатты тазалау', en: 'Clear chat', uz: 'Chatni tozalash', kg: 'Чатты тазалоо' },
-  'ai.errorTitle': { ru: 'Ошибка', kz: 'Қате', en: 'Error', uz: 'Xato', kg: 'Ката' },
-  'ai.errorDesc': { ru: 'Не удалось получить ответ', kz: 'Жауап алу мүмкін болмады', en: 'Failed to get response', uz: 'Javob olishda xato', kg: 'Жооп алуу мүмкүн болгон жок' },
 
   // Common
   'common.days': { ru: 'дней', kz: 'күн', en: 'days', uz: 'kun', kg: 'күн' },
