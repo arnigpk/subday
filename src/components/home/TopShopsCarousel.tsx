@@ -8,6 +8,7 @@ import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface Shop {
   id: string;
@@ -30,6 +31,9 @@ export function TopShopsCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const { data: shops = [], isLoading } = useQuery({
     queryKey: queryKeys.shops,
@@ -57,14 +61,18 @@ export function TopShopsCarousel() {
   );
   const { distances, userLocation } = useShopDistances(shopCoordinates);
   const sortedShops = useMemo(() => {
-    // Filter out closed shops, only show open ones in nearby section
-    const openShops = shops.filter(s => s.working_hours ? isShopOpen(s.working_hours) : false);
-    const shopsToSort = openShops.length > 0 ? openShops : shops;
+    const filtered = shops.filter(s => {
+      if (s.country && s.country !== userCountry) return false;
+      if (userCity && s.city && s.city !== userCity) return false;
+      return true;
+    });
+    const openShops = filtered.filter(s => s.working_hours ? isShopOpen(s.working_hours) : false);
+    const shopsToSort = openShops.length > 0 ? openShops : filtered;
     const sorted = userLocation && distances.size > 0
       ? sortByDistance(shopsToSort, distances)
       : shopsToSort;
     return sorted.slice(0, 4);
-  }, [shops, distances, userLocation]);
+  }, [shops, distances, userLocation, userCountry, userCity]);
 
   if (isLoading) {
     return (

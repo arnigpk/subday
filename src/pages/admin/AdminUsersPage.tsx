@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { getCitiesForCountry } from '@/utils/countries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -671,7 +672,10 @@ export default function AdminUsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="country">Страна</Label>
-                <Select value={formData.country} onValueChange={(v) => setFormData({ ...formData, country: v })}>
+                <Select value={formData.country} onValueChange={(v) => {
+                  const cities = getCitiesForCountry(v);
+                  setFormData({ ...formData, country: v, city: cities[0] || '' });
+                }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -684,11 +688,16 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <Label htmlFor="city">Город</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                />
+                <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Выберите город" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getCitiesForCountry(formData.country).map(city => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
