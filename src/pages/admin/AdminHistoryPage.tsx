@@ -25,6 +25,7 @@ import { Search, ChevronLeft, ChevronRight, User, CalendarIcon } from 'lucide-re
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
+import { COUNTRY_OPTIONS } from '@/utils/countries';
 
 interface RedemptionWithUser {
   id: string;
@@ -37,6 +38,7 @@ interface RedemptionWithUser {
   user_name: string | null;
   user_phone: string | null;
   user_public_id: string | null;
+  user_country: string | null;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -49,6 +51,7 @@ export default function AdminHistoryPage() {
   const [search, setSearch] = useState('');
   const [shopFilter, setShopFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [countryFilter, setCountryFilter] = useState('all');
   const [periodType, setPeriodType] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(0);
@@ -61,7 +64,7 @@ export default function AdminHistoryPage() {
 
   useEffect(() => {
     fetchRedemptions();
-  }, [page, shopFilter, typeFilter, search, periodType, dateRange]);
+  }, [page, shopFilter, typeFilter, countryFilter, search, periodType, dateRange]);
 
   const fetchShops = async () => {
     const { data } = await supabase
@@ -75,41 +78,26 @@ export default function AdminHistoryPage() {
 
   const getDateFilters = () => {
     const now = new Date();
-    
     if (periodType === 'last_month') {
       const lastMonth = subMonths(now, 1);
-      return {
-        from: startOfMonth(lastMonth),
-        to: endOfMonth(lastMonth),
-      };
+      return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
     }
-    
     if (periodType === 'custom' && dateRange?.from) {
-      return {
-        from: startOfDay(dateRange.from),
-        to: dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from),
-      };
+      return { from: startOfDay(dateRange.from), to: dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from) };
     }
-    
     return null;
   };
 
   const fetchRedemptions = async () => {
     setIsLoading(true);
     try {
-      // First get redemptions
       let query = supabase
         .from('redemptions')
         .select('*', { count: 'exact' });
 
-      if (shopFilter !== 'all') {
-        query = query.eq('shop_name', shopFilter);
-      }
-      if (typeFilter !== 'all') {
-        query = query.eq('drink_type', typeFilter);
-      }
+      if (shopFilter !== 'all') query = query.eq('shop_name', shopFilter);
+      if (typeFilter !== 'all') query = query.eq('drink_type', typeFilter);
 
-      // Apply date filters
       const dateFilters = getDateFilters();
       if (dateFilters) {
         query = query.gte('redeemed_at', dateFilters.from.toISOString());
@@ -129,24 +117,27 @@ export default function AdminHistoryPage() {
         return;
       }
 
-      // Get user profiles for these redemptions
       const userIds = [...new Set(redemptionsData.map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id')
+        .select('user_id, name, phone, public_id, country')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      // Combine data
       let combined: RedemptionWithUser[] = redemptionsData.map(r => ({
         ...r,
         user_name: profileMap.get(r.user_id)?.name || null,
         user_phone: profileMap.get(r.user_id)?.phone || null,
         user_public_id: profileMap.get(r.user_id)?.public_id || null,
+        user_country: profileMap.get(r.user_id)?.country || null,
       }));
 
-      // Filter by search
+      // Filter by country (client-side since it's from profiles)
+      if (countryFilter !== 'all') {
+        combined = combined.filter(r => r.user_country === countryFilter);
+      }
+
       if (search) {
         const searchLower = search.toLowerCase();
         combined = combined.filter(r =>
@@ -168,20 +159,15 @@ export default function AdminHistoryPage() {
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
     setPage(0);
-    if (value !== 'custom') {
-      setDateRange(undefined);
-    }
+    if (value !== 'custom') setDateRange(undefined);
   };
 
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') {
-      const lastMonth = subMonths(new Date(), 1);
-      return format(lastMonth, 'LLLL yyyy', { locale: ru });
+      return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
     }
     if (periodType === 'custom' && dateRange?.from) {
-      if (dateRange.to) {
-        return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
-      }
+      if (dateRange.to) return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
       return format(dateRange.from, 'd MMMM yyyy', { locale: ru });
     }
     return 'Все время';
@@ -196,20 +182,27 @@ export default function AdminHistoryPage() {
           <div className="flex flex-col gap-4">
             <CardTitle>Всего покупок ({totalCount})</CardTitle>
             <div className="flex flex-col gap-4">
-              {/* Search and filters row */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Поиск по имени, телефону, напитку..."
                     value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(0);
-                    }}
+                    onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                     className="pl-10"
                   />
                 </div>
+                <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
+                  <SelectTrigger className="w-full sm:w-44">
+                    <SelectValue placeholder="Страна" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все страны</SelectItem>
+                    {COUNTRY_OPTIONS.map(c => (
+                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={shopFilter} onValueChange={(v) => { setShopFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Кофейня" />
@@ -233,7 +226,6 @@ export default function AdminHistoryPage() {
                 </Select>
               </div>
               
-              {/* Period filter row */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                 <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
                   <SelectTrigger className="w-full sm:w-48">
@@ -253,15 +245,9 @@ export default function AdminHistoryPage() {
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateRange?.from ? (
                           dateRange.to ? (
-                            <>
-                              {format(dateRange.from, 'd MMM', { locale: ru })} - {format(dateRange.to, 'd MMM yyyy', { locale: ru })}
-                            </>
-                          ) : (
-                            format(dateRange.from, 'd MMMM yyyy', { locale: ru })
-                          )
-                        ) : (
-                          'Выберите даты'
-                        )}
+                            <>{format(dateRange.from, 'd MMM', { locale: ru })} - {format(dateRange.to, 'd MMM yyyy', { locale: ru })}</>
+                          ) : format(dateRange.from, 'd MMMM yyyy', { locale: ru })
+                        ) : 'Выберите даты'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -270,10 +256,7 @@ export default function AdminHistoryPage() {
                         mode="range"
                         defaultMonth={dateRange?.from}
                         selected={dateRange}
-                        onSelect={(range) => {
-                          setDateRange(range);
-                          setPage(0);
-                        }}
+                        onSelect={(range) => { setDateRange(range); setPage(0); }}
                         numberOfMonths={1}
                         locale={ru}
                       />
@@ -282,9 +265,7 @@ export default function AdminHistoryPage() {
                 )}
                 
                 {periodType !== 'all' && (
-                  <span className="text-sm text-muted-foreground">
-                    Период: {formatPeriodLabel()}
-                  </span>
+                  <span className="text-sm text-muted-foreground">Период: {formatPeriodLabel()}</span>
                 )}
               </div>
             </div>
@@ -298,9 +279,7 @@ export default function AdminHistoryPage() {
               ))}
             </div>
           ) : redemptions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Нет данных за выбранный период
-            </p>
+            <p className="text-muted-foreground text-center py-8">Нет данных за выбранный период</p>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -323,20 +302,14 @@ export default function AdminHistoryPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              {r.user_name || 'Без имени'}
-                            </span>
+                            <span className="font-medium">{r.user_name || 'Без имени'}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
                         <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
                         <TableCell>{r.shop_name}</TableCell>
                         <TableCell>{r.drink_name}</TableCell>
-                        <TableCell>
-                          <span className="text-xs text-muted-foreground">
-                            {r.subscription_name || '—'}
-                          </span>
-                        </TableCell>
+                        <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${
                             r.drink_type === 'coffee' 
@@ -348,11 +321,7 @@ export default function AdminHistoryPage() {
                         </TableCell>
                         <TableCell>
                           {new Date(r.redeemed_at).toLocaleString('ru-RU', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
+                            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
                           })}
                         </TableCell>
                       </TableRow>
@@ -363,24 +332,12 @@ export default function AdminHistoryPage() {
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Страница {page + 1} из {totalPages}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Страница {page + 1} из {totalPages}</p>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      disabled={page >= totalPages - 1}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>

@@ -12,6 +12,7 @@ import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface Shop {
   id: string;
@@ -67,6 +68,8 @@ export default function ShopsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const queryClient = useQueryClient();
   const { t } = useLanguage();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
 
   const filters = [
     { id: 'all', label: t('shops.all') },
@@ -90,12 +93,14 @@ export default function ShopsPage() {
 
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
-  const shopsWithStatus = useMemo(() => shops.map(shop => ({
-    ...shop,
-    isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
-    allBadges: getShopBadges(shop),
-    isSpecialty: hasSpecialtyBadge(shop),
-  })), [shops]);
+  const shopsWithStatus = useMemo(() => shops
+    .filter(shop => !shop.country || shop.country === userCountry)
+    .map(shop => ({
+      ...shop,
+      isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+      allBadges: getShopBadges(shop),
+      isSpecialty: hasSpecialtyBadge(shop),
+    })), [shops, userCountry]);
   
   const filteredAndSortedShops = useMemo(() => {
     let filtered = shopsWithStatus.filter(shop => {

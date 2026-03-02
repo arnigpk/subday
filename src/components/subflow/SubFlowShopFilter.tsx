@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MapPin, ChevronDown, X } from 'lucide-react';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface Shop {
   id: string;
@@ -16,10 +17,12 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
   const [shops, setShops] = useState<Shop[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedShopName, setSelectedShopName] = useState<string | null>(null);
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
 
   useEffect(() => {
     fetchShops();
-  }, []);
+  }, [userCountry]);
 
   useEffect(() => {
     if (selectedShopId && shops.length > 0) {
@@ -31,13 +34,15 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
   }, [selectedShopId, shops]);
 
   const fetchShops = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('shops')
-      .select('id, name')
+      .select('id, name, country')
       .eq('is_active', true)
       .order('sort_order');
     
-    setShops(data || []);
+    const { data } = await query;
+    const filtered = (data || []).filter(s => !s.country || s.country === userCountry);
+    setShops(filtered);
   };
 
   const handleSelect = (shopId: string | null) => {

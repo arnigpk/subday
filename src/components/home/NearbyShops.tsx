@@ -7,6 +7,7 @@ import { isShopOpen } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface ShopData {
   id: string;
@@ -48,6 +49,8 @@ const fetchVisitCounts = async (): Promise<Map<string, number>> => {
 
 export function TopShopsByVisits() {
   const { t } = useLanguage();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
 
   const { data: shops = [], isLoading: shopsLoading } = useQuery({
     queryKey: queryKeys.shops,
@@ -67,13 +70,14 @@ export function TopShopsByVisits() {
 
   const topShops = useMemo(() => {
     return [...shops]
+      .filter(s => !s.country || s.country === userCountry)
       .sort((a, b) => {
         const countA = visitCounts.get(a.id) || 0;
         const countB = visitCounts.get(b.id) || 0;
         return countB - countA;
       })
       .slice(0, 3);
-  }, [shops, visitCounts]);
+  }, [shops, visitCounts, userCountry]);
 
   if (isLoading) {
     return (

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openWithDeepLink } from '@/utils/deepLinks';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface AdBanner {
   id: string;
@@ -17,6 +18,7 @@ interface AdBanner {
   sort_order: number;
   autoplay_delay: number;
   display_location: string;
+  country: string | null;
 }
 
 // Preload images for instant display
@@ -38,9 +40,11 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const viewedBanners = useRef<Set<string>>(new Set());
   const preloadedRef = useRef(false);
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
 
   const { data: banners = [], isLoading } = useQuery({
-    queryKey: ['ad-banners', location],
+    queryKey: ['ad-banners', location, userCountry],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ad_banners')
@@ -50,14 +54,16 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
       
       if (error) throw error;
       
-      // Filter by location
-      const filtered = (data as AdBanner[]).filter(banner => 
-        banner.display_location === location || banner.display_location === 'both'
-      );
+      const filtered = (data as AdBanner[]).filter(banner => {
+        const locationMatch = banner.display_location === location || banner.display_location === 'both';
+        // Filter by country: show if no country set (global) or matches user's country
+        const countryMatch = !banner.country || banner.country === userCountry;
+        return locationMatch && countryMatch;
+      });
       
       return filtered;
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000,
   });
 
   // Preload all banner images when data is loaded
