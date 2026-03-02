@@ -47,6 +47,8 @@ export type Database = {
         Row: {
           autoplay_delay: number
           caption: string | null
+          city: string | null
+          country: string | null
           created_at: string
           display_location: string
           external_url: string | null
@@ -60,6 +62,8 @@ export type Database = {
         Insert: {
           autoplay_delay?: number
           caption?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           display_location?: string
           external_url?: string | null
@@ -73,6 +77,8 @@ export type Database = {
         Update: {
           autoplay_delay?: number
           caption?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           display_location?: string
           external_url?: string | null
@@ -365,6 +371,7 @@ export type Database = {
           badges: Json | null
           city: string | null
           coordinates: Json | null
+          country: string | null
           created_at: string | null
           description: string | null
           gallery_urls: string[] | null
@@ -385,6 +392,7 @@ export type Database = {
           badges?: Json | null
           city?: string | null
           coordinates?: Json | null
+          country?: string | null
           created_at?: string | null
           description?: string | null
           gallery_urls?: string[] | null
@@ -405,6 +413,7 @@ export type Database = {
           badges?: Json | null
           city?: string | null
           coordinates?: Json | null
+          country?: string | null
           created_at?: string | null
           description?: string | null
           gallery_urls?: string[] | null
@@ -422,6 +431,7 @@ export type Database = {
       special_offers: {
         Row: {
           badge_text: string | null
+          country: string | null
           created_at: string
           description: string | null
           eligibility_days: number
@@ -438,6 +448,7 @@ export type Database = {
         }
         Insert: {
           badge_text?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           eligibility_days?: number
@@ -454,6 +465,7 @@ export type Database = {
         }
         Update: {
           badge_text?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           eligibility_days?: number
@@ -730,8 +742,10 @@ export type Database = {
           badge: string | null
           badge_color: string | null
           benefit: number | null
+          country: string | null
           created_at: string | null
           cups_count: number
+          currency: string | null
           daily_limit: number | null
           description: string | null
           duration_days: number | null
@@ -748,8 +762,10 @@ export type Database = {
           badge?: string | null
           badge_color?: string | null
           benefit?: number | null
+          country?: string | null
           created_at?: string | null
           cups_count: number
+          currency?: string | null
           daily_limit?: number | null
           description?: string | null
           duration_days?: number | null
@@ -766,8 +782,10 @@ export type Database = {
           badge?: string | null
           badge_color?: string | null
           benefit?: number | null
+          country?: string | null
           created_at?: string | null
           cups_count?: number
+          currency?: string | null
           daily_limit?: number | null
           description?: string | null
           duration_days?: number | null

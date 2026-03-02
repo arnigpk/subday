@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
+import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ const defaultForm = {
   eligibility_days: 0,
   offer_valid_days: 0,
   is_active: true,
+  country: '',
 };
 
 export default function AdminSpecialOffersPage() {
@@ -98,6 +100,7 @@ export default function AdminSpecialOffersPage() {
       eligibility_days: offer.eligibility_days,
       offer_valid_days: offer.offer_valid_days || 0,
       is_active: offer.is_active,
+      country: (offer as any).country || '',
     });
     setDialogOpen(true);
   };
@@ -124,6 +127,7 @@ export default function AdminSpecialOffersPage() {
       eligibility_days: form.eligibility_days,
       offer_valid_days: form.offer_valid_days || null,
       is_active: form.is_active,
+      country: form.country || null,
     };
 
     if (editingOffer) {
@@ -292,6 +296,16 @@ export default function AdminSpecialOffersPage() {
                   <SelectItem value="all_users">Все пользователи</SelectItem>
                   <SelectItem value="no_subscription">Без активной подписки</SelectItem>
                   <SelectItem value="expiring_soon">Осталось ≤5 дней до конца подписки</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Страна</label>
+              <Select value={form.country || 'all'} onValueChange={v => setForm(f => ({ ...f, country: v === 'all' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Все страны" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все страны</SelectItem>
+                  {COUNTRY_OPTIONS.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
