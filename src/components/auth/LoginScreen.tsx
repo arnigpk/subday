@@ -4,6 +4,7 @@ import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, COUNTRIES, useDetectedCountry } from './CountryCodePicker';
 
@@ -160,6 +161,9 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
 
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-28 h-28 mb-6 animate-pop">
           <img src={logo} alt="subday" className="w-full h-full object-contain" />

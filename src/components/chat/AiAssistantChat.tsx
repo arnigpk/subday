@@ -27,6 +27,38 @@ const SUGGESTIONS_KZ = [
   'Қолдау қызметіне қалай хабарласуға болады?',
 ];
 
+const SUGGESTIONS_EN = [
+  'What plans are available and how much do they cost?',
+  'How do I get coffee?',
+  'Which cafés are open?',
+  'What are streaks?',
+  'How to contact support?',
+];
+
+const SUGGESTIONS_UZ = [
+  'Qanday obunalar bor va qancha turadi?',
+  'Qahvani qanday olish mumkin?',
+  'Qaysi qahvaxonalar ishlaydi?',
+  'Striklar nima?',
+  'Qo\'llab-quvvatlash bilan qanday bog\'lanish mumkin?',
+];
+
+const SUGGESTIONS_KG = [
+  'Кандай жазылуулар бар жана канча турат?',
+  'Кофени кантип алууга болот?',
+  'Кайсы кофейналар иштейт?',
+  'Стриктер деген эмне?',
+  'Колдоо кызматына кантип кайрылуу керек?',
+];
+
+const SUGGESTIONS_MAP: Record<string, string[]> = {
+  ru: SUGGESTIONS_RU,
+  kz: SUGGESTIONS_KZ,
+  en: SUGGESTIONS_EN,
+  uz: SUGGESTIONS_UZ,
+  kg: SUGGESTIONS_KG,
+};
+
 interface AiAssistantChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,7 +72,7 @@ export function AiAssistantChat({ open, onOpenChange }: AiAssistantChatProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { t, language } = useLanguage();
 
-  const SUGGESTIONS = language === 'kz' ? SUGGESTIONS_KZ : SUGGESTIONS_RU;
+  const SUGGESTIONS = SUGGESTIONS_MAP[language] || SUGGESTIONS_RU;
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

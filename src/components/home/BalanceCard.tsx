@@ -20,7 +20,6 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   
-  // Determine tab order: active subscription type goes first
   const coffeeSub = activeSubscriptions.find(s => s.subscription_type === 'coffee');
   const lunchSub = activeSubscriptions.find(s => s.subscription_type === 'drinks');
   const hasLunchOnly = !!lunchSub && !coffeeSub;
@@ -56,7 +55,6 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const currentTypeSub = activeSubscriptions.find(s => s.subscription_type === activeTab);
   const hasSubscription = !!currentTypeSub && total > 0 && remaining > 0;
   
-  // Calculate per-type days remaining
   const typeDaysRemaining = (() => {
     if (!currentTypeSub?.expires_at) return null;
     const expiryDate = new Date(currentTypeSub.expires_at);
@@ -77,6 +75,43 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
     if (days === 1) return t('balance.day1');
     if (days >= 2 && days <= 4) return `${days} ${t('balance.days234')}`;
     return `${days} ${t('balance.days')}`;
+  };
+
+  const formatRemainingText = () => {
+    if (language === 'kz') {
+      return `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} қалды`;
+    }
+    return `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total}`;
+  };
+
+  const formatDailyAvailable = () => {
+    if (language === 'kz') return `Бүгін ${remainingToday ?? 0} / ${dailyLimit} қолжетімді`;
+    if (language === 'en') return `Available today ${remainingToday ?? 0} of ${dailyLimit}`;
+    if (language === 'uz') return `Bugun ${remainingToday ?? 0} / ${dailyLimit} mavjud`;
+    if (language === 'kg') return `Бүгүн ${remainingToday ?? 0} / ${dailyLimit} жеткиликтүү`;
+    return `Сегодня доступно ${remainingToday ?? 0} из ${dailyLimit}`;
+  };
+
+  const formatGuestCoffee = () => {
+    const dateStr = new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return `${t('balance.guestCoffee')} ${stats.guestCoffees} (${t('balance.until')} ${dateStr})`;
+  };
+
+  const formatExpiryDate = () => {
+    if (!currentTypeSub?.expires_at || typeDaysRemaining === null) return '';
+    if (language === 'kz') {
+      return `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), typeDaysRemaining > 30)} дейін)`;
+    }
+    if (language === 'en') {
+      return `(until ${new Date(currentTypeSub.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`;
+    }
+    if (language === 'uz') {
+      return `(${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })} gacha)`;
+    }
+    if (language === 'kg') {
+      return `(${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })} чейин)`;
+    }
+    return `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`;
   };
   
   if (isLoading) {
@@ -108,15 +143,11 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
         className="mb-4"
       />
 
-      {/* Guest coffee banner - always visible regardless of subscription */}
       {stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date() && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10">
           <Gift size={14} className="text-primary" />
           <span className="text-xs font-medium text-primary">
-            {language === 'kz' 
-              ? `Қонақ кофе: ${stats.guestCoffees} (${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} дейін)`
-              : `Гостевой кофе: ${stats.guestCoffees} (до ${new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})`
-            }
+            {formatGuestCoffee()}
           </span>
         </div>
       )}
@@ -139,23 +170,16 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
               
               <div className="min-w-0 flex-1">
                 <p className="text-muted-foreground text-sm font-medium leading-tight">
-                  {language === 'kz' 
-                    ? `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} қалды`
-                    : `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total}`
-                  }
+                  {formatRemainingText()}
                 </p>
                 
-                {/* Daily limit info - always show */}
                 {dailyLimit === null && !isLimitLoading ? (
                   <p className="text-[11px] text-primary font-medium mt-0.5 leading-tight">
-                    {language === 'kz' ? 'Сізде күніне безлимит! ♾️' : 'У вас безлимит на день! ♾️'}
+                    {t('balance.unlimitedDaily')}
                   </p>
                 ) : dailyLimit !== null && (
                   <p className={`text-[11px] font-medium mt-0.5 leading-tight ${isLimitReached ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {language === 'kz' 
-                      ? `Бүгін ${remainingToday ?? 0} / ${dailyLimit} қолжетімді`
-                      : `Сегодня доступно ${remainingToday ?? 0} из ${dailyLimit}`
-                    }
+                    {formatDailyAvailable()}
                   </p>
                 )}
               </div>
@@ -178,10 +202,7 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
               <span className={`text-xs font-medium ${typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {t('balance.subscription')} {formatDaysRemaining(typeDaysRemaining)}
                 <span className="ml-1">
-                  {language === 'kz' 
-                    ? `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), typeDaysRemaining > 30)} дейін)`
-                    : `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`
-                  }
+                  {formatExpiryDate()}
                 </span>
               </span>
             </div>

@@ -11,20 +11,12 @@ export default function StreaksPage() {
   
   const progress = Math.min((stats.currentStreak / 30) * 100, 100);
   
-  const getStreakRewards = (currentStreak: number) => {
-    if (language === 'kz') return [
-      { days: 3, reward: '🎯 Старт', unlocked: currentStreak >= 3 },
-      { days: 7, reward: '🔥 Апта', unlocked: currentStreak >= 7 },
-      { days: 14, reward: '⚡ Екі апта', unlocked: currentStreak >= 14 },
-      { days: 30, reward: '💎 Ай', unlocked: currentStreak >= 30 },
-    ];
-    return [
-      { days: 3, reward: '🎯 Старт', unlocked: currentStreak >= 3 },
-      { days: 7, reward: '🔥 Неделя', unlocked: currentStreak >= 7 },
-      { days: 14, reward: '⚡ Две недели', unlocked: currentStreak >= 14 },
-      { days: 30, reward: '💎 Месяц', unlocked: currentStreak >= 30 },
-    ];
-  };
+  const getStreakRewards = (currentStreak: number) => [
+    { days: 3, reward: t('streaks.reward3'), unlocked: currentStreak >= 3 },
+    { days: 7, reward: t('streaks.reward7'), unlocked: currentStreak >= 7 },
+    { days: 14, reward: t('streaks.reward14'), unlocked: currentStreak >= 14 },
+    { days: 30, reward: t('streaks.reward30'), unlocked: currentStreak >= 30 },
+  ];
   
   const streakRewards = getStreakRewards(stats.currentStreak);
   
