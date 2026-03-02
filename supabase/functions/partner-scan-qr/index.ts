@@ -96,15 +96,38 @@ Deno.serve(async (req) => {
     const [statsResult, profileResult, shopResult] = await Promise.all([
       supabase.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('profiles').select('name, phone').eq('user_id', userId).maybeSingle(),
-      drinkType === 'drinks' 
-        ? supabase.from('shops').select('supported_types').eq('id', shopId).maybeSingle()
-        : Promise.resolve({ data: null }),
+      supabase.from('shops').select('supported_types, working_hours').eq('id', shopId).maybeSingle(),
     ]);
 
     const stats = statsResult.data;
     if (!stats) {
       return new Response(JSON.stringify({ error: 'Пользователь не найден' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Check if shop is open
+    if (shopResult.data?.working_hours) {
+      const hours = shopResult.data.working_hours;
+      const match = hours.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
+      if (match) {
+        const now = new Date();
+        const currentMinutes = now.getUTCHours() * 60 + now.getMinutes();
+        // Adjust for timezone offset (~+5 for KZ/UZ/KG, +3 for RU) - use +5 as default
+        const offsetMinutes = 5 * 60;
+        const localMinutes = (currentMinutes + offsetMinutes) % (24 * 60);
+        const openTime = parseInt(match[1]) * 60 + parseInt(match[2]);
+        const closeTime = parseInt(match[3]) * 60 + parseInt(match[4]);
+        let isOpen: boolean;
+        if (closeTime < openTime) {
+          isOpen = localMinutes >= openTime || localMinutes < closeTime;
+        } else {
+          isOpen = localMinutes >= openTime && localMinutes < closeTime;
+        }
+        if (!isOpen) {
+          return new Response(JSON.stringify({ error: 'Кофейня сейчас закрыта' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
     }
 
     if (drinkType === 'drinks' && shopResult.data) {

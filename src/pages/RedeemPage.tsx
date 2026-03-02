@@ -251,8 +251,17 @@ export default function RedeemPage() {
             return updated;
           });
           if (selectedShop) {
+            const updatedStatus = selectedShop.working_hours ? isShopOpen(selectedShop.working_hours) : false;
+            if (!updatedStatus) {
+              // Selected shop just closed — auto-switch to nearest open shop
+              setShops(prev => {
+                const nearestOpen = prev.find(s => s.isCurrentlyOpen);
+                if (nearestOpen) setSelectedShop(nearestOpen);
+                return prev;
+              });
+            }
             setSelectedShop(prev => prev ? {
-              ...prev, isCurrentlyOpen: prev.working_hours ? isShopOpen(prev.working_hours) : false,
+              ...prev, isCurrentlyOpen: updatedStatus,
             } : null);
           }
           return 59;
@@ -264,7 +273,7 @@ export default function RedeemPage() {
   }, [selectedShop]);
 
   const qrCodeData = useMemo(() => {
-    if (!userId || !selectedShop) return null;
+    if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
     return JSON.stringify({
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
@@ -332,10 +341,11 @@ export default function RedeemPage() {
                 {shops.map((shop) => (
                   <DropdownMenuItem
                     key={shop.id}
-                    onClick={() => setSelectedShop(shop)}
-                    className={`flex items-center gap-3 p-3 cursor-pointer ${
-                      selectedShop?.id === shop.id ? 'bg-accent/10' : ''
-                    } ${!shop.isCurrentlyOpen ? 'opacity-60' : ''}`}
+                    onClick={() => shop.isCurrentlyOpen ? setSelectedShop(shop) : null}
+                    disabled={!shop.isCurrentlyOpen}
+                    className={`flex items-center gap-3 p-3 ${
+                      shop.isCurrentlyOpen ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                    } ${selectedShop?.id === shop.id ? 'bg-accent/10' : ''}`}
                   >
                     {shop.logo_url ? (
                       <img src={shop.logo_url} alt={shop.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
@@ -411,6 +421,12 @@ export default function RedeemPage() {
               <div className="w-72 h-72 bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
                   <QRCodeSVG value={qrCodeData} size={260} level="L" includeMargin={false} bgColor="white" fgColor="#000000" />
+                ) : selectedShop && !selectedShop.isCurrentlyOpen ? (
+                  <div className="text-center p-4">
+                    <Clock size={48} className="text-destructive mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
+                    <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
+                  </div>
                 ) : (
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
