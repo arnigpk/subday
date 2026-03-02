@@ -1,158 +1,57 @@
 
 
-# Подготовка приложения к публикации в Google Play и App Store
+## Анализ текущих узких мест
 
-## Обзор
+Сейчас процесс сканирования тормозится в нескольких местах:
 
-Комплексная подготовка включает: конфигурация Capacitor, генерация иконок/splash screen, настройка Universal Links и App Links, визуальная подсказка на странице приглашения, и синхронизация вибрации по всем разделам.
+**Клиент (QRScanner.tsx):**
+1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
+2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
+3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
+4. Дубликат-защита 3 секунды -- можно сократить
 
----
+**Клиент (PartnerScanPage.tsx):**
+5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
+6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
 
-## 1. Конфигурация Capacitor
+**Сервер (partner-scan-qr):**
+7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
 
-### Файл: `capacitor.config.ts` (новый)
+## План ускорения
 
-Создать конфигурацию Capacitor с параметрами:
-- `appId`: `app.lovable.1f0fb7ffd23642dc84de6a2e07064142`
-- `appName`: `vhod`
-- `webDir`: `dist`
-- Серверный блок для hot-reload в dev-режиме (URL: sandbox preview)
-- Плагины: SplashScreen (автоматическое скрытие через 2 секунды), StatusBar (стиль Light)
+### 1. Убрать искусственную задержку в 1 секунду
+Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
 
----
+### 2. Автозапуск камеры
+Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
 
-## 2. Иконки и Splash Screen
+### 3. Не останавливать камеру при обработке
+Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
 
-### Новые файлы в `public/`:
-- `icon-192.png` -- иконка 192x192 (для PWA и Android)
-- `icon-512.png` -- иконка 512x512 (для PWA и Android)
-- `icon-1024.png` -- иконка 1024x1024 (для App Store)
-- `splash.png` -- splash screen (2732x2732, центральный логотип)
+### 4. Увеличить область сканирования
+`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
 
-Поскольку в Lovable нельзя генерировать изображения программно, будет создан скрипт-инструкция и SVG-заглушки, а также обновлён PWA-манифест в `vite.config.ts` для использования правильных иконок.
+### 5. Сократить защиту от дубликатов
+С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
 
-### Обновление `vite.config.ts`:
-- Обновить массив `icons` в PWA-манифесте для поддержки PNG-иконок всех размеров
-- Добавить `apple-touch-icon` meta-тег
+### 6. Запрос высокого разрешения камеры
+Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
 
-### Обновление `index.html`:
-- Добавить `<link rel="apple-touch-icon">` для iOS
-- Добавить meta-тег `apple-mobile-web-app-title`
+### 7. Автовозврат к сканеру после результата
+После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
 
----
+### 8. Не прятать сканер при статусах scanning/success/error
+Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
 
-## 3. Universal Links (iOS) и App Links (Android)
+### Затрагиваемые файлы
+- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
+- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
 
-### Файл: `public/.well-known/assetlinks.json` (новый)
-- Конфигурация Android App Links с SHA256 fingerprint (placeholder для заполнения после сборки)
+### Итого выигрыш по скорости
+- Убрана 1с задержка
+- Убрано время запуска камеры (~1-2с)
+- Убрано время перезапуска камеры между сканами (~1-2с)  
+- Увеличена область захвата и разрешение -- быстрее распознавание
 
-### Файл: `public/.well-known/apple-app-site-association` (новый)
-- Конфигурация Universal Links для iOS с Team ID и Bundle ID (placeholder)
-- Маршруты: `/`, `/packages/*`, `/shops/*`, `/redeem`, `/profile`, `/gift-coffee`, `/subflow`
-
----
-
-## 4. Визуальная подсказка "Где найти ID" на странице приглашения
-
-### Файл: `src/pages/GiftCoffeePage.tsx`
-
-Заменить текстовый блок-подсказку на визуальную мини-схему профиля:
-- Нарисовать стилизованный мини-профиль с помощью CSS/HTML (аватар-заглушка, имя, строка "ID: 123456" с выделением)
-- Стрелка или подсветка на строке ID, чтобы визуально показать где именно искать
-- Сохранить переводы `guest.whereToFindId` и `guest.whereToFindIdDesc`
-
----
-
-## 5. Синхронизация вибрации по всем разделам
-
-Вибрация уже подключена в: BottomNav, SubFlowPost, RedeemPage, PartnerScanPage, App (при загрузке).
-
-### Добавить вибрацию в:
-
-| Файл | Действие | Тип вибрации |
-|------|----------|-------------|
-| `src/pages/GiftCoffeePage.tsx` | Успешная выдача гостевого доступа | `vibrateSuccess` |
-| `src/pages/GiftCoffeePage.tsx` | Ошибка при выдаче | `vibrateError` |
-| `src/pages/ProfilePage.tsx` | Копирование ID | `vibrateShort` |
-| `src/pages/ProfilePage.tsx` | Сохранение имени | `vibrateSuccess` |
-| `src/pages/ProfilePage.tsx` | Выход из аккаунта | `vibrate` |
-| `src/pages/PackageDetailPage.tsx` | Покупка подписки | `vibrateSuccess` |
-| `src/components/stories/StoryAvatar.tsx` | Открытие истории | `vibrateShort` |
-| `src/pages/HomePage.tsx` | Pull-to-refresh завершён | `vibrateShort` |
-
----
-
-## Технические детали
-
-### `capacitor.config.ts`
-```typescript
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'app.lovable.1f0fb7ffd23642dc84de6a2e07064142',
-  appName: 'vhod',
-  webDir: 'dist',
-  server: {
-    url: 'https://1f0fb7ff-d236-42dc-84de-6a2e07064142.lovableproject.com?forceHideBadge=true',
-    cleartext: true,
-  },
-  plugins: {
-    SplashScreen: {
-      launchAutoHide: true,
-      autoHideTimeout: 2000,
-      backgroundColor: '#FAF9F6',
-    },
-  },
-};
-
-export default config;
-```
-
-### `public/.well-known/apple-app-site-association`
-```json
-{
-  "applinks": {
-    "apps": [],
-    "details": [
-      {
-        "appIDs": ["TEAM_ID.app.lovable.1f0fb7ffd23642dc84de6a2e07064142"],
-        "paths": ["/*"]
-      }
-    ]
-  }
-}
-```
-
-### `public/.well-known/assetlinks.json`
-```json
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "app.lovable.1f0fb7ffd23642dc84de6a2e07064142",
-      "sha256_cert_fingerprints": ["YOUR_SHA256_FINGERPRINT"]
-    }
-  }
-]
-```
-
-### Мини-профиль в GiftCoffeePage (визуальная подсказка)
-Стилизованный блок с CSS, имитирующий экран профиля: круглый аватар, имя, выделенная строка "ID: 123456" с пульсирующей рамкой для привлечения внимания.
-
----
-
-## После реализации -- что нужно сделать вам
-
-1. Заменить placeholder-иконки (icon-192.png, icon-512.png, icon-1024.png, splash.png) на реальные
-2. В `apple-app-site-association` заменить `TEAM_ID` на ваш Apple Developer Team ID
-3. В `assetlinks.json` заменить `YOUR_SHA256_FINGERPRINT` на SHA256 из вашего Android keystore
-4. Перед финальной сборкой для Store -- удалить `server.url` из `capacitor.config.ts`
-5. Выполнить:
-   ```
-   npm install
-   npx cap add ios && npx cap add android
-   npm run build && npx cap sync
-   npx cap open ios  # или npx cap open android
-   ```
+Общий выигрыш: **3-5 секунд** на каждое сканирование.
 
