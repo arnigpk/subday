@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -16,34 +16,29 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(isProcessing);
   const mountedRef = useRef(true);
+  const startingRef = useRef(false);
 
-  // Keep ref in sync so callback doesn't need dep
   useEffect(() => {
     isProcessingRef.current = isProcessing;
   }, [isProcessing]);
 
   const handleScan = useCallback((decodedText: string) => {
-    // Block scans while processing
     if (isProcessingRef.current) return;
-    
-    // Prevent duplicate scans within 1.5 seconds
     if (lastScannedRef.current === decodedText) return;
     
     lastScannedRef.current = decodedText;
     console.log('QR Code scanned:', decodedText);
     onScan(decodedText);
     
-    // Reset after 1.5 seconds to allow re-scanning same code
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-    }
+    if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
     scanTimeoutRef.current = setTimeout(() => {
       lastScannedRef.current = null;
     }, 1500);
   }, [onScan]);
 
   const startScanner = useCallback(async () => {
-    if (!containerRef.current || scannerRef.current) return;
+    if (!containerRef.current || scannerRef.current || startingRef.current) return;
+    startingRef.current = true;
 
     try {
       setError(null);
@@ -52,21 +47,14 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
-      // 85% of container for larger scan area
       const containerWidth = containerRef.current?.offsetWidth || 300;
-      const qrboxSize = Math.floor(containerWidth * 0.85);
+      const qrboxSize = Math.floor(containerWidth * 0.8);
       
       await scanner.start(
-        { 
-          facingMode: 'environment',
-        },
+        { facingMode: 'environment' },
         {
           fps: 30,
           qrbox: { width: qrboxSize, height: qrboxSize },
-          videoConstraints: {
-            facingMode: 'environment',
-            advanced: [{ width: 1280, height: 720 } as any],
-          },
         },
         handleScan,
         () => {}
@@ -81,18 +69,19 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       if (mountedRef.current) {
         setError('Не удалось запустить камеру. Проверьте разрешения.');
       }
+    } finally {
+      startingRef.current = false;
     }
   }, [handleScan]);
 
   // Auto-start camera on mount
   useEffect(() => {
     mountedRef.current = true;
-    // Small delay to ensure DOM element is rendered
     const timer = setTimeout(() => {
       if (mountedRef.current) {
         startScanner();
       }
-    }, 100);
+    }, 300);
 
     return () => {
       mountedRef.current = false;
@@ -111,21 +100,18 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     <div className="flex flex-col items-center gap-4 w-full">
       <div 
         ref={containerRef}
-        className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container"
+        className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container rounded-xl"
       >
-        <div id="qr-reader" className="w-full h-full" />
+        <div id="qr-reader" className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&>img]:hidden" />
         
-        {/* Custom square frame overlay with scanning line */}
         {isScanning && (
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-[5%] border-2 border-white/80">
-              {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent" />
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent" />
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent" />
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent" />
+            <div className="absolute inset-[8%] border-2 border-white/80 rounded-lg">
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-lg" />
               
-              {/* Animated scanning line */}
               {!isProcessing && (
                 <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-scan-line shadow-[0_0_8px_hsl(var(--accent))]" />
               )}
@@ -133,7 +119,6 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
           </div>
         )}
 
-        {/* Processing overlay on top of live camera */}
         {isProcessing && isScanning && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/50 pointer-events-none">
             <Loader2 size={40} className="text-white animate-spin" />
@@ -143,9 +128,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
         
         {!isScanning && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Loader2 size={40} className="text-muted-foreground animate-spin" />
-            </div>
+            <Loader2 size={40} className="text-muted-foreground animate-spin" />
             <p className="text-muted-foreground text-center px-4">
               Запускаем камеру...
             </p>
@@ -157,7 +140,10 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
         <div className="text-center space-y-3">
           <p className="text-destructive text-sm">{error}</p>
           <button
-            onClick={startScanner}
+            onClick={() => {
+              scannerRef.current = null;
+              startScanner();
+            }}
             className="text-primary underline text-sm"
           >
             Попробовать снова
