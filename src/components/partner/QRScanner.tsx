@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Loader2, RefreshCw, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
@@ -29,77 +29,80 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-      }
+      stopScannerCleanup();
     };
   }, []);
 
-  // Auto-start if permission was previously granted
-  useEffect(() => {
-    const wasGranted = localStorage.getItem(CAMERA_GRANTED_KEY) === 'true';
-    if (!wasGranted) return;
-
-    // Check actual browser permission before auto-starting
-    navigator.permissions?.query({ name: 'camera' as PermissionName })
-      .then(result => {
-        if (result.state === 'granted' && mountedRef.current && !scannerRef.current) {
-          startScanner();
-        }
-      })
-      .catch(() => {
-        // permissions API not supported — still try auto-start
-        if (mountedRef.current && !scannerRef.current) {
-          startScanner();
-        }
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const stopScannerCleanup = () => {
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.stop().catch(() => {});
+      } catch {}
+      try {
+        scannerRef.current.clear();
+      } catch {}
+      scannerRef.current = null;
+    }
+  };
 
   const handleScan = useCallback((decodedText: string) => {
     if (isProcessingRef.current) return;
     if (lastScannedRef.current === decodedText) return;
-    
+
     lastScannedRef.current = decodedText;
     console.log('QR Code scanned:', decodedText);
     onScan(decodedText);
-    
+
     if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
     scanTimeoutRef.current = setTimeout(() => {
       lastScannedRef.current = null;
     }, 1500);
   }, [onScan]);
 
-  const startScanner = async () => {
-    if (scannerRef.current || !mountedRef.current) return;
+  const startScanner = useCallback(async () => {
+    // Stop any existing scanner first
+    stopScannerCleanup();
+
+    if (!mountedRef.current) return;
 
     setIsStarting(true);
+    setIsScanning(false);
     setError(null);
     lastScannedRef.current = null;
 
-    // Wait for DOM to be ready
-    await new Promise(r => setTimeout(r, 100));
+    // Wait for DOM
+    await new Promise(r => setTimeout(r, 150));
     if (!mountedRef.current) return;
 
     const el = document.getElementById('qr-reader');
     if (!el) {
+      console.error('qr-reader element not found');
+      setError('Ошибка инициализации сканера');
       setIsStarting(false);
       return;
     }
+
+    // Clear any leftover content from previous scanner instance
+    el.innerHTML = '';
 
     try {
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
       const containerWidth = containerRef.current?.offsetWidth || 300;
-      const qrboxSize = Math.floor(containerWidth * 0.8);
+      const qrboxSize = Math.floor(containerWidth * 0.75);
 
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 30, qrbox: { width: qrboxSize, height: qrboxSize } },
+        {
+          fps: 15,
+          qrbox: { width: qrboxSize, height: qrboxSize },
+          aspectRatio: 1,
+        },
         handleScan,
         () => {}
       );
@@ -110,36 +113,70 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       }
 
       setIsScanning(true);
+      setError(null);
       localStorage.setItem(CAMERA_GRANTED_KEY, 'true');
       console.log('Scanner started successfully');
     } catch (err: any) {
       console.error('Failed to start scanner:', err);
       scannerRef.current = null;
       if (!mountedRef.current) return;
+
       const errMsg = String(err?.message || err || '');
-      if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission')) {
+      if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission') || errMsg.includes('denied')) {
         localStorage.removeItem(CAMERA_GRANTED_KEY);
         setError('Доступ к камере запрещён. Разрешите в настройках браузера.');
+      } else if (errMsg.includes('NotFoundError') || errMsg.includes('device not found')) {
+        setError('Камера не найдена на устройстве.');
+      } else if (errMsg.includes('NotReadableError') || errMsg.includes('Could not start')) {
+        setError('Камера занята другим приложением. Закройте его и попробуйте снова.');
       } else {
-        setError('Не удалось запустить камеру. Проверьте разрешения.');
+        setError('Не удалось запустить камеру. Нажмите «Перезапустить».');
       }
     } finally {
       if (mountedRef.current) setIsStarting(false);
     }
-  };
+  }, [handleScan]);
 
-  const handleStartClick = () => {
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch {}
+      try {
+        scannerRef.current.clear();
+      } catch {}
+      scannerRef.current = null;
+    }
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+    lastScannedRef.current = null;
+    setIsScanning(false);
+    setError(null);
+  }, []);
+
+  const handleRestartClick = useCallback(() => {
     startScanner();
-  };
+  }, [startScanner]);
+
+  const handleStopClick = useCallback(() => {
+    stopScanner();
+  }, [stopScanner]);
+
+  const handleStartClick = useCallback(() => {
+    startScanner();
+  }, [startScanner]);
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
-      <div 
+    <div className="flex flex-col items-center gap-3 w-full">
+      <div
         ref={containerRef}
         className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container rounded-xl"
       >
         <div id="qr-reader" className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&>img]:hidden" />
-        
+
+        {/* Scan frame overlay */}
         {isScanning && (
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-[8%] border-2 border-white/80 rounded-lg">
@@ -154,13 +191,15 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
           </div>
         )}
 
+        {/* Processing overlay */}
         {isProcessing && isScanning && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/50 pointer-events-none">
             <Loader2 size={40} className="text-white animate-spin" />
             <p className="text-white font-medium">Обрабатываем...</p>
           </div>
         )}
-        
+
+        {/* Initial state / error state — show start button */}
         {!isScanning && !isStarting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-secondary px-6">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
@@ -169,13 +208,14 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
             <p className="text-muted-foreground text-center text-sm">
               {error || 'Нажмите кнопку для запуска камеры'}
             </p>
-            <Button size="lg" onClick={handleStartClick} className="w-full max-w-[200px]">
+            <Button size="lg" onClick={handleStartClick} className="w-full max-w-[220px]">
               <Camera size={20} className="mr-2" />
               {error ? 'Попробовать снова' : 'Открыть камеру'}
             </Button>
           </div>
         )}
 
+        {/* Starting state */}
         {isStarting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
             <Loader2 size={40} className="text-muted-foreground animate-spin" />
@@ -183,6 +223,30 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
           </div>
         )}
       </div>
+
+      {/* Control buttons when scanning */}
+      {isScanning && !isProcessing && (
+        <div className="flex items-center gap-3 w-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestartClick}
+            className="flex-1"
+          >
+            <RefreshCw size={16} className="mr-1.5" />
+            Перезапустить
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleStopClick}
+            className="flex-1 text-muted-foreground"
+          >
+            <VideoOff size={16} className="mr-1.5" />
+            Выключить
+          </Button>
+        </div>
+      )}
 
       {isScanning && !isProcessing && (
         <p className="text-sm text-muted-foreground text-center">
