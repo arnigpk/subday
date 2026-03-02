@@ -113,7 +113,7 @@ const translations: Record<string, Record<Language, string>> = {
   'redeem.scanning': { ru: 'Сканируют...', kz: 'Сканерленуде...', en: 'Scanning...', uz: 'Skanerlanmoqda...', kg: 'Сканерленүүдө...' },
   'redeem.waitSec': { ru: 'Подожди секунду', kz: 'Бір секунд күтіңіз', en: 'Wait a moment', uz: 'Bir soniya kuting', kg: 'Бир секунд күтүңүз' },
   'redeem.success': { ru: 'Списано!', kz: 'Есептелді!', en: 'Redeemed!', uz: 'Yechildi!', kg: 'Эсептелди!' },
-  'redeem.enjoy': { ru: 'Наслаждайся 🚀', kz: 'Ләззат алыңыз 🚀', en: 'Enjoy! 🚀', uz: 'Rohatdan oling! 🚀', kg: 'Ырахат алыңыз 🚀' },
+  'redeem.enjoy': { ru: 'Спасибо что выбрали SubDay', kz: 'SubDay таңдағаныңызға рахмет', en: 'Thanks for choosing SubDay', uz: 'SubDay tanlaganingiz uchun rahmat', kg: 'SubDay тандаганыңыз үчүн рахмат' },
   'redeem.goHome': { ru: 'На главную', kz: 'Басты бетке', en: 'Go home', uz: 'Bosh sahifaga', kg: 'Башкы бетке' },
   'redeem.error': { ru: 'Ошибка', kz: 'Қате', en: 'Error', uz: 'Xato', kg: 'Ката' },
   'redeem.tryAgain': { ru: 'Попробуй ещё раз', kz: 'Қайта байқаңыз', en: 'Try again', uz: 'Qayta urinib ko\'ring', kg: 'Кайра аракет кылыңыз' },
