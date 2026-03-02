@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,50 +8,32 @@ interface QRScannerProps {
   isProcessing: boolean;
 }
 
-type PermissionState = 'checking' | 'granted' | 'prompt' | 'denied';
-
 export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [permissionState, setPermissionState] = useState<PermissionState>('checking');
+  const [hasEverStarted, setHasEverStarted] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScannedRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(isProcessing);
-  const mountedRef = useRef(true);
-  const startingRef = useRef(false);
 
   useEffect(() => {
     isProcessingRef.current = isProcessing;
   }, [isProcessing]);
 
-  // Check camera permission status on mount
+  // Cleanup on unmount
   useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        // navigator.permissions.query for camera
-        if (navigator.permissions && navigator.permissions.query) {
-          const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
-          if (mountedRef.current) {
-            setPermissionState(result.state as PermissionState);
-            // Listen for changes
-            result.onchange = () => {
-              if (mountedRef.current) {
-                setPermissionState(result.state as PermissionState);
-              }
-            };
-          }
-        } else {
-          // Fallback: assume prompt needed, will auto-start
-          setPermissionState('prompt');
-        }
-      } catch {
-        // permissions.query not supported for camera on some browsers
-        setPermissionState('prompt');
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
+      }
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
       }
     };
-    checkPermission();
   }, []);
 
   const handleScan = useCallback((decodedText: string) => {
@@ -68,20 +50,23 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     }, 1500);
   }, [onScan]);
 
-  const startScanner = useCallback(async () => {
-    if (!containerRef.current || scannerRef.current || startingRef.current) return;
-    startingRef.current = true;
+  // CRITICAL: Must be called directly from a click handler for Telegram Mini App
+  const handleStartClick = async () => {
+    if (scannerRef.current || isStarting) return;
+    if (!containerRef.current) return;
+
+    setIsStarting(true);
+    setError(null);
+    lastScannedRef.current = null;
 
     try {
-      setError(null);
-      lastScannedRef.current = null;
-      
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
-      const containerWidth = containerRef.current?.offsetWidth || 300;
+      const containerWidth = containerRef.current.offsetWidth || 300;
       const qrboxSize = Math.floor(containerWidth * 0.8);
-      
+
+      // getUserMedia is called inside scanner.start — must be in click handler
       await scanner.start(
         { facingMode: 'environment' },
         {
@@ -92,74 +77,21 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
         () => {}
       );
 
-      if (mountedRef.current) {
-        setIsScanning(true);
-        setPermissionState('granted');
-        console.log('Scanner started successfully');
-      }
+      setIsScanning(true);
+      setHasEverStarted(true);
+      console.log('Scanner started successfully');
     } catch (err: any) {
       console.error('Failed to start scanner:', err);
-      if (mountedRef.current) {
-        const errMsg = String(err?.message || err || '');
-        if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission')) {
-          setPermissionState('denied');
-          setError('Доступ к камере запрещён. Разрешите в настройках браузера.');
-        } else {
-          setError('Не удалось запустить камеру. Проверьте разрешения.');
-        }
+      scannerRef.current = null;
+      const errMsg = String(err?.message || err || '');
+      if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission')) {
+        setError('Доступ к камере запрещён. Разрешите в настройках браузера.');
+      } else {
+        setError('Не удалось запустить камеру. Проверьте разрешения.');
       }
     } finally {
-      startingRef.current = false;
+      setIsStarting(false);
     }
-  }, [handleScan]);
-
-  // Auto-start if permission already granted; otherwise wait for user action
-  useEffect(() => {
-    mountedRef.current = true;
-
-    if (permissionState === 'granted') {
-      const timer = setTimeout(() => {
-        if (mountedRef.current) startScanner();
-      }, 200);
-      return () => {
-        mountedRef.current = false;
-        clearTimeout(timer);
-        cleanup();
-      };
-    }
-
-    // For 'prompt' state — also auto-start (browser will show its own permission dialog)
-    if (permissionState === 'prompt') {
-      const timer = setTimeout(() => {
-        if (mountedRef.current) startScanner();
-      }, 300);
-      return () => {
-        mountedRef.current = false;
-        clearTimeout(timer);
-        cleanup();
-      };
-    }
-
-    return () => {
-      mountedRef.current = false;
-      cleanup();
-    };
-  }, [permissionState, startScanner]);
-
-  const cleanup = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-      scannerRef.current = null;
-    }
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-    }
-  };
-
-  const handleRetry = () => {
-    scannerRef.current = null;
-    setError(null);
-    setPermissionState('prompt');
   };
 
   return (
@@ -194,40 +126,39 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
           </div>
         )}
         
-        {/* Loading / initializing state */}
-        {!isScanning && !error && permissionState !== 'denied' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
-            <Loader2 size={40} className="text-muted-foreground animate-spin" />
-            <p className="text-muted-foreground text-center px-4">
-              {permissionState === 'checking' ? 'Проверяем доступ...' : 'Запускаем камеру...'}
-            </p>
-          </div>
-        )}
-
-        {/* Permission denied state */}
-        {permissionState === 'denied' && !isScanning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary px-6">
+        {/* Initial state — button to start camera (user gesture required) */}
+        {!isScanning && !isStarting && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-secondary px-6">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
               <Camera size={40} className="text-muted-foreground" />
             </div>
-            <div className="text-center space-y-2">
-              <p className="font-medium text-foreground">Нет доступа к камере</p>
-              <p className="text-sm text-muted-foreground">
-                Разрешите доступ к камере в настройках браузера, затем нажмите кнопку ниже
-              </p>
-            </div>
+            <p className="text-muted-foreground text-center text-sm">
+              {error 
+                ? error 
+                : 'Нажмите кнопку для запуска камеры'
+              }
+            </p>
+            <Button 
+              size="lg" 
+              onClick={handleStartClick}
+              className="w-full max-w-[200px]"
+            >
+              <Camera size={20} className="mr-2" />
+              {error ? 'Попробовать снова' : 'Открыть камеру'}
+            </Button>
+          </div>
+        )}
+
+        {/* Starting state */}
+        {isStarting && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
+            <Loader2 size={40} className="text-muted-foreground animate-spin" />
+            <p className="text-muted-foreground text-center px-4">
+              Запускаем камеру...
+            </p>
           </div>
         )}
       </div>
-
-      {error && (
-        <div className="text-center space-y-3">
-          <p className="text-destructive text-sm">{error}</p>
-          <Button variant="outline" size="sm" onClick={handleRetry}>
-            Попробовать снова
-          </Button>
-        </div>
-      )}
 
       {isScanning && !isProcessing && (
         <p className="text-sm text-muted-foreground text-center">
