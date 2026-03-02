@@ -147,14 +147,14 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.phoneLabel')}</label>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 w-full">
                   <CountryCodePicker selectedCountry={country} onSelect={handleCountryChange} />
                   <input
                     type="tel"
                     placeholder={country.phoneMask}
                     value={getDisplayPhone(phone)}
                     onChange={handlePhoneChange}
-                    className="input-field flex-1"
+                    className="input-field flex-1 min-w-0 text-base"
                     autoComplete="tel"
                   />
                 </div>
