@@ -87,11 +87,9 @@ export default function RedeemPage() {
     });
     
     setShops(sorted);
-    // Auto-select nearest open shop on first distance calc, prefer one supporting initialDrinkType
+    // Auto-select nearest open shop on first distance calc
     if (!lastDistanceKey && sorted.length > 0) {
-      const preferredType = initialDrinkType || 'coffee';
-      const nearestOpenSupporting = sorted.find(s => s.isCurrentlyOpen && s.supported_types?.includes(preferredType));
-      const nearestOpen = nearestOpenSupporting || sorted.find(s => s.isCurrentlyOpen);
+      const nearestOpen = sorted.find(s => s.isCurrentlyOpen);
       setSelectedShop(nearestOpen || sorted[0]);
     }
     setLastDistanceKey(distKey);
@@ -130,15 +128,14 @@ export default function RedeemPage() {
   const lunchButtonActive = hasLunch && shopSupportsLunch;
 
   // Auto-correct selected type if current selection is not possible
-  // Auto-correct selected type only if NOT explicitly passed and shop doesn't support it
   useEffect(() => {
-    if (isGuestCoffee || !selectedShop || initialDrinkType) return;
+    if (isGuestCoffee) return;
     if (selectedDrinkType === 'drinks' && !lunchButtonActive && coffeeButtonActive) {
       setSelectedDrinkType('coffee');
     } else if (selectedDrinkType === 'coffee' && !coffeeButtonActive && lunchButtonActive) {
       setSelectedDrinkType('drinks');
     }
-  }, [selectedShop, coffeeButtonActive, lunchButtonActive, selectedDrinkType, isGuestCoffee, initialDrinkType]);
+  }, [selectedShop, coffeeButtonActive, lunchButtonActive, selectedDrinkType, isGuestCoffee]);
 
   const drinkType = selectedDrinkType;
   const drinkName = drinkType === 'coffee' ? t('balance.coffee') : t('balance.drinks');
@@ -221,10 +218,8 @@ export default function RedeemPage() {
           return a.name.localeCompare(b.name);
         });
         setShops(shopsWithStatus);
-        // Set temporary selection, prefer shop supporting initialDrinkType
-        const preferredType = initialDrinkType || 'coffee';
-        const firstOpenSupporting = shopsWithStatus.find(s => s.isCurrentlyOpen && s.supported_types?.includes(preferredType));
-        const firstOpen = firstOpenSupporting || shopsWithStatus.find(s => s.isCurrentlyOpen);
+        // Set temporary selection; will be overridden by distance-based sort
+        const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
         setSelectedShop(firstOpen || shopsWithStatus[0] || null);
       } catch (error) {
         console.error('Error fetching shops:', error);
