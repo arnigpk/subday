@@ -5,7 +5,7 @@ import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
-import { CountryCodePicker, Country, COUNTRIES, detectCountryByTimezone } from './CountryCodePicker';
+import { CountryCodePicker, Country, COUNTRIES, useDetectedCountry } from './CountryCodePicker';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -13,13 +13,20 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps) {
-  const [country, setCountry] = useState<Country>(() => detectCountryByTimezone());
+  const detectedCountry = useDetectedCountry();
+  const [country, setCountry] = useState<Country>(detectedCountry);
+  const [countryManuallySet, setCountryManuallySet] = useState(false);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
+
+  // Sync with IP detection result unless user manually changed
+  useEffect(() => {
+    if (!countryManuallySet) setCountry(detectedCountry);
+  }, [detectedCountry, countryManuallySet]);
 
   const formatPhoneInput = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, country.phoneLength);
@@ -167,7 +174,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Введите ваш номер👇</label>
                 <div className="flex gap-2">
-                  <CountryCodePicker selectedCountry={country} onSelect={c => { setCountry(c); setPhone(''); }} />
+                  <CountryCodePicker selectedCountry={country} onSelect={c => { setCountry(c); setCountryManuallySet(true); setPhone(''); }} />
                   <input
                     type="tel"
                     placeholder={country.phoneMask}

@@ -42,6 +42,44 @@ export function detectCountryByTimezone(): Country {
   return COUNTRIES[0]; // default KZ
 }
 
+// Cached IP detection result
+let ipCountryCache: Country | null = null;
+let ipDetectionPromise: Promise<Country> | null = null;
+
+export async function detectCountryByIP(): Promise<Country> {
+  if (ipCountryCache) return ipCountryCache;
+  if (ipDetectionPromise) return ipDetectionPromise;
+  
+  ipDetectionPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      clearTimeout(timeout);
+      const data = await res.json();
+      const countryCode = data.country_code; // e.g. "KZ", "KG", "UZ", "RU"
+      const found = COUNTRIES.find(c => c.code === countryCode);
+      ipCountryCache = found || detectCountryByTimezone();
+      return ipCountryCache;
+    } catch {
+      ipCountryCache = detectCountryByTimezone();
+      return ipCountryCache;
+    }
+  })();
+  
+  return ipDetectionPromise;
+}
+
+export function useDetectedCountry(): Country {
+  const [country, setCountry] = useState<Country>(() => detectCountryByTimezone());
+
+  useEffect(() => {
+    detectCountryByIP().then(setCountry);
+  }, []);
+
+  return country;
+}
+
 export function CountryCodePicker({ selectedCountry, onSelect }: CountryCodePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
