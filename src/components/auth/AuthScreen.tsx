@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LoginScreen } from './LoginScreen';
 import { RegisterScreen } from './RegisterScreen';
+import { Country } from './CountryCodePicker';
 
 interface AuthScreenProps {
   onComplete: () => void;
@@ -9,11 +10,11 @@ interface AuthScreenProps {
 export function AuthScreen({ onComplete }: AuthScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [prefillPhone, setPrefillPhone] = useState('');
+  const [prefillCountry, setPrefillCountry] = useState<Country | undefined>();
 
-  const handleSwitchToRegister = (phone?: string) => {
-    if (phone) {
-      setPrefillPhone(phone);
-    }
+  const handleSwitchToRegister = (phone?: string, country?: Country) => {
+    if (phone) setPrefillPhone(phone);
+    if (country) setPrefillCountry(country);
     setMode('register');
   };
 
@@ -23,9 +24,11 @@ export function AuthScreen({ onComplete }: AuthScreenProps) {
         onComplete={() => setMode('login')}
         onSwitchToLogin={() => {
           setPrefillPhone('');
+          setPrefillCountry(undefined);
           setMode('login');
         }}
         initialPhone={prefillPhone}
+        initialCountry={prefillCountry}
       />
     );
   }

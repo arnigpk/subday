@@ -4,51 +4,76 @@ import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
+import { CountryCodePicker, Country, COUNTRIES, CITIES_BY_COUNTRY, detectCountryByTimezone } from './CountryCodePicker';
+import { ChevronDown } from 'lucide-react';
 
 interface RegisterScreenProps {
   onComplete: () => void;
   onSwitchToLogin: () => void;
   initialPhone?: string;
+  initialCountry?: Country;
 }
 
-export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' }: RegisterScreenProps) {
+export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '', initialCountry }: RegisterScreenProps) {
+  const [country, setCountry] = useState<Country>(initialCountry || detectCountryByTimezone());
   const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [cityOpen, setCityOpen] = useState(false);
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'code'>('form');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
+  const cities = CITIES_BY_COUNTRY[country.code] || [];
+
   const formatPhoneInput = (value: string) => {
-    let digits = value.replace(/\D/g, '');
-    if (digits.length > 11) digits = digits.slice(0, 11);
-    if (digits.length === 0) return '';
-    if (digits.length <= 1) return `+${digits}`;
-    if (digits.length <= 4) return `+${digits.slice(0, 1)} ${digits.slice(1)}`;
-    if (digits.length <= 7) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4)}`;
-    if (digits.length <= 9) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
-    return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
+    return value.replace(/\D/g, '').slice(0, country.phoneLength);
+  };
+
+  const getDisplayPhone = (digits: string) => {
+    if (!digits) return '';
+    if (country.code === 'KZ' || country.code === 'RU') {
+      let r = '';
+      if (digits.length > 0) r += digits.slice(0, 3);
+      if (digits.length > 3) r += ' ' + digits.slice(3, 6);
+      if (digits.length > 6) r += ' ' + digits.slice(6, 8);
+      if (digits.length > 8) r += ' ' + digits.slice(8, 10);
+      return r;
+    }
+    let r = '';
+    if (digits.length > 0) r += digits.slice(0, 3);
+    if (digits.length > 3) r += ' ' + digits.slice(3, 6);
+    if (digits.length > 6) r += ' ' + digits.slice(6, 9);
+    return r;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhoneInput(e.target.value));
   };
 
+  const handleCountryChange = (c: Country) => {
+    setCountry(c);
+    setPhone('');
+    setCity('');
+  };
+
+  const fullPhoneDigits = country.dialCode + phone;
+  const isPhoneComplete = phone.length >= country.phoneLength;
+
   const handleSendCode = async () => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 11) { toast.error('Введи полный номер телефона'); return; }
+    if (!isPhoneComplete) { toast.error('Введи полный номер телефона'); return; }
     if (!name.trim()) { toast.error('Введи имя и фамилию'); return; }
+    if (!city) { toast.error('Выбери город'); return; }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: digits, isRegistration: true }
+        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code }
       });
       if (error) { toast.error('Ошибка отправки кода'); return; }
       if (data?.error) {
-        if (data.cooldown) {
-          startCooldown(data.cooldown);
-        }
+        if (data.cooldown) startCooldown(data.cooldown);
         toast.error(data.error);
         return;
       }
@@ -69,7 +94,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim() }
+        body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim(), city, country: country.code }
       });
       if (error) { toast.error('Ошибка проверки кода'); return; }
       if (data.error) { toast.error(data.error); return; }
@@ -106,12 +131,51 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '' 
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Номер телефона</label>
-                <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full" autoComplete="tel" />
+                <div className="flex gap-2">
+                  <CountryCodePicker selectedCountry={country} onSelect={handleCountryChange} />
+                  <input
+                    type="tel"
+                    placeholder={country.phoneMask}
+                    value={getDisplayPhone(phone)}
+                    onChange={handlePhoneChange}
+                    className="input-field flex-1"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Город</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setCityOpen(!cityOpen)}
+                    className="input-field w-full flex items-center justify-between text-left"
+                  >
+                    <span className={city ? 'text-foreground' : 'text-muted-foreground'}>
+                      {city || 'Выберите город'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  {cityOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                      {cities.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => { setCity(c); setCityOpen(false); }}
+                          className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted transition-colors ${c === city ? 'bg-muted font-medium' : ''}`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
               </p>
-              <button onClick={handleSendCode} disabled={phone.replace(/\D/g, '').length < 11 || !name.trim() || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isCoolingDown ? `Повторно через ${remaining} сек.` : isLoading ? 'Отправляем...' : 'Получить код'}
               </button>
               <button onClick={onSwitchToLogin} className="btn-secondary w-full">

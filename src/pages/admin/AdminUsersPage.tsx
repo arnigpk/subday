@@ -33,12 +33,20 @@ import { AppRole } from '@/hooks/useAdminAuth';
 
 type UserRole = AppRole | 'user';
 
+const COUNTRY_LABELS: Record<string, string> = {
+  KZ: '🇰🇿 Казахстан',
+  KG: '🇰🇬 Кыргызстан',
+  UZ: '🇺🇿 Узбекистан',
+  RU: '🇷🇺 Россия',
+};
+
 interface UserWithStats {
   user_id: string;
   name: string | null;
   phone: string;
   public_id: string;
   city: string | null;
+  country: string | null;
   created_at: string;
   is_blocked: boolean;
   coffee_remaining: number;
@@ -91,6 +99,7 @@ export default function AdminUsersPage() {
     name: '',
     phone: '',
     city: '',
+    country: 'KZ',
     is_blocked: false,
     coffee_remaining: 0,
     drinks_remaining: 0,
@@ -127,7 +136,7 @@ export default function AdminUsersPage() {
     try {
       let query = supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id, city, created_at, is_blocked', { count: 'exact' });
+        .select('user_id, name, phone, public_id, city, country, created_at, is_blocked', { count: 'exact' });
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,public_id.ilike.%${search}%`);
@@ -230,6 +239,7 @@ export default function AdminUsersPage() {
       name: user.name || '',
       phone: user.phone,
       city: user.city || '',
+      country: user.country || 'KZ',
       is_blocked: user.is_blocked,
       coffee_remaining: user.coffee_remaining,
       drinks_remaining: user.drinks_remaining,
@@ -249,6 +259,7 @@ export default function AdminUsersPage() {
         .update({
           name: formData.name || null,
           city: formData.city || null,
+          country: formData.country || 'KZ',
           is_blocked: formData.is_blocked,
         })
         .eq('user_id', editingUser.user_id);
@@ -516,6 +527,7 @@ export default function AdminUsersPage() {
                       <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Регистрация</TableHead>
+                      <TableHead>Страна</TableHead>
                       <TableHead>Город</TableHead>
                       <TableHead className="text-center">Кофе</TableHead>
                       <TableHead className="text-center">Ланч</TableHead>
@@ -539,6 +551,7 @@ export default function AdminUsersPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(user.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </TableCell>
+                        <TableCell className="text-xs">{user.country ? (COUNTRY_LABELS[user.country] || user.country) : '—'}</TableCell>
                         <TableCell>{user.city || '—'}</TableCell>
                         <TableCell className="text-center">{user.coffee_remaining}</TableCell>
                         <TableCell className="text-center">{user.drinks_remaining}</TableCell>
@@ -640,13 +653,28 @@ export default function AdminUsersPage() {
                 className="bg-muted"
               />
             </div>
-            <div>
-              <Label htmlFor="city">Город</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="country">Страна</Label>
+                <Select value={formData.country} onValueChange={(v) => setFormData({ ...formData, country: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
+                      <SelectItem key={code} value={code}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="city">Город</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">

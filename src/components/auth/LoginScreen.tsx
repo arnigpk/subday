@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
+import { CountryCodePicker, Country, COUNTRIES, detectCountryByTimezone } from './CountryCodePicker';
 
 interface LoginScreenProps {
   onComplete: () => void;
-  onSwitchToRegister: (phone?: string) => void;
+  onSwitchToRegister: (phone?: string, country?: Country) => void;
 }
 
 export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps) {
+  const [country, setCountry] = useState<Country>(() => detectCountryByTimezone());
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
@@ -20,30 +22,43 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   const formatPhoneInput = (value: string) => {
-    let digits = value.replace(/\D/g, '');
-    if (digits.length > 11) digits = digits.slice(0, 11);
-    if (digits.length === 0) return '';
-    if (digits.length <= 1) return `+${digits}`;
-    if (digits.length <= 4) return `+${digits.slice(0, 1)} ${digits.slice(1)}`;
-    if (digits.length <= 7) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4)}`;
-    if (digits.length <= 9) return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
-    return `+${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
+    const digits = value.replace(/\D/g, '').slice(0, country.phoneLength);
+    return digits;
+  };
+
+  const getDisplayPhone = (digits: string) => {
+    if (!digits) return '';
+    // Simple grouping for display
+    if (country.code === 'KZ' || country.code === 'RU') {
+      // XXX XXX XX XX
+      let r = '';
+      if (digits.length > 0) r += digits.slice(0, 3);
+      if (digits.length > 3) r += ' ' + digits.slice(3, 6);
+      if (digits.length > 6) r += ' ' + digits.slice(6, 8);
+      if (digits.length > 8) r += ' ' + digits.slice(8, 10);
+      return r;
+    }
+    // KG/UZ: XXX XXX XXX
+    let r = '';
+    if (digits.length > 0) r += digits.slice(0, 3);
+    if (digits.length > 3) r += ' ' + digits.slice(3, 6);
+    if (digits.length > 6) r += ' ' + digits.slice(6, 9);
+    return r;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhoneInput(e.target.value));
   };
 
+  const fullPhoneDigits = country.dialCode + phone;
+  const isPhoneComplete = phone.length >= country.phoneLength;
+
   const handleSendCode = async () => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 11) {
-      toast.error('Введи полный номер телефона');
-      return;
-    }
+    if (!isPhoneComplete) { toast.error('Введи полный номер телефона'); return; }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: digits, isRegistration: false }
+        body: { phone: fullPhoneDigits, isRegistration: false, countryCode: country.code }
       });
 
       if (error) {
@@ -57,7 +72,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
 
         if (errorText.includes('Зарегистрируйтесь') || errorText.includes('не найден')) {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
-          onSwitchToRegister(phone);
+          onSwitchToRegister(phone, country);
           return;
         }
         toast.error(errorText || 'Ошибка отправки кода');
@@ -65,14 +80,10 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       }
 
       if (data?.error) {
-        if (data.cooldown) {
-          startCooldown(data.cooldown);
-          toast.error(data.error);
-          return;
-        }
+        if (data.cooldown) { startCooldown(data.cooldown); toast.error(data.error); return; }
         if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
-          onSwitchToRegister(phone);
+          onSwitchToRegister(phone, country);
         } else {
           toast.error(data.error);
         }
@@ -127,12 +138,8 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         body: { phone: formattedPhone, isRegistration: false }
       });
       if (error || data?.error) {
-        if (data?.cooldown) {
-          startCooldown(data.cooldown);
-          toast.error(data.error);
-        } else {
-          toast.error('Ошибка повторной отправки');
-        }
+        if (data?.cooldown) { startCooldown(data.cooldown); toast.error(data.error); }
+        else toast.error('Ошибка повторной отправки');
         return;
       }
       startCooldown(59);
@@ -159,15 +166,25 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">Введите ваш номер👇</label>
-                <input type="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={handlePhoneChange} className="input-field w-full text-lg" autoComplete="tel" />
+                <div className="flex gap-2">
+                  <CountryCodePicker selectedCountry={country} onSelect={c => { setCountry(c); setPhone(''); }} />
+                  <input
+                    type="tel"
+                    placeholder={country.phoneMask}
+                    value={getDisplayPhone(phone)}
+                    onChange={handlePhoneChange}
+                    className="input-field flex-1 text-lg"
+                    autoComplete="tel"
+                  />
+                </div>
               </div>
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 Отправка смс на beeline временно недоступна по техническим причинам, используйте пожалуйста Telegram для входа.
               </p>
-              <button onClick={handleSendCode} disabled={phone.replace(/\D/g, '').length < 11 || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleSendCode} disabled={!isPhoneComplete || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isCoolingDown ? `Повторно через ${remaining} сек.` : isLoading ? 'Отправляем...' : 'Войти'}
               </button>
-              <button onClick={() => onSwitchToRegister()} className="btn-secondary w-full">
+              <button onClick={() => onSwitchToRegister(undefined, country)} className="btn-secondary w-full">
                 Нет аккаунта? Регистрация
               </button>
             </>
