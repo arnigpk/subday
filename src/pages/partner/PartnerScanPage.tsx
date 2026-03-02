@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, AlertTriangle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check, X, AlertTriangle } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
-
-type ScanStatus = 'ready' | 'scanning' | 'success' | 'error';
 
 interface ScanResult {
   success: boolean;
@@ -21,75 +18,60 @@ interface ScanResult {
 export default function PartnerScanPage() {
   const { shopId } = usePartnerAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [status, setStatus] = useState<ScanStatus>('ready');
   const [result, setResult] = useState<ScanResult | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const { playSuccessSound } = useSuccessSound();
   const { vibrateSuccess } = useVibration();
+  const autoResetRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-reset result after 2.5 seconds
+  useEffect(() => {
+    if (result) {
+      autoResetRef.current = setTimeout(() => {
+        setResult(null);
+      }, 2500);
+    }
+    return () => {
+      if (autoResetRef.current) clearTimeout(autoResetRef.current);
+    };
+  }, [result]);
 
   const handleScan = async (qrData: string) => {
     if (isProcessing || !shopId) return;
 
     setIsProcessing(true);
-    setStatus('scanning');
     setResult(null);
 
     try {
-      // Parse QR data
       let data;
       try {
         data = JSON.parse(qrData);
       } catch {
-        setResult({
-          success: false,
-          message: 'Неверный формат QR-кода',
-        });
-        setStatus('error');
+        setResult({ success: false, message: 'Неверный формат QR-кода' });
         setIsProcessing(false);
         return;
       }
 
-      // Validate QR structure
       if (data.type !== 'subday_redeem') {
-        setResult({
-          success: false,
-          message: 'Это не QR-код SubDay',
-        });
-        setStatus('error');
+        setResult({ success: false, message: 'Это не QR-код SubDay' });
         setIsProcessing(false);
         return;
       }
 
-      // Check if QR is for this shop
       if (data.shopId !== shopId) {
-        setResult({
-          success: false,
-          message: 'Этот QR принадлежит другой кофейне',
-        });
-        setStatus('error');
+        setResult({ success: false, message: 'Этот QR принадлежит другой кофейне' });
         setIsProcessing(false);
         return;
       }
 
-      // Check if QR is expired (1 minute)
-      const qrTimestamp = data.timestamp;
       const now = Date.now();
-      const oneMinute = 1 * 60 * 1000;
-      
-      if (now - qrTimestamp > oneMinute) {
-        setResult({
-          success: false,
-          message: 'QR-код просрочен, попросите обновить',
-        });
-        setStatus('error');
+      if (now - data.timestamp > 60_000) {
+        setResult({ success: false, message: 'QR-код просрочен, попросите обновить' });
         setIsProcessing(false);
         return;
       }
 
-      // Add scanning animation delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Call edge function to process redemption
+      // No artificial delay — call edge function immediately
       const { data: response, error } = await supabase.functions.invoke('partner-scan-qr', {
         body: {
           userId: data.userId,
@@ -103,21 +85,13 @@ export default function PartnerScanPage() {
 
       if (error) {
         console.error('Edge function error:', error);
-        setResult({
-          success: false,
-          message: 'Ошибка при обработке. Попробуйте ещё раз.',
-        });
-        setStatus('error');
+        setResult({ success: false, message: 'Ошибка при обработке. Попробуйте ещё раз.' });
         setIsProcessing(false);
         return;
       }
 
       if (response.error) {
-        setResult({
-          success: false,
-          message: response.error,
-        });
-        setStatus('error');
+        setResult({ success: false, message: response.error });
       } else {
         setResult({
           success: true,
@@ -126,7 +100,6 @@ export default function PartnerScanPage() {
           drinkName: response.drinkName,
           remaining: response.remaining,
         });
-        setStatus('success');
         setShowConfetti(true);
         playSuccessSound();
         vibrateSuccess();
@@ -134,19 +107,10 @@ export default function PartnerScanPage() {
       }
     } catch (error) {
       console.error('Scan processing error:', error);
-      setResult({
-        success: false,
-        message: 'Произошла ошибка. Попробуйте ещё раз.',
-      });
-      setStatus('error');
+      setResult({ success: false, message: 'Произошла ошибка. Попробуйте ещё раз.' });
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const resetScanner = () => {
-    setResult(null);
-    setStatus('ready');
   };
 
   return (
@@ -156,92 +120,23 @@ export default function PartnerScanPage() {
           Сканер QR-кодов
         </h2>
 
-        {status === 'ready' && (
-          <div className="px-4">
-            <QRScanner onScan={handleScan} isProcessing={isProcessing} />
-          </div>
-        )}
+        {/* Scanner is ALWAYS mounted — never unmounted/remounted */}
+        <div className="px-4 relative">
+          <QRScanner onScan={handleScan} isProcessing={isProcessing} />
 
-        {status === 'scanning' && (
-          <div className="flex flex-col items-center gap-6 animate-fade-in">
-            <div className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center">
-              <Loader2 size={48} className="text-primary animate-spin" />
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-foreground">Обработка...</p>
-              <p className="text-muted-foreground">Подождите секунду</p>
-            </div>
-          </div>
-        )}
-
-        {status === 'success' && result && (
-          <div className="flex flex-col items-center gap-6 animate-scale-in relative">
-            {/* Confetti Animation */}
-            {showConfetti && (
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {Array.from({ length: 20 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute animate-confetti"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: '50%',
-                      animationDelay: `${Math.random() * 0.5}s`,
-                      fontSize: `${Math.random() * 20 + 10}px`,
-                    }}
-                  >
-                    {['☕', '✨', '🎉', '⭐'][Math.floor(Math.random() * 4)]}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="w-32 h-32 rounded-full bg-accent flex items-center justify-center shadow-glow animate-pop">
-              <Check size={64} strokeWidth={3} className="text-accent-foreground" />
-            </div>
-
-            <div className="text-center space-y-2">
-              <p className="text-2xl font-black text-accent">Успешно!</p>
-              <p className="text-muted-foreground">{result.message}</p>
-              
-              <div className="mt-4 p-4 bg-secondary rounded-xl space-y-2 text-left">
-                {result.customerName && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Клиент</p>
-                    <p className="font-semibold text-foreground">{result.customerName}</p>
-                  </div>
-                )}
-                {result.drinkName && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Выбор</p>
-                    <p className="font-semibold text-foreground">{result.drinkName}</p>
-                  </div>
+          {/* Result overlay on top of scanner */}
+          {result && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="bg-background/95 backdrop-blur-sm rounded-2xl p-6 mx-4 w-full max-w-sm shadow-xl animate-scale-in">
+                {result.success ? (
+                  <SuccessResult result={result} showConfetti={showConfetti} />
+                ) : (
+                  <ErrorResult result={result} />
                 )}
               </div>
             </div>
-
-            <Button onClick={resetScanner} size="lg" className="w-full max-w-sm">
-              Сканировать ещё
-            </Button>
-          </div>
-        )}
-
-        {status === 'error' && result && (
-          <div className="flex flex-col items-center gap-6 animate-scale-in">
-            <div className="w-32 h-32 rounded-full bg-destructive/20 flex items-center justify-center animate-pop">
-              <X size={64} strokeWidth={3} className="text-destructive" />
-            </div>
-
-            <div className="text-center space-y-2">
-              <p className="text-2xl font-bold text-destructive">Ошибка</p>
-              <p className="text-muted-foreground">{result.message}</p>
-            </div>
-
-            <Button onClick={resetScanner} size="lg" className="w-full max-w-sm">
-              Попробовать ещё раз
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex items-start gap-3 p-4 mx-4 bg-amber-500/10 rounded-xl">
           <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
@@ -254,5 +149,58 @@ export default function PartnerScanPage() {
         </div>
       </div>
     </PartnerLayout>
+  );
+}
+
+function SuccessResult({ result, showConfetti }: { result: ScanResult; showConfetti: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-4 relative">
+      {showConfetti && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: '50%',
+                animationDelay: `${Math.random() * 0.5}s`,
+                fontSize: `${Math.random() * 16 + 10}px`,
+              }}
+            >
+              {['☕', '✨', '🎉', '⭐'][Math.floor(Math.random() * 4)]}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="w-20 h-20 rounded-full bg-accent flex items-center justify-center shadow-glow animate-pop">
+        <Check size={40} strokeWidth={3} className="text-accent-foreground" />
+      </div>
+
+      <div className="text-center space-y-1">
+        <p className="text-xl font-black text-accent">Успешно!</p>
+        {result.customerName && (
+          <p className="text-sm text-muted-foreground">{result.customerName}</p>
+        )}
+        {result.drinkName && (
+          <p className="text-sm font-semibold text-foreground">{result.drinkName}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ErrorResult({ result }: { result: ScanResult }) {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-20 h-20 rounded-full bg-destructive/20 flex items-center justify-center animate-pop">
+        <X size={40} strokeWidth={3} className="text-destructive" />
+      </div>
+      <div className="text-center space-y-1">
+        <p className="text-xl font-bold text-destructive">Ошибка</p>
+        <p className="text-sm text-muted-foreground">{result.message}</p>
+      </div>
+    </div>
   );
 }
