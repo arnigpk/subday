@@ -9,12 +9,28 @@ function generateOTP(): string {
   return Math.floor(1000 + Math.random() * 9000).toString()
 }
 
-function formatPhone(phone: string): string {
+function formatPhone(phone: string, countryCode?: string): string {
   let digits = phone.replace(/\D/g, '')
+  // Legacy: if starts with 8 and 11 digits, assume KZ
   if (digits.startsWith('8') && digits.length === 11) {
     digits = '7' + digits.slice(1)
   }
   return '+' + digits
+}
+
+const PHONE_PATTERNS: Record<string, RegExp> = {
+  KZ: /^\+7[0-9]{10}$/,
+  RU: /^\+7[0-9]{10}$/,
+  KG: /^\+996[0-9]{9}$/,
+  UZ: /^\+998[0-9]{9}$/,
+}
+
+function validatePhone(phone: string, countryCode?: string): boolean {
+  if (countryCode && PHONE_PATTERNS[countryCode]) {
+    return PHONE_PATTERNS[countryCode].test(phone)
+  }
+  // Fallback: accept any of the patterns
+  return Object.values(PHONE_PATTERNS).some(p => p.test(phone))
 }
 
 Deno.serve(async (req) => {
@@ -23,7 +39,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { phone, isRegistration } = await req.json()
+    const { phone, isRegistration, countryCode } = await req.json()
 
     if (!phone) {
       return new Response(
@@ -32,11 +48,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    const formattedPhone = formatPhone(phone)
+    const formattedPhone = formatPhone(phone, countryCode)
     
-    if (!/^\+7[0-9]{10}$/.test(formattedPhone)) {
+    if (!validatePhone(formattedPhone, countryCode)) {
       return new Response(
-        JSON.stringify({ error: 'Неверный формат номера. Используй +7XXXXXXXXXX' }),
+        JSON.stringify({ error: 'Неверный формат номера телефона' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -128,7 +144,7 @@ Deno.serve(async (req) => {
 
     try {
       const smsResponse = await fetch(smsUrl.toString(), {
-        signal: AbortSignal.timeout(10000), // 10 sec timeout
+        signal: AbortSignal.timeout(10000),
       })
       const smsText = await smsResponse.text()
       console.log('SMSC raw response:', smsText)

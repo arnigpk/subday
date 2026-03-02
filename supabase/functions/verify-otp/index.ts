@@ -34,13 +34,18 @@ function sendLoginNotification(
   }).catch(e => console.error('Notification failed:', e))
 }
 
+// Generate email from phone for auth
+function phoneToEmail(phone: string): string {
+  return `${phone.replace('+', '')}@phone.subday.app`
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { phone, code, isRegistration, name } = await req.json()
+    const { phone, code, isRegistration, name, city, country } = await req.json()
 
     if (!phone || !code) {
       return new Response(
@@ -88,8 +93,9 @@ Deno.serve(async (req) => {
     if (isRegistration) {
       // Registration flow
       const tempPassword = crypto.randomUUID()
+      const email = phoneToEmail(formattedPhone)
       const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
-        email: `${formattedPhone.replace('+', '')}@phone.subday.app`,
+        email,
         phone: formattedPhone,
         password: tempPassword,
         email_confirm: true,
@@ -104,12 +110,13 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Create profile (don't await notification)
+      // Create profile with country and city
       await supabase.from('profiles').insert({
         user_id: signUpData.user.id,
         phone: formattedPhone,
         name: name || null,
-        city: 'Атырау'
+        city: city || 'Атырау',
+        country: country || 'KZ',
       })
 
       // Fire-and-forget: notification + cleanup
@@ -121,7 +128,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
-      // Login flow - FAST: lookup user via profiles table (indexed), not listUsers()
+      // Login flow
       const { data: profileData } = await supabase
         .from('profiles')
         .select('user_id, name')
@@ -137,14 +144,14 @@ Deno.serve(async (req) => {
 
       console.log('Logging in user:', profileData.user_id)
       
-      // Update password and login in sequence (required)
       const tempPassword = crypto.randomUUID()
       await supabase.auth.admin.updateUserById(profileData.user_id, {
         password: tempPassword
       })
 
+      const email = phoneToEmail(formattedPhone)
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: `${formattedPhone.replace('+', '')}@phone.subday.app`,
+        email,
         password: tempPassword
       })
 
@@ -156,10 +163,9 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Return session IMMEDIATELY, do cleanup in background
       const session = loginData.session
 
-      // Fire-and-forget: notification + OTP cleanup
+      // Fire-and-forget
       sendLoginNotification(formattedPhone, profileData.name, false)
       supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
