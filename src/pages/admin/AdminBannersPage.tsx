@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
+import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
 
 interface AdBanner {
   id: string;
@@ -54,6 +55,8 @@ export default function AdminBannersPage() {
     sort_order: 0,
     autoplay_delay: 4,
     display_location: 'shops',
+    country: '',
+    city: '',
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -125,6 +128,8 @@ export default function AdminBannersPage() {
       sort_order: banners.length,
       autoplay_delay: 4,
       display_location: 'shops',
+      country: '',
+      city: '',
     });
     setEditingBanner(null);
   };
@@ -146,6 +151,8 @@ export default function AdminBannersPage() {
       sort_order: banner.sort_order,
       autoplay_delay: banner.autoplay_delay,
       display_location: banner.display_location || 'shops',
+      country: (banner as any).country || '',
+      city: (banner as any).city || '',
     });
     setIsDialogOpen(true);
   };
@@ -202,6 +209,8 @@ export default function AdminBannersPage() {
         sort_order: formData.sort_order,
         autoplay_delay: formData.autoplay_delay,
         display_location: formData.display_location,
+        country: formData.country || null,
+        city: formData.city || null,
       };
 
       if (editingBanner) {
@@ -464,6 +473,30 @@ export default function AdminBannersPage() {
                     checked={formData.is_active}
                     onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
                   />
+                </div>
+
+                {/* Country/City targeting */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Страна</Label>
+                    <Select value={formData.country} onValueChange={(v) => setFormData(prev => ({ ...prev, country: v === 'all' ? '' : v, city: '' }))}>
+                      <SelectTrigger className="mt-1.5"><SelectValue placeholder="Все страны" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все страны</SelectItem>
+                        {COUNTRY_OPTIONS.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Город</Label>
+                    <Select value={formData.city} onValueChange={(v) => setFormData(prev => ({ ...prev, city: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="mt-1.5"><SelectValue placeholder="Все города" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все города</SelectItem>
+                        {formData.country && getCitiesForCountry(formData.country).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <Button

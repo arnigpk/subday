@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { COUNTRY_OPTIONS, getCitiesForCountry, getCountryLabel } from '@/utils/countries';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +60,7 @@ interface Shop {
   address: string | null;
   addresses: string[] | null;
   city: string | null;
+  country: string | null;
   working_hours: string | null;
   is_active: boolean;
   created_at: string;
@@ -88,6 +97,7 @@ export default function AdminShopsPage() {
   const [formData, setFormData] = useState({
     name: '',
     addressesWithCoords: [] as AddressWithCoords[],
+    country: 'KZ',
     city: 'Атырау',
     working_hours: '09:00-21:00',
     is_active: true,
@@ -163,6 +173,7 @@ export default function AdminShopsPage() {
     setFormData({
       name: '',
       addressesWithCoords: [],
+      country: 'KZ',
       city: 'Атырау',
       working_hours: '09:00-21:00',
       is_active: true,
@@ -200,6 +211,7 @@ export default function AdminShopsPage() {
     setFormData({
       name: shop.name,
       addressesWithCoords,
+      country: (shop as any).country || 'KZ',
       city: shop.city || 'Атырау',
       working_hours: shop.working_hours || '09:00-21:00',
       is_active: shop.is_active,
@@ -234,6 +246,7 @@ export default function AdminShopsPage() {
             address: addresses[0] || null,
             addresses,
             coordinates,
+            country: formData.country,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
@@ -261,6 +274,7 @@ export default function AdminShopsPage() {
             address: addresses[0] || null,
             addresses,
             coordinates,
+            country: formData.country,
             city: formData.city,
             working_hours: formData.working_hours,
             is_active: formData.is_active,
@@ -432,14 +446,36 @@ export default function AdminShopsPage() {
               addresses={formData.addressesWithCoords}
               onChange={(addressesWithCoords) => setFormData({ ...formData, addressesWithCoords })}
             />
-            <div>
-              <Label htmlFor="city">Город</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="Атырау"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Страна</Label>
+                <Select value={formData.country} onValueChange={(v) => {
+                  const cities = getCitiesForCountry(v);
+                  setFormData({ ...formData, country: v, city: cities[0] || '' });
+                }}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_OPTIONS.map(c => (
+                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Город</Label>
+                <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Выберите город" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getCitiesForCountry(formData.country).map(city => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label htmlFor="working_hours">Часы работы</Label>

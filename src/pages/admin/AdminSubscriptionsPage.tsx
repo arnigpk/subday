@@ -32,6 +32,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
 import {
   DndContext,
   closestCenter,
@@ -68,6 +69,8 @@ interface SubscriptionType {
   features: string[] | null;
   benefit: number | null;
   daily_limit: number | null;
+  country: string | null;
+  currency: string | null;
 }
 
 const DEFAULT_FEATURES = [
@@ -96,6 +99,8 @@ export default function AdminSubscriptionsPage() {
     features: DEFAULT_FEATURES,
     benefit: 0,
     daily_limit: null as number | null,
+    country: 'KZ',
+    currency: '₸',
   });
 
   const sensors = useSensors(
@@ -174,6 +179,8 @@ export default function AdminSubscriptionsPage() {
       features: DEFAULT_FEATURES,
       benefit: 0,
       daily_limit: null,
+      country: 'KZ',
+      currency: '₸',
     });
     setIsDialogOpen(true);
   };
@@ -193,6 +200,8 @@ export default function AdminSubscriptionsPage() {
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
       benefit: sub.benefit || 0,
       daily_limit: sub.daily_limit,
+      country: sub.country || 'KZ',
+      currency: sub.currency || '₸',
     });
     setIsDialogOpen(true);
   };
@@ -220,6 +229,8 @@ export default function AdminSubscriptionsPage() {
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
+            country: formData.country,
+            currency: formData.currency,
           })
           .eq('id', editingSub.id);
 
@@ -246,6 +257,8 @@ export default function AdminSubscriptionsPage() {
             features: formData.features.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
+            country: formData.country,
+            currency: formData.currency,
           });
 
         if (error) throw error;
@@ -279,8 +292,8 @@ export default function AdminSubscriptionsPage() {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ru-RU').format(price) + ' ₸';
+  const formatPrice = (price: number, currency?: string | null) => {
+    return new Intl.NumberFormat('ru-RU').format(price) + ' ' + (currency || '₸');
   };
 
   return (
@@ -353,7 +366,7 @@ export default function AdminSubscriptionsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="font-bold text-lg">{formatPrice(sub.price)}</span>
+                          <span className="font-bold text-lg">{formatPrice(sub.price, sub.currency)}</span>
                           <div className="flex gap-1">
                             <Button
                               variant="ghost"
@@ -447,7 +460,7 @@ export default function AdminSubscriptionsPage() {
                 </p>
               </div>
               <div>
-                <Label htmlFor="price">Цена (₸)</Label>
+                <Label htmlFor="price">Цена ({formData.currency})</Label>
                 <Input
                   id="price"
                   type="number"
@@ -455,6 +468,24 @@ export default function AdminSubscriptionsPage() {
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Страна</Label>
+                <Select value={formData.country} onValueChange={(v) => {
+                  const cur = getCurrencySymbol(v);
+                  setFormData({ ...formData, country: v, currency: cur });
+                }}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_OPTIONS.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name} ({c.currency})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Валюта</Label>
+                <Input value={formData.currency} disabled className="bg-muted mt-1" />
               </div>
             </div>
             <div>
@@ -475,7 +506,7 @@ export default function AdminSubscriptionsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="benefit">За 1 единицу (₸)</Label>
+                <Label htmlFor="benefit">За 1 единицу ({formData.currency})</Label>
                 <Input
                   id="benefit"
                   type="number"
@@ -485,7 +516,7 @@ export default function AdminSubscriptionsPage() {
                   placeholder="Цена за 1 единицу"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  "X₸ за напиток/ланч" в приложении
+                  "X{formData.currency} за напиток/ланч" в приложении
                 </p>
               </div>
               <div>

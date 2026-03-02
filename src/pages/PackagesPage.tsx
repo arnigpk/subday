@@ -12,6 +12,8 @@ import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeE
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { getCurrencySymbol } from '@/utils/countries';
 
 interface SubscriptionType {
   id: string;
@@ -36,6 +38,9 @@ export default function PackagesPage() {
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const { eligibleOffers } = useSpecialOffer();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
+  const currencySymbol = getCurrencySymbol(userCountry);
 
   const tabs = [
     { id: 'coffee', label: t('balance.coffee') },
@@ -53,7 +58,7 @@ export default function PackagesPage() {
     await Promise.all([refetch(), refetchSubscription()]);
   }, [refetch, refetchSubscription]);
 
-  const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab);
+  const filteredSubscriptions = subscriptions.filter((s: SubscriptionType) => s.type === activeTab && (!((s as any).country) || (s as any).country === userCountry));
 
   // Build a map of subscription_type_id -> eligible offer(s)
   const offerMap = new Map<string, typeof eligibleOffers[0]>();
@@ -118,6 +123,7 @@ export default function PackagesPage() {
                     t={t}
                     language={language}
                     daysWord={daysWord}
+                    currencySymbol={((sub as any).currency as string) || currencySymbol}
                     specialOffer={eo && !activeSubscriptionTypeIds.includes(sub.id) ? eo.offer : null}
                     eligibleUntil={eo?.eligibleUntil}
                   />
@@ -132,9 +138,10 @@ export default function PackagesPage() {
   );
 }
 
-function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, daysWord, specialOffer, eligibleUntil }: {
+function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, daysWord, currencySymbol, specialOffer, eligibleUntil }: {
   sub: SubscriptionType; index: number; activeSubscriptionTypeIds: string[];
   t: (key: string) => string; language: string; daysWord: (days: number) => string;
+  currencySymbol: string;
   specialOffer?: { offer_price: number; offer_cups_count: number; offer_duration_days: number; badge_text: string | null } | null;
   eligibleUntil?: Date | null;
 }) {
@@ -222,17 +229,17 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
           <div className="mb-4">
             <div className="flex items-end gap-1.5">
               <span className="text-2xl font-black text-foreground tracking-tight">{formatPrice(displayPrice)}</span>
-              <span className="text-sm font-medium text-muted-foreground mb-0.5">₸</span>
+              <span className="text-sm font-medium text-muted-foreground mb-0.5">{currencySymbol}</span>
               <span className="text-xs text-muted-foreground mb-0.5">/ {period}</span>
             </div>
             {hasOffer && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-muted-foreground line-through">{formatPrice(sub.price)} ₸</span>
+                <span className="text-sm text-muted-foreground line-through">{formatPrice(sub.price)} {currencySymbol}</span>
               </div>
             )}
             {!hasOffer && sub.benefit && sub.benefit > 0 && (
               <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs font-semibold text-accent">{formatBenefit(sub.benefit)} ₸ {sub.type === 'coffee' ? t('packages.benefitCoffee') : t('packages.benefitDrinks')}</span>
+                <span className="text-xs font-semibold text-accent">{formatBenefit(sub.benefit)} {currencySymbol} {sub.type === 'coffee' ? t('packages.benefitCoffee') : t('packages.benefitDrinks')}</span>
               </div>
             )}
           </div>

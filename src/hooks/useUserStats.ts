@@ -19,6 +19,7 @@ export interface UserProfile {
   name: string | null;
   phone: string;
   city: string | null;
+  country: string | null;
   avatarUrl: string | null;
   subflowNickname: string | null;
   publicId: string | null;
@@ -61,7 +62,7 @@ export function useUserStats() {
 
     // Fetch profile, stats, and redemptions in parallel for speed
     const [profileResult, statsResult, redemptionsResult] = await Promise.all([
-      supabase.from('profiles').select('name, phone, city, avatar_url, subflow_nickname, public_id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('profiles').select('name, phone, city, country, avatar_url, subflow_nickname, public_id').eq('user_id', user.id).maybeSingle(),
       supabase.from('user_stats').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('redemptions').select('*').eq('user_id', user.id).order('redeemed_at', { ascending: false }).limit(50),
     ]);
@@ -71,6 +72,7 @@ export function useUserStats() {
         name: profileResult.data.name,
         phone: profileResult.data.phone,
         city: profileResult.data.city,
+        country: profileResult.data.country,
         avatarUrl: profileResult.data.avatar_url,
         subflowNickname: profileResult.data.subflow_nickname,
         publicId: (profileResult.data as any).public_id || null,

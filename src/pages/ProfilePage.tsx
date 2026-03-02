@@ -15,6 +15,8 @@ import { PurchaseHistorySection } from '@/components/profile/PurchaseHistorySect
 import { GuestAccessSection } from '@/components/profile/GuestAccessSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CountryCityDialog } from '@/components/profile/CountryCityDialog';
+import { getCountryFlag } from '@/utils/countries';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -28,6 +30,7 @@ export default function ProfilePage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCityDialog, setShowCityDialog] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   
@@ -151,7 +154,7 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: t('profile.city'), value: profile?.city || 'Атырау', type: 'static' as const },
+    { icon: MapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
     { icon: Bell, label: t('profile.notifications'), type: 'notification' as const },
     { icon: MessageCircle, label: t('profile.support'), type: 'support' as const },
     { icon: FileText, label: t('profile.rules'), type: 'rules' as const },
@@ -303,14 +306,17 @@ export default function ProfilePage() {
                   </ServiceRulesDialog>
                 );
               }
-              return (
-                <div key={item.label} className="card-interactive flex items-center gap-3">
-                  <Icon size={20} className="text-muted-foreground" />
-                  <span className="flex-1 font-medium text-foreground">{item.label}</span>
-                  {item.value && <span className="text-sm text-muted-foreground">{item.value}</span>}
-                  <ChevronRight size={18} className="text-muted-foreground" />
-                </div>
-              );
+              if (item.type === 'city') {
+                return (
+                  <button key={item.label} onClick={() => setShowCityDialog(true)} className="w-full card-interactive flex items-center gap-3">
+                    <Icon size={20} className="text-muted-foreground" />
+                    <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
+                    {item.value && <span className="text-sm text-muted-foreground">{item.value}</span>}
+                    <ChevronRight size={18} className="text-muted-foreground" />
+                  </button>
+                );
+              }
+              return null;
             })}
           </div>
           
@@ -371,6 +377,14 @@ export default function ProfilePage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          <CountryCityDialog
+            open={showCityDialog}
+            onOpenChange={setShowCityDialog}
+            currentCountry={profile?.country || 'KZ'}
+            currentCity={profile?.city || null}
+            onSaved={refetch}
+          />
 
           <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
         </div>
