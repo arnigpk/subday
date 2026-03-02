@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { Send, Loader2, ArrowLeft } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TelegramLoginButtonProps {
   onSuccess: () => void;
@@ -9,6 +10,7 @@ interface TelegramLoginButtonProps {
 }
 
 export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<'button' | 'code'>('button');
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +66,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
       <div className="space-y-3">
         <div>
           <label className="text-sm font-medium text-muted-foreground mb-2 block">
-            Код из Telegram бота
+            {t('auth.telegramCode')}
           </label>
           <input
             type="text"
@@ -82,14 +84,14 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             maxLength={6}
           />
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Подтверди код из бота @{botName}
+            {t('auth.confirmCode')} @{botName}
           </p>
         </div>
 
         {isLoading && (
           <div className="flex items-center justify-center py-2">
             <Loader2 size={20} className="animate-spin text-primary" />
-            <span className="ml-2 text-sm text-muted-foreground">Проверяем...</span>
+            <span className="ml-2 text-sm text-muted-foreground">{t('auth.checking')}</span>
           </div>
         )}
 
@@ -103,7 +105,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             disabled={isLoading}
           >
             <ArrowLeft size={16} />
-            Назад
+            {t('auth.back')}
           </button>
           <button
             onClick={() => {
@@ -113,7 +115,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
           >
             <Send size={16} />
-            Новый код
+            {t('auth.newCode')}
           </button>
         </div>
       </div>
@@ -127,7 +129,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
       className="w-full flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors disabled:opacity-50"
     >
       <Send size={20} />
-      Войти через Telegram
+      {t('auth.loginViaTelegram')}
     </button>
   );
 }
