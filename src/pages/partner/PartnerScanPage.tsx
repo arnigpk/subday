@@ -95,7 +95,7 @@ export default function PartnerScanPage() {
       } else {
         setResult({
           success: true,
-          message: `Списано! 1 ${response.drinkName || ''}`.trim(),
+          message: 'Успешно списано!',
           customerName: response.customerName,
           drinkName: response.drinkName,
           remaining: response.remaining,
@@ -179,7 +179,7 @@ function SuccessResult({ result, showConfetti }: { result: ScanResult; showConfe
       </div>
 
       <div className="text-center space-y-1">
-        <p className="text-xl font-black text-accent">{result.message}</p>
+        <p className="text-xl font-black text-accent">Успешно!</p>
         {result.customerName && (
           <p className="text-sm text-muted-foreground">{result.customerName}</p>
         )}
