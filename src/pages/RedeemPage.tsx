@@ -128,8 +128,9 @@ export default function RedeemPage() {
   const lunchButtonActive = hasLunch && shopSupportsLunch;
 
   // Auto-correct selected type if current selection is not possible
+  // Auto-correct selected type only after a shop is loaded
   useEffect(() => {
-    if (isGuestCoffee) return;
+    if (isGuestCoffee || !selectedShop) return;
     if (selectedDrinkType === 'drinks' && !lunchButtonActive && coffeeButtonActive) {
       setSelectedDrinkType('coffee');
     } else if (selectedDrinkType === 'coffee' && !coffeeButtonActive && lunchButtonActive) {
