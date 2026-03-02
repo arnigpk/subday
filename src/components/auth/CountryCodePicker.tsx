@@ -97,11 +97,11 @@ export function CountryCodePicker({ selectedCountry, onSelect }: CountryCodePick
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="input-field flex items-center gap-1 px-3 py-2 h-full min-w-[90px] text-sm whitespace-nowrap"
+        className="input-field flex items-center gap-1 px-2 py-2 h-full shrink-0 text-xs sm:text-sm whitespace-nowrap"
       >
-        <span className="text-lg">{selectedCountry.flag}</span>
+        <span className="text-base">{selectedCountry.flag}</span>
         <span>+{selectedCountry.dialCode}</span>
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+        <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
       </button>
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 min-w-[200px] overflow-hidden">

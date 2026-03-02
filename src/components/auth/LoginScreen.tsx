@@ -177,14 +177,14 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.enterPhone')}</label>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 w-full">
                   <CountryCodePicker selectedCountry={country} onSelect={c => { setCountry(c); setCountryManuallySet(true); setPhone(''); }} />
                   <input
                     type="tel"
                     placeholder={country.phoneMask}
                     value={getDisplayPhone(phone)}
                     onChange={handlePhoneChange}
-                    className="input-field flex-1 text-lg"
+                    className="input-field flex-1 min-w-0 text-base sm:text-lg"
                     autoComplete="tel"
                   />
                 </div>
