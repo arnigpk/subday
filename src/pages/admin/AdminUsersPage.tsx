@@ -93,6 +93,7 @@ export default function AdminUsersPage() {
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [registrationFilter, setRegistrationFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
   const [formData, setFormData] = useState({
@@ -112,7 +113,7 @@ export default function AdminUsersPage() {
     fetchUsers();
     fetchSubscriptionTypes();
     fetchShops();
-  }, [page, search, registrationFilter, customDateFrom, customDateTo]);
+  }, [page, search, registrationFilter, countryFilter, customDateFrom, customDateTo]);
 
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
@@ -140,6 +141,9 @@ export default function AdminUsersPage() {
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,public_id.ilike.%${search}%`);
+      }
+      if (countryFilter !== 'all') {
+        query = query.eq('country', countryFilter);
       }
 
       // Registration date filter
@@ -466,6 +470,17 @@ export default function AdminUsersPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Страна" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все страны</SelectItem>
+                  {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
+                    <SelectItem key={code} value={code}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <CalendarDays className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Регистрация:</span>
               {['all', 'week', 'month', 'custom'].map((filter) => (

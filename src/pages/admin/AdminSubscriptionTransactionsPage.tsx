@@ -5,30 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield } from 'lucide-react';
@@ -36,6 +20,7 @@ import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } fro
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
+import { COUNTRY_OPTIONS } from '@/utils/countries';
 
 interface TransactionWithUser {
   id: string;
@@ -46,51 +31,41 @@ interface TransactionWithUser {
   user_name: string | null;
   user_phone: string | null;
   user_public_id: string | null;
+  user_country: string | null;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
-
 const PAGE_SIZE = 20;
 
 export default function AdminSubscriptionTransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [periodType, setPeriodType] = useState<PeriodType>('all');
+  const [countryFilter, setCountryFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     fetchTransactions();
-  }, [page, periodType, dateRange]);
+  }, [page, periodType, dateRange, countryFilter]);
 
   const getDateFilters = () => {
     const now = new Date();
-    
     if (periodType === 'last_month') {
       const lastMonth = subMonths(now, 1);
-      return {
-        from: startOfMonth(lastMonth),
-        to: endOfMonth(lastMonth),
-      };
+      return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
     }
-    
     if (periodType === 'custom' && dateRange?.from) {
-      return {
-        from: startOfDay(dateRange.from),
-        to: dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from),
-      };
+      return { from: startOfDay(dateRange.from), to: dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from) };
     }
-    
     return null;
   };
 
   const fetchTransactions = async () => {
     setIsLoading(true);
     try {
-      let query = supabase
-        .from('subscription_transactions')
-        .select('*', { count: 'exact' });
+      let query = supabase.from('subscription_transactions').select('*', { count: 'exact' });
 
       const dateFilters = getDateFilters();
       if (dateFilters) {
@@ -111,21 +86,25 @@ export default function AdminSubscriptionTransactionsPage() {
         return;
       }
 
-      // Get user profiles
       const userIds = [...new Set(data.map(t => t.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id')
+        .select('user_id, name, phone, public_id, country')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      const combined: TransactionWithUser[] = data.map(t => ({
+      let combined: TransactionWithUser[] = data.map(t => ({
         ...t,
         user_name: profileMap.get(t.user_id)?.name || null,
         user_phone: profileMap.get(t.user_id)?.phone || null,
         user_public_id: profileMap.get(t.user_id)?.public_id || null,
+        user_country: profileMap.get(t.user_id)?.country || null,
       }));
+
+      if (countryFilter !== 'all') {
+        combined = combined.filter(t => t.user_country === countryFilter);
+      }
 
       setTransactions(combined);
     } catch (error) {
@@ -138,29 +117,20 @@ export default function AdminSubscriptionTransactionsPage() {
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
     setPage(0);
-    if (value !== 'custom') {
-      setDateRange(undefined);
-    }
+    if (value !== 'custom') setDateRange(undefined);
   };
 
   const handleClearHistory = async () => {
     try {
       const dateFilters = getDateFilters();
-      
       let query = supabase.from('subscription_transactions').delete();
-      
       if (dateFilters) {
-        query = query.gte('created_at', dateFilters.from.toISOString())
-                     .lte('created_at', dateFilters.to.toISOString());
+        query = query.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
       } else {
-        // Delete all - need to match on something, use gt with old date
         query = query.gt('created_at', '1970-01-01');
       }
-
       const { error } = await query;
-
       if (error) throw error;
-      
       toast.success('История очищена');
       fetchTransactions();
     } catch (error) {
@@ -170,14 +140,9 @@ export default function AdminSubscriptionTransactionsPage() {
   };
 
   const formatPeriodLabel = () => {
-    if (periodType === 'last_month') {
-      const lastMonth = subMonths(new Date(), 1);
-      return format(lastMonth, 'LLLL yyyy', { locale: ru });
-    }
+    if (periodType === 'last_month') return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
     if (periodType === 'custom' && dateRange?.from) {
-      if (dateRange.to) {
-        return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
-      }
+      if (dateRange.to) return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
       return format(dateRange.from, 'd MMMM yyyy', { locale: ru });
     }
     return 'Все время';
@@ -203,7 +168,7 @@ export default function AdminSubscriptionTransactionsPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Очистить историю транзакций?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      {periodType !== 'all' 
+                      {periodType !== 'all'
                         ? `Будут удалены транзакции за период: ${formatPeriodLabel()}`
                         : 'Будут удалены ВСЕ транзакции'
                       }. Это действие нельзя отменить.
@@ -211,16 +176,24 @@ export default function AdminSubscriptionTransactionsPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearHistory}>
-                      Очистить
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={handleClearHistory}>Очистить</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-            
-            {/* Period filter */}
+
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder="Страна" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все страны</SelectItem>
+                  {COUNTRY_OPTIONS.map(c => (
+                    <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Период" />
@@ -231,7 +204,7 @@ export default function AdminSubscriptionTransactionsPage() {
                   <SelectItem value="custom">Выбрать период</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               {periodType === 'custom' && (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -239,38 +212,20 @@ export default function AdminSubscriptionTransactionsPage() {
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {dateRange?.from ? (
                         dateRange.to ? (
-                          <>
-                            {format(dateRange.from, 'd MMM', { locale: ru })} - {format(dateRange.to, 'd MMM yyyy', { locale: ru })}
-                          </>
-                        ) : (
-                          format(dateRange.from, 'd MMMM yyyy', { locale: ru })
-                        )
-                      ) : (
-                        'Выберите даты'
-                      )}
+                          <>{format(dateRange.from, 'd MMM', { locale: ru })} - {format(dateRange.to, 'd MMM yyyy', { locale: ru })}</>
+                        ) : format(dateRange.from, 'd MMMM yyyy', { locale: ru })
+                      ) : 'Выберите даты'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange}
-                      onSelect={(range) => {
-                        setDateRange(range);
-                        setPage(0);
-                      }}
-                      numberOfMonths={1}
-                      locale={ru}
-                    />
+                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange}
+                      onSelect={(range) => { setDateRange(range); setPage(0); }} numberOfMonths={1} locale={ru} />
                   </PopoverContent>
                 </Popover>
               )}
-              
+
               {periodType !== 'all' && (
-                <span className="text-sm text-muted-foreground">
-                  Период: {formatPeriodLabel()}
-                </span>
+                <span className="text-sm text-muted-foreground">Период: {formatPeriodLabel()}</span>
               )}
             </div>
           </div>
@@ -283,9 +238,7 @@ export default function AdminSubscriptionTransactionsPage() {
               ))}
             </div>
           ) : transactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Нет данных за выбранный период
-            </p>
+            <p className="text-muted-foreground text-center py-8">Нет данных за выбранный период</p>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -306,9 +259,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              {t.user_name || 'Без имени'}
-                            </span>
+                            <span className="font-medium">{t.user_name || 'Без имени'}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-mono text-muted-foreground">{t.user_public_id || '—'}</TableCell>
@@ -321,21 +272,13 @@ export default function AdminSubscriptionTransactionsPage() {
                               : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                           }`}>
                             {t.transaction_type === 'purchase' ? (
-                              <>
-                                <CreditCard className="w-3 h-3" />
-                                Покупка
-                              </>
+                              <><CreditCard className="w-3 h-3" />Покупка</>
                             ) : (
-                              <>
-                                <Shield className="w-3 h-3" />
-                                Активация админом
-                              </>
+                              <><Shield className="w-3 h-3" />Активация админом</>
                             )}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          {format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}
-                        </TableCell>
+                        <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -344,24 +287,12 @@ export default function AdminSubscriptionTransactionsPage() {
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Страница {page + 1} из {totalPages}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Страница {page + 1} из {totalPages}</p>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                      disabled={page >= totalPages - 1}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>

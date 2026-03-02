@@ -202,7 +202,6 @@ export default function PackageDetailPage() {
                   {formatBenefit(subscription.benefit)} {currencySymbol} {subscription.type === 'coffee' ? t('packages.benefitCoffee') : t('packages.benefitDrinks')}
                 </p>
               </div>
-              </div>
             )}
           </div>
 
