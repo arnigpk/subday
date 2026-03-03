@@ -26,7 +26,7 @@ export function UserAgreementDialog({ children }: UserAgreementDialogProps) {
             <p>Дата размещения: 28 января 2026 г.</p>
             
             <p>
-              <strong>Оператор:</strong> ТОО "Subday Group", БИН 980102400093, supp@subday.app, +7 707 700 0994
+              <strong>Оператор:</strong> ТОО "Subday Group", БИН 260240030635, supp@subday.app, +7 707 700 0994
             </p>
 
             <div className="space-y-3">
