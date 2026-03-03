@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
@@ -163,9 +164,13 @@ export default function ProfilePage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top">
-          <div className="px-4 py-4">
-            <h1 className="text-2xl font-black text-foreground mb-6">{t('profile.title')}</h1>
+        <div>
+          <LiquidGlassHeader>
+            <div className="px-4 py-4">
+              <h1 className="text-2xl font-black text-foreground">{t('profile.title')}</h1>
+            </div>
+          </LiquidGlassHeader>
+          <div className="px-4 pt-2">
           
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const file = e.target.files?.[0]; if (file) handleAvatarChange(file); if (avatarInputRef.current) avatarInputRef.current.value = ''; }}

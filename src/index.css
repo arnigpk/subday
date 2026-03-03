@@ -253,6 +253,19 @@
     background: hsl(var(--accent) / 0.12);
     border-color: hsl(var(--accent) / 0.2);
   }
+
+  /* Liquid Glass Header */
+  .liquid-glass-header {
+    background: hsl(var(--background) / 0.72);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border-bottom: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  .dark .liquid-glass-header {
+    background: hsl(var(--background) / 0.6);
+    border-bottom-color: hsl(var(--foreground) / 0.06);
+  }
   
   .tab-active {
     @apply bg-accent text-accent-foreground font-bold;
