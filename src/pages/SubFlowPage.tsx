@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -101,14 +102,17 @@ export default function SubFlowPage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top" ref={scrollContainerRef}>
-          <div className="px-4 py-4">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-1">
-              <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
+        <div ref={scrollContainerRef}>
+          <LiquidGlassHeader>
+            <div className="px-4 py-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
+                <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
+              </div>
               <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
             </div>
-            <p className="text-xs text-muted-foreground mb-4">{t('subflow.subtitle')}</p>
+          </LiquidGlassHeader>
+          <div className="px-4 pt-2">
 
             <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} />
           </div>

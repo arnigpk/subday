@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -125,9 +126,13 @@ export default function ShopsPage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top">
-          <div className="px-4 py-4">
-            <h1 className="text-2xl font-black text-foreground mb-4">{t('shops.title')}</h1>
+        <div>
+          <LiquidGlassHeader>
+            <div className="px-4 py-4">
+              <h1 className="text-2xl font-black text-foreground">{t('shops.title')}</h1>
+            </div>
+          </LiquidGlassHeader>
+          <div className="px-4 pt-2">
             
             <AdBannerCarousel location="shops" />
 

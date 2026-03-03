@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Sparkles, Coffee, Check, UtensilsCrossed, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -92,12 +93,16 @@ export default function PackagesPage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top">
-          <div className="px-4 py-4">
-            <div className="mb-5">
-              <h1 className="text-2xl font-black text-foreground tracking-tight">{t('packages.title')}</h1>
-              <p className="text-xs text-muted-foreground mt-1">{t('packages.subtitle')}</p>
+        <div>
+          <LiquidGlassHeader>
+            <div className="px-4 py-4">
+              <div className="mb-0">
+                <h1 className="text-2xl font-black text-foreground tracking-tight">{t('packages.title')}</h1>
+                <p className="text-xs text-muted-foreground mt-1">{t('packages.subtitle')}</p>
+              </div>
             </div>
+          </LiquidGlassHeader>
+          <div className="px-4 pt-4">
             
             <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-6" />
             

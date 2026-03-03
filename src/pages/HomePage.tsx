@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
+import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { GetCoffeeButton } from '@/components/home/GetCoffeeButton';
 import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
@@ -56,39 +57,40 @@ export default function HomePage() {
   return (
     <AppLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="safe-area-top">
-          {/* Header */}
-          <div className="px-4 py-6 flex items-center justify-between relative">
-            <div
-              className="absolute inset-0 opacity-15 pointer-events-none"
-              style={{
-                backgroundImage: `url(${kzOrnament})`,
-                backgroundRepeat: 'repeat-x',
-                backgroundSize: 'auto 80%',
-                backgroundPosition: 'center',
-              }}
-            />
-            <div className="flex items-center">
-              <span className="text-2xl">🇰🇿</span>
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2">
-              <div className="w-20 h-20">
-                <img src={logo} alt="subday" className="w-full h-full object-contain" />
+        <div>
+          <LiquidGlassHeader>
+            <div className="px-4 py-6 flex items-center justify-between relative">
+              <div
+                className="absolute inset-0 opacity-15 pointer-events-none"
+                style={{
+                  backgroundImage: `url(${kzOrnament})`,
+                  backgroundRepeat: 'repeat-x',
+                  backgroundSize: 'auto 80%',
+                  backgroundPosition: 'center',
+                }}
+              />
+              <div className="flex items-center">
+                <span className="text-2xl">🇰🇿</span>
+              </div>
+              <div className="absolute left-1/2 -translate-x-1/2">
+                <div className="w-20 h-20">
+                  <img src={logo} alt="subday" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {showAdminButton && (
+                  <button
+                    onClick={handleAdminClick}
+                    className="text-2xl leading-none"
+                    aria-label="Панель управления"
+                  >
+                    💻
+                  </button>
+                )}
+                <LanguageSwitcher />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {showAdminButton && (
-                <button
-                  onClick={handleAdminClick}
-                  className="text-2xl leading-none"
-                  aria-label="Панель управления"
-                >
-                  💻
-                </button>
-              )}
-              <LanguageSwitcher />
-            </div>
-          </div>
+          </LiquidGlassHeader>
           
           {/* Content */}
           <div className="px-4 space-y-5">
