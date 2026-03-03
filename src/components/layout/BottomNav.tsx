@@ -28,35 +28,44 @@ export function BottomNav() {
   }, [prefetchPage]);
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom z-50">
-      <div className="flex items-center justify-around px-1 py-1 max-w-lg mx-auto">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
-              onTouchStart={() => handleTouchStart(item.prefetchKey)}
-              onClick={() => vibrateShort()}
-              className={`nav-item flex-1 transition-all duration-200 ${
-                isActive ? 'nav-item-active scale-105' : 'nav-item-inactive'
-              }`}
-            >
-              <Icon 
-                size={18} 
-                strokeWidth={isActive ? 2.5 : 2}
-                className="transition-all duration-200 shrink-0"
-              />
-              <span className={`text-[9px] sm:text-[10px] font-medium leading-tight text-center truncate w-full ${isActive ? 'font-bold' : ''}`}>
-                {t(item.labelKey)}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom px-3 pb-2">
+      <nav className="liquid-glass-nav rounded-2xl max-w-lg mx-auto">
+        <div className="flex items-center justify-around px-1 py-1.5">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
+                onTouchStart={() => handleTouchStart(item.prefetchKey)}
+                onClick={() => vibrateShort()}
+                className={`liquid-nav-item flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-all duration-300 min-w-0 relative ${
+                  isActive ? 'liquid-nav-active' : 'liquid-nav-inactive'
+                }`}
+              >
+                {isActive && (
+                  <span className="absolute inset-0 rounded-xl liquid-nav-pill" />
+                )}
+                <Icon 
+                  size={20} 
+                  strokeWidth={isActive ? 2.5 : 1.8}
+                  className={`transition-all duration-300 shrink-0 relative z-10 ${
+                    isActive ? 'drop-shadow-[0_0_6px_hsl(var(--accent)/0.5)]' : ''
+                  }`}
+                />
+                <span className={`text-[9px] sm:text-[10px] leading-tight text-center truncate w-full relative z-10 transition-all duration-300 ${
+                  isActive ? 'font-bold' : 'font-medium'
+                }`}>
+                  {t(item.labelKey)}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
   );
 }
