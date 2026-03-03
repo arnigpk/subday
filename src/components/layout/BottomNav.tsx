@@ -27,10 +27,14 @@ export function BottomNav() {
   const handleTouchStart = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {
     prefetchPage(prefetchKey);
   }, [prefetchPage]);
+
+  const handleClick = useCallback(() => {
+    vibrateShort();
+  }, [vibrateShort]);
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom px-3 pb-2">
-      <nav className="liquid-glass-nav rounded-2xl max-w-lg mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom px-3 pb-2 pointer-events-none">
+      <nav className="liquid-glass-nav rounded-2xl max-w-lg mx-auto pointer-events-auto">
         <LayoutGroup>
           <div className="flex items-center justify-around px-1 py-1.5">
             {navItems.map((item) => {
@@ -43,7 +47,7 @@ export function BottomNav() {
                   to={item.path}
                   onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
                   onTouchStart={() => handleTouchStart(item.prefetchKey)}
-                  onClick={() => vibrateShort()}
+                  onClick={handleClick}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl min-w-0 relative ${
                     isActive ? 'text-accent' : 'text-muted-foreground'
                   }`}
