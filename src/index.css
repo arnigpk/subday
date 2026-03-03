@@ -215,16 +215,43 @@
     @apply bg-secondary border-0 rounded-xl px-4 py-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-accent outline-none transition-all;
   }
   
-  .nav-item {
-    @apply flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all duration-200 min-w-0;
+  /* Liquid Glass Navigation */
+  .liquid-glass-nav {
+    background: hsl(var(--card) / 0.65);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow: 
+      0 -1px 0 0 hsl(var(--foreground) / 0.03) inset,
+      0 1px 3px hsl(var(--foreground) / 0.06),
+      0 8px 24px -4px hsl(var(--foreground) / 0.08);
   }
-  
-  .nav-item-active {
+
+  .dark .liquid-glass-nav {
+    background: hsl(var(--card) / 0.55);
+    border-color: hsl(var(--foreground) / 0.08);
+    box-shadow: 
+      0 -1px 0 0 hsl(var(--foreground) / 0.06) inset,
+      0 1px 3px hsl(0 0% 0% / 0.3),
+      0 8px 24px -4px hsl(0 0% 0% / 0.4);
+  }
+
+  .liquid-nav-active {
     @apply text-accent;
   }
-  
-  .nav-item-inactive {
+
+  .liquid-nav-inactive {
     @apply text-muted-foreground;
+  }
+
+  .liquid-nav-pill {
+    background: hsl(var(--accent) / 0.1);
+    border: 1px solid hsl(var(--accent) / 0.15);
+  }
+
+  .dark .liquid-nav-pill {
+    background: hsl(var(--accent) / 0.12);
+    border-color: hsl(var(--accent) / 0.2);
   }
   
   .tab-active {
