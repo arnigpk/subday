@@ -71,13 +71,16 @@ export function useSpecialOffer(): UseSpecialOfferResult {
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      // Get user's redeemed offers
+      // Get user's redeemed offers (with counts)
       const { data: redemptions } = await supabase
         .from('user_offer_redemptions')
         .select('offer_id')
         .eq('user_id', user.id);
       
-      const redeemedIds = new Set((redemptions || []).map(r => r.offer_id));
+      const redemptionCounts = new Map<string, number>();
+      for (const r of (redemptions || [])) {
+        redemptionCounts.set(r.offer_id, (redemptionCounts.get(r.offer_id) || 0) + 1);
+      }
       const shownPopupIds: string[] = (profile as any).popup_shown_offer_ids || [];
 
       const createdAt = new Date(profile.created_at);
@@ -87,7 +90,10 @@ export function useSpecialOffer(): UseSpecialOfferResult {
 
       for (const raw of offers) {
         const o = raw as SpecialOffer;
-        if (redeemedIds.has(o.id)) continue;
+        const maxRedemptions = (raw as any).max_redemptions_per_user ?? 1;
+        const userRedemptions = redemptionCounts.get(o.id) || 0;
+        // 0 = unlimited
+        if (maxRedemptions > 0 && userRedemptions >= maxRedemptions) continue;
 
         let eligible = false;
         let eligUntil: Date | null = null;

@@ -1,0 +1,1 @@
+ALTER TABLE public.special_offers ADD COLUMN max_redemptions_per_user integer NOT NULL DEFAULT 1;

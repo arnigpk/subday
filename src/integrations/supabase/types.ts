@@ -438,6 +438,7 @@ export type Database = {
           eligibility_type: string
           id: string
           is_active: boolean
+          max_redemptions_per_user: number
           name: string
           offer_cups_count: number
           offer_duration_days: number
@@ -455,6 +456,7 @@ export type Database = {
           eligibility_type?: string
           id?: string
           is_active?: boolean
+          max_redemptions_per_user?: number
           name: string
           offer_cups_count: number
           offer_duration_days: number
@@ -472,6 +474,7 @@ export type Database = {
           eligibility_type?: string
           id?: string
           is_active?: boolean
+          max_redemptions_per_user?: number
           name?: string
           offer_cups_count?: number
           offer_duration_days?: number
