@@ -100,12 +100,15 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id)
         .single();
 
-      // Get user's redeemed offers
+      // Get user's redeemed offers with counts
       const { data: allRedemptions } = await supabaseClient
         .from('user_offer_redemptions')
         .select('offer_id')
         .eq('user_id', user.id);
-      const redeemedIds = new Set((allRedemptions || []).map((r: any) => r.offer_id));
+      const redemptionCounts = new Map<string, number>();
+      for (const r of (allRedemptions || [])) {
+        redemptionCounts.set(r.offer_id, (redemptionCounts.get(r.offer_id) || 0) + 1);
+      }
 
       // Get user's active subscriptions
       const { data: activeSubs } = await supabaseClient
@@ -117,7 +120,9 @@ Deno.serve(async (req) => {
       const now = new Date();
 
       for (const offer of offers) {
-        if (redeemedIds.has(offer.id)) continue;
+        const maxRedemptions = offer.max_redemptions_per_user ?? 1;
+        const userRedemptions = redemptionCounts.get(offer.id) || 0;
+        if (maxRedemptions > 0 && userRedemptions >= maxRedemptions) continue;
 
         let eligible = false;
 

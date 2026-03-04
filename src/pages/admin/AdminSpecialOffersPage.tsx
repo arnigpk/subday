@@ -56,6 +56,7 @@ const defaultForm = {
   offer_valid_days: 0,
   is_active: true,
   country: '',
+  max_redemptions_per_user: 1,
 };
 
 export default function AdminSpecialOffersPage() {
@@ -101,6 +102,7 @@ export default function AdminSpecialOffersPage() {
       offer_valid_days: offer.offer_valid_days || 0,
       is_active: offer.is_active,
       country: (offer as any).country || '',
+      max_redemptions_per_user: (offer as any).max_redemptions_per_user ?? 1,
     });
     setDialogOpen(true);
   };
@@ -128,6 +130,7 @@ export default function AdminSpecialOffersPage() {
       offer_valid_days: form.offer_valid_days || null,
       is_active: form.is_active,
       country: form.country || null,
+      max_redemptions_per_user: form.max_redemptions_per_user,
     };
 
     if (editingOffer) {
@@ -210,6 +213,9 @@ export default function AdminSpecialOffersPage() {
                         </span>
                         <span className="px-2 py-1 bg-muted rounded-lg">
                           {eligibilityLabels[offer.eligibility_type] || offer.eligibility_type}
+                        </span>
+                        <span className="px-2 py-1 bg-muted rounded-lg">
+                          Лимит: {(offer as any).max_redemptions_per_user === 0 ? '∞' : `${(offer as any).max_redemptions_per_user ?? 1}×`}
                         </span>
                         <span className="px-2 py-1 bg-muted rounded-lg">
                           Подписка: {subType?.name || '—'}
@@ -296,6 +302,19 @@ export default function AdminSpecialOffersPage() {
                   <SelectItem value="all_users">Все пользователи</SelectItem>
                   <SelectItem value="no_subscription">Без активной подписки</SelectItem>
                   <SelectItem value="expiring_soon">Осталось ≤5 дней до конца подписки</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Лимит использования (на 1 пользователя)</label>
+              <Select value={String(form.max_redemptions_per_user)} onValueChange={v => setForm(f => ({ ...f, max_redemptions_per_user: Number(v) }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 раз</SelectItem>
+                  <SelectItem value="2">2 раза</SelectItem>
+                  <SelectItem value="3">3 раза</SelectItem>
+                  <SelectItem value="5">5 раз</SelectItem>
+                  <SelectItem value="0">Безлимит</SelectItem>
                 </SelectContent>
               </Select>
             </div>
