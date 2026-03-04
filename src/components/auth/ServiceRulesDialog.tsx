@@ -372,7 +372,7 @@ function PackageRulesContent() {
 
       <div className="space-y-2">
         <h4 className="font-semibold text-foreground">Лимиты в день:</h4>
-        <p>Нет.</p>
+        <p>В зависимости от выбранного пакета(тарифа) 2, 5, 7, 10, безлимит(напитков, ланчей) на день.</p>
       </div>
 
       <div className="space-y-2">
