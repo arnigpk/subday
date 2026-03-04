@@ -54,6 +54,30 @@ Deno.serve(async (req) => {
       .single();
 
     if (findError || !pendingOrder) {
+      // Check if there's a recently paid order (webhook may have already processed it)
+      const { data: recentPaid } = await supabase
+        .from('payment_orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'paid')
+        .order('paid_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (recentPaid) {
+        const paidAt = new Date(recentPaid.paid_at || recentPaid.created_at);
+        const minutesAgo = (Date.now() - paidAt.getTime()) / (1000 * 60);
+        if (minutesAgo <= 5) {
+          console.log('Order already processed by webhook:', recentPaid.order_id);
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: 'Already activated by webhook',
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
       console.log('No pending orders found for user');
       return new Response(JSON.stringify({ 
         success: false, 
@@ -75,8 +99,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try to get payment status from Paylink
-    // Use payment_id (uid from Paylink) to check status
     let isPaymentSuccessful = false;
     const paymentUid = pendingOrder.payment_id;
 
@@ -84,10 +106,7 @@ Deno.serve(async (req) => {
 
     if (paymentUid) {
       try {
-        // Get invoice status by uid
         const statusUrl = `https://s-core.paylink.kz/api/v1/invoices/${paymentUid}`;
-        console.log('Fetching status from:', statusUrl);
-        
         const statusResponse = await fetch(statusUrl, {
           method: 'GET',
           headers: {
@@ -98,7 +117,6 @@ Deno.serve(async (req) => {
 
         const responseText = await statusResponse.text();
         console.log('Paylink status HTTP:', statusResponse.status);
-        console.log('Paylink status response:', responseText);
 
         if (statusResponse.ok && responseText) {
           try {
@@ -117,16 +135,10 @@ Deno.serve(async (req) => {
       console.log('No payment_id stored, cannot verify via API');
     }
 
-    // If we couldn't verify via API but user came from success URL,
-    // we should trust the redirect (Paylink only redirects to successUrl on success)
-    // This is a fallback when webhook doesn't work
     if (!isPaymentSuccessful) {
       console.log('API verification failed, checking if we should trust success redirect...');
-      
-      // Check if the payment was created recently (within last 10 minutes)
       const orderCreatedAt = new Date(pendingOrder.created_at);
-      const now = new Date();
-      const minutesAgo = (now.getTime() - orderCreatedAt.getTime()) / (1000 * 60);
+      const minutesAgo = (Date.now() - orderCreatedAt.getTime()) / (1000 * 60);
       
       if (minutesAgo <= 10) {
         console.log(`Order is ${minutesAgo.toFixed(1)} minutes old, trusting success redirect`);
@@ -137,7 +149,6 @@ Deno.serve(async (req) => {
     }
 
     if (!isPaymentSuccessful) {
-      console.log('Payment not yet successful');
       return new Response(JSON.stringify({ 
         success: false, 
         message: 'Payment not confirmed yet',
@@ -147,31 +158,150 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Payment is successful - activate subscription
-    console.log('Payment verified, activating subscription');
-
-    // Update payment order status
-    await supabase
+    // CRITICAL: Atomically update order status to prevent double activation
+    // Only update if still 'pending' - if webhook already processed it, this will match 0 rows
+    const { data: updatedOrder, error: updateError } = await supabase
       .from('payment_orders')
       .update({ 
         status: 'paid',
         paid_at: new Date().toISOString(),
       })
-      .eq('id', pendingOrder.id);
+      .eq('id', pendingOrder.id)
+      .eq('status', 'pending') // Only if still pending!
+      .select()
+      .single();
 
-    // Activate subscription using RPC
-    const { data: activationResult, error: activationError } = await supabase
-      .rpc('activate_subscription', {
-        _user_id: user.id,
-        _subscription_type_id: pendingOrder.subscription_type_id,
-      });
-
-    if (activationError) {
-      console.error('Subscription activation error:', activationError);
-      return new Response(JSON.stringify({ error: 'Activation failed' }), {
-        status: 500,
+    if (updateError || !updatedOrder) {
+      console.log('Order already processed (status changed), skipping activation');
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Already activated',
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Payment is successful - activate subscription
+    console.log('Payment verified, activating subscription');
+
+    const metadata = (pendingOrder.metadata || {}) as Record<string, unknown>;
+    const isSpecialOffer = metadata.is_special_offer === true;
+
+    let activationResult: Record<string, unknown>;
+
+    if (isSpecialOffer) {
+      // Use special offer cups/days from metadata instead of subscription type defaults
+      console.log('Activating special offer subscription from verify-payment');
+      const offerCups = Number(metadata.cups_count) || 7;
+      const offerDays = Number(metadata.duration_days) || 7;
+
+      const { data: subType } = await supabase
+        .from('subscription_types')
+        .select('*')
+        .eq('id', pendingOrder.subscription_type_id)
+        .single();
+
+      if (!subType) {
+        return new Response(JSON.stringify({ error: 'Subscription type not found' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Deactivate existing subs of same type
+      await supabase
+        .from('user_subscriptions')
+        .update({ is_active: false })
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .in('subscription_type_id', 
+          (await supabase.from('subscription_types').select('id').eq('type', subType.type)).data?.map(s => s.id) || []
+        );
+
+      // Create subscription with offer params
+      const expiresAt = new Date(Date.now() + offerDays * 24 * 60 * 60 * 1000);
+      await supabase
+        .from('user_subscriptions')
+        .insert({
+          user_id: user.id,
+          subscription_type_id: pendingOrder.subscription_type_id,
+          started_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
+
+      // Update user_stats with offer values
+      if (subType.type === 'coffee') {
+        const { error: statsErr } = await supabase
+          .from('user_stats')
+          .update({ coffee_remaining: offerCups, coffee_total: offerCups, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+        if (statsErr) {
+          await supabase.from('user_stats').insert({
+            user_id: user.id,
+            coffee_remaining: offerCups,
+            coffee_total: offerCups,
+          });
+        }
+      } else if (subType.type === 'drinks') {
+        const { error: statsErr } = await supabase
+          .from('user_stats')
+          .update({ drinks_remaining: offerCups, drinks_total: offerCups, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+        if (statsErr) {
+          await supabase.from('user_stats').insert({
+            user_id: user.id,
+            drinks_remaining: offerCups,
+            drinks_total: offerCups,
+          });
+        }
+      }
+
+      // Mark offer as redeemed
+      await supabase
+        .from('profiles')
+        .update({ special_offer_redeemed_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+
+      // Record offer redemption
+      const { data: activeOffers } = await supabase
+        .from('special_offers')
+        .select('id')
+        .eq('target_subscription_type_id', pendingOrder.subscription_type_id)
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (activeOffers && activeOffers.length > 0) {
+        await supabase
+          .from('user_offer_redemptions')
+          .insert({
+            user_id: user.id,
+            offer_id: activeOffers[0].id,
+          });
+      }
+
+      activationResult = {
+        success: true,
+        cups_count: offerCups,
+        duration_days: offerDays,
+        subscription_name: subType.name,
+      };
+    } else {
+      // Standard activation via RPC
+      const { data, error: activationError } = await supabase
+        .rpc('activate_subscription', {
+          _user_id: user.id,
+          _subscription_type_id: pendingOrder.subscription_type_id,
+        });
+
+      if (activationError) {
+        console.error('Subscription activation error:', activationError);
+        return new Response(JSON.stringify({ error: 'Activation failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      activationResult = data as Record<string, unknown>;
     }
 
     console.log('Subscription activated:', activationResult);
@@ -183,7 +313,7 @@ Deno.serve(async (req) => {
       .eq('id', pendingOrder.subscription_type_id)
       .single();
 
-    // Send user notification via Telegram (@subday_lgbot)
+    // Send user notification
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
         method: 'POST',
@@ -191,11 +321,11 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           type: 'activated',
           userId: user.id,
-          cupsCount: subType?.cups_count || activationResult.cups_count,
-          daysCount: subType?.duration_days || activationResult.duration_days,
+          cupsCount: isSpecialOffer ? Number(metadata.cups_count) : (subType?.cups_count || (activationResult as any).cups_count),
+          daysCount: isSpecialOffer ? Number(metadata.duration_days) : (subType?.duration_days || (activationResult as any).duration_days),
         }),
       });
-      console.log('User notification sent for subscription activation');
+      console.log('User notification sent');
     } catch (notifError) {
       console.error('Failed to send user notification:', notifError);
     }
@@ -206,11 +336,12 @@ Deno.serve(async (req) => {
       .insert({
         user_id: user.id,
         subscription_type_id: pendingOrder.subscription_type_id,
-        subscription_name: subType?.name || (pendingOrder.metadata as Record<string, unknown>)?.subscription_name || 'Unknown',
+        subscription_name: subType?.name || metadata.subscription_name || 'Unknown',
         transaction_type: 'purchase',
         payment_method: 'paylink',
         amount: pendingOrder.amount,
         payment_order_id: pendingOrder.id,
+        is_special_offer: isSpecialOffer,
       });
 
     // Send Telegram notification
@@ -219,12 +350,13 @@ Deno.serve(async (req) => {
       const telegramChatId = Deno.env.get('NOTIFICATION_CHAT_ID');
       
       if (telegramBotToken && telegramChatId) {
+        const offerLabel = isSpecialOffer ? ' (спецпредложение)' : '';
         await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: telegramChatId,
-            text: `🎉 Оплата подписки (верификация)!\n\n📦 ${subType?.name || 'Unknown'}\n💰 ${pendingOrder.amount} ₸`,
+            text: `🎉 Оплата подписки (верификация)!${offerLabel}\n\n📦 ${subType?.name || 'Unknown'}\n💰 ${pendingOrder.amount} ₸`,
           }),
         });
       }

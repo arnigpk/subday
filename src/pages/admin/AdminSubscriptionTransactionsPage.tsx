@@ -28,10 +28,16 @@ interface TransactionWithUser {
   subscription_name: string;
   transaction_type: string;
   created_at: string;
+  amount: number | null;
+  payment_method: string | null;
+  is_special_offer: boolean | null;
+  payment_order_id: string | null;
   user_name: string | null;
   user_phone: string | null;
   user_public_id: string | null;
   user_country: string | null;
+  payment_id: string | null;
+  order_id: string | null;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -87,20 +93,31 @@ export default function AdminSubscriptionTransactionsPage() {
       }
 
       const userIds = [...new Set(data.map(t => t.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, name, phone, public_id, country')
-        .in('user_id', userIds);
+      const paymentOrderIds = data.map(t => t.payment_order_id).filter(Boolean) as string[];
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const [profilesResult, paymentOrdersResult] = await Promise.all([
+        supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+        paymentOrderIds.length > 0
+          ? supabase.from('payment_orders').select('id, payment_id, order_id').in('id', paymentOrderIds)
+          : Promise.resolve({ data: [] }),
+      ]);
 
-      let combined: TransactionWithUser[] = data.map(t => ({
-        ...t,
-        user_name: profileMap.get(t.user_id)?.name || null,
-        user_phone: profileMap.get(t.user_id)?.phone || null,
-        user_public_id: profileMap.get(t.user_id)?.public_id || null,
-        user_country: profileMap.get(t.user_id)?.country || null,
-      }));
+      const profileMap = new Map(profilesResult.data?.map(p => [p.user_id, p]) || []);
+      const paymentMap = new Map((paymentOrdersResult as any).data?.map((p: any) => [p.id, p]) || []);
+
+      let combined: TransactionWithUser[] = data.map(t => {
+        const profile = profileMap.get(t.user_id);
+        const payment = t.payment_order_id ? paymentMap.get(t.payment_order_id) as any : null;
+        return {
+          ...t,
+          user_name: profile?.name || null,
+          user_phone: profile?.phone || null,
+          user_public_id: profile?.public_id || null,
+          user_country: profile?.country || null,
+          payment_id: payment?.payment_id || null,
+          order_id: payment?.order_id || null,
+        };
+      });
 
       if (countryFilter !== 'all') {
         combined = combined.filter(t => t.user_country === countryFilter);
@@ -249,7 +266,10 @@ export default function AdminSubscriptionTransactionsPage() {
                       <TableHead>ID</TableHead>
                       <TableHead>Телефон</TableHead>
                       <TableHead>Подписка</TableHead>
+                      <TableHead>Сумма</TableHead>
                       <TableHead>Тип</TableHead>
+                      <TableHead>Оплата</TableHead>
+                      <TableHead>RRN / Payment ID</TableHead>
                       <TableHead>Дата</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -264,7 +284,19 @@ export default function AdminSubscriptionTransactionsPage() {
                         </TableCell>
                         <TableCell className="text-xs font-mono text-muted-foreground">{t.user_public_id || '—'}</TableCell>
                         <TableCell>{t.user_phone?.startsWith('+telegram_') ? 'TG' : (t.user_phone || '—')}</TableCell>
-                        <TableCell>{t.subscription_name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <span>{t.subscription_name}</span>
+                            {t.is_special_offer && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200">Акция</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {t.amount ? (
+                            <span className="font-semibold">{t.amount.toLocaleString()} ₸</span>
+                          ) : '—'}
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
                             t.transaction_type === 'purchase'
@@ -274,9 +306,15 @@ export default function AdminSubscriptionTransactionsPage() {
                             {t.transaction_type === 'purchase' ? (
                               <><CreditCard className="w-3 h-3" />Покупка</>
                             ) : (
-                              <><Shield className="w-3 h-3" />Активация админом</>
+                              <><Shield className="w-3 h-3" />Админ</>
                             )}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {t.payment_method === 'paylink' ? 'Paylink' : (t.payment_method || '—')}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground max-w-[120px] truncate" title={t.payment_id || ''}>
+                          {t.payment_id || '—'}
                         </TableCell>
                         <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                       </TableRow>
