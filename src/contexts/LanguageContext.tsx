@@ -157,6 +157,11 @@ const translations: Record<string, Record<Language, string>> = {
   'history.empty': { ru: 'Пока пусто', kz: 'Әзірше бос', en: 'Nothing yet', uz: 'Hozircha bo\'sh', kg: 'Азырынча бош' },
   'history.emptyDesc': { ru: 'Забирай напитки — тут появится история', kz: 'Сусындарды алыңыз — тарих осында пайда болады', en: 'Get drinks — history will appear here', uz: 'Ichimliklarni oling — tarix bu yerda paydo bo\'ladi', kg: 'Суусундуктарды алыңыз — тарых бул жерде пайда болот' },
   'history.purchases': { ru: 'История покупок', kz: 'Сатып алу тарихы', en: 'Purchase history', uz: 'Xaridlar tarixi', kg: 'Сатып алуу тарыхы' },
+  'history.tabRedemptions': { ru: 'Списания', kz: 'Есептен шығару', en: 'Redemptions', uz: 'Hisobdan chiqarish', kg: 'Эсептен чыгаруу' },
+  'history.tabTransactions': { ru: 'Транзакции', kz: 'Транзакциялар', en: 'Transactions', uz: 'Tranzaksiyalar', kg: 'Транзакциялар' },
+  'history.transactionsEmpty': { ru: 'Нет транзакций', kz: 'Транзакциялар жоқ', en: 'No transactions', uz: 'Tranzaksiyalar yo\'q', kg: 'Транзакциялар жок' },
+  'history.transactionsEmptyDesc': { ru: 'Здесь будут ваши покупки подписок', kz: 'Мұнда жазылым сатып алуларыңыз болады', en: 'Your subscription purchases will appear here', uz: 'Bu yerda obuna xaridlaringiz paydo bo\'ladi', kg: 'Бул жерде жазылуу сатып алууларыңыз болот' },
+  'history.specialOffer': { ru: 'Спецпредложение', kz: 'Арнайы ұсыныс', en: 'Special offer', uz: 'Maxsus taklif', kg: 'Атайын сунуш' },
 
   // Profile page
   'profile.title': { ru: 'Профиль', kz: 'Профиль', en: 'Profile', uz: 'Profil', kg: 'Профиль' },
