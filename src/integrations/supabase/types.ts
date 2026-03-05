@@ -99,6 +99,42 @@ export type Database = {
           },
         ]
       }
+      auto_notification_templates: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          is_active: boolean
+          message_template: string
+          name: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message_template: string
+          name: string
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message_template?: string
+          name?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       broadcast_messages: {
         Row: {
           broadcast_type: string

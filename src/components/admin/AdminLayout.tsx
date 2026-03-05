@@ -13,7 +13,8 @@ import {
   Bell,
   Receipt,
   Image,
-  Gift
+  Gift,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const navItems = [
   { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['admin'] },
   { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['admin'] },
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['admin'] },
+  { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
 ];
 

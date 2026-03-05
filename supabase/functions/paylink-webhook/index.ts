@@ -188,6 +188,18 @@ Deno.serve(async (req) => {
               coffee_total: offerCups,
             });
           }
+        } else if (subType.type === 'drinks') {
+          const { error: statsErr } = await supabase
+            .from('user_stats')
+            .update({ drinks_remaining: offerCups, drinks_total: offerCups, updated_at: new Date().toISOString() })
+            .eq('user_id', paymentOrder.user_id);
+          if (statsErr) {
+            await supabase.from('user_stats').insert({
+              user_id: paymentOrder.user_id,
+              drinks_remaining: offerCups,
+              drinks_total: offerCups,
+            });
+          }
         }
 
         // Mark offer as redeemed
