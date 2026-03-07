@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Trash2, Loader2, Eye, Clock } from 'lucide-react';
+import { Upload, Trash2, Loader2, Eye, Clock, Power } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
