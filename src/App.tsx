@@ -116,6 +116,7 @@ const AppContent = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
+  const [preloaderSrc, setPreloaderSrc] = useState(defaultPreloader);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
   
   const { vibrateShort } = useVibration();
