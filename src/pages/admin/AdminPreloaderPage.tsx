@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Trash2, Loader2, Eye, Clock, Power } from 'lucide-react';
+import { Upload, Trash2, Loader2, Eye, Clock, Power, Play } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
