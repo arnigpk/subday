@@ -39,6 +39,7 @@ const navItems = [
   { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['admin'] },
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['admin'] },
   { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['admin'] },
+  { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
 ];
 
