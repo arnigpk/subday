@@ -109,7 +109,15 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       if (error) { toast.error('Ошибка проверки кода'); return; }
       if (data.error) { toast.error(data.error); return; }
       if (data.success) {
-        toast.success('Регистрация успешна! Теперь войди');
+        if (data.session) {
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token
+          });
+          toast.success('Добро пожаловать!');
+        } else {
+          toast.success('Регистрация успешна!');
+        }
         onComplete();
       } else {
         toast.error('Ошибка регистрации');
