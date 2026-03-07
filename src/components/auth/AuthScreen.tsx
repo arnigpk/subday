@@ -21,7 +21,7 @@ export function AuthScreen({ onComplete }: AuthScreenProps) {
   if (mode === 'register') {
     return (
       <RegisterScreen
-        onComplete={() => setMode('login')}
+        onComplete={onComplete}
         onSwitchToLogin={() => {
           setPrefillPhone('');
           setPrefillCountry(undefined);

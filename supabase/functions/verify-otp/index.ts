@@ -119,12 +119,31 @@ Deno.serve(async (req) => {
         country: country || 'KZ',
       })
 
+      // Sign in the newly created user to return session
+      const email = phoneToEmail(formattedPhone)
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password: tempPassword
+      })
+
       // Fire-and-forget: notification + cleanup
       sendLoginNotification(formattedPhone, name, true)
       supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
+      if (loginError || !loginData.session) {
+        // Registration succeeded but auto-login failed — user can login manually
+        return new Response(
+          JSON.stringify({ success: true, message: 'Регистрация успешна' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       return new Response(
-        JSON.stringify({ success: true, message: 'Регистрация успешна' }),
+        JSON.stringify({ 
+          success: true,
+          session: loginData.session,
+          user: { id: loginData.user?.id, phone: formattedPhone }
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else {
