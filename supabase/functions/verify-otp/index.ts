@@ -120,7 +120,6 @@ Deno.serve(async (req) => {
       })
 
       // Sign in the newly created user to return session
-      const email = phoneToEmail(formattedPhone)
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password: tempPassword
