@@ -22,6 +22,8 @@ export default function AdminPreloaderPage() {
   const [loading, setLoading] = useState(true);
   const [duration, setDuration] = useState(2);
   const [savedDuration, setSavedDuration] = useState(2);
+  const [enabled, setEnabled] = useState(true);
+  const [savedEnabled, setSavedEnabled] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
