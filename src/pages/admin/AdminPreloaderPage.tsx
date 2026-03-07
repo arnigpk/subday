@@ -60,6 +60,10 @@ export default function AdminPreloaderPage() {
           setDuration(config.duration);
           setSavedDuration(config.duration);
         }
+        if (typeof config.enabled === 'boolean') {
+          setEnabled(config.enabled);
+          setSavedEnabled(config.enabled);
+        }
       }
     } catch {
       // keep defaults
