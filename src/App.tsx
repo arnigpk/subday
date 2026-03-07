@@ -1,7 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import defaultPreloader from '@/assets/preloader.gif';
 import logo from '@/assets/logo.png';
-import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
