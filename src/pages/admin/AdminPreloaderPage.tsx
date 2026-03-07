@@ -79,7 +79,8 @@ export default function AdminPreloaderPage() {
         .upload(CONFIG_PATH, blob, { upsert: true, cacheControl: '0' });
       if (error) throw error;
       setSavedDuration(newDuration);
-      toast.success(`Длительность прелоадера: ${newDuration} сек.`);
+      setSavedEnabled(enabledValue);
+      toast.success(enabledValue ? `Прелоадер включён (${newDuration} сек.)` : 'Прелоадер выключен');
     } catch (err: any) {
       toast.error('Ошибка сохранения: ' + err.message);
     }
