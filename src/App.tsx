@@ -130,6 +130,17 @@ const AppContent = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Load custom preloader from storage if available
+  useEffect(() => {
+    const { data } = supabaseClient.storage.from('app-assets').getPublicUrl('preloader.gif');
+    if (data?.publicUrl) {
+      const img = new Image();
+      img.onload = () => setPreloaderSrc(data.publicUrl + '?t=' + Date.now());
+      img.onerror = () => {}; // keep default
+      img.src = data.publicUrl;
+    }
+  }, []);
+
 
 
   // Telegram Mini App auto-login
