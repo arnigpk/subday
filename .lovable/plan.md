@@ -1,57 +1,55 @@
 
 
-## Анализ текущих узких мест
+## Plan: Auto-login after registration
 
-Сейчас процесс сканирования тормозится в нескольких местах:
+### Problem
+Currently, registration creates the user account but does not return a session. The user is redirected to the login screen and must enter their phone + SMS code again, costing an extra SMS.
 
-**Клиент (QRScanner.tsx):**
-1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
-2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
-3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
-4. Дубликат-защита 3 секунды -- можно сократить
+### Solution
+Two changes needed:
 
-**Клиент (PartnerScanPage.tsx):**
-5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
-6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
+**1. Edge function `verify-otp/index.ts` — registration branch**
+After creating the user and profile, perform the same sign-in logic as the login branch: call `signInWithPassword` and return the `session` object in the response.
 
-**Сервер (partner-scan-qr):**
-7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
+**2. Frontend `RegisterScreen.tsx`**
+Instead of showing "Регистрация успешна! Теперь войди" and switching to login, take the returned session, call `supabase.auth.setSession()`, and invoke `onComplete()` from `AuthScreen` (which triggers the main app).
 
-## План ускорения
+**3. `AuthScreen.tsx`**
+Pass the real `onComplete` callback to `RegisterScreen` instead of `() => setMode('login')`, so successful registration goes directly into the app.
 
-### 1. Убрать искусственную задержку в 1 секунду
-Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
+### Technical details
 
-### 2. Автозапуск камеры
-Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
+In `verify-otp/index.ts`, registration branch (after profile insert):
+```typescript
+// Sign in the newly created user
+const email = phoneToEmail(formattedPhone)
+const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+  email, password: tempPassword
+})
+// Return session in response
+return Response({ success: true, session: loginData.session, ... })
+```
 
-### 3. Не останавливать камеру при обработке
-Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
+In `RegisterScreen.tsx`, `handleVerifyCode`:
+```typescript
+if (data.session) {
+  await supabase.auth.setSession({
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token
+  });
+  toast.success('Добро пожаловать!');
+  onComplete(); // go straight to the app
+}
+```
 
-### 4. Увеличить область сканирования
-`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
+In `AuthScreen.tsx`:
+```typescript
+<RegisterScreen onComplete={onComplete} ... />
+// Instead of onComplete={() => setMode('login')}
+```
 
-### 5. Сократить защиту от дубликатов
-С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
-
-### 6. Запрос высокого разрешения камеры
-Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
-
-### 7. Автовозврат к сканеру после результата
-После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
-
-### 8. Не прятать сканер при статусах scanning/success/error
-Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
-
-### Затрагиваемые файлы
-- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
-- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
-
-### Итого выигрыш по скорости
-- Убрана 1с задержка
-- Убрано время запуска камеры (~1-2с)
-- Убрано время перезапуска камеры между сканами (~1-2с)  
-- Увеличена область захвата и разрешение -- быстрее распознавание
-
-Общий выигрыш: **3-5 секунд** на каждое сканирование.
+### Summary of files to edit
+- `supabase/functions/verify-otp/index.ts` — return session after registration
+- `src/components/auth/RegisterScreen.tsx` — set session and enter app
+- `src/components/auth/AuthScreen.tsx` — pass `onComplete` directly
 
