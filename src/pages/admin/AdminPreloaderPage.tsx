@@ -255,6 +255,38 @@ export default function AdminPreloaderPage() {
           </div>
         </Card>
 
+        {/* Live Demo */}
+        <Card className="p-6">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Play className="w-5 h-5" />
+            Предпросмотр с таймером
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Посмотрите как прелоадер будет выглядеть с текущей длительностью ({duration} сек).
+          </p>
+
+          {isDemoing ? (
+            <div className="space-y-4">
+              <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden">
+                <img
+                  src={displayUrl || defaultPreloader}
+                  alt="Demo preloader"
+                  className="w-full h-full object-contain max-h-[300px]"
+                />
+              </div>
+              <Progress value={demoProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {Math.ceil(duration - (demoProgress / 100) * duration)} сек. осталось
+              </p>
+            </div>
+          ) : (
+            <Button onClick={startDemo} variant="outline">
+              <Play className="w-4 h-4 mr-2" />
+              Запустить демо ({duration} сек)
+            </Button>
+          )}
+        </Card>
+
         {/* Upload new */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
