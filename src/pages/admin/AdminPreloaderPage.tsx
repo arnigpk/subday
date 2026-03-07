@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Trash2, Loader2, Eye, Clock, Power } from 'lucide-react';
+import { Upload, Trash2, Loader2, Eye, Clock, Power, Play } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
@@ -24,7 +25,28 @@ export default function AdminPreloaderPage() {
   const [savedDuration, setSavedDuration] = useState(2);
   const [enabled, setEnabled] = useState(true);
   const [savedEnabled, setSavedEnabled] = useState(true);
+  const [isDemoing, setIsDemoing] = useState(false);
+  const [demoProgress, setDemoProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const startDemo = useCallback(() => {
+    setIsDemoing(true);
+    setDemoProgress(0);
+    const totalMs = duration * 1000;
+    const interval = 50;
+    let elapsed = 0;
+    const tick = setInterval(() => {
+      elapsed += interval;
+      setDemoProgress(Math.min((elapsed / totalMs) * 100, 100));
+      if (elapsed >= totalMs) {
+        clearInterval(tick);
+        setTimeout(() => {
+          setIsDemoing(false);
+          setDemoProgress(0);
+        }, 300);
+      }
+    }, interval);
+  }, [duration]);
 
   useEffect(() => {
     loadCurrent();
@@ -231,6 +253,38 @@ export default function AdminPreloaderPage() {
               Сохранить
             </Button>
           </div>
+        </Card>
+
+        {/* Live Demo */}
+        <Card className="p-6">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Play className="w-5 h-5" />
+            Предпросмотр с таймером
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Посмотрите как прелоадер будет выглядеть с текущей длительностью ({duration} сек).
+          </p>
+
+          {isDemoing ? (
+            <div className="space-y-4">
+              <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden">
+                <img
+                  src={displayUrl || defaultPreloader}
+                  alt="Demo preloader"
+                  className="w-full h-full object-contain max-h-[300px]"
+                />
+              </div>
+              <Progress value={demoProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {Math.ceil(duration - (demoProgress / 100) * duration)} сек. осталось
+              </p>
+            </div>
+          ) : (
+            <Button onClick={startDemo} variant="outline">
+              <Play className="w-4 h-4 mr-2" />
+              Запустить демо ({duration} сек)
+            </Button>
+          )}
         </Card>
 
         {/* Upload new */}
