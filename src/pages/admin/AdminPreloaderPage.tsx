@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, Trash2, Loader2, Eye, Clock } from 'lucide-react';
+import { Upload, Trash2, Loader2, Eye, Clock, Power } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
@@ -21,6 +22,8 @@ export default function AdminPreloaderPage() {
   const [loading, setLoading] = useState(true);
   const [duration, setDuration] = useState(2);
   const [savedDuration, setSavedDuration] = useState(2);
+  const [enabled, setEnabled] = useState(true);
+  const [savedEnabled, setSavedEnabled] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,21 +60,27 @@ export default function AdminPreloaderPage() {
           setDuration(config.duration);
           setSavedDuration(config.duration);
         }
+        if (typeof config.enabled === 'boolean') {
+          setEnabled(config.enabled);
+          setSavedEnabled(config.enabled);
+        }
       }
     } catch {
       // keep defaults
     }
   };
 
-  const saveConfig = async (newDuration: number) => {
+  const saveConfig = async (newDuration: number, newEnabled?: boolean) => {
+    const enabledValue = newEnabled !== undefined ? newEnabled : enabled;
     try {
-      const blob = new Blob([JSON.stringify({ duration: newDuration })], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify({ duration: newDuration, enabled: enabledValue })], { type: 'application/json' });
       const { error } = await supabase.storage
         .from(BUCKET)
         .upload(CONFIG_PATH, blob, { upsert: true, cacheControl: '0' });
       if (error) throw error;
       setSavedDuration(newDuration);
-      toast.success(`Длительность прелоадера: ${newDuration} сек.`);
+      setSavedEnabled(enabledValue);
+      toast.success(enabledValue ? `Прелоадер включён (${newDuration} сек.)` : 'Прелоадер выключен');
     } catch (err: any) {
       toast.error('Ошибка сохранения: ' + err.message);
     }
@@ -128,6 +137,28 @@ export default function AdminPreloaderPage() {
   return (
     <AdminLayout title="Прелоадер">
       <div className="max-w-2xl space-y-6">
+        {/* Enable/Disable toggle */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Power className="w-5 h-5" />
+              <div>
+                <h3 className="font-semibold">Прелоадер</h3>
+                <p className="text-sm text-muted-foreground">
+                  {enabled ? 'Прелоадер включён — показывается при загрузке' : 'Прелоадер выключен — приложение загружается сразу'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={enabled}
+              onCheckedChange={(val) => {
+                setEnabled(val);
+                saveConfig(duration, val);
+              }}
+            />
+          </div>
+        </Card>
+
         {/* Current preloader */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">

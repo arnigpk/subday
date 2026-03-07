@@ -123,11 +123,16 @@ const AppContent = () => {
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
   useEffect(() => {
-    // Load preloader duration from config
+    // Load preloader config (enabled + duration)
     const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
     fetch(configData.publicUrl + '?t=' + Date.now())
       .then(res => res.ok ? res.json() : null)
       .then(config => {
+        const isEnabled = config?.enabled !== false; // default true
+        if (!isEnabled) {
+          setIsPreloaderDone(true);
+          return;
+        }
         const dur = config?.duration ?? 2;
         const timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
         return () => clearTimeout(timer);
