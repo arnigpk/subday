@@ -131,7 +131,7 @@ const AppContent = () => {
 
   // Load custom preloader from storage if available
   useEffect(() => {
-    const { data } = supabaseClient.storage.from('app-assets').getPublicUrl('preloader.gif');
+    const { data } = supabase.storage.from('app-assets').getPublicUrl('preloader.gif');
     if (data?.publicUrl) {
       const img = new Image();
       img.onload = () => setPreloaderSrc(data.publicUrl + '?t=' + Date.now());
