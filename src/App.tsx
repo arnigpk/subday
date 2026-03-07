@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import preloader from '@/assets/preloader.gif';
+import defaultPreloader from '@/assets/preloader.gif';
 import logo from '@/assets/logo.png';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -52,6 +52,7 @@ const AdminSubscriptionTransactionsPage = lazy(() => import("./pages/admin/Admin
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
 const AdminSpecialOffersPage = lazy(() => import("./pages/admin/AdminSpecialOffersPage"));
 const AdminAutoNotificationsPage = lazy(() => import("./pages/admin/AdminAutoNotificationsPage"));
+const AdminPreloaderPage = lazy(() => import("./pages/admin/AdminPreloaderPage"));
 
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
@@ -114,6 +115,7 @@ const AppContent = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
+  const [preloaderSrc, setPreloaderSrc] = useState(defaultPreloader);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
   
   const { vibrateShort } = useVibration();
@@ -125,6 +127,17 @@ const AppContent = () => {
       setIsPreloaderDone(true);
     }, 2000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Load custom preloader from storage if available
+  useEffect(() => {
+    const { data } = supabase.storage.from('app-assets').getPublicUrl('preloader.gif');
+    if (data?.publicUrl) {
+      const img = new Image();
+      img.onload = () => setPreloaderSrc(data.publicUrl + '?t=' + Date.now());
+      img.onerror = () => {}; // keep default
+      img.src = data.publicUrl;
+    }
   }, []);
 
 
@@ -223,7 +236,7 @@ const AppContent = () => {
           />
         ) : (
           <img 
-            src={preloader} 
+            src={preloaderSrc} 
             alt="Loading" 
             className="w-full h-full object-contain max-w-screen max-h-screen"
             onError={() => setGifFailed(true)}
@@ -274,6 +287,7 @@ const AppContent = () => {
             <Route path="/admin/banners" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBannersPage /></AdminProtectedRoute>} />
             <Route path="/admin/special-offers" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSpecialOffersPage /></AdminProtectedRoute>} />
             <Route path="/admin/auto-notifications" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminAutoNotificationsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/preloader" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPreloaderPage /></AdminProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
             
             {/* Partner Routes */}
