@@ -70,9 +70,10 @@ export default function AdminPreloaderPage() {
     }
   };
 
-  const saveConfig = async (newDuration: number) => {
+  const saveConfig = async (newDuration: number, newEnabled?: boolean) => {
+    const enabledValue = newEnabled !== undefined ? newEnabled : enabled;
     try {
-      const blob = new Blob([JSON.stringify({ duration: newDuration })], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify({ duration: newDuration, enabled: enabledValue })], { type: 'application/json' });
       const { error } = await supabase.storage
         .from(BUCKET)
         .upload(CONFIG_PATH, blob, { upsert: true, cacheControl: '0' });
