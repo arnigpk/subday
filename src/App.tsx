@@ -123,24 +123,43 @@ const AppContent = () => {
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
   
   useEffect(() => {
-    // Load preloader config (enabled + duration)
-    const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
-    fetch(configData.publicUrl + '?t=' + Date.now())
-      .then(res => res.ok ? res.json() : null)
-      .then(config => {
-        const isEnabled = config?.enabled !== false; // default true
-        if (!isEnabled) {
-          setIsPreloaderDone(true);
-          return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const loadConfig = async () => {
+      try {
+        const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
+        const res = await fetch(configData.publicUrl + '?t=' + Date.now());
+        if (cancelled) return;
+        
+        if (res.ok) {
+          const config = await res.json();
+          if (cancelled) return;
+          
+          const isEnabled = config?.enabled !== false;
+          if (!isEnabled) {
+            setIsPreloaderDone(true);
+            return;
+          }
+          const dur = config?.duration ?? 2;
+          timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
+        } else {
+          // No config file yet — use default 2s
+          timer = setTimeout(() => setIsPreloaderDone(true), 2000);
         }
-        const dur = config?.duration ?? 2;
-        const timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
-        return () => clearTimeout(timer);
-      })
-      .catch(() => {
-        const timer = setTimeout(() => setIsPreloaderDone(true), 2000);
-        return () => clearTimeout(timer);
-      });
+      } catch {
+        if (!cancelled) {
+          timer = setTimeout(() => setIsPreloaderDone(true), 2000);
+        }
+      }
+    };
+
+    loadConfig();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Load custom preloader from storage if available
