@@ -226,7 +226,7 @@ const AppContent = () => {
           />
         ) : (
           <img 
-            src={preloader} 
+            src={preloaderSrc} 
             alt="Loading" 
             className="w-full h-full object-contain max-w-screen max-h-screen"
             onError={() => setGifFailed(true)}
