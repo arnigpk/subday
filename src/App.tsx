@@ -52,6 +52,7 @@ const AdminSubscriptionTransactionsPage = lazy(() => import("./pages/admin/Admin
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
 const AdminSpecialOffersPage = lazy(() => import("./pages/admin/AdminSpecialOffersPage"));
 const AdminAutoNotificationsPage = lazy(() => import("./pages/admin/AdminAutoNotificationsPage"));
+const AdminPreloaderPage = lazy(() => import("./pages/admin/AdminPreloaderPage"));
 
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
