@@ -137,6 +137,28 @@ export default function AdminPreloaderPage() {
   return (
     <AdminLayout title="Прелоадер">
       <div className="max-w-2xl space-y-6">
+        {/* Enable/Disable toggle */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Power className="w-5 h-5" />
+              <div>
+                <h3 className="font-semibold">Прелоадер</h3>
+                <p className="text-sm text-muted-foreground">
+                  {enabled ? 'Прелоадер включён — показывается при загрузке' : 'Прелоадер выключен — приложение загружается сразу'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={enabled}
+              onCheckedChange={(val) => {
+                setEnabled(val);
+                saveConfig(duration, val);
+              }}
+            />
+          </div>
+        </Card>
+
         {/* Current preloader */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
