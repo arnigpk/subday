@@ -25,7 +25,28 @@ export default function AdminPreloaderPage() {
   const [savedDuration, setSavedDuration] = useState(2);
   const [enabled, setEnabled] = useState(true);
   const [savedEnabled, setSavedEnabled] = useState(true);
+  const [isDemoing, setIsDemoing] = useState(false);
+  const [demoProgress, setDemoProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const startDemo = useCallback(() => {
+    setIsDemoing(true);
+    setDemoProgress(0);
+    const totalMs = duration * 1000;
+    const interval = 50;
+    let elapsed = 0;
+    const tick = setInterval(() => {
+      elapsed += interval;
+      setDemoProgress(Math.min((elapsed / totalMs) * 100, 100));
+      if (elapsed >= totalMs) {
+        clearInterval(tick);
+        setTimeout(() => {
+          setIsDemoing(false);
+          setDemoProgress(0);
+        }, 300);
+      }
+    }, interval);
+  }, [duration]);
 
   useEffect(() => {
     loadCurrent();
