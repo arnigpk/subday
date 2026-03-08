@@ -29,6 +29,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [step, setStep] = useState<'form' | 'code'>('form');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code }
+        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code, channel }
       });
       if (error) { toast.error('Ошибка отправки кода'); return; }
       if (data?.error) {
@@ -90,7 +91,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       setFormattedPhone(data.phone);
       setStep('code');
       startCooldown(59);
-      toast.success('Код отправлен!');
+      toast.success(channel === 'whatsapp' ? 'Код отправлен в WhatsApp!' : 'Код отправлен по SMS!');
     } catch (err) {
       toast.error('Ошибка отправки');
     } finally {
@@ -196,9 +197,15 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                   )}
                 </div>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                {t('auth.beelineWarning')}
-              </p>
+              <div className="flex rounded-xl border border-border overflow-hidden">
+                <button type="button" onClick={() => setChannel('whatsapp')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>💬 WhatsApp</button>
+                <button type="button" onClick={() => setChannel('sms')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${channel === 'sms' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>📱 SMS</button>
+              </div>
+              {channel === 'sms' && (
+                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
+                  {t('auth.beelineWarning')}
+                </p>
+              )}
               <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isCoolingDown ? t('auth.resendIn').replace('{sec}', String(remaining)) : isLoading ? t('auth.sending') : t('auth.getCode')}
               </button>

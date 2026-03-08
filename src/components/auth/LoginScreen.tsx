@@ -24,6 +24,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: fullPhoneDigits, isRegistration: false, countryCode: country.code }
+        body: { phone: fullPhoneDigits, isRegistration: false, countryCode: country.code, channel }
       });
 
       if (error) {
@@ -98,7 +99,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       setFormattedPhone(data.phone);
       setStep('code');
       startCooldown(59);
-      toast.success('Код отправлен!');
+      toast.success(channel === 'whatsapp' ? 'Код отправлен в WhatsApp!' : 'Код отправлен по SMS!');
     } catch (err) {
       console.error('Error sending code:', err);
       toast.error('Ошибка отправки');
@@ -140,7 +141,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: formattedPhone, isRegistration: false }
+        body: { phone: formattedPhone, isRegistration: false, channel }
       });
       if (error || data?.error) {
         if (data?.cooldown) { startCooldown(data.cooldown); toast.error(data.error); }
@@ -148,7 +149,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         return;
       }
       startCooldown(59);
-      toast.success('Код отправлен повторно!');
+      toast.success(channel === 'whatsapp' ? 'Код отправлен в WhatsApp!' : 'Код отправлен по SMS!');
     } catch (err) {
       toast.error('Ошибка отправки');
     } finally {
@@ -189,9 +190,15 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                   />
                 </div>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                {t('auth.beelineWarning')}
-              </p>
+              <div className="flex rounded-xl border border-border overflow-hidden">
+                <button type="button" onClick={() => setChannel('whatsapp')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>💬 WhatsApp</button>
+                <button type="button" onClick={() => setChannel('sms')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${channel === 'sms' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}>📱 SMS</button>
+              </div>
+              {channel === 'sms' && (
+                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
+                  {t('auth.beelineWarning')}
+                </p>
+              )}
               <button onClick={handleSendCode} disabled={!isPhoneComplete || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isCoolingDown ? t('auth.resendIn').replace('{sec}', String(remaining)) : isLoading ? t('auth.sending') : t('auth.login')}
               </button>
