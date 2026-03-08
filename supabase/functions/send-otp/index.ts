@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       console.error('SMSC credentials not configured!')
       return new Response(
         JSON.stringify({ error: 'SMS сервис временно недоступен. Используйте Telegram для входа.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
