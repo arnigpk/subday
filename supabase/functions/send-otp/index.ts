@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       console.error('Error inserting OTP:', insertError)
       return new Response(
         JSON.stringify({ error: 'Ошибка сохранения кода' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
