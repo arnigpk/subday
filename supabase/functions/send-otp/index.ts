@@ -247,8 +247,8 @@ Deno.serve(async (req) => {
       } catch (smsErr) {
         console.error('SMS fetch error:', smsErr)
         return new Response(
-          JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'SMS сервис недоступен. Попробуйте Telegram.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
     }
