@@ -238,8 +238,8 @@ Deno.serve(async (req) => {
         if (smsResult.error) {
           console.error('SMS error:', smsResult.error_code, smsResult.error)
           return new Response(
-            JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: `Ошибка отправки SMS. Попробуйте Telegram.` }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
