@@ -8,6 +8,7 @@ import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ChannelToggle, OtpChannel } from './ChannelToggle';
 
 interface RegisterScreenProps {
   onComplete: () => void;

@@ -8,6 +8,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ChannelToggle, OtpChannel } from './ChannelToggle';
 
 interface LoginScreenProps {
   onComplete: () => void;
