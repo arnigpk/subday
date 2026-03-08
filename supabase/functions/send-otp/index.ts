@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       console.error('SMSC credentials not configured!')
       return new Response(
         JSON.stringify({ error: 'SMS сервис временно недоступен. Используйте Telegram для входа.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       console.error('Error inserting OTP:', insertError)
       return new Response(
         JSON.stringify({ error: 'Ошибка сохранения кода' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -140,8 +140,8 @@ Deno.serve(async (req) => {
       if (!waToken || !waPhoneId) {
         console.error('WABA credentials not configured!')
         return new Response(
-          JSON.stringify({ error: 'WhatsApp сервис временно недоступен. Используйте SMS или Telegram.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS или Telegram.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
@@ -181,9 +181,20 @@ Deno.serve(async (req) => {
 
         if (waResult.error) {
           console.error('WABA error:', waResult.error.message, waResult.error.code)
+          // Translate common WABA errors to Russian
+          let userMessage = 'Не удалось отправить WhatsApp. Попробуйте SMS.'
+          const code_err = String(waResult.error.code || '')
+          const msg = waResult.error.message || ''
+          if (code_err === '133010' || msg.includes('not registered')) {
+            userMessage = 'Этот номер не зарегистрирован в WhatsApp. Попробуйте SMS.'
+          } else if (code_err === '131026' || msg.includes('not able to send')) {
+            userMessage = 'Не удалось доставить сообщение в WhatsApp. Попробуйте SMS.'
+          } else if (msg.includes('rate limit') || code_err === '130429') {
+            userMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.'
+          }
           return new Response(
-            JSON.stringify({ error: `Ошибка WhatsApp: ${waResult.error.message}. Используйте SMS или Telegram.` }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: userMessage }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
@@ -191,8 +202,8 @@ Deno.serve(async (req) => {
       } catch (waErr) {
         console.error('WABA fetch error:', waErr)
         return new Response(
-          JSON.stringify({ error: 'WhatsApp сервис недоступен. Используйте SMS или Telegram.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
     } else {
@@ -219,16 +230,16 @@ Deno.serve(async (req) => {
         } catch {
           console.error('SMSC returned non-JSON:', smsText)
           return new Response(
-            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Попробуйте Telegram.' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
         if (smsResult.error) {
           console.error('SMS error:', smsResult.error_code, smsResult.error)
           return new Response(
-            JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: `Ошибка отправки SMS. Попробуйте Telegram.` }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
@@ -236,8 +247,8 @@ Deno.serve(async (req) => {
       } catch (smsErr) {
         console.error('SMS fetch error:', smsErr)
         return new Response(
-          JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'SMS сервис недоступен. Попробуйте Telegram.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
     }
@@ -250,8 +261,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in send-otp:', error)
     return new Response(
-      JSON.stringify({ error: 'Внутренняя ошибка сервера' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Внутренняя ошибка сервера. Попробуйте позже.' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
