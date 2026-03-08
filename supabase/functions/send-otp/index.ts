@@ -181,19 +181,8 @@ Deno.serve(async (req) => {
 
         if (waResult.error) {
           console.error('WABA error:', waResult.error.message, waResult.error.code)
-          // Translate common WABA errors to Russian
-          let userMessage = 'Не удалось отправить WhatsApp. Попробуйте SMS.'
-          const code_err = String(waResult.error.code || '')
-          const msg = waResult.error.message || ''
-          if (code_err === '133010' || msg.includes('not registered')) {
-            userMessage = 'Этот номер не зарегистрирован в WhatsApp. Попробуйте SMS.'
-          } else if (code_err === '131026' || msg.includes('not able to send')) {
-            userMessage = 'Не удалось доставить сообщение в WhatsApp. Попробуйте SMS.'
-          } else if (msg.includes('rate limit') || code_err === '130429') {
-            userMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.'
-          }
           return new Response(
-            JSON.stringify({ error: userMessage }),
+            JSON.stringify({ error: 'Ошибка отправки кода, попробуйте SMS.' }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -202,7 +191,7 @@ Deno.serve(async (req) => {
       } catch (waErr) {
         console.error('WABA fetch error:', waErr)
         return new Response(
-          JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS.' }),
+          JSON.stringify({ error: 'Ошибка отправки кода, попробуйте SMS.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
