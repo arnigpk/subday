@@ -91,7 +91,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       setFormattedPhone(data.phone);
       setStep('code');
       startCooldown(59);
-      toast.success('Код отправлен!');
+      toast.success(channel === 'whatsapp' ? 'Код отправлен в WhatsApp!' : 'Код отправлен по SMS!');
     } catch (err) {
       toast.error('Ошибка отправки');
     } finally {
