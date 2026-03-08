@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Send SMS via SMSC
+    // Send code via SMSC (SMS or WhatsApp)
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)
@@ -140,7 +140,15 @@ Deno.serve(async (req) => {
     smsUrl.searchParams.set('fmt', '3')
     smsUrl.searchParams.set('charset', 'utf-8')
 
-    console.log(`Sending SMS to ${formattedPhone}, code: ${code}`)
+    if (channel === 'whatsapp') {
+      const whatsappBotNumber = Deno.env.get('WHATSAPP_BOT_NUMBER')
+      if (whatsappBotNumber) {
+        smsUrl.searchParams.set('sender', whatsappBotNumber)
+        smsUrl.searchParams.set('viber', '1')
+      }
+    }
+
+    console.log(`Sending ${channel || 'sms'} to ${formattedPhone}, code: ${code}`)
 
     try {
       const smsResponse = await fetch(smsUrl.toString(), {
