@@ -202,8 +202,8 @@ Deno.serve(async (req) => {
       } catch (waErr) {
         console.error('WABA fetch error:', waErr)
         return new Response(
-          JSON.stringify({ error: 'WhatsApp сервис недоступен. Используйте SMS или Telegram.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
     } else {
