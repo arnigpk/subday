@@ -39,7 +39,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { phone, isRegistration, countryCode } = await req.json()
+    const { phone, isRegistration, countryCode, channel } = await req.json()
+    const useWhatsApp = channel === 'whatsapp'
 
     if (!phone) {
       return new Response(
