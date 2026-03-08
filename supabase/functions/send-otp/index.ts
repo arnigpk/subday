@@ -261,8 +261,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in send-otp:', error)
     return new Response(
-      JSON.stringify({ error: 'Внутренняя ошибка сервера' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Внутренняя ошибка сервера. Попробуйте позже.' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
