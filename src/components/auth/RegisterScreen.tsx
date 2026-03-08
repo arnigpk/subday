@@ -80,7 +80,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code }
+        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code, channel }
       });
       if (error) { toast.error('Ошибка отправки кода'); return; }
       if (data?.error) {
