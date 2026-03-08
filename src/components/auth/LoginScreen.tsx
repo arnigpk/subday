@@ -141,7 +141,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: formattedPhone, isRegistration: false }
+        body: { phone: formattedPhone, isRegistration: false, channel }
       });
       if (error || data?.error) {
         if (data?.cooldown) { startCooldown(data.cooldown); toast.error(data.error); }
