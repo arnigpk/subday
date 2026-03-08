@@ -39,8 +39,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { phone, isRegistration, countryCode, channel } = await req.json()
-    const useWhatsApp = channel === 'whatsapp'
+    const { phone, isRegistration, countryCode } = await req.json()
 
     if (!phone) {
       return new Response(
@@ -131,7 +130,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Send via SMSC — WhatsApp or SMS
+    // Send SMS via SMSC
     const message = `subday: ваш код ${code}`
     const smsUrl = new URL('https://smsc.kz/sys/send.php')
     smsUrl.searchParams.set('login', smscLogin)
@@ -140,13 +139,8 @@ Deno.serve(async (req) => {
     smsUrl.searchParams.set('mes', message)
     smsUrl.searchParams.set('fmt', '3')
     smsUrl.searchParams.set('charset', 'utf-8')
-    
-    if (useWhatsApp) {
-      smsUrl.searchParams.set('whatsapp', '1')
-    }
 
-    const channelLabel = useWhatsApp ? 'WhatsApp' : 'SMS'
-    console.log(`Sending ${channelLabel} to ${formattedPhone}, code: ${code}`)
+    console.log(`Sending SMS to ${formattedPhone}, code: ${code}`)
 
     try {
       const smsResponse = await fetch(smsUrl.toString(), {
@@ -160,42 +154,6 @@ Deno.serve(async (req) => {
         smsResult = JSON.parse(smsText)
       } catch {
         console.error('SMSC returned non-JSON:', smsText)
-        
-        // If WhatsApp failed, try fallback to SMS
-        if (useWhatsApp) {
-          console.log('WhatsApp failed, falling back to SMS...')
-          const fallbackUrl = new URL('https://smsc.kz/sys/send.php')
-          fallbackUrl.searchParams.set('login', smscLogin)
-          fallbackUrl.searchParams.set('psw', smscPassword)
-          fallbackUrl.searchParams.set('phones', formattedPhone)
-          fallbackUrl.searchParams.set('mes', message)
-          fallbackUrl.searchParams.set('fmt', '3')
-          fallbackUrl.searchParams.set('charset', 'utf-8')
-          
-          const fallbackResp = await fetch(fallbackUrl.toString(), { signal: AbortSignal.timeout(10000) })
-          const fallbackText = await fallbackResp.text()
-          console.log('SMS fallback response:', fallbackText)
-          try {
-            const fallbackResult = JSON.parse(fallbackText)
-            if (fallbackResult.error) {
-              return new Response(
-                JSON.stringify({ error: `Ошибка отправки: ${fallbackResult.error}. Используйте Telegram для входа.` }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            }
-            console.log('SMS fallback sent successfully, id:', fallbackResult.id)
-            return new Response(
-              JSON.stringify({ success: true, message: 'Код отправлен через SMS (WhatsApp недоступен)', phone: formattedPhone, fallback: true }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
-          } catch {
-            return new Response(
-              JSON.stringify({ error: 'Сервис временно недоступен. Используйте Telegram для входа.' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
-          }
-        }
-        
         return new Response(
           JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -203,46 +161,18 @@ Deno.serve(async (req) => {
       }
 
       if (smsResult.error) {
-        console.error(`${channelLabel} error:`, smsResult.error_code, smsResult.error)
-        
-        // If WhatsApp failed with error, fallback to SMS
-        if (useWhatsApp) {
-          console.log('WhatsApp error, falling back to SMS...')
-          const fallbackUrl = new URL('https://smsc.kz/sys/send.php')
-          fallbackUrl.searchParams.set('login', smscLogin)
-          fallbackUrl.searchParams.set('psw', smscPassword)
-          fallbackUrl.searchParams.set('phones', formattedPhone)
-          fallbackUrl.searchParams.set('mes', message)
-          fallbackUrl.searchParams.set('fmt', '3')
-          fallbackUrl.searchParams.set('charset', 'utf-8')
-          
-          try {
-            const fallbackResp = await fetch(fallbackUrl.toString(), { signal: AbortSignal.timeout(10000) })
-            const fallbackText = await fallbackResp.text()
-            const fallbackResult = JSON.parse(fallbackText)
-            if (!fallbackResult.error) {
-              console.log('SMS fallback sent successfully, id:', fallbackResult.id)
-              return new Response(
-                JSON.stringify({ success: true, message: 'Код отправлен через SMS (WhatsApp недоступен)', phone: formattedPhone, fallback: true }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            }
-          } catch (fbErr) {
-            console.error('SMS fallback also failed:', fbErr)
-          }
-        }
-        
+        console.error('SMS error:', smsResult.error_code, smsResult.error)
         return new Response(
-          JSON.stringify({ error: `Ошибка отправки ${channelLabel}: ${smsResult.error}. Используйте Telegram для входа.` }),
+          JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      console.log(`${channelLabel} sent successfully, id:`, smsResult.id)
+      console.log('SMS sent successfully, id:', smsResult.id)
     } catch (smsErr) {
-      console.error(`${channelLabel} fetch error:`, smsErr)
+      console.error('SMS fetch error:', smsErr)
       return new Response(
-        JSON.stringify({ error: `${channelLabel} сервис недоступен. Используйте Telegram для входа.` }),
+        JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

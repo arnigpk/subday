@@ -8,7 +8,6 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ChannelToggle, OtpChannel } from './ChannelToggle';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -25,7 +24,6 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
-  const [channel, setChannel] = useState<OtpChannel>('whatsapp');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   useEffect(() => {
@@ -65,7 +63,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: fullPhoneDigits, isRegistration: false, countryCode: country.code, channel }
+        body: { phone: fullPhoneDigits, isRegistration: false, countryCode: country.code }
       });
 
       if (error) {
@@ -191,7 +189,6 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                   />
                 </div>
               </div>
-              <ChannelToggle channel={channel} onChange={setChannel} />
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 {t('auth.beelineWarning')}
               </p>
