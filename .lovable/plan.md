@@ -1,57 +1,43 @@
+## Plan: Add WhatsApp as alternative OTP channel alongside SMS
 
+### What changes
 
-## Анализ текущих узких мест
+**1. UI — Channel selector on both LoginScreen and RegisterScreen**
 
-Сейчас процесс сканирования тормозится в нескольких местах:
+Before the "Send code" button, add two toggle buttons: **SMS** and **WhatsApp**. Default to SMS. Store selection in `channel` state (`'sms' | 'whatsapp'`). Pass `channel` to `send-otp` function. Also pass it on resend.
 
-**Клиент (QRScanner.tsx):**
-1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
-2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
-3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
-4. Дубликат-защита 3 секунды -- можно сократить
+The selector will be a simple two-button toggle group styled like a pill/segmented control:
 
-**Клиент (PartnerScanPage.tsx):**
-5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
-6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
+```
+[💬 WhatsApp]  [📱 SMS]
+```
 
-**Сервер (partner-scan-qr):**
-7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
+**2. Edge function `send-otp/index.ts` — WhatsApp delivery via SMSC.kz**
 
-## План ускорения
+Accept `channel` parameter from the request body. When `channel === 'whatsapp'`, use SMSC.kz's WhatsApp integration by adding parameters to the existing SMSC API call:
 
-### 1. Убрать искусственную задержку в 1 секунду
-Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
+- Set `sender` to the WHATSAPP_BOT_NUMBER secret (already configured)  
+- Add `&viber=1` parameter for messengers mode with SMS fallback
 
-### 2. Автозапуск камеры
-Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
+When channel is `'sms'` (default), keep current behavior unchanged.
 
-### 3. Не останавливать камеру при обработке
-Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
+**3. Toast messages**
 
-### 4. Увеличить область сканирования
-`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
+Update success toast to say "Код отправлен в WhatsApp!" or "Код отправлен по SMS!" depending on selected channel.
 
-### 5. Сократить защиту от дубликатов
-С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
+### Files to edit
 
-### 6. Запрос высокого разрешения камеры
-Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
+- `src/components/auth/LoginScreen.tsx` — add channel toggle, pass to send-otp
+- `src/components/auth/RegisterScreen.tsx` — add channel toggle, pass to send-otp  
+- `supabase/functions/send-otp/index.ts` — handle `channel` param, route to WhatsApp or SMS
 
-### 7. Автовозврат к сканеру после результата
-После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
+### Technical details
 
-### 8. Не прятать сканер при статусах scanning/success/error
-Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
+SMSC.kz WhatsApp sending uses the same API endpoint with additional params:
 
-### Затрагиваемые файлы
-- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
-- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
+```
+smsUrl.searchParams.set('sender', whatsappBotNumber)  // from secret
+smsUrl.searchParams.set('viber', '1')  // enables messenger channel with SMS fallback
+```
 
-### Итого выигрыш по скорости
-- Убрана 1с задержка
-- Убрано время запуска камеры (~1-2с)
-- Убрано время перезапуска камеры между сканами (~1-2с)  
-- Увеличена область захвата и разрешение -- быстрее распознавание
-
-Общий выигрыш: **3-5 секунд** на каждое сканирование.
-
+No new secrets needed — `WHATSAPP_BOT_NUMBER` is already configured.
