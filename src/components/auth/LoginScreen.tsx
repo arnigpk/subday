@@ -24,6 +24,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   useEffect(() => {
