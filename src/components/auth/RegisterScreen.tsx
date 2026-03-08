@@ -8,6 +8,7 @@ import { useSmsCooldown } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ChannelToggle, OtpChannel } from './ChannelToggle';
 
 interface RegisterScreenProps {
   onComplete: () => void;
@@ -29,6 +30,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [step, setStep] = useState<'form' | 'code'>('form');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
+  const [channel, setChannel] = useState<OtpChannel>('whatsapp');
   const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code }
+        body: { phone: fullPhoneDigits, isRegistration: true, countryCode: country.code, channel }
       });
       if (error) { toast.error('Ошибка отправки кода'); return; }
       if (data?.error) {
@@ -196,6 +198,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                   )}
                 </div>
               </div>
+              <ChannelToggle channel={channel} onChange={setChannel} />
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 {t('auth.beelineWarning')}
               </p>
