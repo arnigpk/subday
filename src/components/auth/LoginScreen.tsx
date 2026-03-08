@@ -99,7 +99,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
       setFormattedPhone(data.phone);
       setStep('code');
       startCooldown(59);
-      toast.success('Код отправлен!');
+      toast.success(channel === 'whatsapp' ? 'Код отправлен в WhatsApp!' : 'Код отправлен по SMS!');
     } catch (err) {
       console.error('Error sending code:', err);
       toast.error('Ошибка отправки');
