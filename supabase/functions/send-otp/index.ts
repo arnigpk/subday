@@ -140,8 +140,8 @@ Deno.serve(async (req) => {
       if (!waToken || !waPhoneId) {
         console.error('WABA credentials not configured!')
         return new Response(
-          JSON.stringify({ error: 'WhatsApp сервис временно недоступен. Используйте SMS или Telegram.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS или Telegram.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
