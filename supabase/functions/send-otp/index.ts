@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
         } catch {
           console.error('SMSC returned non-JSON:', smsText)
           return new Response(
-            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Попробуйте Telegram.' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
