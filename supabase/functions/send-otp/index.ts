@@ -130,59 +130,116 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Send code via SMSC (SMS or WhatsApp)
-    const message = `subday: ваш код ${code}`
-    const smsUrl = new URL('https://smsc.kz/sys/send.php')
-    smsUrl.searchParams.set('login', smscLogin)
-    smsUrl.searchParams.set('psw', smscPassword)
-    smsUrl.searchParams.set('phones', formattedPhone)
-    smsUrl.searchParams.set('mes', message)
-    smsUrl.searchParams.set('fmt', '3')
-    smsUrl.searchParams.set('charset', 'utf-8')
-
-    if (channel === 'whatsapp') {
-      const whatsappBotNumber = Deno.env.get('WHATSAPP_BOT_NUMBER')
-      if (whatsappBotNumber) {
-        smsUrl.searchParams.set('sender', whatsappBotNumber)
-        smsUrl.searchParams.set('viber', '1')
-      }
-    }
-
     console.log(`Sending ${channel || 'sms'} to ${formattedPhone}, code: ${code}`)
 
-    try {
-      const smsResponse = await fetch(smsUrl.toString(), {
-        signal: AbortSignal.timeout(10000),
-      })
-      const smsText = await smsResponse.text()
-      console.log('SMSC raw response:', smsText)
-      
-      let smsResult: any
+    if (channel === 'whatsapp') {
+      // Send via Meta Cloud API (WABA)
+      const waToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
+      const waPhoneId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
+
+      if (!waToken || !waPhoneId) {
+        console.error('WABA credentials not configured!')
+        return new Response(
+          JSON.stringify({ error: 'WhatsApp сервис временно недоступен. Используйте SMS или Telegram.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Strip '+' for WhatsApp API (expects country code without +)
+      const waRecipient = formattedPhone.replace('+', '')
+
       try {
-        smsResult = JSON.parse(smsText)
-      } catch {
-        console.error('SMSC returned non-JSON:', smsText)
+        const waResponse = await fetch(
+          `https://graph.facebook.com/v21.0/${waPhoneId}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${waToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: waRecipient,
+              type: 'template',
+              template: {
+                name: 'otp_code',
+                language: { code: 'ru' },
+                components: [
+                  {
+                    type: 'body',
+                    parameters: [{ type: 'text', text: code }],
+                  },
+                ],
+              },
+            }),
+            signal: AbortSignal.timeout(15000),
+          }
+        )
+
+        const waResult = await waResponse.json()
+        console.log('WABA response:', JSON.stringify(waResult))
+
+        if (waResult.error) {
+          console.error('WABA error:', waResult.error.message, waResult.error.code)
+          return new Response(
+            JSON.stringify({ error: `Ошибка WhatsApp: ${waResult.error.message}. Используйте SMS или Telegram.` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        console.log('WhatsApp message sent, id:', waResult.messages?.[0]?.id)
+      } catch (waErr) {
+        console.error('WABA fetch error:', waErr)
         return new Response(
-          JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
+          JSON.stringify({ error: 'WhatsApp сервис недоступен. Используйте SMS или Telegram.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+    } else {
+      // Send via SMSC (SMS)
+      const message = `subday: ваш код ${code}`
+      const smsUrl = new URL('https://smsc.kz/sys/send.php')
+      smsUrl.searchParams.set('login', smscLogin)
+      smsUrl.searchParams.set('psw', smscPassword)
+      smsUrl.searchParams.set('phones', formattedPhone)
+      smsUrl.searchParams.set('mes', message)
+      smsUrl.searchParams.set('fmt', '3')
+      smsUrl.searchParams.set('charset', 'utf-8')
 
-      if (smsResult.error) {
-        console.error('SMS error:', smsResult.error_code, smsResult.error)
+      try {
+        const smsResponse = await fetch(smsUrl.toString(), {
+          signal: AbortSignal.timeout(10000),
+        })
+        const smsText = await smsResponse.text()
+        console.log('SMSC raw response:', smsText)
+
+        let smsResult: any
+        try {
+          smsResult = JSON.parse(smsText)
+        } catch {
+          console.error('SMSC returned non-JSON:', smsText)
+          return new Response(
+            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Используйте Telegram для входа.' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        if (smsResult.error) {
+          console.error('SMS error:', smsResult.error_code, smsResult.error)
+          return new Response(
+            JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        console.log('SMS sent successfully, id:', smsResult.id)
+      } catch (smsErr) {
+        console.error('SMS fetch error:', smsErr)
         return new Response(
-          JSON.stringify({ error: `Ошибка отправки SMS: ${smsResult.error}. Используйте Telegram для входа.` }),
+          JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-
-      console.log('SMS sent successfully, id:', smsResult.id)
-    } catch (smsErr) {
-      console.error('SMS fetch error:', smsErr)
-      return new Response(
-        JSON.stringify({ error: 'SMS сервис недоступен. Используйте Telegram для входа.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     }
 
     return new Response(
