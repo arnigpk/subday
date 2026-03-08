@@ -191,6 +191,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
                   />
                 </div>
               </div>
+              <ChannelToggle channel={channel} onChange={setChannel} />
               <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
                 {t('auth.beelineWarning')}
               </p>
