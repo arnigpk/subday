@@ -309,6 +309,8 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
           onUpdate={() => fetchPosts(true)}
           animationDelay={index < 10 ? index * 0.05 : 0}
           hasActiveSubscription={hasActiveSubscription}
+          isHighlighted={highlightPostId === post.id}
+          onHighlightDone={onHighlightDone}
         />
       ))}
       

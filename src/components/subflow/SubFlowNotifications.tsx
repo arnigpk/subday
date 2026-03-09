@@ -171,32 +171,48 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                    !n.is_read ? 'bg-primary/5' : ''
-                  }`}
-                >
-                  <Avatar className="w-9 h-9 shrink-0">
-                    <AvatarFallback className="bg-primary/10">
-                      <User size={16} className="text-primary" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">
-                      <span className="font-semibold">{n.actor_name}</span>{' '}
-                      {getNotificationText(n)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDate(n.created_at)}
-                    </p>
+              {notifications.map(n => {
+                const isClickable = !!n.post_id && !!onNavigateToPost;
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      if (isClickable) {
+                        setOpen(false);
+                        setTimeout(() => onNavigateToPost!(n.post_id!), 300);
+                      }
+                    }}
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors ${
+                      !n.is_read ? 'bg-primary/5' : ''
+                    } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
+                  >
+                    <Avatar className="w-9 h-9 shrink-0">
+                      <AvatarFallback className="bg-primary/10">
+                        <User size={16} className="text-primary" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">{n.actor_name}</span>{' '}
+                        {getNotificationText(n)}
+                      </p>
+                      {n.post_preview && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate italic">
+                          «{n.post_preview}»
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDate(n.created_at)}
+                      </p>
+                    </div>
+                    {isClickable ? (
+                      <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1.5" />
+                    ) : !n.is_read ? (
+                      <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+                    ) : null}
                   </div>
-                  {!n.is_read && (
-                    <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

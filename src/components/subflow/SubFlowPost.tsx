@@ -353,7 +353,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
   return (
     <div 
-      className="card-static animate-slide-up"
+      ref={postRef}
+      className={`card-static animate-slide-up transition-shadow duration-500 ${isHighlighted ? 'ring-2 ring-primary/50 shadow-[0_0_16px_hsl(var(--primary)/0.2)]' : ''}`}
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {/* Header */}

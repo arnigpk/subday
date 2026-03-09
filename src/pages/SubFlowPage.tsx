@@ -119,7 +119,7 @@ export default function SubFlowPage() {
           </LiquidGlassHeader>
           <div className="px-4 pt-2">
 
-            <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} />
+            <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
           </div>
         </div>
       </PullToRefresh>
