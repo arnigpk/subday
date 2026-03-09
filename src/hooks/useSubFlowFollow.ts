@@ -36,6 +36,11 @@ export function useSubFlowFollow(currentUserId: string | null, targetUserId: str
           .from('subflow_follows')
           .insert({ follower_id: currentUserId, following_id: targetUserId });
         setIsFollowing(true);
+
+        // Fire-and-forget follow notification
+        supabase.functions.invoke('subflow-notify', {
+          body: { type: 'follow', actorId: currentUserId, targetUserId }
+        }).catch(() => {});
       }
     } catch (err) {
       console.error('Follow toggle error:', err);
