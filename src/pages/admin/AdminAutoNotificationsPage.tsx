@@ -437,6 +437,11 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
                 Пороги: {config.milestones.join(', ')}
               </span>
             )}
+            {config?.cooldown_minutes && (
+              <span className="px-2 py-1 bg-muted rounded-lg">
+                Кулдаун: {config.cooldown_minutes} мин
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
