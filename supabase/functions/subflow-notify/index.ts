@@ -13,20 +13,14 @@ interface NotifyRequest {
   targetUserId?: string;
 }
 
-// Default milestones if no template is configured
-const DEFAULT_MILESTONES: Record<string, number[]> = {
-  reaction: [3, 5, 10, 20, 50, 100, 200, 500],
-  comment: [2, 5, 10, 20, 50, 100, 200, 500],
-  follow: [2, 5, 10, 20, 50, 100, 200, 500],
-};
-
-// Map notification type to trigger_type in auto_notification_templates
 const TRIGGER_TYPE_MAP: Record<string, string> = {
   reaction: 'subflow_reaction',
   comment: 'subflow_comment',
   follow: 'subflow_follow',
   new_post: 'subflow_new_post',
 };
+
+const DEFAULT_COOLDOWN_MINUTES = 60;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -39,7 +33,6 @@ Deno.serve(async (req) => {
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return jsonResponse({ error: 'Unauthorized' }, 401);
@@ -48,20 +41,17 @@ Deno.serve(async (req) => {
     const body: NotifyRequest = await req.json();
     const { type, postId, actorId, reaction, targetUserId } = body;
 
-    // Load template config from auto_notification_templates
     const triggerType = TRIGGER_TYPE_MAP[type];
     const template = await getTemplate(supabase, triggerType);
 
-    // If template exists but is disabled, skip
     if (template && !template.is_active) {
       return jsonResponse({ ok: true, skipped: true, reason: 'template_disabled' });
     }
 
-    const milestones = (template?.trigger_config as any)?.milestones || DEFAULT_MILESTONES[type];
+    const cooldownMinutes = (template?.trigger_config as any)?.cooldown_minutes || DEFAULT_COOLDOWN_MINUTES;
     const messageTemplate = template?.message_template || null;
     const channel = template?.channel || 'both';
 
-    // Get actor profile
     const { data: actorProfile } = await supabase
       .from('profiles')
       .select('name, subflow_nickname, phone')
@@ -83,16 +73,17 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // Count total reactions on this post
-      const { count: reactionCount } = await supabase
-        .from('subflow_reactions')
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', postId);
+      // Check cooldown — was there a reaction notification for this post recently?
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', postId, cooldownMinutes);
+      if (!cooldownCheck.shouldSend) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
+      }
 
-      const totalReactions = reactionCount || 0;
+      // Count reactions since last notification (or all if no previous notification)
+      const newCount = await countSince(supabase, 'subflow_reactions', 'post_id', postId, cooldownCheck.lastNotifiedAt);
 
-      if (milestones && !milestones.includes(totalReactions)) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalReactions });
+      if (newCount === 0) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
       }
 
       const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
@@ -105,8 +96,8 @@ Deno.serve(async (req) => {
         reaction: reaction || null,
       });
 
-      const message = renderTemplate(messageTemplate || '🔥 Уже {{count}} реакций на ваш пост!\n«{{preview}}»', {
-        count: String(totalReactions),
+      const message = renderTemplate(messageTemplate || '🔥 +{{count}} реакций на ваш пост!\n«{{preview}}»', {
+        count: String(newCount),
         actor_name: actorName,
         preview: contentPreview,
       });
@@ -169,15 +160,15 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      const { count: commentCount } = await supabase
-        .from('subflow_comments')
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', postId);
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', postId, cooldownMinutes);
+      if (!cooldownCheck.shouldSend) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
+      }
 
-      const totalComments = commentCount || 0;
+      const newCount = await countSince(supabase, 'subflow_comments', 'post_id', postId, cooldownCheck.lastNotifiedAt);
 
-      if (milestones && !milestones.includes(totalComments)) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalComments });
+      if (newCount === 0) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
       }
 
       const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
@@ -189,8 +180,8 @@ Deno.serve(async (req) => {
         post_id: postId,
       });
 
-      const message = renderTemplate(messageTemplate || '💬 Уже {{count}} комментариев к вашему посту:\n«{{preview}}»', {
-        count: String(totalComments),
+      const message = renderTemplate(messageTemplate || '💬 +{{count}} комментариев к вашему посту:\n«{{preview}}»', {
+        count: String(newCount),
         actor_name: actorName,
         preview: contentPreview,
       });
@@ -202,15 +193,15 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      const { count: followerCount } = await supabase
-        .from('subflow_follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('following_id', targetUserId);
+      const cooldownCheck = await checkCooldown(supabase, targetUserId, 'follow', null, cooldownMinutes);
+      if (!cooldownCheck.shouldSend) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
+      }
 
-      const totalFollowers = followerCount || 0;
+      const newCount = await countSince(supabase, 'subflow_follows', 'following_id', targetUserId, cooldownCheck.lastNotifiedAt);
 
-      if (milestones && !milestones.includes(totalFollowers)) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalFollowers });
+      if (newCount === 0) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
       }
 
       await supabase.from('subflow_notifications').insert({
@@ -219,8 +210,8 @@ Deno.serve(async (req) => {
         type: 'follow',
       });
 
-      const message = renderTemplate(messageTemplate || '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.', {
-        count: String(totalFollowers),
+      const message = renderTemplate(messageTemplate || '👥 +{{count}} новых подписчиков! {{actor_name}} подписался на вас.', {
+        count: String(newCount),
         actor_name: actorName,
         preview: '',
       });
@@ -261,6 +252,71 @@ async function getTemplate(supabase: any, triggerType: string) {
     .limit(1)
     .maybeSingle();
   return data;
+}
+
+/**
+ * Check if we can send a notification based on cooldown.
+ * Returns { shouldSend, lastNotifiedAt, nextAt }
+ */
+async function checkCooldown(
+  supabase: any,
+  userId: string,
+  type: string,
+  postId: string | null,
+  cooldownMinutes: number,
+): Promise<{ shouldSend: boolean; lastNotifiedAt: string | null; nextAt?: string }> {
+  let query = supabase
+    .from('subflow_notifications')
+    .select('created_at')
+    .eq('user_id', userId)
+    .eq('type', type)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (postId) {
+    query = query.eq('post_id', postId);
+  }
+
+  const { data } = await query;
+
+  if (!data || data.length === 0) {
+    return { shouldSend: true, lastNotifiedAt: null };
+  }
+
+  const lastNotifiedAt = data[0].created_at;
+  const lastTime = new Date(lastNotifiedAt).getTime();
+  const now = Date.now();
+  const diffMinutes = (now - lastTime) / (1000 * 60);
+
+  if (diffMinutes < cooldownMinutes) {
+    const nextAt = new Date(lastTime + cooldownMinutes * 60 * 1000).toISOString();
+    return { shouldSend: false, lastNotifiedAt, nextAt };
+  }
+
+  return { shouldSend: true, lastNotifiedAt };
+}
+
+/**
+ * Count new items since the last notification time.
+ */
+async function countSince(
+  supabase: any,
+  table: string,
+  filterColumn: string,
+  filterValue: string,
+  sinceTimestamp: string | null,
+): Promise<number> {
+  let query = supabase
+    .from(table)
+    .select('*', { count: 'exact', head: true })
+    .eq(filterColumn, filterValue);
+
+  if (sinceTimestamp) {
+    query = query.gt('created_at', sinceTimestamp);
+  }
+
+  const { count } = await query;
+  return count || 0;
 }
 
 async function sendNotification(

@@ -34,6 +34,7 @@ const defaultForm = {
   is_active: true,
   threshold: 0,
   milestones: '',
+  cooldown_minutes: 60,
 };
 
 const triggerLabels: Record<string, string> = {
@@ -106,6 +107,7 @@ export default function AdminAutoNotificationsPage() {
       is_active: t.is_active,
       threshold: config?.threshold || 0,
       milestones: config?.milestones ? config.milestones.join(', ') : '',
+      cooldown_minutes: config?.cooldown_minutes || 60,
     });
     setDialogOpen(true);
   };
@@ -137,6 +139,9 @@ export default function AdminAutoNotificationsPage() {
         .split(',')
         .map(s => parseInt(s.trim(), 10))
         .filter(n => !isNaN(n) && n > 0);
+    }
+    if (isSubflowTrigger(form.trigger_type)) {
+      triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
     }
 
     const payload = {
@@ -344,6 +349,22 @@ export default function AdminAutoNotificationsPage() {
                 </p>
               </div>
             )}
+            {isSubflowTrigger(form.trigger_type) && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Кулдаун (минуты)</label>
+                <Input
+                  type="number"
+                  value={form.cooldown_minutes}
+                  onChange={e => setForm(f => ({ ...f, cooldown_minutes: Number(e.target.value) || 60 }))}
+                  placeholder="60"
+                  min={1}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Минимальный интервал между уведомлениями одного типа для пользователя. По умолчанию 60 минут.
+                  Накопленное количество за этот период отправляется в {"{{count}}"}.
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium mb-1 block">Текст уведомления</label>
               <Textarea
@@ -414,6 +435,11 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
             {config?.milestones?.length > 0 && (
               <span className="px-2 py-1 bg-muted rounded-lg">
                 Пороги: {config.milestones.join(', ')}
+              </span>
+            )}
+            {config?.cooldown_minutes && (
+              <span className="px-2 py-1 bg-muted rounded-lg">
+                Кулдаун: {config.cooldown_minutes} мин
               </span>
             )}
           </div>
