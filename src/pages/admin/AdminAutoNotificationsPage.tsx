@@ -140,6 +140,9 @@ export default function AdminAutoNotificationsPage() {
         .map(s => parseInt(s.trim(), 10))
         .filter(n => !isNaN(n) && n > 0);
     }
+    if (isSubflowTrigger(form.trigger_type)) {
+      triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
+    }
 
     const payload = {
       name: form.name,
