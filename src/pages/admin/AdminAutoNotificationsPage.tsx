@@ -107,6 +107,7 @@ export default function AdminAutoNotificationsPage() {
       is_active: t.is_active,
       threshold: config?.threshold || 0,
       milestones: config?.milestones ? config.milestones.join(', ') : '',
+      cooldown_minutes: config?.cooldown_minutes || 60,
     });
     setDialogOpen(true);
   };
