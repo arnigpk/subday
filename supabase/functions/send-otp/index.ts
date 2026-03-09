@@ -75,13 +75,7 @@ Deno.serve(async (req) => {
     })
 
     // Check profiles + cooldown in parallel
-    const [profileResult, cooldownSmsResult, cooldownWaResult] = await Promise.all([
-      supabase.from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle(),
-      supabase.from('otp_codes').select('created_at, code').eq('phone', formattedPhone).like('code', 'S%')
-        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('otp_codes').select('created_at, code').eq('phone', formattedPhone).like('code', 'W%')
-        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    ])
+    const profileResult = await supabase.from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle()
     
     const userExists = !!profileResult.data
 
@@ -97,21 +91,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Зарегистрируйтесь, пожалуйста, для входа' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
-    }
-
-    // Check cooldown
-    const lastOtp = cooldownResult.data
-    if (lastOtp) {
-      const lastSentAt = new Date(lastOtp.created_at).getTime()
-      const cooldownMs = 59 * 1000
-      const elapsed = Date.now() - lastSentAt
-      if (elapsed < cooldownMs) {
-        const remainingSec = Math.ceil((cooldownMs - elapsed) / 1000)
-        return new Response(
-          JSON.stringify({ error: `Повторная отправка через ${remainingSec} сек.`, cooldown: remainingSec }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
     }
 
     const code = generateOTP()
