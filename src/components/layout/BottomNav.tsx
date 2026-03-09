@@ -79,7 +79,7 @@ export function BottomNav() {
                     animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
                     transition={{ duration: 0.2 }}
                     className={`text-[9px] sm:text-[10px] leading-tight text-center truncate w-full relative z-10 ${
-                      isActive ? 'font-bold' : 'font-medium'
+                      isActive ? 'font-extrabold' : 'font-medium'
                     }`}
                   >
                     {t(item.labelKey)}
