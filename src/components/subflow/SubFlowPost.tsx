@@ -265,11 +265,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       } else {
         const { error } = await supabase
           .from('subflow_reactions')
-          .insert({
+          .upsert({
             post_id: post.id,
             user_id: currentUserId,
             reaction
-          });
+          }, { onConflict: 'user_id,post_id,reaction' });
 
         // Fire-and-forget notification for new reaction (not removal)
         if (!error) {

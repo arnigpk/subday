@@ -34,6 +34,7 @@ const defaultForm = {
   is_active: true,
   threshold: 0,
   milestones: '',
+  cooldown_minutes: 60,
 };
 
 const triggerLabels: Record<string, string> = {
