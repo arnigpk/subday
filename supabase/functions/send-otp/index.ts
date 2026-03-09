@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
                         },
                       ],
                     },
-                    language: 'en',
+                    language: 'en_GB',
                   },
                 },
               ],
