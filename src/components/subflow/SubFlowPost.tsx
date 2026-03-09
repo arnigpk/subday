@@ -51,6 +51,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
+  const { isFollowing, isLoading: isFollowLoading, toggleFollow } = useSubFlowFollow(currentUserId, post.user_id);
   // Check if current user is admin
   useEffect(() => {
     if (!currentUserId) {
