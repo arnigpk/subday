@@ -169,6 +169,12 @@ Deno.serve(async (req) => {
                       body: {
                         placeholders: [code],
                       },
+                      buttons: [
+                        {
+                          type: 'URL',
+                          parameter: code,
+                        },
+                      ],
                     },
                     language: 'en',
                   },
