@@ -166,6 +166,11 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
 
       if (error) throw error;
 
+      // Fire-and-forget comment notification
+      supabase.functions.invoke('subflow-notify', {
+        body: { type: 'comment', postId, actorId: currentUserId }
+      }).catch(() => {});
+
       setNewComment('');
       fetchComments();
     } catch (error) {
