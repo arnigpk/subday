@@ -27,6 +27,8 @@ interface SubFlowFeedProps {
   currentUserId: string | null;
   shopFilter?: string | null;
   hasActiveSubscription: boolean;
+  highlightPostId?: string | null;
+  onHighlightDone?: () => void;
 }
 
 const POSTS_PER_PAGE = 10;
