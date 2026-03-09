@@ -110,7 +110,10 @@ export default function SubFlowPage() {
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
                 <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
               </div>
-              <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
+              <div className="flex items-center gap-2">
+                <SubFlowNotifications userId={userId} />
+                <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
+              </div>
             </div>
           </LiquidGlassHeader>
           <div className="px-4 pt-2">

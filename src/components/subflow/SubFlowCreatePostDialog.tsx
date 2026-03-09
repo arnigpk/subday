@@ -165,7 +165,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         imageUrls.push(publicUrl);
       }
 
-      const { error: postError } = await supabase
+      const { error: postError, data: postData } = await supabase
         .from('subflow_posts')
         .insert({
           user_id: user.id,
@@ -174,9 +174,18 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           image_urls: imageUrls,
           shop_id: selectedShop?.id || null,
           shop_name: selectedShop?.name || null,
-        });
+        })
+        .select('id')
+        .single();
 
       if (postError) throw postError;
+
+      // Fire-and-forget notification to followers
+      if (postData?.id) {
+        supabase.functions.invoke('subflow-notify', {
+          body: { type: 'new_post', postId: postData.id, actorId: user.id }
+        }).catch(() => {});
+      }
 
       toast.success(t('subflow.posted'));
       onPostCreated();
