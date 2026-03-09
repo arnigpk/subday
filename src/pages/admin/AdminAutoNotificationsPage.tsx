@@ -63,8 +63,8 @@ const defaultMilestones: Record<string, number[]> = {
 };
 
 const defaultMessages: Record<string, string> = {
-  subflow_reaction: '🔥 Уже {{count}} реакций на ваш пост!\n«{{preview}}»',
-  subflow_comment: '💬 Уже {{count}} комментариев к вашему посту:\n«{{preview}}»',
+  subflow_reaction: '🔥 У вас уже {{count}} реакций на ваших постах!',
+  subflow_comment: '💬 У вас уже {{count}} комментариев на ваших постах!',
   subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
   subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
 };
