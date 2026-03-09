@@ -354,7 +354,23 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-foreground truncate">{post.author_name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-foreground truncate">{post.author_name}</p>
+            {currentUserId && currentUserId !== post.user_id && (
+              <button
+                onClick={toggleFollow}
+                disabled={isFollowLoading}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
+                  isFollowing
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {isFollowing ? <UserCheck size={12} /> : <UserPlus size={12} />}
+                {isFollowing ? 'Подписан' : 'Подписаться'}
+              </button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
