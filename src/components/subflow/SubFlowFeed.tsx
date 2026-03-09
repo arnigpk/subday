@@ -33,7 +33,7 @@ interface SubFlowFeedProps {
 
 const POSTS_PER_PAGE = 10;
 
-export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActiveSubscription }: SubFlowFeedProps) {
+export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActiveSubscription, highlightPostId, onHighlightDone }: SubFlowFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
