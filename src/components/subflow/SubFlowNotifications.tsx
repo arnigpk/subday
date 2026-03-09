@@ -117,6 +117,8 @@ export function SubFlowNotifications({ userId }: { userId: string | null }) {
         return '📝 опубликовал(а) новый пост';
       case 'comment':
         return '💬 прокомментировал(а) пост';
+      case 'follow':
+        return '👥 подписался на вас';
       default:
         return 'уведомление';
     }
