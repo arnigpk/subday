@@ -72,9 +72,7 @@ export function BottomNav() {
                     <Icon 
                       size={20} 
                       strokeWidth={isActive ? 2.5 : 1.8}
-                      className={`shrink-0 transition-colors duration-200 ${
-                        isActive ? 'drop-shadow-[0_0_8px_hsl(var(--accent)/0.6)]' : ''
-                      }`}
+                      className="shrink-0 transition-colors duration-200"
                     />
                   </motion.div>
                   <motion.span 
