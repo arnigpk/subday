@@ -75,9 +75,11 @@ Deno.serve(async (req) => {
     })
 
     // Check profiles + cooldown in parallel
-    const [profileResult, cooldownResult] = await Promise.all([
+    const [profileResult, cooldownSmsResult, cooldownWaResult] = await Promise.all([
       supabase.from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle(),
-      supabase.from('otp_codes').select('created_at').eq('phone', formattedPhone)
+      supabase.from('otp_codes').select('created_at, code').eq('phone', formattedPhone).like('code', 'S%')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('otp_codes').select('created_at, code').eq('phone', formattedPhone).like('code', 'W%')
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
     
