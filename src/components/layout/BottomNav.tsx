@@ -49,7 +49,7 @@ export function BottomNav() {
                   onTouchStart={() => handleTouchStart(item.prefetchKey)}
                   onClick={handleClick}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl min-w-0 relative ${
-                    isActive ? 'text-accent' : 'text-muted-foreground'
+                    isActive ? 'text-foreground' : 'text-muted-foreground'
                   }`}
                 >
                   <AnimatePresence>
@@ -72,16 +72,14 @@ export function BottomNav() {
                     <Icon 
                       size={20} 
                       strokeWidth={isActive ? 2.5 : 1.8}
-                      className={`shrink-0 transition-colors duration-200 ${
-                        isActive ? 'drop-shadow-[0_0_8px_hsl(var(--accent)/0.6)]' : ''
-                      }`}
+                      className="shrink-0 transition-colors duration-200"
                     />
                   </motion.div>
                   <motion.span 
                     animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
                     transition={{ duration: 0.2 }}
                     className={`text-[9px] sm:text-[10px] leading-tight text-center truncate w-full relative z-10 ${
-                      isActive ? 'font-bold' : 'font-medium'
+                      isActive ? 'font-extrabold' : 'font-medium'
                     }`}
                   >
                     {t(item.labelKey)}
