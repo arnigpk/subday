@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Bell, ChevronRight } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -23,9 +23,15 @@ interface Notification {
   created_at: string;
   actor_name: string;
   actor_avatar: string | null;
+  post_preview: string | null;
 }
 
-export function SubFlowNotifications({ userId }: { userId: string | null }) {
+interface SubFlowNotificationsProps {
+  userId: string | null;
+  onNavigateToPost?: (postId: string) => void;
+}
+
+export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
