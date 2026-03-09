@@ -76,7 +76,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         if (ctx?.body) { try { errorText = JSON.parse(ctx.body).error || errorText; } catch {} }
         if (ctx?.json?.error) errorText = ctx.json.error;
 
-        if (errorText.includes('Зарегистрируйтесь') || errorText.includes('не найден')) {
+        if (errorText.includes('Зарегистрируйтесь') || errorText === 'Пользователь не найден') {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
           onSwitchToRegister(phone, country);
           return;
