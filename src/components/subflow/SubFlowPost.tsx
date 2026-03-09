@@ -39,7 +39,7 @@ interface SubFlowPostProps {
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription }: SubFlowPostProps) {
+export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription, isHighlighted, onHighlightDone }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
