@@ -1,46 +1,57 @@
 
 
-## Plan: Clickable post link in notifications
+## Анализ текущих узких мест
 
-**Problem**: When a user receives a reaction/comment notification, there's no way to navigate to the specific post.
+Сейчас процесс сканирования тормозится в нескольких местах:
 
-**Approach**: Make the entire notification row clickable (not just the word "пост"). Tapping a notification with a `post_id` will close the Sheet, scroll the feed, and highlight the target post. For `follow` type (no post), the row stays non-clickable.
+**Клиент (QRScanner.tsx):**
+1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
+2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
+3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
+4. Дубликат-защита 3 секунды -- можно сократить
 
-This is better than just making the word "пост" clickable because:
-- Larger tap target (better mobile UX)
-- More intuitive — users expect to tap the whole notification
-- Follows patterns from Instagram/Telegram
+**Клиент (PartnerScanPage.tsx):**
+5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
+6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
 
-### Implementation
+**Сервер (partner-scan-qr):**
+7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
 
-**1. Add scroll-to-post mechanism**
+## План ускорения
 
-- Accept a new prop `onNavigateToPost: (postId: string) => void` in `SubFlowNotifications`
-- Pass it from `SubFlowPage` where the feed lives
-- In `SubFlowFeed`, expose a `scrollToPost(postId)` method via `useImperativeHandle` + `forwardRef`, or simpler: use a state `highlightPostId` passed as prop
-- When `highlightPostId` changes, the target `SubFlowPost` scrolls into view with `scrollIntoView({ behavior: 'smooth' })` and briefly highlights (pulse animation)
+### 1. Убрать искусственную задержку в 1 секунду
+Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
 
-**2. SubFlowNotifications changes**
+### 2. Автозапуск камеры
+Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
 
-- When a notification with `post_id` is tapped: close the Sheet, call `onNavigateToPost(post_id)`
-- Add a subtle chevron or visual cue for clickable notifications
-- Add preview text snippet (first ~40 chars of post content) fetched alongside notifications to give more context
+### 3. Не останавливать камеру при обработке
+Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
 
-**3. SubFlowPage orchestration**
+### 4. Увеличить область сканирования
+`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
 
-- Add `highlightPostId` state
-- Pass it to `SubFlowFeed` as prop
-- Pass `onNavigateToPost` callback to `SubFlowNotifications` that sets this state and closes the sheet
+### 5. Сократить защиту от дубликатов
+С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
 
-**4. SubFlowFeed / SubFlowPost changes**
+### 6. Запрос высокого разрешения камеры
+Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
 
-- `SubFlowPost` accepts optional `isHighlighted` prop
-- When `isHighlighted` becomes true, use `useEffect` + `ref.scrollIntoView()` and apply a brief glow/pulse CSS animation
-- `SubFlowFeed` matches `highlightPostId` against each post; if the post isn't loaded yet, trigger a fetch for that specific post and prepend it
+### 7. Автовозврат к сканеру после результата
+После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
 
-### Files to edit
-- `src/components/subflow/SubFlowNotifications.tsx` — add click handler, close sheet, call callback
-- `src/pages/SubFlowPage.tsx` — add `highlightPostId` state, wire props
-- `src/components/subflow/SubFlowFeed.tsx` — accept `highlightPostId`, pass to posts, fetch if missing
-- `src/components/subflow/SubFlowPost.tsx` — accept `isHighlighted`, scroll into view + highlight animation
+### 8. Не прятать сканер при статусах scanning/success/error
+Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
+
+### Затрагиваемые файлы
+- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
+- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
+
+### Итого выигрыш по скорости
+- Убрана 1с задержка
+- Убрано время запуска камеры (~1-2с)
+- Убрано время перезапуска камеры между сканами (~1-2с)  
+- Увеличена область захвата и разрешение -- быстрее распознавание
+
+Общий выигрыш: **3-5 секунд** на каждое сканирование.
 

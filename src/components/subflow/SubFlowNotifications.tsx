@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Bell, ChevronRight } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -23,9 +23,15 @@ interface Notification {
   created_at: string;
   actor_name: string;
   actor_avatar: string | null;
+  post_preview: string | null;
 }
 
-export function SubFlowNotifications({ userId }: { userId: string | null }) {
+interface SubFlowNotificationsProps {
+  userId: string | null;
+  onNavigateToPost?: (postId: string) => void;
+}
+
+export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -53,12 +59,21 @@ export function SubFlowNotifications({ userId }: { userId: string | null }) {
       (profiles || []).map(p => [p.user_id, p])
     );
 
+    // Fetch post previews for notifications with post_id
+    const postIds = [...new Set(notifs.filter(n => n.post_id).map(n => n.post_id!))];
+    const { data: postsData } = postIds.length > 0
+      ? await supabase.from('subflow_posts').select('id, content').in('id', postIds)
+      : { data: [] };
+    const postMap = new Map((postsData || []).map(p => [p.id, p.content]));
+
     const enriched: Notification[] = notifs.map(n => {
       const profile = profileMap.get(n.actor_id);
+      const postContent = n.post_id ? postMap.get(n.post_id) : null;
       return {
         ...n,
         actor_name: profile?.subflow_nickname || profile?.name || 'Пользователь',
         actor_avatar: profile?.avatar_url || null,
+        post_preview: postContent ? postContent.slice(0, 40) + (postContent.length > 40 ? '…' : '') : null,
       };
     });
 
@@ -156,32 +171,48 @@ export function SubFlowNotifications({ userId }: { userId: string | null }) {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                    !n.is_read ? 'bg-primary/5' : ''
-                  }`}
-                >
-                  <Avatar className="w-9 h-9 shrink-0">
-                    <AvatarFallback className="bg-primary/10">
-                      <User size={16} className="text-primary" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">
-                      <span className="font-semibold">{n.actor_name}</span>{' '}
-                      {getNotificationText(n)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDate(n.created_at)}
-                    </p>
+              {notifications.map(n => {
+                const isClickable = !!n.post_id && !!onNavigateToPost;
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      if (isClickable) {
+                        setOpen(false);
+                        setTimeout(() => onNavigateToPost!(n.post_id!), 300);
+                      }
+                    }}
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors ${
+                      !n.is_read ? 'bg-primary/5' : ''
+                    } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
+                  >
+                    <Avatar className="w-9 h-9 shrink-0">
+                      <AvatarFallback className="bg-primary/10">
+                        <User size={16} className="text-primary" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">{n.actor_name}</span>{' '}
+                        {getNotificationText(n)}
+                      </p>
+                      {n.post_preview && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate italic">
+                          «{n.post_preview}»
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDate(n.created_at)}
+                      </p>
+                    </div>
+                    {isClickable ? (
+                      <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1.5" />
+                    ) : !n.is_read ? (
+                      <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+                    ) : null}
                   </div>
-                  {!n.is_read && (
-                    <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

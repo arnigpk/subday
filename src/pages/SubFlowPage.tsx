@@ -19,6 +19,7 @@ export default function SubFlowPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -111,14 +112,14 @@ export default function SubFlowPage() {
                 <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
-                <SubFlowNotifications userId={userId} />
+                <SubFlowNotifications userId={userId} onNavigateToPost={(postId) => setHighlightPostId(postId)} />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
               </div>
             </div>
           </LiquidGlassHeader>
           <div className="px-4 pt-2">
 
-            <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} />
+            <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
           </div>
         </div>
       </PullToRefresh>

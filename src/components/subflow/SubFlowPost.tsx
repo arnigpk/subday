@@ -32,12 +32,14 @@ interface SubFlowPostProps {
   onUpdate: () => void;
   animationDelay: number;
   hasActiveSubscription: boolean;
+  isHighlighted?: boolean;
+  onHighlightDone?: () => void;
 }
 
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription }: SubFlowPostProps) {
+export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription, isHighlighted, onHighlightDone }: SubFlowPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +54,17 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
   const { isFollowing, isLoading: isFollowLoading, toggleFollow } = useSubFlowFollow(currentUserId, post.user_id);
+  const postRef = useRef<HTMLDivElement>(null);
+
+  // Scroll into view and highlight
+  useEffect(() => {
+    if (isHighlighted && postRef.current) {
+      postRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const timer = setTimeout(() => onHighlightDone?.(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted]);
+
   // Check if current user is admin
   useEffect(() => {
     if (!currentUserId) {
@@ -340,7 +353,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
   return (
     <div 
-      className="card-static animate-slide-up"
+      ref={postRef}
+      className={`card-static animate-slide-up transition-shadow duration-500 ${isHighlighted ? 'ring-2 ring-primary/50 shadow-[0_0_16px_hsl(var(--primary)/0.2)]' : ''}`}
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {/* Header */}
