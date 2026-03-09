@@ -4,7 +4,7 @@ import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { useSmsCooldown } from '@/hooks/useSmsCooldown';
+import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -30,7 +30,8 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
-  const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
+  const cooldowns = useChannelCooldowns(59);
+  const { remaining, isCoolingDown, startCooldown } = cooldowns.getCooldown(channel);
 
   useEffect(() => {
     if (!countryManuallySet) setCountry(detectedCountry);

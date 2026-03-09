@@ -5,7 +5,7 @@ import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { useSmsCooldown } from '@/hooks/useSmsCooldown';
+import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -25,7 +25,8 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
-  const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
+  const cooldowns = useChannelCooldowns(59);
+  const { remaining, isCoolingDown, startCooldown } = cooldowns.getCooldown(channel);
 
   useEffect(() => {
     if (!countryManuallySet) setCountry(detectedCountry);

@@ -27,3 +27,13 @@ export function useSmsCooldown(cooldownSeconds = 59) {
 
   return { remaining, isCoolingDown: remaining > 0, startCooldown };
 }
+
+export function useChannelCooldowns(cooldownSeconds = 59) {
+  const whatsapp = useSmsCooldown(cooldownSeconds);
+  const sms = useSmsCooldown(cooldownSeconds);
+
+  const getCooldown = (channel: 'whatsapp' | 'sms') => 
+    channel === 'whatsapp' ? whatsapp : sms;
+
+  return { whatsapp, sms, getCooldown };
+}
