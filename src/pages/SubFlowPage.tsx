@@ -5,6 +5,7 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
+import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
@@ -109,7 +110,10 @@ export default function SubFlowPage() {
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
                 <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
               </div>
-              <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
+              <div className="flex items-center gap-2">
+                <SubFlowNotifications userId={userId} />
+                <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
+              </div>
             </div>
           </LiquidGlassHeader>
           <div className="px-4 pt-2">

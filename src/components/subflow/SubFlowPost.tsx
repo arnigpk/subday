@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck } from 'lucide-react';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
+import { useSubFlowFollow } from '@/hooks/useSubFlowFollow';
 
 interface Post {
   id: string;
@@ -50,6 +51,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
+  const { isFollowing, isLoading: isFollowLoading, toggleFollow } = useSubFlowFollow(currentUserId, post.user_id);
   // Check if current user is admin
   useEffect(() => {
     if (!currentUserId) {
@@ -261,13 +263,20 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
       } else {
-        await supabase
+        const { error } = await supabase
           .from('subflow_reactions')
           .insert({
             post_id: post.id,
             user_id: currentUserId,
             reaction
           });
+
+        // Fire-and-forget notification for new reaction (not removal)
+        if (!error) {
+          supabase.functions.invoke('subflow-notify', {
+            body: { type: 'reaction', postId: post.id, actorId: currentUserId, reaction }
+          }).catch(() => {});
+        }
       }
     } catch (error) {
       console.error('Reaction error:', error);
@@ -345,7 +354,23 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-foreground truncate">{post.author_name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-foreground truncate">{post.author_name}</p>
+            {currentUserId && currentUserId !== post.user_id && (
+              <button
+                onClick={toggleFollow}
+                disabled={isFollowLoading}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
+                  isFollowing
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {isFollowing ? <UserCheck size={12} /> : <UserPlus size={12} />}
+                {isFollowing ? 'Подписан' : 'Подписаться'}
+              </button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
