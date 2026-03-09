@@ -59,12 +59,21 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       (profiles || []).map(p => [p.user_id, p])
     );
 
+    // Fetch post previews for notifications with post_id
+    const postIds = [...new Set(notifs.filter(n => n.post_id).map(n => n.post_id!))];
+    const { data: postsData } = postIds.length > 0
+      ? await supabase.from('subflow_posts').select('id, content').in('id', postIds)
+      : { data: [] };
+    const postMap = new Map((postsData || []).map(p => [p.id, p.content]));
+
     const enriched: Notification[] = notifs.map(n => {
       const profile = profileMap.get(n.actor_id);
+      const postContent = n.post_id ? postMap.get(n.post_id) : null;
       return {
         ...n,
         actor_name: profile?.subflow_nickname || profile?.name || 'Пользователь',
         actor_avatar: profile?.avatar_url || null,
+        post_preview: postContent ? postContent.slice(0, 40) + (postContent.length > 40 ? '…' : '') : null,
       };
     });
 
