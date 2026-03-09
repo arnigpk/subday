@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
                         placeholders: [code],
                       },
                     },
-                    language: 'ru',
+                    language: 'en',
                   },
                 },
               ],
