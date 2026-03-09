@@ -32,6 +32,8 @@ interface SubFlowPostProps {
   onUpdate: () => void;
   animationDelay: number;
   hasActiveSubscription: boolean;
+  isHighlighted?: boolean;
+  onHighlightDone?: () => void;
 }
 
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
