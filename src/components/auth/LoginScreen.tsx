@@ -25,7 +25,8 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
-  const { remaining, isCoolingDown, startCooldown } = useSmsCooldown(59);
+  const cooldowns = useChannelCooldowns(59);
+  const { remaining, isCoolingDown, startCooldown } = cooldowns.getCooldown(channel);
 
   useEffect(() => {
     if (!countryManuallySet) setCountry(detectedCountry);
