@@ -190,8 +190,21 @@ Deno.serve(async (req) => {
           )
         }
 
-        const messageStatus = infobipResult.messages?.[0]?.status?.name
-        console.log('WhatsApp message sent via Infobip, status:', messageStatus)
+        const messageStatus = infobipResult.messages?.[0]?.status
+        const statusName = messageStatus?.name
+        const statusGroupName = messageStatus?.groupName
+        console.log('WhatsApp message sent via Infobip, status:', statusName, 'group:', statusGroupName)
+
+        if (statusGroupName === 'REJECTED') {
+          console.error('Infobip rejected:', statusName, messageStatus?.description)
+          const userMessage = statusName === 'REJECTED_DESTINATION_NOT_REGISTERED'
+            ? 'Этот номер не найден в WhatsApp. Попробуйте SMS.'
+            : 'WhatsApp не смог доставить сообщение. Попробуйте SMS.'
+          return new Response(
+            JSON.stringify({ error: userMessage }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
       } catch (waErr) {
         console.error('Infobip fetch error:', waErr)
         return new Response(
