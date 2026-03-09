@@ -87,7 +87,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
 
       if (data?.error) {
         if (data.cooldown) { startCooldown(data.cooldown); toast.error(data.error); return; }
-        if (data.error.includes('Зарегистрируйтесь') || data.error.includes('не найден')) {
+        if (data.error.includes('Зарегистрируйтесь') || data.error === 'Пользователь не найден') {
           toast.info('Зарегистрируйтесь, пожалуйста 👋');
           onSwitchToRegister(phone, country);
         } else {
