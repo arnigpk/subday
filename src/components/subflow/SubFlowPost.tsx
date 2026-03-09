@@ -54,6 +54,17 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
   const { isFollowing, isLoading: isFollowLoading, toggleFollow } = useSubFlowFollow(currentUserId, post.user_id);
+  const postRef = useRef<HTMLDivElement>(null);
+
+  // Scroll into view and highlight
+  useEffect(() => {
+    if (isHighlighted && postRef.current) {
+      postRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const timer = setTimeout(() => onHighlightDone?.(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted]);
+
   // Check if current user is admin
   useEffect(() => {
     if (!currentUserId) {
