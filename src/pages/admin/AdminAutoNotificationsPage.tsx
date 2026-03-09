@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap } from 'lucide-react';
+import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -33,6 +33,7 @@ const defaultForm = {
   message_template: '',
   is_active: true,
   threshold: 0,
+  milestones: '',
 };
 
 const triggerLabels: Record<string, string> = {
@@ -40,12 +41,31 @@ const triggerLabels: Record<string, string> = {
   low_balance: 'Низкий баланс',
   expiring_soon: 'Скоро истекает',
   custom: 'Кастомное',
+  subflow_reaction: '#subFlow — Реакции',
+  subflow_comment: '#subFlow — Комментарии',
+  subflow_follow: '#subFlow — Подписчики',
+  subflow_new_post: '#subFlow — Новый пост',
 };
 
 const channelLabels: Record<string, string> = {
   telegram: 'Telegram',
   push: 'Push',
   both: 'Telegram + Push',
+};
+
+const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post'];
+
+const defaultMilestones: Record<string, number[]> = {
+  subflow_reaction: [3, 5, 10, 20, 50, 100],
+  subflow_comment: [2, 5, 10, 20, 50, 100],
+  subflow_follow: [2, 5, 10, 20, 50, 100],
+};
+
+const defaultMessages: Record<string, string> = {
+  subflow_reaction: '🔥 Уже {{count}} реакций на ваш пост!\n«{{preview}}»',
+  subflow_comment: '💬 Уже {{count}} комментариев к вашему посту:\n«{{preview}}»',
+  subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
+  subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
 };
 
 export default function AdminAutoNotificationsPage() {
@@ -77,15 +97,31 @@ export default function AdminAutoNotificationsPage() {
 
   const openEdit = (t: NotificationTemplate) => {
     setEditingTemplate(t);
+    const config = t.trigger_config as any;
     setForm({
       name: t.name,
       trigger_type: t.trigger_type,
       channel: t.channel,
       message_template: t.message_template,
       is_active: t.is_active,
-      threshold: (t.trigger_config as any)?.threshold || 0,
+      threshold: config?.threshold || 0,
+      milestones: config?.milestones ? config.milestones.join(', ') : '',
     });
     setDialogOpen(true);
+  };
+
+  const handleTriggerTypeChange = (v: string) => {
+    const updates: any = { trigger_type: v };
+    // Auto-fill defaults for subFlow triggers
+    if (SUBFLOW_TRIGGERS.includes(v) && !editingTemplate) {
+      updates.channel = 'both';
+      updates.message_template = defaultMessages[v] || '';
+      updates.milestones = defaultMilestones[v]?.join(', ') || '';
+      if (!form.name) {
+        updates.name = triggerLabels[v] || '';
+      }
+    }
+    setForm(f => ({ ...f, ...updates }));
   };
 
   const handleSave = async () => {
@@ -94,13 +130,22 @@ export default function AdminAutoNotificationsPage() {
       return;
     }
 
+    const triggerConfig: any = {};
+    if (form.threshold) triggerConfig.threshold = form.threshold;
+    if (form.milestones.trim()) {
+      triggerConfig.milestones = form.milestones
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(n => !isNaN(n) && n > 0);
+    }
+
     const payload = {
       name: form.name,
       trigger_type: form.trigger_type,
       channel: form.channel,
       message_template: form.message_template,
       is_active: form.is_active,
-      trigger_config: form.threshold ? { threshold: form.threshold } : {},
+      trigger_config: triggerConfig,
     };
 
     if (editingTemplate) {
@@ -130,6 +175,16 @@ export default function AdminAutoNotificationsPage() {
     fetchTemplates();
   };
 
+  const getTriggerIcon = (triggerType: string) => {
+    switch (triggerType) {
+      case 'subflow_reaction': return <Heart className="w-4 h-4 text-red-500" />;
+      case 'subflow_comment': return <MessageCircle className="w-4 h-4 text-blue-500" />;
+      case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
+      case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
+      default: return null;
+    }
+  };
+
   const getChannelIcon = (channel: string) => {
     switch (channel) {
       case 'telegram': return <Send className="w-4 h-4 text-blue-500" />;
@@ -139,9 +194,16 @@ export default function AdminAutoNotificationsPage() {
     }
   };
 
+  const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
+
+  // Group templates
+  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type));
+  const subflowTemplates = templates.filter(t => isSubflowTrigger(t.trigger_type));
+
   return (
     <AdminLayout title="Автоматические уведомления">
       <div className="space-y-4">
+        {/* Standard notifications */}
         <Card>
           <CardHeader>
             <CardTitle>Шаблоны автоуведомлений</CardTitle>
@@ -159,52 +221,63 @@ export default function AdminAutoNotificationsPage() {
               <div className="space-y-3">
                 {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}
               </div>
-            ) : templates.length === 0 ? (
+            ) : standardTemplates.length === 0 && subflowTemplates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Нет шаблонов</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {templates.map(t => (
-                  <div key={t.id} className="bg-card border border-border rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {getChannelIcon(t.channel)}
-                          <h3 className="font-bold text-foreground">{t.name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${t.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' : 'bg-muted text-muted-foreground'}`}>
-                            {t.is_active ? 'Активен' : 'Отключен'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2 font-mono bg-muted/50 p-2 rounded">
-                          {t.message_template}
-                        </p>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="px-2 py-1 bg-muted rounded-lg">
-                            Триггер: {triggerLabels[t.trigger_type] || t.trigger_type}
-                          </span>
-                          <span className="px-2 py-1 bg-muted rounded-lg">
-                            Канал: {channelLabels[t.channel] || t.channel}
-                          </span>
-                          {(t.trigger_config as any)?.threshold && (
-                            <span className="px-2 py-1 bg-muted rounded-lg">
-                              Порог: {(t.trigger_config as any).threshold}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={t.is_active} onCheckedChange={(v) => handleToggle(t.id, v)} />
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
-                          <Pencil size={16} />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(t.id)}>
-                          <Trash2 size={16} className="text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                {standardTemplates.map(t => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    getChannelIcon={getChannelIcon}
+                    getTriggerIcon={getTriggerIcon}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* SubFlow notifications section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-lg font-black">#subFlow</span>
+              <span>Уведомления</span>
+            </CardTitle>
+            <CardDescription>
+              Уведомления социальной ленты: реакции, комментарии, подписчики, новые посты.
+              Пороги задают при каком количестве отправлять уведомление (например: 3, 5, 10).
+              Переменные: {'{{count}}'}, {'{{actor_name}}'}, {'{{preview}}'}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {subflowTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm mb-3">Нет шаблонов #subFlow</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Добавьте шаблоны для уведомлений о реакциях, комментариях и подписках
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {subflowTemplates.map(t => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    getChannelIcon={getChannelIcon}
+                    getTriggerIcon={getTriggerIcon}
+                  />
                 ))}
               </div>
             )}
@@ -224,13 +297,17 @@ export default function AdminAutoNotificationsPage() {
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Тип триггера</label>
-              <Select value={form.trigger_type} onValueChange={v => setForm(f => ({ ...f, trigger_type: v }))}>
+              <Select value={form.trigger_type} onValueChange={handleTriggerTypeChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="activated">Подписка активирована</SelectItem>
                   <SelectItem value="low_balance">Низкий баланс (напитки/ланчи)</SelectItem>
                   <SelectItem value="expiring_soon">Скоро истекает подписка</SelectItem>
                   <SelectItem value="custom">Кастомное</SelectItem>
+                  <SelectItem value="subflow_reaction">#subFlow — Реакции</SelectItem>
+                  <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
+                  <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
+                  <SelectItem value="subflow_new_post">#subFlow — Новый пост</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -254,16 +331,35 @@ export default function AdminAutoNotificationsPage() {
                 </p>
               </div>
             )}
+            {isSubflowTrigger(form.trigger_type) && form.trigger_type !== 'subflow_new_post' && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Пороги (milestones)</label>
+                <Input
+                  value={form.milestones}
+                  onChange={e => setForm(f => ({ ...f, milestones: e.target.value }))}
+                  placeholder="3, 5, 10, 20, 50, 100"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Уведомление отправляется только когда счётчик достигает одного из указанных значений. Через запятую.
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium mb-1 block">Текст уведомления</label>
               <Textarea
                 value={form.message_template}
                 onChange={e => setForm(f => ({ ...f, message_template: e.target.value }))}
                 rows={4}
-                placeholder="Используйте {{subscription_name}}, {{count}}, {{unit}}"
+                placeholder={isSubflowTrigger(form.trigger_type) 
+                  ? "Используйте {{count}}, {{actor_name}}, {{preview}}"
+                  : "Используйте {{subscription_name}}, {{count}}, {{unit}}"
+                }
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Переменные: {'{{subscription_name}}'} — название подписки, {'{{count}}'} — число, {'{{unit}}'} — единица (напитков/дней/ланчей)
+                {isSubflowTrigger(form.trigger_type) 
+                  ? 'Переменные: {{count}} — число, {{actor_name}} — имя, {{preview}} — превью поста'
+                  : 'Переменные: {{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица'
+                }
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -276,4 +372,66 @@ export default function AdminAutoNotificationsPage() {
       </Dialog>
     </AdminLayout>
   );
+}
+
+function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon, getTriggerIcon }: {
+  template: NotificationTemplate;
+  onEdit: (t: NotificationTemplate) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string, v: boolean) => void;
+  getChannelIcon: (ch: string) => React.ReactNode;
+  getTriggerIcon: (type: string) => React.ReactNode;
+}) {
+  const config = t.trigger_config as any;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            {getTriggerIcon(t.trigger_type)}
+            {getChannelIcon(t.channel)}
+            <h3 className="font-bold text-foreground">{t.name}</h3>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${t.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' : 'bg-muted text-muted-foreground'}`}>
+              {t.is_active ? 'Активен' : 'Отключен'}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground mb-2 font-mono bg-muted/50 p-2 rounded">
+            {t.message_template}
+          </p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="px-2 py-1 bg-muted rounded-lg">
+              Триггер: {triggerLabels[t.trigger_type] || t.trigger_type}
+            </span>
+            <span className="px-2 py-1 bg-muted rounded-lg">
+              Канал: {channelLabels[t.channel] || t.channel}
+            </span>
+            {config?.threshold && (
+              <span className="px-2 py-1 bg-muted rounded-lg">
+                Порог: {config.threshold}
+              </span>
+            )}
+            {config?.milestones?.length > 0 && (
+              <span className="px-2 py-1 bg-muted rounded-lg">
+                Пороги: {config.milestones.join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
+          <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
+            <Pencil size={16} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
+            <Trash2 size={16} className="text-destructive" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function isSubflowTrigger(type: string) {
+  return SUBFLOW_TRIGGERS.includes(type);
 }
