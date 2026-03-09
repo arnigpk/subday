@@ -5,7 +5,7 @@ import { toast } from '@/components/ui/sonner';
 import { TelegramLoginButton } from './TelegramLoginButton';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { useSmsCooldown } from '@/hooks/useSmsCooldown';
+import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
 import { useLanguage } from '@/contexts/LanguageContext';
 
