@@ -349,6 +349,22 @@ export default function AdminAutoNotificationsPage() {
                 </p>
               </div>
             )}
+            {isSubflowTrigger(form.trigger_type) && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Кулдаун (минуты)</label>
+                <Input
+                  type="number"
+                  value={form.cooldown_minutes}
+                  onChange={e => setForm(f => ({ ...f, cooldown_minutes: Number(e.target.value) || 60 }))}
+                  placeholder="60"
+                  min={1}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Минимальный интервал между уведомлениями одного типа для пользователя. По умолчанию 60 минут.
+                  Накопленное количество за этот период отправляется в {{'{{'}}count{{'}}'}}.
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium mb-1 block">Текст уведомления</label>
               <Textarea
