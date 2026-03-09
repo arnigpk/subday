@@ -162,16 +162,16 @@ Deno.serve(async (req) => {
         post_id: postId,
       });
 
-      // Telegram/push only with cooldown
-      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', postId, cooldownMinutes);
+      // Telegram/push: global count across ALL user's posts
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', null, cooldownMinutes);
       if (cooldownCheck.shouldSend) {
-        const newCount = await countSince(supabase, 'subflow_comments', 'post_id', postId, cooldownCheck.lastNotifiedAt);
-        if (newCount > 0) {
-          const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
-          const message = renderTemplate(messageTemplate || '💬 +{{count}} комментариев к вашему посту:\n«{{preview}}»', {
-            count: String(newCount),
+        const totalCount = await countGlobalComments(supabase, post.user_id);
+        const milestones = (template?.trigger_config as any)?.milestones || [];
+        if (shouldNotifyMilestone(totalCount, milestones)) {
+          const message = renderTemplate(messageTemplate || '💬 У вас уже {{count}} комментариев на ваших постах!', {
+            count: String(totalCount),
             actor_name: actorName,
-            preview: contentPreview,
+            preview: '',
           });
           await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
         }
