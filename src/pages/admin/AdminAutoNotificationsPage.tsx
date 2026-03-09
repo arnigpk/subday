@@ -63,8 +63,8 @@ const defaultMilestones: Record<string, number[]> = {
 };
 
 const defaultMessages: Record<string, string> = {
-  subflow_reaction: '🔥 Уже {{count}} реакций на ваш пост!\n«{{preview}}»',
-  subflow_comment: '💬 Уже {{count}} комментариев к вашему посту:\n«{{preview}}»',
+  subflow_reaction: '🔥 У вас уже {{count}} реакций на ваших постах!',
+  subflow_comment: '💬 У вас уже {{count}} комментариев на ваших постах!',
   subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
   subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
 };
@@ -257,9 +257,9 @@ export default function AdminAutoNotificationsPage() {
               <span>Уведомления</span>
             </CardTitle>
             <CardDescription>
-              Уведомления социальной ленты: реакции, комментарии, подписчики, новые посты.
-              Пороги задают при каком количестве отправлять уведомление (например: 3, 5, 10).
-              Переменные: {'{{count}}'}, {'{{actor_name}}'}, {'{{preview}}'}.
+              Уведомления социальной ленты. Реакции и комментарии считаются глобально по всем постам пользователя.
+              Пороги задают при каком общем количестве отправлять уведомление (например: 3, 5, 10).
+              Переменные: {'{{count}}'}, {'{{actor_name}}'}.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -345,7 +345,7 @@ export default function AdminAutoNotificationsPage() {
                   placeholder="3, 5, 10, 20, 50, 100"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Уведомление отправляется только когда счётчик достигает одного из указанных значений. Через запятую.
+                  Уведомление отправляется когда общее число реакций/комментариев на всех постах достигает порога. Через запятую.
                 </p>
               </div>
             )}

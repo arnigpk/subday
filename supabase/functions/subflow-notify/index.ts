@@ -82,16 +82,16 @@ Deno.serve(async (req) => {
         reaction: reaction || null,
       });
 
-      // Telegram/push only with cooldown
-      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', postId, cooldownMinutes);
+      // Telegram/push: global count across ALL user's posts
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', null, cooldownMinutes);
       if (cooldownCheck.shouldSend) {
-        const newCount = await countSince(supabase, 'subflow_reactions', 'post_id', postId, cooldownCheck.lastNotifiedAt);
-        if (newCount > 0) {
-          const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
-          const message = renderTemplate(messageTemplate || '🔥 +{{count}} реакций на ваш пост!\n«{{preview}}»', {
-            count: String(newCount),
+        const totalCount = await countGlobalReactions(supabase, post.user_id);
+        const milestones = (template?.trigger_config as any)?.milestones || [];
+        if (shouldNotifyMilestone(totalCount, milestones)) {
+          const message = renderTemplate(messageTemplate || '🔥 У вас уже {{count}} реакций на ваших постах!', {
+            count: String(totalCount),
             actor_name: actorName,
-            preview: contentPreview,
+            preview: '',
           });
           await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
         }
@@ -162,16 +162,16 @@ Deno.serve(async (req) => {
         post_id: postId,
       });
 
-      // Telegram/push only with cooldown
-      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', postId, cooldownMinutes);
+      // Telegram/push: global count across ALL user's posts
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', null, cooldownMinutes);
       if (cooldownCheck.shouldSend) {
-        const newCount = await countSince(supabase, 'subflow_comments', 'post_id', postId, cooldownCheck.lastNotifiedAt);
-        if (newCount > 0) {
-          const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
-          const message = renderTemplate(messageTemplate || '💬 +{{count}} комментариев к вашему посту:\n«{{preview}}»', {
-            count: String(newCount),
+        const totalCount = await countGlobalComments(supabase, post.user_id);
+        const milestones = (template?.trigger_config as any)?.milestones || [];
+        if (shouldNotifyMilestone(totalCount, milestones)) {
+          const message = renderTemplate(messageTemplate || '💬 У вас уже {{count}} комментариев на ваших постах!', {
+            count: String(totalCount),
             actor_name: actorName,
-            preview: contentPreview,
+            preview: '',
           });
           await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
         }
@@ -362,4 +362,54 @@ async function sendPushNotification(supabase: any, message: string) {
   } catch (err) {
     console.error('Failed to insert push notification:', err);
   }
+}
+
+/**
+ * Count total reactions across ALL posts of a user.
+ */
+async function countGlobalReactions(supabase: any, userId: string): Promise<number> {
+  // Get all post IDs by this user
+  const { data: posts } = await supabase
+    .from('subflow_posts')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (!posts || posts.length === 0) return 0;
+
+  const postIds = posts.map((p: any) => p.id);
+  const { count } = await supabase
+    .from('subflow_reactions')
+    .select('*', { count: 'exact', head: true })
+    .in('post_id', postIds);
+
+  return count || 0;
+}
+
+/**
+ * Count total comments across ALL posts of a user.
+ */
+async function countGlobalComments(supabase: any, userId: string): Promise<number> {
+  const { data: posts } = await supabase
+    .from('subflow_posts')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (!posts || posts.length === 0) return 0;
+
+  const postIds = posts.map((p: any) => p.id);
+  const { count } = await supabase
+    .from('subflow_comments')
+    .select('*', { count: 'exact', head: true })
+    .in('post_id', postIds);
+
+  return count || 0;
+}
+
+/**
+ * Check if total count matches any milestone threshold.
+ * If no milestones configured, always allow.
+ */
+function shouldNotifyMilestone(totalCount: number, milestones: number[]): boolean {
+  if (!milestones || milestones.length === 0) return totalCount > 0;
+  return milestones.includes(totalCount);
 }
