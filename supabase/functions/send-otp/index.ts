@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
                   from: infobipSender,
                   to: waRecipient,
                   content: {
-                    templateName: 'otp_code',
+                    templateName: 'authentication',
                     templateData: {
                       body: {
                         placeholders: [code],
