@@ -13,14 +13,20 @@ interface NotifyRequest {
   targetUserId?: string;
 }
 
-// Milestone thresholds for batched notifications
-const REACTION_MILESTONES = [3, 5, 10, 20, 50, 100, 200, 500];
-const COMMENT_MILESTONES = [2, 5, 10, 20, 50, 100, 200, 500];
-const FOLLOWER_MILESTONES = [2, 5, 10, 20, 50, 100, 200, 500];
+// Default milestones if no template is configured
+const DEFAULT_MILESTONES: Record<string, number[]> = {
+  reaction: [3, 5, 10, 20, 50, 100, 200, 500],
+  comment: [2, 5, 10, 20, 50, 100, 200, 500],
+  follow: [2, 5, 10, 20, 50, 100, 200, 500],
+};
 
-function isMilestone(count: number, milestones: number[]): boolean {
-  return milestones.includes(count);
-}
+// Map notification type to trigger_type in auto_notification_templates
+const TRIGGER_TYPE_MAP: Record<string, string> = {
+  reaction: 'subflow_reaction',
+  comment: 'subflow_comment',
+  follow: 'subflow_follow',
+  new_post: 'subflow_new_post',
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -36,13 +42,24 @@ Deno.serve(async (req) => {
     // Verify caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
     const body: NotifyRequest = await req.json();
     const { type, postId, actorId, reaction, targetUserId } = body;
+
+    // Load template config from auto_notification_templates
+    const triggerType = TRIGGER_TYPE_MAP[type];
+    const template = await getTemplate(supabase, triggerType);
+
+    // If template exists but is disabled, skip
+    if (template && !template.is_active) {
+      return jsonResponse({ ok: true, skipped: true, reason: 'template_disabled' });
+    }
+
+    const milestones = (template?.trigger_config as any)?.milestones || DEFAULT_MILESTONES[type];
+    const messageTemplate = template?.message_template || null;
+    const channel = template?.channel || 'both';
 
     // Get actor profile
     const { data: actorProfile } = await supabase
@@ -54,9 +71,8 @@ Deno.serve(async (req) => {
     const actorName = actorProfile?.subflow_nickname || actorProfile?.name || 'Пользователь';
 
     if (type === 'reaction') {
-      if (!postId) return jsonOk({ ok: true, skipped: true });
+      if (!postId) return jsonResponse({ ok: true, skipped: true });
 
-      // Get post author
       const { data: post } = await supabase
         .from('subflow_posts')
         .select('user_id, content')
@@ -64,7 +80,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (!post || post.user_id === actorId) {
-        return jsonOk({ ok: true, skipped: true });
+        return jsonResponse({ ok: true, skipped: true });
       }
 
       // Count total reactions on this post
@@ -75,14 +91,12 @@ Deno.serve(async (req) => {
 
       const totalReactions = reactionCount || 0;
 
-      // Only notify at milestones (3, 5, 10, 20, ...)
-      if (!isMilestone(totalReactions, REACTION_MILESTONES)) {
-        return jsonOk({ ok: true, skipped: true, reason: 'not_milestone', count: totalReactions });
+      if (milestones && !milestones.includes(totalReactions)) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalReactions });
       }
 
       const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
 
-      // Create notification
       await supabase.from('subflow_notifications').insert({
         user_id: post.user_id,
         actor_id: actorId,
@@ -91,26 +105,26 @@ Deno.serve(async (req) => {
         reaction: reaction || null,
       });
 
-      // Send Telegram
-      await sendTelegramNotification(
-        supabase, telegramBotToken, post.user_id,
-        `🔥 Уже ${totalReactions} реакций на ваш пост!\n«${contentPreview}»`
-      );
+      const message = renderTemplate(messageTemplate || '🔥 Уже {{count}} реакций на ваш пост!\n«{{preview}}»', {
+        count: String(totalReactions),
+        actor_name: actorName,
+        preview: contentPreview,
+      });
+
+      await sendNotification(supabase, telegramBotToken, post.user_id, message, channel);
 
     } else if (type === 'new_post') {
-      if (!postId) return jsonOk({ ok: true, skipped: true });
+      if (!postId) return jsonResponse({ ok: true, skipped: true });
 
-      // Get all followers of the actor
       const { data: followers } = await supabase
         .from('subflow_follows')
         .select('follower_id')
         .eq('following_id', actorId);
 
       if (!followers || followers.length === 0) {
-        return jsonOk({ ok: true, notified: 0 });
+        return jsonResponse({ ok: true, notified: 0 });
       }
 
-      // Get post content for preview
       const { data: post } = await supabase
         .from('subflow_posts')
         .select('content')
@@ -119,7 +133,6 @@ Deno.serve(async (req) => {
 
       const contentPreview = post ? post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '') : '';
 
-      // Create notifications for all followers
       const notifications = followers.map(f => ({
         user_id: f.follower_id,
         actor_id: actorId,
@@ -129,22 +142,23 @@ Deno.serve(async (req) => {
 
       await supabase.from('subflow_notifications').insert(notifications);
 
-      // Send Telegram to all followers
-      const telegramPromises = followers.map(f =>
-        sendTelegramNotification(
-          supabase, telegramBotToken, f.follower_id,
-          `📝 ${actorName} опубликовал(а) новый пост:\n«${contentPreview}»`
-        ).catch(err => console.error('Telegram error for follower:', err))
+      const message = renderTemplate(messageTemplate || '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»', {
+        count: String(followers.length),
+        actor_name: actorName,
+        preview: contentPreview,
+      });
+
+      const promises = followers.map(f =>
+        sendNotification(supabase, telegramBotToken, f.follower_id, message, channel)
+          .catch(err => console.error('Notify error for follower:', err))
       );
+      await Promise.allSettled(promises);
 
-      await Promise.allSettled(telegramPromises);
-
-      return jsonOk({ ok: true, notified: followers.length });
+      return jsonResponse({ ok: true, notified: followers.length });
 
     } else if (type === 'comment') {
-      if (!postId) return jsonOk({ ok: true, skipped: true });
+      if (!postId) return jsonResponse({ ok: true, skipped: true });
 
-      // Get post author
       const { data: post } = await supabase
         .from('subflow_posts')
         .select('user_id, content')
@@ -152,10 +166,9 @@ Deno.serve(async (req) => {
         .single();
 
       if (!post || post.user_id === actorId) {
-        return jsonOk({ ok: true, skipped: true });
+        return jsonResponse({ ok: true, skipped: true });
       }
 
-      // Count total comments on this post
       const { count: commentCount } = await supabase
         .from('subflow_comments')
         .select('*', { count: 'exact', head: true })
@@ -163,9 +176,8 @@ Deno.serve(async (req) => {
 
       const totalComments = commentCount || 0;
 
-      // Only notify at milestones (2, 5, 10, 20, ...)
-      if (!isMilestone(totalComments, COMMENT_MILESTONES)) {
-        return jsonOk({ ok: true, skipped: true, reason: 'not_milestone', count: totalComments });
+      if (milestones && !milestones.includes(totalComments)) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalComments });
       }
 
       const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
@@ -177,17 +189,19 @@ Deno.serve(async (req) => {
         post_id: postId,
       });
 
-      await sendTelegramNotification(
-        supabase, telegramBotToken, post.user_id,
-        `💬 Уже ${totalComments} комментариев к вашему посту:\n«${contentPreview}»`
-      );
+      const message = renderTemplate(messageTemplate || '💬 Уже {{count}} комментариев к вашему посту:\n«{{preview}}»', {
+        count: String(totalComments),
+        actor_name: actorName,
+        preview: contentPreview,
+      });
+
+      await sendNotification(supabase, telegramBotToken, post.user_id, message, channel);
 
     } else if (type === 'follow') {
       if (!targetUserId || targetUserId === actorId) {
-        return jsonOk({ ok: true, skipped: true });
+        return jsonResponse({ ok: true, skipped: true });
       }
 
-      // Count total followers of target user
       const { count: followerCount } = await supabase
         .from('subflow_follows')
         .select('*', { count: 'exact', head: true })
@@ -195,9 +209,8 @@ Deno.serve(async (req) => {
 
       const totalFollowers = followerCount || 0;
 
-      // Only notify at milestones (2, 5, 10, 20, ...)
-      if (!isMilestone(totalFollowers, FOLLOWER_MILESTONES)) {
-        return jsonOk({ ok: true, skipped: true, reason: 'not_milestone', count: totalFollowers });
+      if (milestones && !milestones.includes(totalFollowers)) {
+        return jsonResponse({ ok: true, skipped: true, reason: 'not_milestone', count: totalFollowers });
       }
 
       await supabase.from('subflow_notifications').insert({
@@ -206,33 +219,75 @@ Deno.serve(async (req) => {
         type: 'follow',
       });
 
-      await sendTelegramNotification(
-        supabase, telegramBotToken, targetUserId,
-        `👥 У вас уже ${totalFollowers} подписчиков! ${actorName} подписался на вас.`
-      );
+      const message = renderTemplate(messageTemplate || '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.', {
+        count: String(totalFollowers),
+        actor_name: actorName,
+        preview: '',
+      });
+
+      await sendNotification(supabase, telegramBotToken, targetUserId, message, channel);
     }
 
-    return jsonOk({ ok: true });
+    return jsonResponse({ ok: true });
 
   } catch (err) {
     console.error('subflow-notify error:', err);
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: err instanceof Error ? err.message : 'Unknown error' }, 500);
   }
 });
 
-function jsonOk(data: any) {
+// --- Helper functions ---
+
+function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
+    status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+function renderTemplate(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+  }
+  return result;
+}
+
+async function getTemplate(supabase: any, triggerType: string) {
+  const { data } = await supabase
+    .from('auto_notification_templates')
+    .select('*')
+    .eq('trigger_type', triggerType)
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
+async function sendNotification(
+  supabase: any,
+  botToken: string,
+  userId: string,
+  message: string,
+  channel: string,
+) {
+  const tasks: Promise<void>[] = [];
+
+  if (channel === 'telegram' || channel === 'both') {
+    tasks.push(sendTelegramNotification(supabase, botToken, userId, message));
+  }
+
+  if (channel === 'push' || channel === 'both') {
+    tasks.push(sendPushNotification(supabase, message));
+  }
+
+  await Promise.allSettled(tasks);
 }
 
 async function sendTelegramNotification(
   supabase: any,
   botToken: string,
   userId: string,
-  message: string
+  message: string,
 ) {
   const { data: profile } = await supabase
     .from('profiles')
@@ -256,5 +311,16 @@ async function sendTelegramNotification(
     });
   } catch (err) {
     console.error('Failed to send telegram:', err);
+  }
+}
+
+async function sendPushNotification(supabase: any, message: string) {
+  try {
+    await supabase.from('push_notifications').insert({
+      title: '#subFlow',
+      message,
+    });
+  } catch (err) {
+    console.error('Failed to insert push notification:', err);
   }
 }
