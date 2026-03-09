@@ -19,6 +19,7 @@ export default function SubFlowPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
