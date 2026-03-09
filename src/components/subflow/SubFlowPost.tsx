@@ -263,13 +263,20 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
       } else {
-        await supabase
+        const { error } = await supabase
           .from('subflow_reactions')
           .insert({
             post_id: post.id,
             user_id: currentUserId,
             reaction
           });
+
+        // Fire-and-forget notification for new reaction (not removal)
+        if (!error) {
+          supabase.functions.invoke('subflow-notify', {
+            body: { type: 'reaction', postId: post.id, actorId: currentUserId, reaction }
+          }).catch(() => {});
+        }
       }
     } catch (error) {
       console.error('Reaction error:', error);
