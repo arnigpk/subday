@@ -133,63 +133,67 @@ Deno.serve(async (req) => {
     console.log(`Sending ${channel || 'sms'} to ${formattedPhone}, code: ${code}`)
 
     if (channel === 'whatsapp') {
-      // Send via Meta Cloud API (WABA)
-      const waToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
-      const waPhoneId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
+      // Send via Infobip WhatsApp
+      const infobipApiKey = Deno.env.get('INFOBIP_API_KEY')
+      const infobipBaseUrl = Deno.env.get('INFOBIP_BASE_URL')
+      const infobipSender = Deno.env.get('INFOBIP_WHATSAPP_SENDER')
 
-      if (!waToken || !waPhoneId) {
-        console.error('WABA credentials not configured!')
+      if (!infobipApiKey || !infobipBaseUrl || !infobipSender) {
+        console.error('Infobip credentials not configured!')
         return new Response(
           JSON.stringify({ error: 'WhatsApp временно недоступен. Попробуйте SMS или Telegram.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      // Strip '+' for WhatsApp API (expects country code without +)
+      // Strip '+' for Infobip (expects digits with country code)
       const waRecipient = formattedPhone.replace('+', '')
 
       try {
-        const waResponse = await fetch(
-          `https://graph.facebook.com/v21.0/${waPhoneId}/messages`,
+        const infobipResponse = await fetch(
+          `https://${infobipBaseUrl}/whatsapp/1/message/template`,
           {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${waToken}`,
+              'Authorization': `App ${infobipApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              to: waRecipient,
-              type: 'template',
-              template: {
-                name: 'otp_code',
-                language: { code: 'ru' },
-                components: [
-                  {
-                    type: 'body',
-                    parameters: [{ type: 'text', text: code }],
+              messages: [
+                {
+                  from: infobipSender,
+                  to: waRecipient,
+                  content: {
+                    templateName: 'otp_code',
+                    templateData: {
+                      body: {
+                        placeholders: [code],
+                      },
+                    },
+                    language: 'ru',
                   },
-                ],
-              },
+                },
+              ],
             }),
             signal: AbortSignal.timeout(15000),
           }
         )
 
-        const waResult = await waResponse.json()
-        console.log('WABA response:', JSON.stringify(waResult))
+        const infobipResult = await infobipResponse.json()
+        console.log('Infobip response:', JSON.stringify(infobipResult))
 
-        if (waResult.error) {
-          console.error('WABA error:', waResult.error.message, waResult.error.code)
+        if (!infobipResponse.ok || infobipResult.requestError) {
+          console.error('Infobip error:', infobipResult.requestError || infobipResponse.status)
           return new Response(
             JSON.stringify({ error: 'Ошибка отправки кода, попробуйте SMS.' }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
-        console.log('WhatsApp message sent, id:', waResult.messages?.[0]?.id)
+        const messageStatus = infobipResult.messages?.[0]?.status?.name
+        console.log('WhatsApp message sent via Infobip, status:', messageStatus)
       } catch (waErr) {
-        console.error('WABA fetch error:', waErr)
+        console.error('Infobip fetch error:', waErr)
         return new Response(
           JSON.stringify({ error: 'Ошибка отправки кода, попробуйте SMS.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
