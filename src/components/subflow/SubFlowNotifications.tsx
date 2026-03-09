@@ -164,9 +164,6 @@ export function SubFlowNotifications({ userId }: { userId: string | null }) {
                   }`}
                 >
                   <Avatar className="w-9 h-9 shrink-0">
-                    {n.actor_avatar ? (
-                      <AvatarImage src={n.actor_avatar} />
-                    ) : null}
                     <AvatarFallback className="bg-primary/10">
                       <User size={16} className="text-primary" />
                     </AvatarFallback>

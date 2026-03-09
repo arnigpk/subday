@@ -73,21 +73,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // Check cooldown — was there a reaction notification for this post recently?
-      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', postId, cooldownMinutes);
-      if (!cooldownCheck.shouldSend) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
-      }
-
-      // Count reactions since last notification (or all if no previous notification)
-      const newCount = await countSince(supabase, 'subflow_reactions', 'post_id', postId, cooldownCheck.lastNotifiedAt);
-
-      if (newCount === 0) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
-      }
-
-      const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
-
+      // ALWAYS insert in-app notification
       await supabase.from('subflow_notifications').insert({
         user_id: post.user_id,
         actor_id: actorId,
@@ -96,13 +82,20 @@ Deno.serve(async (req) => {
         reaction: reaction || null,
       });
 
-      const message = renderTemplate(messageTemplate || '🔥 +{{count}} реакций на ваш пост!\n«{{preview}}»', {
-        count: String(newCount),
-        actor_name: actorName,
-        preview: contentPreview,
-      });
-
-      await sendNotification(supabase, telegramBotToken, post.user_id, message, channel);
+      // Telegram/push only with cooldown
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', postId, cooldownMinutes);
+      if (cooldownCheck.shouldSend) {
+        const newCount = await countSince(supabase, 'subflow_reactions', 'post_id', postId, cooldownCheck.lastNotifiedAt);
+        if (newCount > 0) {
+          const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
+          const message = renderTemplate(messageTemplate || '🔥 +{{count}} реакций на ваш пост!\n«{{preview}}»', {
+            count: String(newCount),
+            actor_name: actorName,
+            preview: contentPreview,
+          });
+          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
+        }
+      }
 
     } else if (type === 'new_post') {
       if (!postId) return jsonResponse({ ok: true, skipped: true });
@@ -124,15 +117,16 @@ Deno.serve(async (req) => {
 
       const contentPreview = post ? post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '') : '';
 
+      // ALWAYS insert in-app notifications for all followers
       const notifications = followers.map(f => ({
         user_id: f.follower_id,
         actor_id: actorId,
         type: 'new_post',
         post_id: postId,
       }));
-
       await supabase.from('subflow_notifications').insert(notifications);
 
+      // Telegram/push for all followers
       const message = renderTemplate(messageTemplate || '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»', {
         count: String(followers.length),
         actor_name: actorName,
@@ -140,7 +134,7 @@ Deno.serve(async (req) => {
       });
 
       const promises = followers.map(f =>
-        sendNotification(supabase, telegramBotToken, f.follower_id, message, channel)
+        sendExternalNotification(supabase, telegramBotToken, f.follower_id, message, channel)
           .catch(err => console.error('Notify error for follower:', err))
       );
       await Promise.allSettled(promises);
@@ -160,19 +154,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', postId, cooldownMinutes);
-      if (!cooldownCheck.shouldSend) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
-      }
-
-      const newCount = await countSince(supabase, 'subflow_comments', 'post_id', postId, cooldownCheck.lastNotifiedAt);
-
-      if (newCount === 0) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
-      }
-
-      const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
-
+      // ALWAYS insert in-app notification
       await supabase.from('subflow_notifications').insert({
         user_id: post.user_id,
         actor_id: actorId,
@@ -180,43 +162,46 @@ Deno.serve(async (req) => {
         post_id: postId,
       });
 
-      const message = renderTemplate(messageTemplate || '💬 +{{count}} комментариев к вашему посту:\n«{{preview}}»', {
-        count: String(newCount),
-        actor_name: actorName,
-        preview: contentPreview,
-      });
-
-      await sendNotification(supabase, telegramBotToken, post.user_id, message, channel);
+      // Telegram/push only with cooldown
+      const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', postId, cooldownMinutes);
+      if (cooldownCheck.shouldSend) {
+        const newCount = await countSince(supabase, 'subflow_comments', 'post_id', postId, cooldownCheck.lastNotifiedAt);
+        if (newCount > 0) {
+          const contentPreview = post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '');
+          const message = renderTemplate(messageTemplate || '💬 +{{count}} комментариев к вашему посту:\n«{{preview}}»', {
+            count: String(newCount),
+            actor_name: actorName,
+            preview: contentPreview,
+          });
+          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
+        }
+      }
 
     } else if (type === 'follow') {
       if (!targetUserId || targetUserId === actorId) {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      const cooldownCheck = await checkCooldown(supabase, targetUserId, 'follow', null, cooldownMinutes);
-      if (!cooldownCheck.shouldSend) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'cooldown', nextAt: cooldownCheck.nextAt });
-      }
-
-      const newCount = await countSince(supabase, 'subflow_follows', 'following_id', targetUserId, cooldownCheck.lastNotifiedAt);
-
-      if (newCount === 0) {
-        return jsonResponse({ ok: true, skipped: true, reason: 'no_new' });
-      }
-
+      // ALWAYS insert in-app notification
       await supabase.from('subflow_notifications').insert({
         user_id: targetUserId,
         actor_id: actorId,
         type: 'follow',
       });
 
-      const message = renderTemplate(messageTemplate || '👥 +{{count}} новых подписчиков! {{actor_name}} подписался на вас.', {
-        count: String(newCount),
-        actor_name: actorName,
-        preview: '',
-      });
-
-      await sendNotification(supabase, telegramBotToken, targetUserId, message, channel);
+      // Telegram/push only with cooldown
+      const cooldownCheck = await checkCooldown(supabase, targetUserId, 'follow', null, cooldownMinutes);
+      if (cooldownCheck.shouldSend) {
+        const newCount = await countSince(supabase, 'subflow_follows', 'following_id', targetUserId, cooldownCheck.lastNotifiedAt);
+        if (newCount > 0) {
+          const message = renderTemplate(messageTemplate || '👥 +{{count}} новых подписчиков! {{actor_name}} подписался на вас.', {
+            count: String(newCount),
+            actor_name: actorName,
+            preview: '',
+          });
+          await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
+        }
+      }
     }
 
     return jsonResponse({ ok: true });
@@ -255,8 +240,8 @@ async function getTemplate(supabase: any, triggerType: string) {
 }
 
 /**
- * Check if we can send a notification based on cooldown.
- * Returns { shouldSend, lastNotifiedAt, nextAt }
+ * Check cooldown for EXTERNAL notifications only (Telegram/push).
+ * Uses a separate tracking approach — checks last Telegram/push send time.
  */
 async function checkCooldown(
   supabase: any,
@@ -279,6 +264,7 @@ async function checkCooldown(
 
   const { data } = await query;
 
+  // If there are fewer than 2 notifications, this is essentially the first — allow sending
   if (!data || data.length === 0) {
     return { shouldSend: true, lastNotifiedAt: null };
   }
@@ -296,9 +282,6 @@ async function checkCooldown(
   return { shouldSend: true, lastNotifiedAt };
 }
 
-/**
- * Count new items since the last notification time.
- */
 async function countSince(
   supabase: any,
   table: string,
@@ -319,7 +302,7 @@ async function countSince(
   return count || 0;
 }
 
-async function sendNotification(
+async function sendExternalNotification(
   supabase: any,
   botToken: string,
   userId: string,
