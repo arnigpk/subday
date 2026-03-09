@@ -5,6 +5,7 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
+import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
