@@ -261,10 +261,29 @@ export default function AdminSubscriptionTransactionsPage() {
       }
       const { error } = await query;
       if (error) throw error;
-      toast.success('История очищена');
+      toast.success('История транзакций очищена');
       fetchTransactions();
     } catch (error) {
       console.error('Error clearing history:', error);
+      toast.error('Ошибка очистки');
+    }
+  };
+
+  const handleClearPayments = async () => {
+    try {
+      const dateFilters = getDateFilters();
+      let query = supabase.from('payment_orders').delete();
+      if (dateFilters) {
+        query = query.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+      } else {
+        query = query.gt('created_at', '1970-01-01');
+      }
+      const { error } = await query;
+      if (error) throw error;
+      toast.success('История оплат очищена');
+      fetchPayments();
+    } catch (error) {
+      console.error('Error clearing payments:', error);
       toast.error('Ошибка очистки');
     }
   };
@@ -398,12 +417,12 @@ export default function AdminSubscriptionTransactionsPage() {
               <CardTitle>
                 {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
               </CardTitle>
-              {activeTab === 'transactions' && (
+              {activeTab === 'transactions' ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Очистить историю
+                      Очистить
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -419,6 +438,30 @@ export default function AdminSubscriptionTransactionsPage() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Отмена</AlertDialogCancel>
                       <AlertDialogAction onClick={handleClearHistory}>Очистить</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Очистить
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Очистить историю оплат?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {periodType !== 'all'
+                          ? `Будут удалены записи оплат за период: ${formatPeriodLabel()}`
+                          : 'Будут удалены ВСЕ записи оплат'
+                        }. Это действие нельзя отменить.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearPayments}>Очистить</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
