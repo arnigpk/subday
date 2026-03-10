@@ -121,7 +121,7 @@ export default function AdminHistoryPage() {
       const userIds = [...new Set(redemptionsData.map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id, country')
+        .select('user_id, name, phone, public_id, country, city')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
