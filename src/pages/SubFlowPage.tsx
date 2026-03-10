@@ -6,6 +6,7 @@ import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
+import { SubFlowFollowerCount } from '@/components/subflow/SubFlowFollowerCount';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
@@ -111,7 +112,8 @@ export default function SubFlowPage() {
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
                 <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <SubFlowFollowerCount userId={userId} />
                 <SubFlowNotifications userId={userId} onNavigateToPost={(postId) => setHighlightPostId(postId)} />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
               </div>
