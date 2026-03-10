@@ -21,7 +21,7 @@ import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } fro
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
-import { COUNTRY_OPTIONS } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface TransactionWithUser {
   id: string;
