@@ -51,6 +51,7 @@ interface UserWithStats {
   country: string | null;
   created_at: string;
   is_blocked: boolean;
+  subflow_access: boolean;
   coffee_remaining: number;
   drinks_remaining: number;
   total_cups: number;
