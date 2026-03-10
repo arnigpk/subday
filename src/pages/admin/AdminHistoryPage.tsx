@@ -25,7 +25,7 @@ import { Search, ChevronLeft, ChevronRight, User, CalendarIcon } from 'lucide-re
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { COUNTRY_OPTIONS } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface RedemptionWithUser {
   id: string;
@@ -52,6 +52,7 @@ export default function AdminHistoryPage() {
   const [shopFilter, setShopFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
   const [periodType, setPeriodType] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(0);
@@ -64,7 +65,7 @@ export default function AdminHistoryPage() {
 
   useEffect(() => {
     fetchRedemptions();
-  }, [page, shopFilter, typeFilter, countryFilter, search, periodType, dateRange]);
+  }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange]);
 
   const fetchShops = async () => {
     const { data } = await supabase
@@ -120,7 +121,7 @@ export default function AdminHistoryPage() {
       const userIds = [...new Set(redemptionsData.map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id, country')
+        .select('user_id, name, phone, public_id, country, city')
         .in('user_id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
@@ -133,9 +134,15 @@ export default function AdminHistoryPage() {
         user_country: profileMap.get(r.user_id)?.country || null,
       }));
 
-      // Filter by country (client-side since it's from profiles)
+      // Filter by country/city (client-side since it's from profiles)
       if (countryFilter !== 'all') {
         combined = combined.filter(r => r.user_country === countryFilter);
+      }
+      if (cityFilter !== 'all') {
+        combined = combined.filter(r => {
+          const profile = profileMap.get(r.user_id);
+          return (profile as any)?.city === cityFilter;
+        });
       }
 
       if (search) {
@@ -192,17 +199,12 @@ export default function AdminHistoryPage() {
                     className="pl-10"
                   />
                 </div>
-                <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
-                  <SelectTrigger className="w-full sm:w-44">
-                    <SelectValue placeholder="Страна" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все страны</SelectItem>
-                    {COUNTRY_OPTIONS.map(c => (
-                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountryCityFilter
+                  countryFilter={countryFilter}
+                  cityFilter={cityFilter}
+                  onCountryChange={(v) => { setCountryFilter(v); setPage(0); }}
+                  onCityChange={(v) => { setCityFilter(v); setPage(0); }}
+                />
                 <Select value={shopFilter} onValueChange={(v) => { setShopFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Кофейня" />

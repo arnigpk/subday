@@ -31,6 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAdminAuth';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 type UserRole = AppRole | 'user';
 
@@ -95,6 +96,7 @@ export default function AdminUsersPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [registrationFilter, setRegistrationFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
   const [formData, setFormData] = useState({
@@ -114,7 +116,7 @@ export default function AdminUsersPage() {
     fetchUsers();
     fetchSubscriptionTypes();
     fetchShops();
-  }, [page, search, registrationFilter, countryFilter, customDateFrom, customDateTo]);
+  }, [page, search, registrationFilter, countryFilter, cityFilter, customDateFrom, customDateTo]);
 
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
@@ -145,6 +147,9 @@ export default function AdminUsersPage() {
       }
       if (countryFilter !== 'all') {
         query = query.eq('country', countryFilter);
+      }
+      if (cityFilter !== 'all') {
+        query = query.eq('city', cityFilter);
       }
 
       // Registration date filter
@@ -471,17 +476,14 @@ export default function AdminUsersPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Страна" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все страны</SelectItem>
-                  {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
-                    <SelectItem key={code} value={code}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CountryCityFilter
+                countryFilter={countryFilter}
+                cityFilter={cityFilter}
+                onCountryChange={(v) => { setCountryFilter(v); setPage(0); }}
+                onCityChange={(v) => { setCityFilter(v); setPage(0); }}
+                countryClassName="w-44"
+                cityClassName="w-44"
+              />
               <CalendarDays className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Регистрация:</span>
               {['all', 'week', 'month', 'custom'].map((filter) => (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { COUNTRY_OPTIONS, getCitiesForCountry, getCountryLabel } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,6 +95,8 @@ export default function AdminShopsPage() {
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteShopId, setDeleteShopId] = useState<string | null>(null);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
+  const [listCityFilter, setListCityFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     addressesWithCoords: [] as AddressWithCoords[],
@@ -321,14 +324,24 @@ export default function AdminShopsPage() {
 
   return (
     <AdminLayout title="Кофейни">
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-muted-foreground">
-          Перетащите карточки для изменения порядка
-        </p>
-        <Button onClick={openCreateDialog}>
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить кофейню
-        </Button>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Перетащите карточки для изменения порядка
+          </p>
+          <Button onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить кофейню
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CountryCityFilter
+            countryFilter={listCountryFilter}
+            cityFilter={listCityFilter}
+            onCountryChange={setListCountryFilter}
+            onCityChange={setListCityFilter}
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -362,7 +375,13 @@ export default function AdminShopsPage() {
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-3">
-              {shops.map((shop) => (
+              {shops
+                .filter(s => {
+                  if (listCountryFilter !== 'all' && s.country !== listCountryFilter) return false;
+                  if (listCityFilter !== 'all' && s.city !== listCityFilter) return false;
+                  return true;
+                })
+                .map((shop) => (
                 <SortableItem key={shop.id} id={shop.id}>
                   <Card className={!shop.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">

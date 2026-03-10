@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
 import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface AdBanner {
   id: string;
@@ -45,7 +46,8 @@ export default function AdminBannersPage() {
   const [editingBanner, setEditingBanner] = useState<AdBanner | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
+  const [listCountryFilter, setListCountryFilter] = useState('all');
+  const [listCityFilter, setListCityFilter] = useState('all');
   const [formData, setFormData] = useState({
     image_url: '',
     caption: '',
@@ -300,26 +302,36 @@ export default function AdminBannersPage() {
   return (
     <AdminLayout title="Рекламные баннеры">
       <div className="p-4 md:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Рекламные баннеры</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Рекомендуемый размер: 1200×400px (3:1)
-            </p>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Рекламные баннеры</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Рекомендуемый размер: 1200×400px (3:1)
+              </p>
+            </div>
+            <Button onClick={openCreateDialog} className="gap-2">
+              <Plus size={16} />
+              Добавить
+            </Button>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateDialog} className="gap-2">
-                <Plus size={16} />
-                Добавить
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingBanner ? 'Редактировать баннер' : 'Новый баннер'}
-                </DialogTitle>
-              </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <CountryCityFilter
+              countryFilter={listCountryFilter}
+              cityFilter={listCityFilter}
+              onCountryChange={setListCountryFilter}
+              onCityChange={setListCityFilter}
+            />
+          </div>
+        </div>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingBanner ? 'Редактировать баннер' : 'Новый баннер'}
+              </DialogTitle>
+            </DialogHeader>
 
               <div className="space-y-4 mt-4">
                 {/* Image upload */}
@@ -515,7 +527,6 @@ export default function AdminBannersPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
 
         {/* Banners list */}
         {bannersLoading ? (
@@ -532,7 +543,13 @@ export default function AdminBannersPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {banners.map((banner) => (
+            {banners
+              .filter(b => {
+                if (listCountryFilter !== 'all' && (b as any).country !== listCountryFilter) return false;
+                if (listCityFilter !== 'all' && (b as any).city !== listCityFilter) return false;
+                return true;
+              })
+              .map((banner) => (
               <div
                 key={banner.id}
                 className={`card-static flex gap-4 ${!banner.is_active ? 'opacity-50' : ''}`}

@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,7 @@ export default function AdminSpecialOffersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<SpecialOffer | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
 
   useEffect(() => {
     fetchData();
@@ -172,9 +174,22 @@ export default function AdminSpecialOffersPage() {
   return (
     <AdminLayout title="Спецпредложения">
       <div className="space-y-4">
-        <Button onClick={openCreate} className="gap-2">
-          <Plus size={16} /> Создать предложение
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={openCreate} className="gap-2">
+            <Plus size={16} /> Создать предложение
+          </Button>
+          <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Страна" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все страны</SelectItem>
+              {COUNTRY_OPTIONS.map(c => (
+                <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {isLoading ? (
           <div className="space-y-3">
@@ -187,7 +202,9 @@ export default function AdminSpecialOffersPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {offers.map(offer => {
+            {offers
+              .filter(o => listCountryFilter === 'all' || (o as any).country === listCountryFilter)
+              .map(offer => {
               const subType = subscriptionTypes.find(s => s.id === offer.target_subscription_type_id);
               return (
                 <div key={offer.id} className="bg-card border border-border rounded-xl p-4">

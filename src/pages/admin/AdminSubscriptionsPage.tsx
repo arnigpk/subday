@@ -33,6 +33,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import {
   DndContext,
   closestCenter,
@@ -86,6 +87,7 @@ export default function AdminSubscriptionsPage() {
   const [editingSub, setEditingSub] = useState<SubscriptionType | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -298,14 +300,29 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <AdminLayout title="Подписки">
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-muted-foreground">
-          Перетащите карточки для изменения порядка
-        </p>
-        <Button onClick={openCreateDialog}>
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить подписку
-        </Button>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Перетащите карточки для изменения порядка
+          </p>
+          <Button onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить подписку
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Страна" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все страны</SelectItem>
+              {COUNTRY_OPTIONS.map(c => (
+                <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
@@ -339,7 +356,9 @@ export default function AdminSubscriptionsPage() {
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-3">
-              {subscriptions.map((sub) => (
+              {subscriptions
+                .filter(s => listCountryFilter === 'all' || s.country === listCountryFilter)
+                .map((sub) => (
                 <SortableItem key={sub.id} id={sub.id}>
                   <Card className={!sub.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">

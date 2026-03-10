@@ -21,7 +21,7 @@ import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } fro
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
-import { COUNTRY_OPTIONS } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface TransactionWithUser {
   id: string;
@@ -83,12 +83,13 @@ export default function AdminSubscriptionTransactionsPage() {
   // Shared filters
   const [periodType, setPeriodType] = useState<PeriodType>('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
     if (activeTab === 'payments') fetchPayments();
     else fetchTransactions();
-  }, [activeTab, pmPage, txPage, periodType, dateRange, countryFilter, statusFilter]);
+  }, [activeTab, pmPage, txPage, periodType, dateRange, countryFilter, cityFilter, statusFilter]);
 
   const getDateFilters = () => {
     const now = new Date();
@@ -134,7 +135,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const subTypeIds = [...new Set(data.map(t => t.subscription_type_id))];
 
       const [profilesResult, subTypesResult] = await Promise.all([
-        supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+        supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
         supabase.from('subscription_types').select('id, name').in('id', subTypeIds),
       ]);
 
@@ -157,6 +158,12 @@ export default function AdminSubscriptionTransactionsPage() {
 
       if (countryFilter !== 'all') {
         combined = combined.filter(t => t.user_country === countryFilter);
+      }
+      if (cityFilter !== 'all') {
+        combined = combined.filter(t => {
+          const profile = profileMap.get(t.user_id);
+          return (profile as any)?.city === cityFilter;
+        });
       }
 
       setPayments(combined);
@@ -195,7 +202,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const paymentOrderIds = data.map(t => t.payment_order_id).filter(Boolean) as string[];
 
       const [profilesResult, paymentOrdersResult] = await Promise.all([
-        supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+        supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
         paymentOrderIds.length > 0
           ? supabase.from('payment_orders').select('id, payment_id, order_id').in('id', paymentOrderIds)
           : Promise.resolve({ data: [] }),
@@ -220,6 +227,12 @@ export default function AdminSubscriptionTransactionsPage() {
 
       if (countryFilter !== 'all') {
         combined = combined.filter(t => t.user_country === countryFilter);
+      }
+      if (cityFilter !== 'all') {
+        combined = combined.filter(t => {
+          const profile = profileMap.get(t.user_id);
+          return (profile as any)?.city === cityFilter;
+        });
       }
 
       setTransactions(combined);
@@ -295,17 +308,12 @@ export default function AdminSubscriptionTransactionsPage() {
 
   const FiltersRow = () => (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-      <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPmPage(0); setTxPage(0); }}>
-        <SelectTrigger className="w-full sm:w-44">
-          <SelectValue placeholder="Страна" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Все страны</SelectItem>
-          {COUNTRY_OPTIONS.map(c => (
-            <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <CountryCityFilter
+        countryFilter={countryFilter}
+        cityFilter={cityFilter}
+        onCountryChange={(v) => { setCountryFilter(v); setPmPage(0); setTxPage(0); }}
+        onCityChange={(v) => { setCityFilter(v); setPmPage(0); setTxPage(0); }}
+      />
 
       <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
         <SelectTrigger className="w-full sm:w-48">
