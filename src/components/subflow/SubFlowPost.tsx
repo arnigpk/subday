@@ -508,15 +508,17 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                 setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
               }
               setLightboxOpen(true);
+              const cnt = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
+              if (cnt < MAX_HINT_SHOWS) {
+                localStorage.setItem('subflow_image_hint_count', String(cnt + 1));
+              }
+              setShowImageHint(false);
             }}
             onLoad={() => {
               setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }));
-              // Show tooltip hint up to MAX_HINT_SHOWS times
               const hintCount = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
               if (hintCount < MAX_HINT_SHOWS) {
                 setShowImageHint(true);
-                localStorage.setItem('subflow_image_hint_count', String(hintCount + 1));
-                setTimeout(() => setShowImageHint(false), 3000);
               }
             }}
           />
