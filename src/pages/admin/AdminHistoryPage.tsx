@@ -211,7 +211,32 @@ export default function AdminHistoryPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
-            <CardTitle>Всего покупок ({totalCount})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Всего покупок ({totalCount})</CardTitle>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Очистить историю
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {periodType !== 'all'
+                        ? `Будут удалены списания за период: ${formatPeriodLabel()}`
+                        : 'Будут удалены ВСЕ списания'
+                      }. Это действие нельзя отменить. История исчезнет у пользователей и в кабинете партнера.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
