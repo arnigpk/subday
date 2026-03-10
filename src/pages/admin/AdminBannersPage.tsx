@@ -46,7 +46,8 @@ export default function AdminBannersPage() {
   const [editingBanner, setEditingBanner] = useState<AdBanner | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
+  const [listCountryFilter, setListCountryFilter] = useState('all');
+  const [listCityFilter, setListCityFilter] = useState('all');
   const [formData, setFormData] = useState({
     image_url: '',
     caption: '',
