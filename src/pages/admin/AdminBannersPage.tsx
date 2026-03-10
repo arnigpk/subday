@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
 import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface AdBanner {
   id: string;
