@@ -134,9 +134,15 @@ export default function AdminHistoryPage() {
         user_country: profileMap.get(r.user_id)?.country || null,
       }));
 
-      // Filter by country (client-side since it's from profiles)
+      // Filter by country/city (client-side since it's from profiles)
       if (countryFilter !== 'all') {
         combined = combined.filter(r => r.user_country === countryFilter);
+      }
+      if (cityFilter !== 'all') {
+        combined = combined.filter(r => {
+          const profile = profileMap.get(r.user_id);
+          return (profile as any)?.city === cityFilter;
+        });
       }
 
       if (search) {
