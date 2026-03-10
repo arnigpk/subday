@@ -324,6 +324,8 @@ export default function AdminSubscriptionsPage() {
           </Select>
         </div>
       </div>
+
+      {isLoading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
