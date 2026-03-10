@@ -772,6 +772,15 @@ export default function AdminUsersPage() {
 
             <div className="flex items-center gap-2">
               <Switch
+                id="subflow_access"
+                checked={formData.subflow_access}
+                onCheckedChange={(checked) => setFormData({ ...formData, subflow_access: checked })}
+              />
+              <Label htmlFor="subflow_access">#subFlow доступ</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
                 id="is_blocked"
                 checked={formData.is_blocked}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_blocked: checked })}
