@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     if (offers && offers.length > 0) {
       const { data: profile } = await supabaseClient
         .from('profiles')
-        .select('created_at, special_offer_redeemed_at')
+        .select('created_at')
         .eq('user_id', user.id)
         .single();
 
