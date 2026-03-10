@@ -261,10 +261,29 @@ export default function AdminSubscriptionTransactionsPage() {
       }
       const { error } = await query;
       if (error) throw error;
-      toast.success('История очищена');
+      toast.success('История транзакций очищена');
       fetchTransactions();
     } catch (error) {
       console.error('Error clearing history:', error);
+      toast.error('Ошибка очистки');
+    }
+  };
+
+  const handleClearPayments = async () => {
+    try {
+      const dateFilters = getDateFilters();
+      let query = supabase.from('payment_orders').delete();
+      if (dateFilters) {
+        query = query.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+      } else {
+        query = query.gt('created_at', '1970-01-01');
+      }
+      const { error } = await query;
+      if (error) throw error;
+      toast.success('История оплат очищена');
+      fetchPayments();
+    } catch (error) {
+      console.error('Error clearing payments:', error);
       toast.error('Ошибка очистки');
     }
   };
