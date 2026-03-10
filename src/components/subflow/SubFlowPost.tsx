@@ -492,11 +492,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           <img
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
-            className={`w-full max-h-[28rem] object-contain select-none pointer-events-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
+            className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm cursor-zoom-in ${
               imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
             }`}
             loading="lazy"
             draggable={false}
+            onClick={() => setLightboxOpen(true)}
             onLoad={() => setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }))}
           />
           {images.length > 1 && (
