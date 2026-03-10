@@ -511,10 +511,11 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             }}
             onLoad={() => {
               setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }));
-              // Show one-time tooltip hint
-              if (!localStorage.getItem('subflow_image_hint_shown')) {
+              // Show tooltip hint up to MAX_HINT_SHOWS times
+              const hintCount = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
+              if (hintCount < MAX_HINT_SHOWS) {
                 setShowImageHint(true);
-                localStorage.setItem('subflow_image_hint_shown', '1');
+                localStorage.setItem('subflow_image_hint_count', String(hintCount + 1));
                 setTimeout(() => setShowImageHint(false), 3000);
               }
             }}
