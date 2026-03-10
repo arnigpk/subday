@@ -537,7 +537,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               }
               setShowImageHint(false);
             }}
-            className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-opacity hover:bg-black/50 active:scale-90"
+            className={`absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-all hover:bg-black/50 active:scale-90 ${showImageHint ? 'animate-pulse' : ''}`}
           >
             <Maximize2 size={14} />
           </button>
