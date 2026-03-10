@@ -73,6 +73,11 @@ export function useSubscriptionStatus() {
       const { data: subscriptions, error } = subsResult;
       const hasSubflowAccess = (profileResult.data as any)?.subflow_access === true;
 
+      if (error) {
+        setStatus(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
       const activeSubscriptions: ActiveSubscription[] = (subscriptions || []).map(sub => ({
         id: sub.id,
         subscription_type_id: sub.subscription_type_id,
