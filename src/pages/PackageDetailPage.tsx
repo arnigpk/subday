@@ -183,7 +183,10 @@ export default function PackageDetailPage() {
             {hasOffer && (
               <div className="bg-accent/10 rounded-xl p-3 mb-2">
                 <p className="text-sm text-accent font-semibold">
-                  ☕ {displayCups} кофе на {displayDays} {displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}
+                  {subscription.type === 'drinks' 
+                    ? `🍽 ${displayCups} ланчей на ${displayDays} ${displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}`
+                    : `☕ ${displayCups} кофе на ${displayDays} ${displayDays === 1 ? 'день' : displayDays >= 2 && displayDays <= 4 ? 'дня' : 'дней'}`
+                  }
                 </p>
               </div>
             )}
