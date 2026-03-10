@@ -31,6 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAdminAuth';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 type UserRole = AppRole | 'user';
 
