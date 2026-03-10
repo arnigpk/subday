@@ -87,6 +87,7 @@ export default function AdminSubscriptionsPage() {
   const [editingSub, setEditingSub] = useState<SubscriptionType | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
