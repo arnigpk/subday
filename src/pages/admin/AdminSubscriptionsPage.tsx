@@ -300,17 +300,30 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <AdminLayout title="Подписки">
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-muted-foreground">
-          Перетащите карточки для изменения порядка
-        </p>
-        <Button onClick={openCreateDialog}>
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить подписку
-        </Button>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Перетащите карточки для изменения порядка
+          </p>
+          <Button onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить подписку
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Страна" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все страны</SelectItem>
+              {COUNTRY_OPTIONS.map(c => (
+                <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-
-      {isLoading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
