@@ -5,20 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-function sendLoginNotification(displayName: string, telegramUsername: string | null, isNewUser: boolean): void {
-  const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-  const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
-  if (!notificationBotToken || !chatId) return;
+async function sendAdminNotification(
+  supabase: any,
+  triggerType: string,
+  variables: Record<string, string>
+): Promise<void> {
+  try {
+    const { data: template } = await supabase
+      .from('auto_notification_templates')
+      .select('message_template, is_active')
+      .eq('trigger_type', triggerType)
+      .eq('is_active', true)
+      .maybeSingle();
 
-  const action = isNewUser ? '🆕 Новая регистрация' : '🔑 Вход';
-  const usernameText = telegramUsername ? `@${telegramUsername}` : 'нет username';
-  const message = `${action} через Telegram\n\n👤 Имя: ${displayName}\n📱 Telegram: ${usernameText}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`;
+    if (!template) return;
 
-  fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
-  }).catch(e => console.error('Notification failed:', e));
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    if (!notificationBotToken || !chatId) return;
+
+    let message = template.message_template;
+    for (const [key, value] of Object.entries(variables)) {
+      message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    }
+
+    fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+    }).catch(e => console.error('Notification failed:', e));
+  } catch (e) {
+    console.error('Admin notification error:', e);
+  }
 }
 
 async function downloadAndUploadAvatar(
@@ -86,6 +104,8 @@ Deno.serve(async (req) => {
     const email = `tg_${telegramId}@telegram.subday.app`;
     const password = `tg_${telegramId}_${botToken.slice(0, 10)}`;
     const displayName = [authCode.first_name, authCode.last_name].filter(Boolean).join(' ') || authCode.username || `User ${telegramId}`;
+    const telegramText = authCode.username ? `@${authCode.username}` : 'нет username';
+    const timeStr = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
 
     // Try to sign in first
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -96,7 +116,11 @@ Deno.serve(async (req) => {
       console.log('User signed in via Telegram code:', telegramId);
       
       // Fire-and-forget background work
-      sendLoginNotification(displayName, authCode.username, false);
+      sendAdminNotification(supabase, 'admin_login_telegram', {
+        name: displayName,
+        telegram: telegramText,
+        time: timeStr,
+      });
       (async () => {
         try {
           if (authCode.photo_url) {
@@ -154,7 +178,11 @@ Deno.serve(async (req) => {
       }
 
       // Fire-and-forget
-      sendLoginNotification(displayName, authCode.username, true);
+      sendAdminNotification(supabase, 'admin_register_telegram', {
+        name: displayName,
+        telegram: telegramText,
+        time: timeStr,
+      });
       (async () => {
         try {
           if (authCode.photo_url) {

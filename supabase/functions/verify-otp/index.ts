@@ -13,25 +13,38 @@ function formatPhone(phone: string): string {
   return '+' + digits
 }
 
-function sendLoginNotification(
-  phone: string,
-  name: string | null,
-  isNewUser: boolean
-): void {
-  const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN')
-  const chatId = Deno.env.get('NOTIFICATION_CHAT_ID')
-  if (!notificationBotToken || !chatId) return
+async function sendAdminNotification(
+  supabase: any,
+  triggerType: string,
+  variables: Record<string, string>
+): Promise<void> {
+  try {
+    const { data: template } = await supabase
+      .from('auto_notification_templates')
+      .select('message_template, is_active')
+      .eq('trigger_type', triggerType)
+      .eq('is_active', true)
+      .maybeSingle()
 
-  const action = isNewUser ? '🆕 Новая регистрация' : '🔑 Вход'
-  const nameText = name || 'не указано'
-  const message = `${action} через SMS\n\n👤 Имя: ${nameText}\n📞 Телефон: ${phone}\n🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })}`
+    if (!template) return
 
-  // Fire-and-forget
-  fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
-  }).catch(e => console.error('Notification failed:', e))
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN')
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID')
+    if (!notificationBotToken || !chatId) return
+
+    let message = template.message_template
+    for (const [key, value] of Object.entries(variables)) {
+      message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value)
+    }
+
+    fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+    }).catch(e => console.error('Notification failed:', e))
+  } catch (e) {
+    console.error('Admin notification error:', e)
+  }
 }
 
 // Generate email from phone for auth
@@ -45,7 +58,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { phone, code, isRegistration, name, city, country } = await req.json()
+    const { phone, code, isRegistration, name, city, country, channel } = await req.json()
 
     if (!phone || !code) {
       return new Response(
@@ -90,6 +103,10 @@ Deno.serve(async (req) => {
     // Mark OTP as used (don't await - fire and forget)
     supabase.from('otp_codes').update({ verified: true }).eq('id', otpData.id).then(() => {})
 
+    // Determine channel label for notifications
+    const channelLabel = channel === 'whatsapp' ? 'whatsapp' : 'sms'
+    const timeStr = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })
+
     if (isRegistration) {
       // Registration flow
       const tempPassword = crypto.randomUUID()
@@ -126,11 +143,14 @@ Deno.serve(async (req) => {
       })
 
       // Fire-and-forget: notification + cleanup
-      sendLoginNotification(formattedPhone, name, true)
+      sendAdminNotification(supabase, `admin_register_${channelLabel}`, {
+        name: name || 'не указано',
+        phone: formattedPhone,
+        time: timeStr,
+      })
       supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
       if (loginError || !loginData.session) {
-        // Registration succeeded but auto-login failed — user can login manually
         return new Response(
           JSON.stringify({ success: true, message: 'Регистрация успешна' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -184,7 +204,11 @@ Deno.serve(async (req) => {
       const session = loginData.session
 
       // Fire-and-forget
-      sendLoginNotification(formattedPhone, profileData.name, false)
+      sendAdminNotification(supabase, `admin_login_${channelLabel}`, {
+        name: profileData.name || 'не указано',
+        phone: formattedPhone,
+        time: timeStr,
+      })
       supabase.from('otp_codes').delete().eq('phone', formattedPhone).then(() => {})
 
       return new Response(

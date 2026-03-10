@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -46,6 +46,16 @@ const triggerLabels: Record<string, string> = {
   subflow_comment: '#subFlow — Комментарии',
   subflow_follow: '#subFlow — Подписчики',
   subflow_new_post: '#subFlow — Новый пост',
+  admin_login_sms: 'Вход через SMS',
+  admin_register_sms: 'Регистрация через SMS',
+  admin_login_whatsapp: 'Вход через WhatsApp',
+  admin_register_whatsapp: 'Регистрация через WhatsApp',
+  admin_login_miniapp: 'Вход через Mini App',
+  admin_register_miniapp: 'Регистрация через Mini App',
+  admin_login_telegram: 'Вход через Telegram Bot',
+  admin_register_telegram: 'Регистрация через Telegram Bot',
+  admin_payment: 'Новая оплата подписки',
+  admin_payment_special: 'Оплата (спецпредложение)',
 };
 
 const channelLabels: Record<string, string> = {
@@ -55,6 +65,13 @@ const channelLabels: Record<string, string> = {
 };
 
 const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post'];
+const ADMIN_TRIGGERS = [
+  'admin_login_sms', 'admin_register_sms',
+  'admin_login_whatsapp', 'admin_register_whatsapp',
+  'admin_login_miniapp', 'admin_register_miniapp',
+  'admin_login_telegram', 'admin_register_telegram',
+  'admin_payment', 'admin_payment_special',
+];
 
 const defaultMilestones: Record<string, number[]> = {
   subflow_reaction: [3, 5, 10, 20, 50, 100],
@@ -67,7 +84,20 @@ const defaultMessages: Record<string, string> = {
   subflow_comment: '💬 У вас уже {{count}} комментариев на ваших постах!',
   subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
   subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
+  admin_login_sms: '🔑 Вход через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
+  admin_register_sms: '🆕 Новая регистрация через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
+  admin_login_whatsapp: '🔑 Вход через WhatsApp\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
+  admin_register_whatsapp: '🆕 Новая регистрация через WhatsApp\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
+  admin_login_miniapp: '🔑 Вход (Mini App)\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
+  admin_register_miniapp: '🆕 Новая регистрация (Mini App)\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
+  admin_login_telegram: '🔑 Вход через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
+  admin_register_telegram: '🆕 Новая регистрация через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
+  admin_payment: '🎉 Новая оплата подписки!\n\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
+  admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
 };
+
+const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
+const isAdminTrigger = (type: string) => ADMIN_TRIGGERS.includes(type);
 
 export default function AdminAutoNotificationsPage() {
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
@@ -114,13 +144,17 @@ export default function AdminAutoNotificationsPage() {
 
   const handleTriggerTypeChange = (v: string) => {
     const updates: any = { trigger_type: v };
-    // Auto-fill defaults for subFlow triggers
-    if (SUBFLOW_TRIGGERS.includes(v) && !editingTemplate) {
-      updates.channel = 'both';
+    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v)) && !editingTemplate) {
       updates.message_template = defaultMessages[v] || '';
-      updates.milestones = defaultMilestones[v]?.join(', ') || '';
       if (!form.name) {
         updates.name = triggerLabels[v] || '';
+      }
+      if (SUBFLOW_TRIGGERS.includes(v)) {
+        updates.channel = 'both';
+        updates.milestones = defaultMilestones[v]?.join(', ') || '';
+      }
+      if (ADMIN_TRIGGERS.includes(v)) {
+        updates.channel = 'telegram';
       }
     }
     setForm(f => ({ ...f, ...updates }));
@@ -186,6 +220,16 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_comment': return <MessageCircle className="w-4 h-4 text-blue-500" />;
       case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
+      case 'admin_login_sms':
+      case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
+      case 'admin_login_whatsapp':
+      case 'admin_register_whatsapp': return <MessageCircle className="w-4 h-4 text-green-500" />;
+      case 'admin_login_miniapp':
+      case 'admin_register_miniapp': return <Bot className="w-4 h-4 text-blue-400" />;
+      case 'admin_login_telegram':
+      case 'admin_register_telegram': return <Send className="w-4 h-4 text-sky-500" />;
+      case 'admin_payment':
+      case 'admin_payment_special': return <CreditCard className="w-4 h-4 text-emerald-500" />;
       default: return null;
     }
   };
@@ -199,11 +243,26 @@ export default function AdminAutoNotificationsPage() {
     }
   };
 
-  const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
-
   // Group templates
-  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type));
+  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type) && !isAdminTrigger(t.trigger_type));
   const subflowTemplates = templates.filter(t => isSubflowTrigger(t.trigger_type));
+  const adminTemplates = templates.filter(t => isAdminTrigger(t.trigger_type));
+
+  const getVariablesHelp = (triggerType: string) => {
+    if (isAdminTrigger(triggerType)) {
+      if (triggerType.includes('payment')) {
+        return '{{subscription_name}} — подписка, {{amount}} — сумма, {{order_id}} — заказ';
+      }
+      if (triggerType.includes('miniapp') || triggerType.includes('telegram')) {
+        return '{{name}} — имя, {{telegram}} — username, {{time}} — время';
+      }
+      return '{{name}} — имя, {{phone}} — телефон, {{time}} — время';
+    }
+    if (isSubflowTrigger(triggerType)) {
+      return '{{count}} — число, {{actor_name}} — имя, {{preview}} — превью поста';
+    }
+    return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
+  };
 
   return (
     <AdminLayout title="Автоматические уведомления">
@@ -226,7 +285,7 @@ export default function AdminAutoNotificationsPage() {
               <div className="space-y-3">
                 {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}
               </div>
-            ) : standardTemplates.length === 0 && subflowTemplates.length === 0 ? (
+            ) : standardTemplates.length === 0 && subflowTemplates.length === 0 && adminTemplates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Нет шаблонов</p>
@@ -267,13 +326,46 @@ export default function AdminAutoNotificationsPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p className="text-sm mb-3">Нет шаблонов #subFlow</p>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Добавьте шаблоны для уведомлений о реакциях, комментариях и подписках
-                </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {subflowTemplates.map(t => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    getChannelIcon={getChannelIcon}
+                    getTriggerIcon={getTriggerIcon}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Admin bot notifications section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-sky-500" />
+              <span>Уведомления админ-бота</span>
+            </CardTitle>
+            <CardDescription>
+              Уведомления которые приходят в @subdaynotification_bot при входе, регистрации и оплатах.
+              Переменные: {'{{name}}'}, {'{{phone}}'}, {'{{telegram}}'}, {'{{time}}'}, {'{{subscription_name}}'}, {'{{amount}}'}, {'{{order_id}}'}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {adminTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Bot className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm mb-3">Нет шаблонов админ-бота</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {adminTemplates.map(t => (
                   <TemplateCard
                     key={t.id}
                     template={t}
@@ -313,6 +405,16 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
                   <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
                   <SelectItem value="subflow_new_post">#subFlow — Новый пост</SelectItem>
+                  <SelectItem value="admin_login_sms">🔑 Вход через SMS</SelectItem>
+                  <SelectItem value="admin_register_sms">🆕 Регистрация через SMS</SelectItem>
+                  <SelectItem value="admin_login_whatsapp">🔑 Вход через WhatsApp</SelectItem>
+                  <SelectItem value="admin_register_whatsapp">🆕 Регистрация через WhatsApp</SelectItem>
+                  <SelectItem value="admin_login_miniapp">🔑 Вход через Mini App</SelectItem>
+                  <SelectItem value="admin_register_miniapp">🆕 Регистрация через Mini App</SelectItem>
+                  <SelectItem value="admin_login_telegram">🔑 Вход через Telegram Bot</SelectItem>
+                  <SelectItem value="admin_register_telegram">🆕 Регистрация через Telegram Bot</SelectItem>
+                  <SelectItem value="admin_payment">🎉 Оплата подписки</SelectItem>
+                  <SelectItem value="admin_payment_special">🎉 Оплата (спецпредложение)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -360,8 +462,7 @@ export default function AdminAutoNotificationsPage() {
                   min={1}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Минимальный интервал между уведомлениями одного типа для пользователя. По умолчанию 60 минут.
-                  Накопленное количество за этот период отправляется в {"{{count}}"}.
+                  Минимальный интервал между уведомлениями одного типа для пользователя.
                 </p>
               </div>
             )}
@@ -371,16 +472,10 @@ export default function AdminAutoNotificationsPage() {
                 value={form.message_template}
                 onChange={e => setForm(f => ({ ...f, message_template: e.target.value }))}
                 rows={4}
-                placeholder={isSubflowTrigger(form.trigger_type) 
-                  ? "Используйте {{count}}, {{actor_name}}, {{preview}}"
-                  : "Используйте {{subscription_name}}, {{count}}, {{unit}}"
-                }
+                placeholder="Текст шаблона с переменными"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {isSubflowTrigger(form.trigger_type) 
-                  ? 'Переменные: {{count}} — число, {{actor_name}} — имя, {{preview}} — превью поста'
-                  : 'Переменные: {{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица'
-                }
+                {getVariablesHelp(form.trigger_type)}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -409,7 +504,7 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
     <div className="bg-card border border-border rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             {getTriggerIcon(t.trigger_type)}
             {getChannelIcon(t.channel)}
             <h3 className="font-bold text-foreground">{t.name}</h3>
@@ -417,7 +512,7 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
               {t.is_active ? 'Активен' : 'Отключен'}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mb-2 font-mono bg-muted/50 p-2 rounded">
+          <p className="text-sm text-muted-foreground mb-2 font-mono bg-muted/50 p-2 rounded whitespace-pre-wrap break-words">
             {t.message_template}
           </p>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -456,8 +551,4 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
       </div>
     </div>
   );
-}
-
-function isSubflowTrigger(type: string) {
-  return SUBFLOW_TRIGGERS.includes(type);
 }
