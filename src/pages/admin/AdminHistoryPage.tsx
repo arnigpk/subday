@@ -20,12 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, User, CalendarIcon } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { toast } from '@/components/ui/sonner';
 
 interface RedemptionWithUser {
   id: string;
