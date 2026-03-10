@@ -492,7 +492,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           <img
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
-            className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm cursor-zoom-in ${
+            className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
               imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
             }`}
             loading="lazy"
