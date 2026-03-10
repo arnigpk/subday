@@ -4,6 +4,7 @@ import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Ch
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
+import { SubFlowImageViewer } from './SubFlowImageViewer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
