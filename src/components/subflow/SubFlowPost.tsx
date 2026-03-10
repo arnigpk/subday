@@ -587,6 +587,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           hasActiveSubscription={hasActiveSubscription}
         />
       )}
+
+      {/* Lightbox */}
+      {lightboxOpen && images.length > 0 && (
+        <SubFlowImageViewer
+          images={images}
+          initialIndex={currentImageIndex}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }
