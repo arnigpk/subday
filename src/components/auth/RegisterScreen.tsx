@@ -106,7 +106,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim(), city, country: country.code }
+        body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim(), city, country: country.code, channel }
       });
       if (error) { toast.error('Ошибка проверки кода'); return; }
       if (data.error) { toast.error(data.error); return; }
