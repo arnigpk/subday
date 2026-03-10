@@ -53,19 +53,25 @@ export function useSubscriptionStatus() {
         return;
       }
 
-      const { data: subscriptions, error } = await supabase
-        .from('user_subscriptions')
-        .select(`
-          id, subscription_type_id, started_at, expires_at, is_active,
-          subscription_types (name, type, cups_count, duration_days, features)
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true);
+      // Check subscriptions and subflow_access in parallel
+      const [subsResult, profileResult] = await Promise.all([
+        supabase
+          .from('user_subscriptions')
+          .select(`
+            id, subscription_type_id, started_at, expires_at, is_active,
+            subscription_types (name, type, cups_count, duration_days, features)
+          `)
+          .eq('user_id', user.id)
+          .eq('is_active', true),
+        supabase
+          .from('profiles')
+          .select('subflow_access')
+          .eq('user_id', user.id)
+          .single(),
+      ]);
 
-      if (error) {
-        setStatus(prev => ({ ...prev, isLoading: false }));
-        return;
-      }
+      const { data: subscriptions, error } = subsResult;
+      const hasSubflowAccess = (profileResult.data as any)?.subflow_access === true;
 
       const activeSubscriptions: ActiveSubscription[] = (subscriptions || []).map(sub => ({
         id: sub.id,
