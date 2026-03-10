@@ -304,20 +304,16 @@ export default function AdminBannersPage() {
       <div className="p-4 md:p-6">
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Рекламные баннеры</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Рекомендуемый размер: 1200×400px (3:1)
-            </p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateDialog} className="gap-2">
-                <Plus size={16} />
-                Добавить
-              </Button>
-            </DialogTrigger>
-            {/* ... dialog content below */}
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Рекламные баннеры</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Рекомендуемый размер: 1200×400px (3:1)
+              </p>
+            </div>
+            <Button onClick={openCreateDialog} className="gap-2">
+              <Plus size={16} />
+              Добавить
+            </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CountryCityFilter
@@ -328,7 +324,14 @@ export default function AdminBannersPage() {
             />
           </div>
         </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingBanner ? 'Редактировать баннер' : 'Новый баннер'}
+              </DialogTitle>
+            </DialogHeader>
 
               <div className="space-y-4 mt-4">
                 {/* Image upload */}
