@@ -109,6 +109,7 @@ export default function AdminUsersPage() {
     drinks_remaining: 0,
     role: 'user' as UserRole,
     shop_id: '',
+    subflow_access: false,
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
