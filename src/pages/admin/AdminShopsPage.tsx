@@ -324,17 +324,25 @@ export default function AdminShopsPage() {
 
   return (
     <AdminLayout title="Кофейни">
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-muted-foreground">
-          Перетащите карточки для изменения порядка
-        </p>
-        <Button onClick={openCreateDialog}>
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить кофейню
-        </Button>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Перетащите карточки для изменения порядка
+          </p>
+          <Button onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить кофейню
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CountryCityFilter
+            countryFilter={listCountryFilter}
+            cityFilter={listCityFilter}
+            onCountryChange={setListCountryFilter}
+            onCityChange={setListCityFilter}
+          />
+        </div>
       </div>
-
-      {isLoading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
