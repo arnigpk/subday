@@ -67,6 +67,7 @@ export default function AdminSpecialOffersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<SpecialOffer | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
 
   useEffect(() => {
     fetchData();
