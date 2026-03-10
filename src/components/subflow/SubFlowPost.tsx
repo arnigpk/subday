@@ -603,6 +603,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           images={images}
           initialIndex={currentImageIndex}
           onClose={() => setLightboxOpen(false)}
+          sourceRect={lightboxRect}
         />
       )}
     </div>
