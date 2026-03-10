@@ -102,7 +102,7 @@ export function useSubscriptionStatus() {
       }
 
       const newStatus: SubscriptionStatus = {
-        hasActiveSubscription: activeSubscriptions.length > 0,
+        hasActiveSubscription: activeSubscriptions.length > 0 || hasSubflowAccess,
         activeSubscriptions,
         daysRemaining,
         isExpiringSoon,
