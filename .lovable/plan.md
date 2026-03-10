@@ -1,57 +1,40 @@
 
 
-## Анализ текущих узких мест
+## Plan: Fullscreen Image Viewer with Zoom and Swipe-to-Dismiss
 
-Сейчас процесс сканирования тормозится в нескольких местах:
+### What We're Building
+A fullscreen image lightbox that opens when a user taps any image in a SubFlow post. Features:
+- **Tap to open** image fullscreen with dark overlay
+- **Swipe between images** in multi-image posts (carousel)
+- **Double-tap to zoom** (toggle between 1x and 2x)
+- **Pinch-to-zoom** support
+- **Swipe down to dismiss** (drag down returns image to feed)
+- Works for single and multi-image posts
 
-**Клиент (QRScanner.tsx):**
-1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
-2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
-3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
-4. Дубликат-защита 3 секунды -- можно сократить
+### Implementation
 
-**Клиент (PartnerScanPage.tsx):**
-5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
-6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
+**1. Create `SubFlowImageViewer` component** (`src/components/subflow/SubFlowImageViewer.tsx`)
+- Fixed fullscreen overlay (`fixed inset-0 z-50 bg-black`)
+- Receives `images: string[]`, `initialIndex: number`, `onClose: () => void`
+- State: `currentIndex`, `scale` (1 or 2), `translateY` (for swipe-down dismiss), `translateX/Y` for panned position when zoomed
+- **Double-tap detection**: Track last tap time; if < 300ms between taps, toggle scale between 1x and 2x, centering on tap point
+- **Swipe down to dismiss**: When scale === 1, track vertical touch drag. If drag > 150px downward, close with opacity transition. Otherwise animate back.
+- **Swipe left/right**: When scale === 1, horizontal swipe navigates between images (reuse similar logic to current carousel)
+- **Pinch-to-zoom**: Track two-finger touch distance changes to adjust scale (1x-3x range)
+- Dots indicator at bottom for multi-image posts
+- Close button (X) in top-right corner as fallback
 
-**Сервер (partner-scan-qr):**
-7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
+**2. Update `SubFlowPost` component** (`src/components/subflow/SubFlowPost.tsx`)
+- Add state: `lightboxOpen: boolean`, `lightboxStartIndex: number`
+- Remove `pointer-events-none` from the `<img>` tag (line 493)
+- Add `onClick` handler on images to open lightbox with `currentImageIndex`
+- Render `<SubFlowImageViewer>` when `lightboxOpen` is true
+- Pass `images`, `initialIndex`, and `onClose` to viewer
 
-## План ускорения
-
-### 1. Убрать искусственную задержку в 1 секунду
-Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
-
-### 2. Автозапуск камеры
-Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
-
-### 3. Не останавливать камеру при обработке
-Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
-
-### 4. Увеличить область сканирования
-`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
-
-### 5. Сократить защиту от дубликатов
-С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
-
-### 6. Запрос высокого разрешения камеры
-Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
-
-### 7. Автовозврат к сканеру после результата
-После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
-
-### 8. Не прятать сканер при статусах scanning/success/error
-Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
-
-### Затрагиваемые файлы
-- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
-- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
-
-### Итого выигрыш по скорости
-- Убрана 1с задержка
-- Убрано время запуска камеры (~1-2с)
-- Убрано время перезапуска камеры между сканами (~1-2с)  
-- Увеличена область захвата и разрешение -- быстрее распознавание
-
-Общий выигрыш: **3-5 секунд** на каждое сканирование.
+### Technical Details
+- Pure CSS transforms + React touch event handlers (no additional library needed)
+- `touch-action: none` on the viewer to prevent browser scroll/zoom interference
+- Use `will-change: transform` for smooth GPU-accelerated animations
+- Body scroll lock when lightbox is open (`overflow: hidden` on body)
+- The dismiss gesture: `translateY` mapped to opacity (more drag = more transparent background)
 
