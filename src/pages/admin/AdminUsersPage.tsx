@@ -476,17 +476,14 @@ export default function AdminUsersPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Страна" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все страны</SelectItem>
-                  {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
-                    <SelectItem key={code} value={code}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CountryCityFilter
+                countryFilter={countryFilter}
+                cityFilter={cityFilter}
+                onCountryChange={(v) => { setCountryFilter(v); setPage(0); }}
+                onCityChange={(v) => { setCityFilter(v); setPage(0); }}
+                countryClassName="w-44"
+                cityClassName="w-44"
+              />
               <CalendarDays className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Регистрация:</span>
               {['all', 'week', 'month', 'custom'].map((filter) => (

@@ -308,17 +308,12 @@ export default function AdminSubscriptionTransactionsPage() {
 
   const FiltersRow = () => (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-      <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPmPage(0); setTxPage(0); }}>
-        <SelectTrigger className="w-full sm:w-44">
-          <SelectValue placeholder="Страна" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Все страны</SelectItem>
-          {COUNTRY_OPTIONS.map(c => (
-            <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <CountryCityFilter
+        countryFilter={countryFilter}
+        cityFilter={cityFilter}
+        onCountryChange={(v) => { setCountryFilter(v); setPmPage(0); setTxPage(0); }}
+        onCityChange={(v) => { setCityFilter(v); setPmPage(0); setTxPage(0); }}
+      />
 
       <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
         <SelectTrigger className="w-full sm:w-48">

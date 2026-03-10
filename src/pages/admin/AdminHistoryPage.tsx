@@ -199,17 +199,12 @@ export default function AdminHistoryPage() {
                     className="pl-10"
                   />
                 </div>
-                <Select value={countryFilter} onValueChange={(v) => { setCountryFilter(v); setPage(0); }}>
-                  <SelectTrigger className="w-full sm:w-44">
-                    <SelectValue placeholder="Страна" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все страны</SelectItem>
-                    {COUNTRY_OPTIONS.map(c => (
-                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountryCityFilter
+                  countryFilter={countryFilter}
+                  cityFilter={cityFilter}
+                  onCountryChange={(v) => { setCountryFilter(v); setPage(0); }}
+                  onCityChange={(v) => { setCityFilter(v); setPage(0); }}
+                />
                 <Select value={shopFilter} onValueChange={(v) => { setShopFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Кофейня" />
