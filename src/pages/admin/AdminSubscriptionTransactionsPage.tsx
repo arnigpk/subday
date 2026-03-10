@@ -135,7 +135,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const subTypeIds = [...new Set(data.map(t => t.subscription_type_id))];
 
       const [profilesResult, subTypesResult] = await Promise.all([
-        supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+        supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
         supabase.from('subscription_types').select('id, name').in('id', subTypeIds),
       ]);
 
