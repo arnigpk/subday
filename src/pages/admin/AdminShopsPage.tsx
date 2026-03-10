@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { COUNTRY_OPTIONS, getCitiesForCountry, getCountryLabel } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
