@@ -543,7 +543,13 @@ export default function AdminBannersPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {banners.map((banner) => (
+            {banners
+              .filter(b => {
+                if (listCountryFilter !== 'all' && (b as any).country !== listCountryFilter) return false;
+                if (listCityFilter !== 'all' && (b as any).city !== listCityFilter) return false;
+                return true;
+              })
+              .map((banner) => (
               <div
                 key={banner.id}
                 className={`card-static flex gap-4 ${!banner.is_active ? 'opacity-50' : ''}`}
