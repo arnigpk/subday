@@ -275,6 +275,7 @@ export default function AdminUsersPage() {
           city: formData.city || null,
           country: formData.country || 'KZ',
           is_blocked: formData.is_blocked,
+          subflow_access: formData.subflow_access,
         })
         .eq('user_id', editingUser.user_id);
 
