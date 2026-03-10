@@ -202,7 +202,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const paymentOrderIds = data.map(t => t.payment_order_id).filter(Boolean) as string[];
 
       const [profilesResult, paymentOrdersResult] = await Promise.all([
-        supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+        supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
         paymentOrderIds.length > 0
           ? supabase.from('payment_orders').select('id, payment_id, order_id').in('id', paymentOrderIds)
           : Promise.resolve({ data: [] }),
