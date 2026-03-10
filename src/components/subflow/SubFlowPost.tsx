@@ -4,6 +4,7 @@ import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Ch
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
+import { SubFlowImageViewer } from './SubFlowImageViewer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -50,6 +51,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
@@ -490,11 +492,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           <img
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
-            className={`w-full max-h-[28rem] object-contain select-none pointer-events-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
+            className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm cursor-zoom-in ${
               imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
             }`}
             loading="lazy"
             draggable={false}
+            onClick={() => setLightboxOpen(true)}
             onLoad={() => setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }))}
           />
           {images.length > 1 && (
@@ -582,6 +585,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           postId={post.id}
           currentUserId={currentUserId}
           hasActiveSubscription={hasActiveSubscription}
+        />
+      )}
+
+      {/* Lightbox */}
+      {lightboxOpen && images.length > 0 && (
+        <SubFlowImageViewer
+          images={images}
+          initialIndex={currentImageIndex}
+          onClose={() => setLightboxOpen(false)}
         />
       )}
     </div>
