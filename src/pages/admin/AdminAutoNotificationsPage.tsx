@@ -399,6 +399,7 @@ export default function AdminAutoNotificationsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="activated">Подписка активирована</SelectItem>
+                  <SelectItem value="activated_special">Подписка активирована (спецпредложение)</SelectItem>
                   <SelectItem value="low_balance">Низкий баланс (напитки/ланчи)</SelectItem>
                   <SelectItem value="expiring_soon">Скоро истекает подписка</SelectItem>
                   <SelectItem value="custom">Кастомное</SelectItem>
