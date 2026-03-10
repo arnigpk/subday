@@ -52,6 +52,7 @@ export default function AdminHistoryPage() {
   const [shopFilter, setShopFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
   const [periodType, setPeriodType] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(0);
