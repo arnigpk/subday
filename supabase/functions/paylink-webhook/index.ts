@@ -234,9 +234,14 @@ Deno.serve(async (req) => {
         amount: paymentOrder.amount, payment_order_id: paymentOrder.id, is_special_offer: isSpecialOffer,
       });
 
+      // Get buyer name for admin notification
+      const { data: buyerProfile } = await supabase
+        .from('profiles').select('name, phone').eq('user_id', paymentOrder.user_id).maybeSingle();
+
       // Send admin notification from DB template
       const triggerType = isSpecialOffer ? 'admin_payment_special' : 'admin_payment';
       sendAdminNotification(supabase, triggerType, {
+        name: buyerProfile?.name || buyerProfile?.phone || 'Неизвестный',
         subscription_name: subType?.name || 'Unknown',
         amount: String(paymentOrder.amount),
         order_id: String(orderId),

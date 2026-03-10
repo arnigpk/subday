@@ -251,7 +251,7 @@ export default function AdminAutoNotificationsPage() {
   const getVariablesHelp = (triggerType: string) => {
     if (isAdminTrigger(triggerType)) {
       if (triggerType.includes('payment')) {
-        return '{{subscription_name}} — подписка, {{amount}} — сумма, {{order_id}} — заказ';
+        return '{{name}} — имя, {{subscription_name}} — подписка, {{amount}} — сумма, {{order_id}} — заказ';
       }
       if (triggerType.includes('miniapp') || triggerType.includes('telegram')) {
         return '{{name}} — имя, {{telegram}} — username, {{time}} — время';
