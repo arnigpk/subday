@@ -174,6 +174,25 @@ export default function AdminHistoryPage() {
     if (value !== 'custom') setDateRange(undefined);
   };
 
+  const handleClearRedemptions = async () => {
+    try {
+      const dateFilters = getDateFilters();
+      let query = supabase.from('redemptions').delete();
+      if (dateFilters) {
+        query = query.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+      } else {
+        query = query.gt('redeemed_at', '1970-01-01');
+      }
+      const { error } = await query;
+      if (error) throw error;
+      toast.success('История списаний очищена');
+      fetchRedemptions();
+    } catch (error) {
+      console.error('Error clearing redemptions:', error);
+      toast.error('Ошибка очистки');
+    }
+  };
+
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') {
       return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
