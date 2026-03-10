@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
             matchedTemplate = tmpl;
             break;
           }
-        } else if (type === 'activated') {
+        } else if (type === 'activated' || type === 'activated_special') {
           matchedTemplate = tmpl;
           break;
         }
