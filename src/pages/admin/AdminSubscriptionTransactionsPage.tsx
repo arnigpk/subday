@@ -228,6 +228,12 @@ export default function AdminSubscriptionTransactionsPage() {
       if (countryFilter !== 'all') {
         combined = combined.filter(t => t.user_country === countryFilter);
       }
+      if (cityFilter !== 'all') {
+        combined = combined.filter(t => {
+          const profile = profileMap.get(t.user_id);
+          return (profile as any)?.city === cityFilter;
+        });
+      }
 
       setTransactions(combined);
     } catch (error) {
