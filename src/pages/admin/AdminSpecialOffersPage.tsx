@@ -174,9 +174,22 @@ export default function AdminSpecialOffersPage() {
   return (
     <AdminLayout title="Спецпредложения">
       <div className="space-y-4">
-        <Button onClick={openCreate} className="gap-2">
-          <Plus size={16} /> Создать предложение
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={openCreate} className="gap-2">
+            <Plus size={16} /> Создать предложение
+          </Button>
+          <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Страна" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все страны</SelectItem>
+              {COUNTRY_OPTIONS.map(c => (
+                <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {isLoading ? (
           <div className="space-y-3">
