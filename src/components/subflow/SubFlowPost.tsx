@@ -284,12 +284,18 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             reaction
           }, { onConflict: 'user_id,post_id,reaction' });
 
-        // Fire-and-forget notification for new reaction (not removal)
-        if (!error) {
-          supabase.functions.invoke('subflow-notify', {
-            body: { type: 'reaction', postId: post.id, actorId: currentUserId, reaction }
-          }).catch(() => {});
+        if (error) {
+          // DB trigger rejected — revert optimistic update
+          console.error('Reaction insert rejected:', error.message);
+          pendingReactions.delete(reactionKey);
+          onUpdate();
+          return;
         }
+
+        // Fire-and-forget notification for new reaction (not removal)
+        supabase.functions.invoke('subflow-notify', {
+          body: { type: 'reaction', postId: post.id, actorId: currentUserId, reaction }
+        }).catch(() => {});
       }
     } catch (error) {
       console.error('Reaction error:', error);
