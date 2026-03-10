@@ -33,6 +33,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import {
   DndContext,
   closestCenter,
