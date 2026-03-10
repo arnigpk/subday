@@ -83,6 +83,7 @@ export default function AdminSubscriptionTransactionsPage() {
   // Shared filters
   const [periodType, setPeriodType] = useState<PeriodType>('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
