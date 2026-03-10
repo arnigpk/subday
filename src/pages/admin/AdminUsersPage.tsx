@@ -115,7 +115,7 @@ export default function AdminUsersPage() {
     fetchUsers();
     fetchSubscriptionTypes();
     fetchShops();
-  }, [page, search, registrationFilter, countryFilter, customDateFrom, customDateTo]);
+  }, [page, search, registrationFilter, countryFilter, cityFilter, customDateFrom, customDateTo]);
 
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
