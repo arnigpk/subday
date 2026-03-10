@@ -317,12 +317,18 @@ export default function AdminBannersPage() {
                 Добавить
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingBanner ? 'Редактировать баннер' : 'Новый баннер'}
-                </DialogTitle>
-              </DialogHeader>
+            {/* ... dialog content below */}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <CountryCityFilter
+              countryFilter={listCountryFilter}
+              cityFilter={listCityFilter}
+              onCountryChange={setListCountryFilter}
+              onCityChange={setListCityFilter}
+            />
+          </div>
+        </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 
               <div className="space-y-4 mt-4">
                 {/* Image upload */}
