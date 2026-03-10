@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'low_balance' | 'expiring_soon';
+  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon';
   userId: string;
   cupsCount?: number;
   daysCount?: number;
