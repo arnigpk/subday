@@ -65,7 +65,7 @@ export default function AdminHistoryPage() {
 
   useEffect(() => {
     fetchRedemptions();
-  }, [page, shopFilter, typeFilter, countryFilter, search, periodType, dateRange]);
+  }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange]);
 
   const fetchShops = async () => {
     const { data } = await supabase
