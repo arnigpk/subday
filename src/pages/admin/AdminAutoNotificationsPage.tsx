@@ -39,6 +39,7 @@ const defaultForm = {
 
 const triggerLabels: Record<string, string> = {
   activated: 'Подписка активирована',
+  activated_special: 'Подписка активирована (спецпредложение)',
   low_balance: 'Низкий баланс',
   expiring_soon: 'Скоро истекает',
   custom: 'Кастомное',
