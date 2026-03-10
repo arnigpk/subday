@@ -89,7 +89,7 @@ export default function AdminSubscriptionTransactionsPage() {
   useEffect(() => {
     if (activeTab === 'payments') fetchPayments();
     else fetchTransactions();
-  }, [activeTab, pmPage, txPage, periodType, dateRange, countryFilter, statusFilter]);
+  }, [activeTab, pmPage, txPage, periodType, dateRange, countryFilter, cityFilter, statusFilter]);
 
   const getDateFilters = () => {
     const now = new Date();
