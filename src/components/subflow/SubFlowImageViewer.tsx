@@ -274,9 +274,12 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
         ref={imgRef}
         src={images[currentIndex]}
         alt=""
-        className="w-full h-full object-contain will-change-transform"
+        className="will-change-transform"
         draggable={false}
         style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          objectFit: 'contain',
           transform: phase === 'morph-in' && sourceRect
             ? (imgTransform as React.CSSProperties).transform
             : phase === 'closing' && sourceRect
