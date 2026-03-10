@@ -181,7 +181,8 @@ Deno.serve(async (req) => {
     // Send Push notification if applicable
     if (channel === 'push' || channel === 'both') {
       try {
-        const title = type === 'activated' ? '🎉 Подписка активирована' :
+        const title = type === 'activated_special' ? '🎉 Спецпредложение активировано' :
+                      type === 'activated' ? '🎉 Подписка активирована' :
                       type === 'low_balance' ? '⚠️ Низкий баланс' :
                       '⚠️ Подписка заканчивается';
         
