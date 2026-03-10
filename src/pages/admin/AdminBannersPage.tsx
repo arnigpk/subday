@@ -527,7 +527,6 @@ export default function AdminBannersPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
 
         {/* Banners list */}
         {bannersLoading ? (
