@@ -354,7 +354,9 @@ export default function AdminSubscriptionsPage() {
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-3">
-              {subscriptions.map((sub) => (
+              {subscriptions
+                .filter(s => listCountryFilter === 'all' || s.country === listCountryFilter)
+                .map((sub) => (
                 <SortableItem key={sub.id} id={sub.id}>
                   <Card className={!sub.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">

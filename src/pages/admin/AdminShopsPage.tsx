@@ -373,7 +373,13 @@ export default function AdminShopsPage() {
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-3">
-              {shops.map((shop) => (
+              {shops
+                .filter(s => {
+                  if (listCountryFilter !== 'all' && s.country !== listCountryFilter) return false;
+                  if (listCityFilter !== 'all' && s.city !== listCityFilter) return false;
+                  return true;
+                })
+                .map((shop) => (
                 <SortableItem key={shop.id} id={shop.id}>
                   <Card className={!shop.is_active ? 'opacity-50' : ''}>
                     <CardContent className="p-4">

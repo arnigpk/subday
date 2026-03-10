@@ -202,7 +202,9 @@ export default function AdminSpecialOffersPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {offers.map(offer => {
+            {offers
+              .filter(o => listCountryFilter === 'all' || (o as any).country === listCountryFilter)
+              .map(offer => {
               const subType = subscriptionTypes.find(s => s.id === offer.target_subscription_type_id);
               return (
                 <div key={offer.id} className="bg-card border border-border rounded-xl p-4">
