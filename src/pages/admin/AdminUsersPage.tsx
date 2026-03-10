@@ -147,6 +147,9 @@ export default function AdminUsersPage() {
       if (countryFilter !== 'all') {
         query = query.eq('country', countryFilter);
       }
+      if (cityFilter !== 'all') {
+        query = query.eq('city', cityFilter);
+      }
 
       // Registration date filter
       if (registrationFilter === 'week') {
