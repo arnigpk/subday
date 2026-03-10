@@ -508,8 +508,39 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               }
               setLightboxOpen(true);
             }}
-            onLoad={() => setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }))}
+            onLoad={() => {
+              setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }));
+              // Show one-time tooltip hint
+              if (!localStorage.getItem('subflow_image_hint_shown')) {
+                setShowImageHint(true);
+                localStorage.setItem('subflow_image_hint_shown', '1');
+                setTimeout(() => setShowImageHint(false), 3000);
+              }
+            }}
           />
+          {/* Maximize icon overlay */}
+          <button
+            onClick={() => {
+              if (postImgRef.current) {
+                const rect = postImgRef.current.getBoundingClientRect();
+                setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+              }
+              setLightboxOpen(true);
+            }}
+            className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-opacity hover:bg-black/50 active:scale-90"
+          >
+            <Maximize2 size={14} />
+          </button>
+          {/* One-time tooltip hint */}
+          {showImageHint && (
+            <div
+              onClick={() => setShowImageHint(false)}
+              className="absolute bottom-10 right-2 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-medium whitespace-nowrap animate-fade-in cursor-pointer"
+            >
+              {t('subflow.tapToEnlarge')}
+              <div className="absolute -bottom-1 right-4 w-2 h-2 bg-black/70 rotate-45" />
+            </div>
+          )}
           {images.length > 1 && (
             <>
               {/* Navigation arrows */}
