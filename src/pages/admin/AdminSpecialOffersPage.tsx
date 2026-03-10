@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import {
   Dialog,
   DialogContent,
