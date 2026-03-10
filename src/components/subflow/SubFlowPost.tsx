@@ -54,6 +54,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxRect, setLightboxRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const postImgRef = useRef<HTMLImageElement>(null);
+  const [showImageHint, setShowImageHint] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
