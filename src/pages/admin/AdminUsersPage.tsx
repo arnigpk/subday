@@ -51,6 +51,7 @@ interface UserWithStats {
   country: string | null;
   created_at: string;
   is_blocked: boolean;
+  subflow_access: boolean;
   coffee_remaining: number;
   drinks_remaining: number;
   total_cups: number;
@@ -109,6 +110,7 @@ export default function AdminUsersPage() {
     drinks_remaining: 0,
     role: 'user' as UserRole,
     shop_id: '',
+    subflow_access: false,
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
@@ -140,7 +142,7 @@ export default function AdminUsersPage() {
     try {
       let query = supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id, city, country, created_at, is_blocked', { count: 'exact' });
+        .select('user_id, name, phone, public_id, city, country, created_at, is_blocked, subflow_access', { count: 'exact' });
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,public_id.ilike.%${search}%`);
@@ -223,6 +225,7 @@ export default function AdminUsersPage() {
         return {
           ...profile,
           is_blocked: profile.is_blocked || false,
+          subflow_access: (profile as any).subflow_access || false,
           coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
           drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
           total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
@@ -255,6 +258,7 @@ export default function AdminUsersPage() {
       drinks_remaining: user.drinks_remaining,
       role: user.role || 'user',
       shop_id: user.shop_id || '',
+      subflow_access: user.subflow_access || false,
     });
     setSelectedSubscription('');
   };
@@ -271,6 +275,7 @@ export default function AdminUsersPage() {
           city: formData.city || null,
           country: formData.country || 'KZ',
           is_blocked: formData.is_blocked,
+          subflow_access: formData.subflow_access,
         })
         .eq('user_id', editingUser.user_id);
 
@@ -763,6 +768,15 @@ export default function AdminUsersPage() {
                   </Select>
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="subflow_access"
+                checked={formData.subflow_access}
+                onCheckedChange={(checked) => setFormData({ ...formData, subflow_access: checked })}
+              />
+              <Label htmlFor="subflow_access">#subFlow доступ</Label>
             </div>
 
             <div className="flex items-center gap-2">

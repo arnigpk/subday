@@ -298,6 +298,7 @@ export type Database = {
           public_id: string
           special_offer_popup_shown_at: string | null
           special_offer_redeemed_at: string | null
+          subflow_access: boolean
           subflow_nickname: string | null
           updated_at: string
           user_id: string
@@ -315,6 +316,7 @@ export type Database = {
           public_id?: string
           special_offer_popup_shown_at?: string | null
           special_offer_redeemed_at?: string | null
+          subflow_access?: boolean
           subflow_nickname?: string | null
           updated_at?: string
           user_id: string
@@ -332,6 +334,7 @@ export type Database = {
           public_id?: string
           special_offer_popup_shown_at?: string | null
           special_offer_redeemed_at?: string | null
+          subflow_access?: boolean
           subflow_nickname?: string | null
           updated_at?: string
           user_id?: string
