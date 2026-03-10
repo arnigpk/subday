@@ -92,8 +92,8 @@ const defaultMessages: Record<string, string> = {
   admin_register_miniapp: '🆕 Новая регистрация (Mini App)\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
   admin_login_telegram: '🔑 Вход через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
   admin_register_telegram: '🆕 Новая регистрация через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
-  admin_payment: '🎉 Новая оплата подписки!\n\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
-  admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
+  admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
+  admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
@@ -251,7 +251,7 @@ export default function AdminAutoNotificationsPage() {
   const getVariablesHelp = (triggerType: string) => {
     if (isAdminTrigger(triggerType)) {
       if (triggerType.includes('payment')) {
-        return '{{subscription_name}} — подписка, {{amount}} — сумма, {{order_id}} — заказ';
+        return '{{name}} — имя, {{subscription_name}} — подписка, {{amount}} — сумма, {{order_id}} — заказ';
       }
       if (triggerType.includes('miniapp') || triggerType.includes('telegram')) {
         return '{{name}} — имя, {{telegram}} — username, {{time}} — время';
