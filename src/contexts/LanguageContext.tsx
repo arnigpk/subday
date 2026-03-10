@@ -230,7 +230,7 @@ const translations: Record<string, Record<Language, string>> = {
   'subflow.comment': { ru: 'Комментировать', kz: 'Пікір жазу', en: 'Comment', uz: 'Izoh yozish', kg: 'Пикир жазуу' },
   'subflow.allShops': { ru: 'Все кофейни', kz: 'Барлық кофеханалар', en: 'All cafés', uz: 'Barcha qahvaxonalar', kg: 'Бардык кофейналар' },
   'subflow.user': { ru: 'Пользователь', kz: 'Пайдаланушы', en: 'User', uz: 'Foydalanuvchi', kg: 'Колдонуучу' },
-  'subflow.tapToEnlarge': { ru: 'Нажмите на фото для просмотра', kz: 'Фотоны үлкейту үшін басыңыз', en: 'Tap photo to view fullscreen', uz: 'Kattalashtirish uchun rasmga bosing', kg: 'Сүрөттү чоңойтуу үчүн басыңыз' },
+  'subflow.tapToEnlarge': { ru: 'Нажмите на фото чтобы увеличить', kz: 'Фотоны үлкейту үшін басыңыз', en: 'Tap photo to enlarge', uz: 'Kattalashtirish uchun rasmga bosing', kg: 'Сүрөттү чоңойтуу үчүн басыңыз' },
 
   // Auth screens
   'auth.enterPhone': { ru: 'Введите ваш номер👇', kz: 'Нөміріңізді енгізіңіз👇', en: 'Enter your number👇', uz: 'Raqamingizni kiriting👇', kg: 'Номериңизди киргизиңиз👇' },
