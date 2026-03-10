@@ -413,7 +413,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         {periodType !== 'all'
                           ? `Будут удалены транзакции за период: ${formatPeriodLabel()}`
                           : 'Будут удалены ВСЕ транзакции'
-                        }. Это действие нельзя отменить.
+                        }. Это действие нельзя отменить. Транзакции исчезнут и у пользователей.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -20,12 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, User, CalendarIcon } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { toast } from '@/components/ui/sonner';
 
 interface RedemptionWithUser {
   id: string;
@@ -169,6 +174,25 @@ export default function AdminHistoryPage() {
     if (value !== 'custom') setDateRange(undefined);
   };
 
+  const handleClearRedemptions = async () => {
+    try {
+      const dateFilters = getDateFilters();
+      let query = supabase.from('redemptions').delete();
+      if (dateFilters) {
+        query = query.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+      } else {
+        query = query.gt('redeemed_at', '1970-01-01');
+      }
+      const { error } = await query;
+      if (error) throw error;
+      toast.success('История списаний очищена');
+      fetchRedemptions();
+    } catch (error) {
+      console.error('Error clearing redemptions:', error);
+      toast.error('Ошибка очистки');
+    }
+  };
+
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') {
       return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
@@ -187,7 +211,32 @@ export default function AdminHistoryPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
-            <CardTitle>Всего покупок ({totalCount})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Всего покупок ({totalCount})</CardTitle>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Очистить историю
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {periodType !== 'all'
+                        ? `Будут удалены списания за период: ${formatPeriodLabel()}`
+                        : 'Будут удалены ВСЕ списания'
+                      }. Это действие нельзя отменить. История исчезнет у пользователей и в кабинете партнера.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
