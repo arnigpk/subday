@@ -231,9 +231,11 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'activated', userId: user.id,
+          type: isSpecialOffer ? 'activated_special' : 'activated',
+          userId: user.id,
           cupsCount: isSpecialOffer ? Number(metadata.cups_count) : (subType?.cups_count || (activationResult as any).cups_count),
           daysCount: isSpecialOffer ? Number(metadata.duration_days) : (subType?.duration_days || (activationResult as any).duration_days),
+          subscriptionName: subType?.name,
         }),
       });
     } catch (notifError) {

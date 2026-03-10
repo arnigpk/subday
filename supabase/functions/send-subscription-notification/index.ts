@@ -153,8 +153,10 @@ Deno.serve(async (req) => {
       });
     } else {
       // Fallback defaults
-      if (type === 'activated') {
-        message = `🎉 Подписка ${subName} активирована 🚀 Наслаждайтесь😌`;
+      if (type === 'activated_special') {
+        message = `🎉 Подписка 🎁СПЕЦПРЕДЛОЖЕНИЕ🎁 успешно активирована! 🚀 Наслаждайтесь😌`;
+      } else if (type === 'activated') {
+        message = `🎉 Подписка ${subName} успешно активирована! 🚀 Наслаждайтесь😌`;
       } else if (type === 'low_balance') {
         message = `⚠️ У вас осталось ${count} ${unit} по подписке ${subName}`;
       } else if (type === 'expiring_soon') {
