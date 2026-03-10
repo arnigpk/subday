@@ -95,6 +95,8 @@ export default function AdminShopsPage() {
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteShopId, setDeleteShopId] = useState<string | null>(null);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
+  const [listCityFilter, setListCityFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     addressesWithCoords: [] as AddressWithCoords[],
