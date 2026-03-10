@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     if (offers && offers.length > 0) {
       const { data: profile } = await supabaseClient
         .from('profiles')
-        .select('created_at, special_offer_redeemed_at')
+        .select('created_at')
         .eq('user_id', user.id)
         .single();
 
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
           if (profile) {
             const createdAt = new Date(profile.created_at);
             const eligibleUntil = new Date(createdAt.getTime() + offer.eligibility_days * 24 * 60 * 60 * 1000);
-            eligible = now < eligibleUntil && !profile.special_offer_redeemed_at;
+            eligible = now < eligibleUntil;
           }
         } else if (offer.eligibility_type === 'all_users') {
           eligible = true;
