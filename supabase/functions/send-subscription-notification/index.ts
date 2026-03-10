@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'low_balance' | 'expiring_soon';
+  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon';
   userId: string;
   cupsCount?: number;
   daysCount?: number;
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
             matchedTemplate = tmpl;
             break;
           }
-        } else if (type === 'activated') {
+        } else if (type === 'activated' || type === 'activated_special') {
           matchedTemplate = tmpl;
           break;
         }
@@ -153,8 +153,10 @@ Deno.serve(async (req) => {
       });
     } else {
       // Fallback defaults
-      if (type === 'activated') {
-        message = `🎉 Подписка ${subName} активирована 🚀 Наслаждайтесь😌`;
+      if (type === 'activated_special') {
+        message = `🎉 Подписка 🎁СПЕЦПРЕДЛОЖЕНИЕ🎁 успешно активирована! 🚀 Наслаждайтесь😌`;
+      } else if (type === 'activated') {
+        message = `🎉 Подписка ${subName} успешно активирована! 🚀 Наслаждайтесь😌`;
       } else if (type === 'low_balance') {
         message = `⚠️ У вас осталось ${count} ${unit} по подписке ${subName}`;
       } else if (type === 'expiring_soon') {
@@ -179,7 +181,8 @@ Deno.serve(async (req) => {
     // Send Push notification if applicable
     if (channel === 'push' || channel === 'both') {
       try {
-        const title = type === 'activated' ? '🎉 Подписка активирована' :
+        const title = type === 'activated_special' ? '🎉 Спецпредложение активировано' :
+                      type === 'activated' ? '🎉 Подписка активирована' :
                       type === 'low_balance' ? '⚠️ Низкий баланс' :
                       '⚠️ Подписка заканчивается';
         
