@@ -112,7 +112,8 @@ export default function SubFlowPage() {
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
                 <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <SubFlowFollowerCount userId={userId} />
                 <SubFlowNotifications userId={userId} onNavigateToPost={(postId) => setHighlightPostId(postId)} />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
               </div>
