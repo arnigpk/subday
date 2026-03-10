@@ -258,6 +258,7 @@ export default function AdminUsersPage() {
       drinks_remaining: user.drinks_remaining,
       role: user.role || 'user',
       shop_id: user.shop_id || '',
+      subflow_access: user.subflow_access || false,
     });
     setSelectedSubscription('');
   };
