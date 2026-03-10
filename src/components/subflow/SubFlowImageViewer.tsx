@@ -2,27 +2,54 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
+interface SourceRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 interface SubFlowImageViewerProps {
   images: string[];
   initialIndex: number;
   onClose: () => void;
+  sourceRect?: SourceRect | null;
 }
 
-export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowImageViewerProps) {
+export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }: SubFlowImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
-  const [bgOpacity, setBgOpacity] = useState(0);
-  const [isClosing, setIsClosing] = useState(false);
+  const [phase, setPhase] = useState<'morph-in' | 'open' | 'closing'>('morph-in');
 
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef<number>(0);
   const isDraggingRef = useRef(false);
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartScaleRef = useRef(1);
+  const pinchMidRef = useRef<{ x: number; y: number } | null>(null);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Compute morph styles
+  const getMorphStyle = useCallback((): React.CSSProperties => {
+    if (!sourceRect) return { opacity: 0 };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const scaleX = sourceRect.width / vw;
+    const scaleY = sourceRect.height / vh;
+    const s = Math.max(scaleX, scaleY);
+    const originX = sourceRect.left + sourceRect.width / 2;
+    const originY = sourceRect.top + sourceRect.height / 2;
+    const dx = originX - vw / 2;
+    const dy = originY - vh / 2;
+    return {
+      transform: `translate(${dx}px, ${dy}px) scale(${s})`,
+      opacity: 1,
+    };
+  }, [sourceRect]);
 
   // Lock body scroll
   useEffect(() => {
@@ -31,24 +58,26 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
     return () => { document.body.style.overflow = orig; };
   }, []);
 
-  // Fade in on mount
+  // Morph-in animation
   useEffect(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setBgOpacity(1));
+    // Start morph then transition to open
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setPhase('open');
+      });
     });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const resetTransform = useCallback(() => {
     setScale(1);
     setTranslateX(0);
     setTranslateY(0);
-    setBgOpacity(1);
   }, []);
 
   const close = useCallback(() => {
-    setIsClosing(true);
-    setBgOpacity(0);
-    setTimeout(onClose, 250);
+    setPhase('closing');
+    setTimeout(onClose, 300);
   }, [onClose]);
 
   const getTouchDistance = (touches: React.TouchList) => {
@@ -57,10 +86,16 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  const getTouchMidpoint = (touches: React.TouchList) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  });
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       pinchStartDistRef.current = getTouchDistance(e.touches);
       pinchStartScaleRef.current = scale;
+      pinchMidRef.current = getTouchMidpoint(e.touches);
       return;
     }
     if (e.touches.length === 1) {
@@ -76,11 +111,16 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
 
+    // Pinch zoom — continuous, smooth
     if (e.touches.length === 2 && pinchStartDistRef.current !== null) {
       const dist = getTouchDistance(e.touches);
-      const newScale = Math.min(3, Math.max(1, pinchStartScaleRef.current * (dist / pinchStartDistRef.current)));
+      const ratio = dist / pinchStartDistRef.current;
+      const newScale = Math.min(4, Math.max(0.5, pinchStartScaleRef.current * ratio));
       setScale(newScale);
-      if (newScale <= 1) { setTranslateX(0); setTranslateY(0); }
+      if (newScale <= 1) {
+        setTranslateX(0);
+        setTranslateY(0);
+      }
       return;
     }
 
@@ -92,14 +132,15 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
     isDraggingRef.current = true;
 
     if (scale > 1) {
+      // Pan when zoomed
       if (panStartRef.current) {
         setTranslateX(panStartRef.current.x + deltaX);
         setTranslateY(panStartRef.current.y + deltaY);
       }
     } else {
+      // Swipe down to dismiss or horizontal to navigate
       if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
         setTranslateY(deltaY);
-        setBgOpacity(Math.max(0, 1 - deltaY / 300));
       }
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
         setTranslateX(deltaX);
@@ -108,20 +149,27 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
   }, [scale]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // End of pinch
     if (pinchStartDistRef.current !== null && e.touches.length < 2) {
       pinchStartDistRef.current = null;
-      if (scale <= 1) resetTransform();
+      pinchMidRef.current = null;
+      // Snap back if zoomed out too far
+      if (scale < 1) {
+        setScale(1);
+        setTranslateX(0);
+        setTranslateY(0);
+      }
       return;
     }
 
     if (!touchStartRef.current) return;
 
     const now = Date.now();
-    const deltaY = translateY;
-    const deltaX = translateX;
+    const dY = translateY;
+    const dX = translateX;
 
-    // Double-tap
-    if (!isDraggingRef.current || (Math.abs(deltaX) < 5 && Math.abs(deltaY) < 5)) {
+    // Double-tap detection
+    if (!isDraggingRef.current || (Math.abs(dX) < 5 && Math.abs(dY) < 5)) {
       const timeSinceLastTap = now - lastTapRef.current;
       if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
         if (scale > 1) resetTransform();
@@ -133,15 +181,16 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
       lastTapRef.current = now;
     }
 
-    if (scale === 1) {
-      if (deltaY > 120) { close(); return; }
-      if (Math.abs(deltaX) > 60) {
-        if (deltaX < -60 && currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1);
-        else if (deltaX > 60 && currentIndex > 0) setCurrentIndex(prev => prev - 1);
+    if (scale <= 1) {
+      // Swipe down dismiss
+      if (dY > 100) { close(); return; }
+      // Swipe horizontal to navigate
+      if (Math.abs(dX) > 60) {
+        if (dX < -60 && currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1);
+        else if (dX > 60 && currentIndex > 0) setCurrentIndex(prev => prev - 1);
       }
       setTranslateX(0);
       setTranslateY(0);
-      setBgOpacity(1);
     }
 
     touchStartRef.current = null;
@@ -149,9 +198,32 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
     panStartRef.current = null;
   }, [scale, translateX, translateY, currentIndex, images.length, close, resetTransform]);
 
+  // Reset on image change
   useEffect(() => {
-    setScale(1); setTranslateX(0); setTranslateY(0);
+    setScale(1);
+    setTranslateX(0);
+    setTranslateY(0);
   }, [currentIndex]);
+
+  const isZoomed = scale > 1;
+  const isDragging = isDraggingRef.current;
+  const bgOpacity = phase === 'closing'
+    ? 0
+    : phase === 'morph-in'
+      ? 0
+      : scale <= 1
+        ? Math.max(0, 1 - translateY / 300)
+        : 1;
+
+  // Controls hidden when zoomed
+  const controlsOpacity = phase === 'open' && !isZoomed ? bgOpacity : phase === 'open' && isZoomed ? 0 : 0;
+
+  // Image transform
+  const imgTransform = phase === 'morph-in' && sourceRect
+    ? getMorphStyle()
+    : phase === 'closing' && sourceRect
+      ? { ...getMorphStyle(), transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease' }
+      : {};
 
   const viewer = (
     <div
@@ -160,28 +232,38 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
       style={{
         zIndex: 99999,
         backgroundColor: `rgba(0,0,0,${bgOpacity})`,
-        transition: isDraggingRef.current ? 'none' : 'background-color 0.25s ease',
+        transition: isDragging ? 'none' : 'background-color 0.3s ease',
         touchAction: 'none',
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onClick={(e) => { if (e.target === containerRef.current) close(); }}
+      onClick={(e) => { if (e.target === containerRef.current && !isZoomed) close(); }}
     >
-      {/* Close */}
+      {/* Close button — hidden when zoomed */}
       <button
         onClick={close}
-        className="absolute top-3 right-3 p-2.5 rounded-full bg-black/40 text-white backdrop-blur-md active:scale-90 transition-transform"
-        style={{ zIndex: 100000, opacity: bgOpacity }}
+        className="absolute top-3 right-3 p-2.5 rounded-full bg-black/40 text-white backdrop-blur-md active:scale-90"
+        style={{
+          zIndex: 100000,
+          opacity: controlsOpacity,
+          transition: 'opacity 0.2s ease',
+          pointerEvents: controlsOpacity > 0 ? 'auto' : 'none',
+        }}
       >
         <X size={22} />
       </button>
 
-      {/* Counter */}
+      {/* Counter — hidden when zoomed */}
       {images.length > 1 && (
         <div
           className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-white/90 text-xs font-medium backdrop-blur-md"
-          style={{ zIndex: 100000, opacity: bgOpacity }}
+          style={{
+            zIndex: 100000,
+            opacity: controlsOpacity,
+            transition: 'opacity 0.2s ease',
+            pointerEvents: 'none',
+          }}
         >
           {currentIndex + 1} / {images.length}
         </div>
@@ -189,21 +271,38 @@ export function SubFlowImageViewer({ images, initialIndex, onClose }: SubFlowIma
 
       {/* Image */}
       <img
+        ref={imgRef}
         src={images[currentIndex]}
         alt=""
         className="w-full h-full object-contain will-change-transform"
         draggable={false}
         style={{
-          transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-          transition: isDraggingRef.current ? 'none' : 'transform 0.25s ease',
+          transform: phase === 'morph-in' && sourceRect
+            ? (imgTransform as React.CSSProperties).transform
+            : phase === 'closing' && sourceRect
+              ? (getMorphStyle()).transform
+              : `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+          opacity: phase === 'closing' && !sourceRect ? 0 : 1,
+          transition: phase === 'morph-in'
+            ? 'none'
+            : phase === 'closing'
+              ? 'transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease'
+              : isDragging
+                ? 'none'
+                : 'transform 0.25s ease',
         }}
       />
 
-      {/* Dots */}
+      {/* Dots — hidden when zoomed */}
       {images.length > 1 && (
         <div
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1.5"
-          style={{ zIndex: 100000, opacity: bgOpacity }}
+          style={{
+            zIndex: 100000,
+            opacity: controlsOpacity,
+            transition: 'opacity 0.2s ease',
+            pointerEvents: 'none',
+          }}
         >
           {images.map((_, i) => (
             <div

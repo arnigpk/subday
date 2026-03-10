@@ -52,6 +52,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxRect, setLightboxRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const postImgRef = useRef<HTMLImageElement>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useLanguage();
   const { vibrateShort } = useVibration();
@@ -490,6 +492,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             <div className="absolute inset-0 bg-muted animate-pulse" />
           )}
           <img
+            ref={postImgRef}
             src={images[currentImageIndex]}
             alt={`Post image ${currentImageIndex + 1}`}
             className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
@@ -497,7 +500,13 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             }`}
             loading="lazy"
             draggable={false}
-            onClick={() => setLightboxOpen(true)}
+            onClick={() => {
+              if (postImgRef.current) {
+                const rect = postImgRef.current.getBoundingClientRect();
+                setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+              }
+              setLightboxOpen(true);
+            }}
             onLoad={() => setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }))}
           />
           {images.length > 1 && (
@@ -594,6 +603,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           images={images}
           initialIndex={currentImageIndex}
           onClose={() => setLightboxOpen(false)}
+          sourceRect={lightboxRect}
         />
       )}
     </div>
