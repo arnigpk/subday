@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
@@ -13,6 +14,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
   const { canManage } = useAdminAuth();
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
