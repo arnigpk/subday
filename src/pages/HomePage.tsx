@@ -11,6 +11,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
 
