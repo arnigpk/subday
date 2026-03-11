@@ -307,10 +307,12 @@ export default function AdminSubscriptionsPage() {
           <p className="text-sm text-muted-foreground">
             Перетащите карточки для изменения порядка
           </p>
-          <Button onClick={openCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить подписку
-          </Button>
+          {canManage && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить подписку
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
