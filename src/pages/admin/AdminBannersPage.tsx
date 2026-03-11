@@ -165,6 +165,8 @@ export default function AdminBannersPage() {
       display_location: banner.display_location || 'shops',
       country: (banner as any).country || '',
       city: (banner as any).city || '',
+      starts_at: (banner as any).starts_at ? new Date((banner as any).starts_at) : undefined,
+      ends_at: (banner as any).ends_at ? new Date((banner as any).ends_at) : undefined,
     });
     setIsDialogOpen(true);
   };
