@@ -69,7 +69,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <span className="text-sm">Вернуться в приложение</span>
           </Link>
           <h1 className="text-xl font-bold mt-3">subday admin</h1>
-          <p className="text-xs text-muted-foreground capitalize">{role}</p>
+          <p className="text-xs text-muted-foreground capitalize">{role === 'superadmin' ? 'СуперАдмин' : role}</p>
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
