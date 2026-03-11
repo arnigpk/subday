@@ -34,18 +34,21 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
         ad_id: ad.id,
         user_id: data.user.id,
         event_type: 'view',
-      } as any).then(() => {});
+      }).then(({ error }) => {
+        if (error) console.error('Ad view track error:', error);
+      });
     });
   }, [ad.id]);
 
   const trackClick = async () => {
     const { data } = await supabase.auth.getUser();
     if (data.user) {
-      await supabase.from('subflow_ad_events').insert({
+      const { error } = await supabase.from('subflow_ad_events').insert({
         ad_id: ad.id,
         user_id: data.user.id,
         event_type: 'click',
-      } as any);
+      });
+      if (error) console.error('Ad click track error:', error);
     }
   };
 
