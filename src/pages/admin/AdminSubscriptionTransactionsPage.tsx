@@ -560,23 +560,25 @@ export default function AdminSubscriptionTransactionsPage() {
                             {p.paid_at ? format(new Date(p.paid_at), 'd.MM.yyyy HH:mm', { locale: ru }) : '—'}
                           </TableCell>
                           <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
-                                  <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {canManage && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
+                                    <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
