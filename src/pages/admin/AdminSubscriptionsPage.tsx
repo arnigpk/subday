@@ -388,25 +388,27 @@ export default function AdminSubscriptionsPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-bold text-lg">{formatPrice(sub.price, sub.currency)}</span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(sub)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteSubId(sub.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                          <div className="flex items-center gap-4">
+                            <span className="font-bold text-lg">{formatPrice(sub.price, sub.currency)}</span>
+                            {canManage && (
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(sub)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteSubId(sub.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
