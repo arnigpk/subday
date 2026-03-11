@@ -95,31 +95,39 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                     )}
                     <p className="text-xs text-muted-foreground mt-1">{formatDate(ad.created_at)}</p>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => onToggleActive(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
-                      {ad.is_active ? <EyeOff size={16} className="text-muted-foreground" /> : <Eye size={16} className="text-muted-foreground" />}
-                    </button>
-                    <button onClick={() => onEdit(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
-                      <Pencil size={16} className="text-muted-foreground" />
-                    </button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="p-2 rounded-full hover:bg-destructive/10 transition-colors">
-                          <Trash2 size={16} className="text-destructive" />
+                  {(onToggleActive || onEdit || onDelete) && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {onToggleActive && (
+                        <button onClick={() => onToggleActive(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
+                          {ad.is_active ? <EyeOff size={16} className="text-muted-foreground" /> : <Eye size={16} className="text-muted-foreground" />}
                         </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Удалить рекламу?</AlertDialogTitle>
-                          <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Отмена</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDelete(ad.id)}>Удалить</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                      )}
+                      {onEdit && (
+                        <button onClick={() => onEdit(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
+                          <Pencil size={16} className="text-muted-foreground" />
+                        </button>
+                      )}
+                      {onDelete && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="p-2 rounded-full hover:bg-destructive/10 transition-colors">
+                              <Trash2 size={16} className="text-destructive" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Удалить рекламу?</AlertDialogTitle>
+                              <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Отмена</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(ad.id)}>Удалить</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
