@@ -292,20 +292,35 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   }
 
   // Build feed with ads inserted at configured frequency, respecting daily limits
-  const getAdForPosition = (postIndex: number): SubFlowAd | null => {
-    if (filteredAds.length === 0) return null;
-    for (const ad of filteredAds) {
-      if (ad.frequency > 0 && (postIndex + 1) % ad.frequency === 0) {
-        return ad;
+  // Pre-compute which ads go where, tracking per-ad render count vs daily_limit
+  const buildAdPlacements = (): Map<number, SubFlowAd> => {
+    const placements = new Map<number, SubFlowAd>();
+    if (filteredAds.length === 0) return placements;
+
+    // Track how many times each ad has been placed in this render
+    const renderCounts = new Map<string, number>();
+
+    for (let i = 0; i < posts.length; i++) {
+      for (const ad of filteredAds) {
+        if (ad.frequency > 0 && (i + 1) % ad.frequency === 0) {
+          const shown = renderCounts.get(ad.id) || 0;
+          // If daily_limit > 0, cap placements to daily_limit
+          if (ad.daily_limit > 0 && shown >= ad.daily_limit) continue;
+          renderCounts.set(ad.id, shown + 1);
+          placements.set(i, ad);
+          break; // only one ad per position
+        }
       }
     }
-    return null;
+    return placements;
   };
+
+  const adPlacements = buildAdPlacements();
 
   return (
     <div className="space-y-4">
       {posts.map((post, index) => {
-        const adToShow = getAdForPosition(index);
+        const adToShow = adPlacements.get(index) || null;
         return (
           <div key={post.id}>
             <SubFlowPost
