@@ -91,18 +91,25 @@ export default function AdminSubFlowAdsPage() {
     // Fetch analytics for all ads
     if (adsData.length > 0) {
       const adIds = adsData.map((a: any) => a.id);
-      const { data: events } = await supabase
-        .from('subflow_ad_events')
-        .select('ad_id, event_type')
-        .in('ad_id', adIds);
+      const [{ data: events }, { data: reactionsData }, { data: commentsData }] = await Promise.all([
+        supabase.from('subflow_ad_events').select('ad_id, event_type').in('ad_id', adIds),
+        supabase.from('subflow_ad_reactions' as any).select('ad_id').in('ad_id', adIds),
+        supabase.from('subflow_ad_comments' as any).select('ad_id').in('ad_id', adIds),
+      ]);
 
       const analyticsMap: AdAnalytics = {};
-      adIds.forEach((id: string) => { analyticsMap[id] = { views: 0, clicks: 0 }; });
+      adIds.forEach((id: string) => { analyticsMap[id] = { views: 0, clicks: 0, reactions: 0, comments: 0 }; });
       (events || []).forEach((e: any) => {
         if (analyticsMap[e.ad_id]) {
           if (e.event_type === 'view') analyticsMap[e.ad_id].views++;
           else if (e.event_type === 'click') analyticsMap[e.ad_id].clicks++;
         }
+      });
+      ((reactionsData as any[]) || []).forEach((r: any) => {
+        if (analyticsMap[r.ad_id]) analyticsMap[r.ad_id].reactions++;
+      });
+      ((commentsData as any[]) || []).forEach((c: any) => {
+        if (analyticsMap[c.ad_id]) analyticsMap[c.ad_id].comments++;
       });
       setAnalytics(analyticsMap);
     }
