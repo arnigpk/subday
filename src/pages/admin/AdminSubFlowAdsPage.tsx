@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
