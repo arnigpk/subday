@@ -163,6 +163,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       const selectedShop = shops.find(s => s.id === selectedShopId);
 
       const adData: any = {
+        title: title.trim() || null,
         content: content.trim(),
         image_url: finalImageUrl || null,
         link_type: linkType,
