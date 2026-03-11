@@ -62,6 +62,7 @@ const defaultForm = {
 };
 
 export default function AdminSpecialOffersPage() {
+  const { canManage } = useAdminAuth();
   const [offers, setOffers] = useState<SpecialOffer[]>([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
