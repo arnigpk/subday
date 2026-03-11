@@ -331,10 +331,12 @@ export default function AdminShopsPage() {
           <p className="text-sm text-muted-foreground">
             Перетащите карточки для изменения порядка
           </p>
-          <Button onClick={openCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить кофейню
-          </Button>
+          {canManage && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить кофейню
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CountryCityFilter
