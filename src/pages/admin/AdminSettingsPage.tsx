@@ -169,9 +169,11 @@ export default function AdminSettingsPage() {
 
   const getRoleBadgeColor = (role: AppRole) => {
     switch (role) {
+      case 'superadmin': return 'bg-purple-100 text-purple-800';
       case 'admin': return 'bg-red-100 text-red-800';
       case 'moderator': return 'bg-blue-100 text-blue-800';
       case 'partner': return 'bg-green-100 text-green-800';
+      case 'barista': return 'bg-orange-100 text-orange-800';
     }
   };
 
