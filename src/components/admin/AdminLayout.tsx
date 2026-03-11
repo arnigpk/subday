@@ -29,20 +29,20 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['admin', 'moderator'] },
-  { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['admin', 'moderator'] },
-  { icon: History, label: 'История', path: '/admin/history', roles: ['admin', 'moderator', 'partner'] },
-  { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['admin'] },
-  { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['admin', 'moderator', 'partner'] },
-  { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['admin'] },
-  { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['admin'] },
-  { icon: Megaphone, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['admin'] },
-  { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['admin'] },
-  { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['admin'] },
-  { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['admin'] },
-  { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['admin'] },
-  { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['admin'] },
-  { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['admin'] },
+  { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
+  { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
+  { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
+  { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
+  { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
+  { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['superadmin', 'admin'] },
+  { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['superadmin', 'admin'] },
+  { icon: Megaphone, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['superadmin', 'admin'] },
+  { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['superadmin', 'admin'] },
+  { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['superadmin', 'admin'] },
+  { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
+  { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
+  { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
+  { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['superadmin'] },
 ];
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
