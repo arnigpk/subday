@@ -204,6 +204,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
+          <Label>Название</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название рекламодателя (отображается над меткой «реклама»)" />
+        </div>
+
+        <div>
           <Label>Текст рекламы *</Label>
           <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст рекламного поста..." rows={3} />
         </div>

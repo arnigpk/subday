@@ -21,6 +21,7 @@ import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
 
 interface SubFlowAd {
   id: string;
+  title: string | null;
   content: string;
   image_url: string | null;
   link_type: string;
