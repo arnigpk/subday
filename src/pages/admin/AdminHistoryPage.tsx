@@ -361,7 +361,7 @@ export default function AdminHistoryPage() {
                       <TableHead>Подписка</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-10">{canManage ? '' : ''}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
