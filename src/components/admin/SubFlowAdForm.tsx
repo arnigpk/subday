@@ -111,6 +111,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   }, [editingAd]);
 
   const resetForm = () => {
+    setTitle('');
     setContent('');
     setImageUrl('');
     setLinkType('shop');
