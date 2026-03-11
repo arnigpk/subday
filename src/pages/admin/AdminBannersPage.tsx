@@ -65,6 +65,8 @@ export default function AdminBannersPage() {
     display_location: 'shops',
     country: '',
     city: '',
+    starts_at: undefined as Date | undefined,
+    ends_at: undefined as Date | undefined,
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
