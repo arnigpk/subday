@@ -83,6 +83,7 @@ const DEFAULT_FEATURES = [
 ];
 
 export default function AdminSubscriptionsPage() {
+  const { canManage } = useAdminAuth();
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingSub, setEditingSub] = useState<SubscriptionType | null>(null);
