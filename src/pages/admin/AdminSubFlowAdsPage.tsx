@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
 import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface SubFlowAd {
   id: string;
@@ -62,6 +63,7 @@ const TABS = [
 ];
 
 export default function AdminSubFlowAdsPage() {
+  const { canManage } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('create');
   const [ads, setAds] = useState<SubFlowAd[]>([]);
   const [requests, setRequests] = useState<AdRequest[]>([]);
@@ -157,20 +159,22 @@ export default function AdminSubFlowAdsPage() {
 
       {activeTab === 'create' && (
         <div className="space-y-6">
-          <SubFlowAdForm
-            shops={shops}
-            editingAd={editingAd}
-            onSaved={() => { setEditingAd(null); fetchData(); }}
-            onCancel={() => setEditingAd(null)}
-          />
+          {canManage && (
+            <SubFlowAdForm
+              shops={shops}
+              editingAd={editingAd}
+              onSaved={() => { setEditingAd(null); fetchData(); }}
+              onCancel={() => setEditingAd(null)}
+            />
+          )}
 
           <SubFlowAdsList
             ads={ads}
             analytics={analytics}
             isLoading={isLoading}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
+            onEdit={canManage ? handleEdit : undefined}
+            onDelete={canManage ? handleDelete : undefined}
+            onToggleActive={canManage ? handleToggleActive : undefined}
             formatDate={formatDate}
           />
         </div>

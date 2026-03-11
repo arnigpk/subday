@@ -2,18 +2,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
-export type AppRole = 'admin' | 'moderator' | 'partner' | 'barista';
+export type AppRole = 'superadmin' | 'admin' | 'moderator' | 'partner' | 'barista';
 
 interface AdminAuthState {
   session: Session | null;
   isLoading: boolean;
   role: AppRole | null;
   shopId: string | null;
+  isSuperAdmin: boolean;
   isAdmin: boolean;
   isModerator: boolean;
   isPartner: boolean;
   isBarista: boolean;
   hasAccess: boolean;
+  canManage: boolean; // true only for superadmin — full edit/add/delete rights
 }
 
 export function useAdminAuth(): AdminAuthState {
@@ -52,7 +54,6 @@ export function useAdminAuth(): AdminAuthState {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      // Fetch all roles for the user
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, shop_id')
@@ -63,13 +64,14 @@ export function useAdminAuth(): AdminAuthState {
         setRole(null);
         setShopId(null);
       } else if (data && data.length > 0) {
-        // Priority: admin > moderator > partner > barista
+        // Priority: superadmin > admin > moderator > partner > barista
+        const superadminRole = data.find(r => r.role === 'superadmin');
         const adminRole = data.find(r => r.role === 'admin');
         const moderatorRole = data.find(r => r.role === 'moderator');
         const partnerRole = data.find(r => r.role === 'partner');
         const baristaRole = data.find(r => r.role === 'barista');
         
-        const activeRole = adminRole || moderatorRole || partnerRole || baristaRole;
+        const activeRole = superadminRole || adminRole || moderatorRole || partnerRole || baristaRole;
         
         if (activeRole) {
           setRole(activeRole.role as AppRole);
@@ -91,21 +93,25 @@ export function useAdminAuth(): AdminAuthState {
     }
   };
 
-  const isAdmin = role === 'admin';
+  const isSuperAdmin = role === 'superadmin';
+  const isAdmin = role === 'admin' || role === 'superadmin';
   const isModerator = role === 'moderator';
   const isPartner = role === 'partner';
   const isBarista = role === 'barista';
   const hasAccess = isAdmin || isModerator || isPartner || isBarista;
+  const canManage = isSuperAdmin; // Only superadmin can add/edit/delete
 
   return {
     session,
     isLoading,
     role,
     shopId,
+    isSuperAdmin,
     isAdmin,
     isModerator,
     isPartner,
     isBarista,
     hasAccess,
+    canManage,
   };
 }

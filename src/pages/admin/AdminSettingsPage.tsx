@@ -41,7 +41,7 @@ interface UserRole {
 }
 
 export default function AdminSettingsPage() {
-  const { isAdmin } = useAdminAuth();
+  const { isAdmin, isSuperAdmin } = useAdminAuth();
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,10 +51,10 @@ export default function AdminSettingsPage() {
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isSuperAdmin) {
       fetchRoles();
     }
-  }, [isAdmin]);
+  }, [isSuperAdmin]);
 
   const fetchRoles = async () => {
     try {
@@ -169,13 +169,15 @@ export default function AdminSettingsPage() {
 
   const getRoleBadgeColor = (role: AppRole) => {
     switch (role) {
+      case 'superadmin': return 'bg-purple-100 text-purple-800';
       case 'admin': return 'bg-red-100 text-red-800';
       case 'moderator': return 'bg-blue-100 text-blue-800';
       case 'partner': return 'bg-green-100 text-green-800';
+      case 'barista': return 'bg-orange-100 text-orange-800';
     }
   };
 
-  if (!isAdmin) {
+  if (!isSuperAdmin) {
     return (
       <AdminLayout title="Настройки">
         <Card>
@@ -230,6 +232,7 @@ export default function AdminSettingsPage() {
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="moderator">Moderator</SelectItem>
                         <SelectItem value="partner">Partner</SelectItem>
+                        <SelectItem value="barista">Barista</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -82,6 +83,7 @@ const DEFAULT_FEATURES = [
 ];
 
 export default function AdminSubscriptionsPage() {
+  const { canManage } = useAdminAuth();
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingSub, setEditingSub] = useState<SubscriptionType | null>(null);
@@ -305,10 +307,12 @@ export default function AdminSubscriptionsPage() {
           <p className="text-sm text-muted-foreground">
             Перетащите карточки для изменения порядка
           </p>
-          <Button onClick={openCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить подписку
-          </Button>
+          {canManage && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить подписку
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
@@ -384,25 +388,27 @@ export default function AdminSubscriptionsPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-bold text-lg">{formatPrice(sub.price, sub.currency)}</span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(sub)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteSubId(sub.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                          <div className="flex items-center gap-4">
+                            <span className="font-bold text-lg">{formatPrice(sub.price, sub.currency)}</span>
+                            {canManage && (
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(sub)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteSubId(sub.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>

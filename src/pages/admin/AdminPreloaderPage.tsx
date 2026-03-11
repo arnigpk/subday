@@ -9,12 +9,14 @@ import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
 const CONFIG_PATH = 'preloader-config.json';
 
 export default function AdminPreloaderPage() {
+  const { canManage } = useAdminAuth();
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
   const [isCustom, setIsCustom] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);

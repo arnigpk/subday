@@ -31,6 +31,7 @@ import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { toast } from '@/components/ui/sonner';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface RedemptionWithUser {
   id: string;
@@ -51,6 +52,7 @@ type PeriodType = 'last_month' | 'custom' | 'all';
 const PAGE_SIZE = 20;
 
 export default function AdminHistoryPage() {
+  const { canManage } = useAdminAuth();
   const [redemptions, setRedemptions] = useState<RedemptionWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -225,29 +227,31 @@ export default function AdminHistoryPage() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <CardTitle>Всего покупок ({totalCount})</CardTitle>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Очистить историю
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {periodType !== 'all'
-                        ? `Будут удалены списания за период: ${formatPeriodLabel()}`
-                        : 'Будут удалены ВСЕ списания'
-                      }. Это действие нельзя отменить. История исчезнет у пользователей и в кабинете партнера.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {canManage && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Очистить историю
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {periodType !== 'all'
+                          ? `Будут удалены списания за период: ${formatPeriodLabel()}`
+                          : 'Будут удалены ВСЕ списания'
+                        }. Это действие нельзя отменить. История исчезнет у пользователей и в кабинете партнера.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -357,7 +361,7 @@ export default function AdminHistoryPage() {
                       <TableHead>Подписка</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-10">{canManage ? '' : ''}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -389,25 +393,27 @@ export default function AdminHistoryPage() {
                           })}
                         </TableCell>
                         <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Удалить запись?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Запись будет удалена безвозвратно у пользователя и в кабинете партнера.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteRedemption(r.id)}>Удалить</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {canManage && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить запись?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Запись будет удалена безвозвратно у пользователя и в кабинете партнера.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteRedemption(r.id)}>Удалить</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface TelegramUser {
   id: string;
@@ -22,6 +23,7 @@ interface TelegramUser {
 }
 
 export default function AdminBroadcastPage() {
+  const { canManage } = useAdminAuth();
   const [message, setMessage] = useState('');
   const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);

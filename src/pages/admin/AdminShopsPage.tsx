@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Coffee, MapPin, Clock, Plus, Pencil, Trash2, UtensilsCrossed } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
@@ -90,6 +91,7 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 }
 
 export default function AdminShopsPage() {
+  const { canManage } = useAdminAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
@@ -329,10 +331,12 @@ export default function AdminShopsPage() {
           <p className="text-sm text-muted-foreground">
             Перетащите карточки для изменения порядка
           </p>
-          <Button onClick={openCreateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить кофейню
-          </Button>
+          {canManage && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить кофейню
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CountryCityFilter
@@ -417,22 +421,24 @@ export default function AdminShopsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(shop)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteShopId(shop.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
+                        {canManage && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(shop)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteShopId(shop.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

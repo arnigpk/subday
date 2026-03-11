@@ -30,7 +30,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { AppRole } from '@/hooks/useAdminAuth';
+import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 type UserRole = AppRole | 'user';
@@ -80,6 +80,7 @@ const PAGE_SIZE = 20;
 
 const ROLE_LABELS: Record<UserRole, string> = {
   user: 'Пользователь',
+  superadmin: 'СуперАдмин',
   admin: 'Администратор',
   moderator: 'Модератор',
   partner: 'Партнёр',
@@ -87,6 +88,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
+  const { canManage, isSuperAdmin } = useAdminAuth();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -596,24 +598,28 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(user)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleToggleBlock(user)}
-                            >
-                              {user.is_blocked ? (
-                                <UserCheck className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Ban className="w-4 h-4 text-destructive" />
-                              )}
-                            </Button>
+                            {canManage && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(user)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleToggleBlock(user)}
+                                >
+                                  {user.is_blocked ? (
+                                    <UserCheck className="w-4 h-4 text-green-600" />
+                                  ) : (
+                                    <Ban className="w-4 h-4 text-destructive" />
+                                  )}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -733,20 +739,21 @@ export default function AdminUsersPage() {
 
             <div className="border-t pt-4">
               <Label>Роль пользователя</Label>
-              <Select 
-                value={formData.role} 
-                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Пользователь</SelectItem>
-                  <SelectItem value="admin">Администратор</SelectItem>
-                  <SelectItem value="moderator">Модератор</SelectItem>
-                  <SelectItem value="partner">Партнёр</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select 
+                  value={formData.role} 
+                  onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Пользователь</SelectItem>
+                    {isSuperAdmin && <SelectItem value="superadmin">СуперАдмин</SelectItem>}
+                    <SelectItem value="admin">Администратор</SelectItem>
+                    <SelectItem value="moderator">Модератор</SelectItem>
+                    <SelectItem value="partner">Партнёр</SelectItem>
+                  </SelectContent>
+                </Select>
               
               {formData.role === 'partner' && (
                 <div className="mt-3">

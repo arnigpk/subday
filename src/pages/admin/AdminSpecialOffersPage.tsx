@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -61,6 +62,7 @@ const defaultForm = {
 };
 
 export default function AdminSpecialOffersPage() {
+  const { canManage } = useAdminAuth();
   const [offers, setOffers] = useState<SpecialOffer[]>([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -175,9 +177,11 @@ export default function AdminSpecialOffersPage() {
     <AdminLayout title="Спецпредложения">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openCreate} className="gap-2">
-            <Plus size={16} /> Создать предложение
-          </Button>
+          {canManage && (
+            <Button onClick={openCreate} className="gap-2">
+              <Plus size={16} /> Создать предложение
+            </Button>
+          )}
           <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Страна" />
@@ -239,15 +243,21 @@ export default function AdminSpecialOffersPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={offer.is_active} onCheckedChange={(v) => handleToggle(offer.id, v)} />
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
-                        <Pencil size={16} />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(offer.id)}>
-                        <Trash2 size={16} className="text-destructive" />
-                      </Button>
-                    </div>
+                    {canManage ? (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={offer.is_active} onCheckedChange={(v) => handleToggle(offer.id, v)} />
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
+                          <Pencil size={16} />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(offer.id)}>
+                          <Trash2 size={16} className="text-destructive" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className={`text-xs px-2 py-1 rounded ${offer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {offer.is_active ? 'Вкл' : 'Выкл'}
+                      </span>
+                    )}
                   </div>
                 </div>
               );

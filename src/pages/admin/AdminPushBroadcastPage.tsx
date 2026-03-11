@@ -9,8 +9,10 @@ import { Send, Bell, Loader2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
+  const { canManage } = useAdminAuth();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
