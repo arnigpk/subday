@@ -114,7 +114,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               <span>В приложение</span>
             </Link>
             <h1 className="font-bold">subday admin</h1>
-            <p className="text-xs text-muted-foreground capitalize">{role}</p>
+            <p className="text-xs text-muted-foreground capitalize">{role === 'superadmin' ? 'СуперАдмин' : role}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="w-5 h-5" />
