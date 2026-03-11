@@ -280,9 +280,11 @@ export default function AdminAutoNotificationsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={openCreate} className="gap-2 mb-4">
-              <Plus size={16} /> Добавить шаблон
-            </Button>
+            {canManage && (
+              <Button onClick={openCreate} className="gap-2 mb-4">
+                <Plus size={16} /> Добавить шаблон
+              </Button>
+            )}
 
             {isLoading ? (
               <div className="space-y-3">

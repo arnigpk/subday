@@ -236,23 +236,29 @@ const { canManage } = useAdminAuth();
                 </RadioGroup>
               </div>
 
-              <Button
-                onClick={handleSendBroadcast}
-                disabled={isLoading || !message.trim() || (targetType === 'specific' && selectedUsers.length === 0)}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Отправка...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Отправить рассылку
-                  </>
-                )}
-              </Button>
+              {canManage ? (
+                <Button
+                  onClick={handleSendBroadcast}
+                  disabled={isLoading || !message.trim() || (targetType === 'specific' && selectedUsers.length === 0)}
+                  className="w-full"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Отправка...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Отправить рассылку
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="p-3 bg-muted rounded-lg border border-border text-center">
+                  <p className="text-sm text-muted-foreground">Только СуперАдмин может отправлять рассылки</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

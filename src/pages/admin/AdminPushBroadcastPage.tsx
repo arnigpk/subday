@@ -106,23 +106,29 @@ export default function AdminPushBroadcastPage() {
 
             <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
-            <Button
-              onClick={handleSendPush}
-              disabled={isLoading || !message.trim()}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Отправка...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Отправить PUSH всем
-                </>
-              )}
-            </Button>
+            {canManage ? (
+              <Button
+                onClick={handleSendPush}
+                disabled={isLoading || !message.trim()}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Отправка...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Отправить PUSH всем
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="p-3 bg-muted rounded-lg border border-border text-center">
+                <p className="text-sm text-muted-foreground">Только СуперАдмин может отправлять рассылки</p>
+              </div>
+            )}
 
             <div className="p-3 bg-muted rounded-lg border border-border">
               <p className="text-xs text-muted-foreground">
