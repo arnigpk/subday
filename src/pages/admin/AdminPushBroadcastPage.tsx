@@ -57,7 +57,7 @@ export default function AdminPushBroadcastPage() {
       const { error: historyError } = await supabase
         .from('broadcast_messages')
         .insert({
-          message: trimmed,
+          message: `${trimmedTitle}\n${trimmedMessage}`,
           broadcast_type: 'push',
           target_type: audienceTypes.join(','),
           recipient_count: 0,
@@ -69,6 +69,7 @@ export default function AdminPushBroadcastPage() {
       if (historyError) throw historyError;
 
       toast.success('PUSH-уведомление отправлено');
+      setTitle('');
       setMessage('');
       setHistoryRefresh(prev => prev + 1);
     } catch (error) {
