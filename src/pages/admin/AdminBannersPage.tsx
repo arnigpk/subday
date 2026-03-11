@@ -18,6 +18,7 @@ import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface AdBanner {
   id: string;
