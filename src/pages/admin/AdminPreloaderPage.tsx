@@ -9,6 +9,7 @@ import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 const BUCKET = 'app-assets';
 const FILE_PATH = 'preloader.gif';
