@@ -88,7 +88,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { canManage, isSuperAdmin } = useAdminAuth();
+  const { canManage, isSuperAdmin, isAdmin } = useAdminAuth();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -269,38 +269,51 @@ export default function AdminUsersPage() {
     if (!editingUser) return;
 
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name || null,
-          city: formData.city || null,
-          country: formData.country || 'KZ',
-          is_blocked: formData.is_blocked,
-          subflow_access: formData.subflow_access,
-        })
-        .eq('user_id', editingUser.user_id);
+      // SuperAdmin can update everything, admin can only update roles
+      if (canManage) {
+        // Update profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            name: formData.name || null,
+            city: formData.city || null,
+            country: formData.country || 'KZ',
+            is_blocked: formData.is_blocked,
+            subflow_access: formData.subflow_access,
+          })
+          .eq('user_id', editingUser.user_id);
 
-      if (profileError) throw profileError;
+        if (profileError) throw profileError;
 
-      // Update stats
-      const { error: statsError } = await supabase
-        .from('user_stats')
-        .update({
-          coffee_remaining: formData.coffee_remaining,
-          drinks_remaining: formData.drinks_remaining,
-        })
-        .eq('user_id', editingUser.user_id);
+        // Update stats
+        const { error: statsError } = await supabase
+          .from('user_stats')
+          .update({
+            coffee_remaining: formData.coffee_remaining,
+            drinks_remaining: formData.drinks_remaining,
+          })
+          .eq('user_id', editingUser.user_id);
 
-      if (statsError) throw statsError;
+        if (statsError) throw statsError;
+      }
 
-      // Handle role update
+      // Handle role update (both admin and superadmin can do this)
       const previousRole = editingUser.role || 'user';
       const newRole = formData.role;
 
+      // Admin cannot assign superadmin role
+      if (!isSuperAdmin && newRole === 'superadmin') {
+        toast({ title: 'Нельзя назначить роль СуперАдмина', variant: 'destructive' });
+        return;
+      }
+
       if (previousRole !== newRole) {
         if (previousRole !== 'user' && editingUser.role_id) {
-          // Delete existing role
+          // Don't allow deleting superadmin role
+          if (previousRole === 'superadmin' && !isSuperAdmin) {
+            toast({ title: 'Нельзя изменить роль СуперАдмина', variant: 'destructive' });
+            return;
+          }
           await supabase
             .from('user_roles')
             .delete()
@@ -308,7 +321,6 @@ export default function AdminUsersPage() {
         }
 
         if (newRole !== 'user') {
-          // Insert new role
           const { error: roleError } = await supabase
             .from('user_roles')
             .insert({
@@ -320,7 +332,6 @@ export default function AdminUsersPage() {
           if (roleError) throw roleError;
         }
       } else if (newRole === 'partner' && formData.shop_id !== editingUser.shop_id) {
-        // Update shop_id for partner
         if (editingUser.role_id) {
           await supabase
             .from('user_roles')
@@ -598,27 +609,27 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {(canManage || isAdmin) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(user)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
                             {canManage && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditDialog(user)}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleToggleBlock(user)}
-                                >
-                                  {user.is_blocked ? (
-                                    <UserCheck className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Ban className="w-4 h-4 text-destructive" />
-                                  )}
-                                </Button>
-                              </>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleBlock(user)}
+                              >
+                                {user.is_blocked ? (
+                                  <UserCheck className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Ban className="w-4 h-4 text-destructive" />
+                                )}
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -665,79 +676,84 @@ export default function AdminUsersPage() {
             <DialogTitle>Редактировать пользователя</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Имя</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone">Телефон</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="country">Страна</Label>
-                <Select value={formData.country} onValueChange={(v) => {
-                  const cities = getCitiesForCountry(v);
-                  setFormData({ ...formData, country: v, city: cities[0] || '' });
-                }}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
-                      <SelectItem key={code} value={code}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="city">Город</Label>
-                <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Выберите город" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getCitiesForCountry(formData.country).map(city => (
-                      <SelectItem key={city} value={city}>{city}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="coffee">Остаток кофе</Label>
-                <Input
-                  id="coffee"
-                  type="number"
-                  min="0"
-                  value={formData.coffee_remaining}
-                  onChange={(e) => setFormData({ ...formData, coffee_remaining: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="drinks">Остаток ланчей</Label>
-                <Input
-                  id="drinks"
-                  type="number"
-                  min="0"
-                  value={formData.drinks_remaining}
-                  onChange={(e) => setFormData({ ...formData, drinks_remaining: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
+            {/* Admin (non-super) can ONLY change roles */}
+            {canManage && (
+              <>
+                <div>
+                  <Label htmlFor="name">Имя</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Телефон</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="country">Страна</Label>
+                    <Select value={formData.country} onValueChange={(v) => {
+                      const cities = getCitiesForCountry(v);
+                      setFormData({ ...formData, country: v, city: cities[0] || '' });
+                    }}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(COUNTRY_LABELS).map(([code, label]) => (
+                          <SelectItem key={code} value={code}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="city">Город</Label>
+                    <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Выберите город" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getCitiesForCountry(formData.country).map(city => (
+                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="coffee">Остаток кофе</Label>
+                    <Input
+                      id="coffee"
+                      type="number"
+                      min="0"
+                      value={formData.coffee_remaining}
+                      onChange={(e) => setFormData({ ...formData, coffee_remaining: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="drinks">Остаток ланчей</Label>
+                    <Input
+                      id="drinks"
+                      type="number"
+                      min="0"
+                      value={formData.drinks_remaining}
+                      onChange={(e) => setFormData({ ...formData, drinks_remaining: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div className="border-t pt-4">
+            <div className={canManage ? "border-t pt-4" : ""}>
               <Label>Роль пользователя</Label>
                 <Select 
                   value={formData.role} 
@@ -752,6 +768,7 @@ export default function AdminUsersPage() {
                     <SelectItem value="admin">Администратор</SelectItem>
                     <SelectItem value="moderator">Модератор</SelectItem>
                     <SelectItem value="partner">Партнёр</SelectItem>
+                    <SelectItem value="barista">Бариста</SelectItem>
                   </SelectContent>
                 </Select>
               
@@ -777,97 +794,101 @@ export default function AdminUsersPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                id="subflow_access"
-                checked={formData.subflow_access}
-                onCheckedChange={(checked) => setFormData({ ...formData, subflow_access: checked })}
-              />
-              <Label htmlFor="subflow_access">#subFlow доступ</Label>
-            </div>
+            {canManage && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="subflow_access"
+                    checked={formData.subflow_access}
+                    onCheckedChange={(checked) => setFormData({ ...formData, subflow_access: checked })}
+                  />
+                  <Label htmlFor="subflow_access">#subFlow доступ</Label>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_blocked"
-                checked={formData.is_blocked}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_blocked: checked })}
-              />
-              <Label htmlFor="is_blocked">Заблокирован</Label>
-            </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="is_blocked"
+                    checked={formData.is_blocked}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_blocked: checked })}
+                  />
+                  <Label htmlFor="is_blocked">Заблокирован</Label>
+                </div>
 
-            {/* Active subscriptions display */}
-            {(editingUser?.coffee_subscription || editingUser?.lunch_subscription) && (
-              <div className="border-t pt-4 space-y-2">
-                <Label>Активные подписки</Label>
-                {editingUser?.coffee_subscription && (
-                  <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Coffee className="w-4 h-4 text-amber-600" />
-                      <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        до {editingUser.coffee_subscription.expires_at 
-                          ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : '—'}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                        onClick={() => handleResetSubscription('coffee')}
-                      >
-                        Обнулить
-                      </Button>
-                    </div>
+                {/* Active subscriptions display */}
+                {(editingUser?.coffee_subscription || editingUser?.lunch_subscription) && (
+                  <div className="border-t pt-4 space-y-2">
+                    <Label>Активные подписки</Label>
+                    {editingUser?.coffee_subscription && (
+                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Coffee className="w-4 h-4 text-amber-600" />
+                          <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            до {editingUser.coffee_subscription.expires_at 
+                              ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '—'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => handleResetSubscription('coffee')}
+                          >
+                            Обнулить
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {editingUser?.lunch_subscription && (
+                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <UtensilsCrossed className="w-4 h-4 text-purple-600" />
+                          <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            до {editingUser.lunch_subscription.expires_at 
+                              ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '—'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => handleResetSubscription('drinks')}
+                          >
+                            Обнулить
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-                {editingUser?.lunch_subscription && (
-                  <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <UtensilsCrossed className="w-4 h-4 text-purple-600" />
-                      <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        до {editingUser.lunch_subscription.expires_at 
-                          ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : '—'}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                        onClick={() => handleResetSubscription('drinks')}
-                      >
-                        Обнулить
-                      </Button>
-                    </div>
+
+                <div className="border-t pt-4">
+                  <Label>Добавить подписку</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Select value={selectedSubscription} onValueChange={setSelectedSubscription}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Выберите подписку" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subscriptionTypes.map(sub => (
+                          <SelectItem key={sub.id} value={sub.id}>
+                            {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleAddSubscription} disabled={!selectedSubscription}>
+                      Добавить
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              </>
             )}
-
-            <div className="border-t pt-4">
-              <Label>Добавить подписку</Label>
-              <div className="flex gap-2 mt-2">
-                <Select value={selectedSubscription} onValueChange={setSelectedSubscription}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Выберите подписку" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subscriptionTypes.map(sub => (
-                      <SelectItem key={sub.id} value={sub.id}>
-                        {sub.name} ({sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAddSubscription} disabled={!selectedSubscription}>
-                  Добавить
-                </Button>
-              </div>
-            </div>
 
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setEditingUser(null)}>

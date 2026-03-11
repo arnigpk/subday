@@ -102,6 +102,7 @@ const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
 const isAdminTrigger = (type: string) => ADMIN_TRIGGERS.includes(type);
 
 export default function AdminAutoNotificationsPage() {
+  const { canManage } = useAdminAuth();
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -279,9 +280,11 @@ export default function AdminAutoNotificationsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={openCreate} className="gap-2 mb-4">
-              <Plus size={16} /> Добавить шаблон
-            </Button>
+            {canManage && (
+              <Button onClick={openCreate} className="gap-2 mb-4">
+                <Plus size={16} /> Добавить шаблон
+              </Button>
+            )}
 
             {isLoading ? (
               <div className="space-y-3">
@@ -303,6 +306,7 @@ export default function AdminAutoNotificationsPage() {
                     onToggle={handleToggle}
                     getChannelIcon={getChannelIcon}
                     getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
                   />
                 ))}
               </div>
@@ -340,6 +344,7 @@ export default function AdminAutoNotificationsPage() {
                     onToggle={handleToggle}
                     getChannelIcon={getChannelIcon}
                     getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
                   />
                 ))}
               </div>
@@ -376,6 +381,7 @@ export default function AdminAutoNotificationsPage() {
                     onToggle={handleToggle}
                     getChannelIcon={getChannelIcon}
                     getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
                   />
                 ))}
               </div>
@@ -493,13 +499,14 @@ export default function AdminAutoNotificationsPage() {
   );
 }
 
-function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon, getTriggerIcon }: {
+function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon, getTriggerIcon, canManage }: {
   template: NotificationTemplate;
   onEdit: (t: NotificationTemplate) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string, v: boolean) => void;
   getChannelIcon: (ch: string) => React.ReactNode;
   getTriggerIcon: (type: string) => React.ReactNode;
+  canManage: boolean;
 }) {
   const config = t.trigger_config as any;
 
@@ -543,13 +550,17 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
-          <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
-            <Pencil size={16} />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
-            <Trash2 size={16} className="text-destructive" />
-          </Button>
+          {canManage && (
+            <>
+              <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
+              <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
+                <Pencil size={16} />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
+                <Trash2 size={16} className="text-destructive" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

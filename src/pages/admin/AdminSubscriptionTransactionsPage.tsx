@@ -443,7 +443,7 @@ export default function AdminSubscriptionTransactionsPage() {
               <CardTitle>
                 {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
               </CardTitle>
-              {activeTab === 'transactions' ? (
+              {canManage && (activeTab === 'transactions' ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -491,7 +491,7 @@ export default function AdminSubscriptionTransactionsPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              )}
+              ))}
             </div>
 
             <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setPmPage(0); setTxPage(0); }}>
@@ -560,23 +560,25 @@ export default function AdminSubscriptionTransactionsPage() {
                             {p.paid_at ? format(new Date(p.paid_at), 'd.MM.yyyy HH:mm', { locale: ru }) : '—'}
                           </TableCell>
                           <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
-                                  <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {canManage && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
+                                    <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -653,23 +655,25 @@ export default function AdminSubscriptionTransactionsPage() {
                           </TableCell>
                           <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                           <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить транзакцию?</AlertDialogTitle>
-                                  <AlertDialogDescription>Транзакция будет удалена безвозвратно. Она исчезнет и у пользователя.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteTransaction(t.id)}>Удалить</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {canManage && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Удалить транзакцию?</AlertDialogTitle>
+                                    <AlertDialogDescription>Транзакция будет удалена безвозвратно. Она исчезнет и у пользователя.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t.id)}>Удалить</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

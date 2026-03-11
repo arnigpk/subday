@@ -173,13 +173,17 @@ export default function AdminPreloaderPage() {
                 </p>
               </div>
             </div>
-            <Switch
-              checked={enabled}
-              onCheckedChange={(val) => {
-                setEnabled(val);
-                saveConfig(duration, val);
-              }}
-            />
+            {canManage ? (
+              <Switch
+                checked={enabled}
+                onCheckedChange={(val) => {
+                  setEnabled(val);
+                  saveConfig(duration, val);
+                }}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">{enabled ? 'Вкл' : 'Выкл'}</span>
+            )}
           </div>
         </Card>
 
@@ -212,7 +216,7 @@ export default function AdminPreloaderPage() {
               Не удалось загрузить
             </div>
           )}
-          {isCustom && (
+          {isCustom && canManage && (
             <Button
               variant="destructive"
               size="sm"
@@ -244,16 +248,19 @@ export default function AdminPreloaderPage() {
                 max={10}
                 step={0.5}
                 className="flex-1"
+                disabled={!canManage}
               />
               <span className="text-lg font-semibold w-16 text-right">{duration} сек</span>
             </div>
-            <Button
-              onClick={() => saveConfig(duration)}
-              disabled={duration === savedDuration}
-              size="sm"
-            >
-              Сохранить
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => saveConfig(duration)}
+                disabled={duration === savedDuration}
+                size="sm"
+              >
+                Сохранить
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -290,66 +297,68 @@ export default function AdminPreloaderPage() {
         </Card>
 
         {/* Upload new */}
-        <Card className="p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Загрузить новый прелоадер
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Рекомендуется GIF-анимация. Поддерживаются форматы: GIF, PNG, WEBP.
-          </p>
+        {canManage && (
+          <Card className="p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Загрузить новый прелоадер
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Рекомендуется GIF-анимация. Поддерживаются форматы: GIF, PNG, WEBP.
+            </p>
 
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
 
-          <Button
-            variant="outline"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-          >
-            Выбрать файл
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              Выбрать файл
+            </Button>
 
-          {preview && (
-            <div className="mt-4 space-y-3">
-              <p className="text-sm font-medium">Предпросмотр:</p>
-              <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="max-h-[300px] max-w-full object-contain"
-                />
+            {preview && (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm font-medium">Предпросмотр:</p>
+                <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="max-h-[300px] max-w-full object-contain"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleUpload} disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        Загрузка...
+                      </>
+                    ) : (
+                      'Сохранить'
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setFile(null);
+                      setPreview(null);
+                    }}
+                    disabled={uploading}
+                  >
+                    Отмена
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleUpload} disabled={uploading}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      Загрузка...
-                    </>
-                  ) : (
-                    'Сохранить'
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setFile(null);
-                    setPreview(null);
-                  }}
-                  disabled={uploading}
-                >
-                  Отмена
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </Card>
+        )}
       </div>
     </AdminLayout>
   );
