@@ -23,6 +23,17 @@ interface Post {
   comments_count: number;
 }
 
+interface SubFlowAd {
+  id: string;
+  content: string;
+  image_url: string | null;
+  link_type: string;
+  link_value: string | null;
+  shop_id: string | null;
+  shop_name: string | null;
+  frequency: number;
+}
+
 interface SubFlowFeedProps {
   refreshTrigger: number;
   currentUserId: string | null;
