@@ -322,20 +322,40 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     );
   }
 
+  // Build feed items with ads inserted at configured frequency
+  const getAdForPosition = (postIndex: number): SubFlowAd | null => {
+    if (ads.length === 0) return null;
+    for (const ad of ads) {
+      if (ad.frequency > 0 && (postIndex + 1) % ad.frequency === 0) {
+        return ad;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-4">
-      {posts.map((post, index) => (
-        <SubFlowPost
-          key={post.id}
-          post={post}
-          currentUserId={currentUserId}
-          onUpdate={() => fetchPosts(true)}
-          animationDelay={index < 10 ? index * 0.05 : 0}
-          hasActiveSubscription={hasActiveSubscription}
-          isHighlighted={highlightPostId === post.id}
-          onHighlightDone={onHighlightDone}
-        />
-      ))}
+      {posts.map((post, index) => {
+        const adToShow = getAdForPosition(index);
+        return (
+          <div key={post.id}>
+            <SubFlowPost
+              post={post}
+              currentUserId={currentUserId}
+              onUpdate={() => fetchPosts(true)}
+              animationDelay={index < 10 ? index * 0.05 : 0}
+              hasActiveSubscription={hasActiveSubscription}
+              isHighlighted={highlightPostId === post.id}
+              onHighlightDone={onHighlightDone}
+            />
+            {adToShow && (
+              <div className="mt-4">
+                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} />
+              </div>
+            )}
+          </div>
+        );
+      })}
       
       {/* Infinite scroll trigger */}
       <div ref={loadMoreRef} className="h-4" />
