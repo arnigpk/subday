@@ -653,6 +653,38 @@ export type Database = {
           },
         ]
       }
+      subflow_ad_comments: {
+        Row: {
+          ad_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subflow_ad_comments_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "subflow_ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subflow_ad_events: {
         Row: {
           ad_id: string
@@ -678,6 +710,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "subflow_ad_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "subflow_ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subflow_ad_reactions: {
+        Row: {
+          ad_id: string
+          created_at: string
+          id: string
+          reaction: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string
+          id?: string
+          reaction: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string
+          id?: string
+          reaction?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subflow_ad_reactions_ad_id_fkey"
             columns: ["ad_id"]
             isOneToOne: false
             referencedRelation: "subflow_ads"
