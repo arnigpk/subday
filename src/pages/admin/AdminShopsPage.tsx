@@ -90,6 +90,7 @@ function parseCoordinates(coords: unknown): Coordinate[] {
 }
 
 export default function AdminShopsPage() {
+  const { canManage } = useAdminAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
