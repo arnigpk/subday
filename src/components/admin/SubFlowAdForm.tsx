@@ -12,6 +12,7 @@ import { Plus, Loader2 } from 'lucide-react';
 
 interface SubFlowAd {
   id: string;
+  title: string | null;
   content: string;
   image_url: string | null;
   link_type: string;
@@ -62,6 +63,7 @@ interface SubFlowAdFormProps {
 }
 
 export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAdFormProps) {
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [linkType, setLinkType] = useState('shop');
@@ -78,6 +80,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
 
   useEffect(() => {
     if (editingAd) {
+      setTitle(editingAd.title || '');
       setContent(editingAd.content);
       setImageUrl(editingAd.image_url || '');
       setLinkType(editingAd.link_type);
@@ -108,6 +111,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   }, [editingAd]);
 
   const resetForm = () => {
+    setTitle('');
     setContent('');
     setImageUrl('');
     setLinkType('shop');
@@ -159,6 +163,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       const selectedShop = shops.find(s => s.id === selectedShopId);
 
       const adData: any = {
+        title: title.trim() || null,
         content: content.trim(),
         image_url: finalImageUrl || null,
         link_type: linkType,
@@ -198,6 +203,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div>
+          <Label>Название</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название рекламодателя (отображается над меткой «реклама»)" />
+        </div>
+
         <div>
           <Label>Текст рекламы *</Label>
           <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст рекламного поста..." rows={3} />

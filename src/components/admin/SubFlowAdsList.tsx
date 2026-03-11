@@ -13,6 +13,7 @@ const LINK_TYPES = [
 
 interface SubFlowAd {
   id: string;
+  title: string | null;
   content: string;
   image_url: string | null;
   link_type: string;
@@ -60,6 +61,7 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                     <img src={ad.image_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
+                    {ad.title && <p className="text-xs font-bold text-accent">{ad.title}</p>}
                     <p className="text-sm font-medium text-foreground line-clamp-2">{ad.content}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge variant="outline" className="text-xs">

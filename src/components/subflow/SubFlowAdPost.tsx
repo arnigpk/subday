@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface SubFlowAd {
   id: string;
+  title: string | null;
   content: string;
   image_url: string | null;
   link_type: string;
@@ -70,7 +71,7 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
           </div>
           <div>
             <p className="text-sm font-bold text-foreground tracking-tight">
-              {ad.shop_name || 'subday'}
+              {ad.title || ad.shop_name || 'subday'}
             </p>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/40 text-accent font-bold uppercase tracking-wider">
               реклама

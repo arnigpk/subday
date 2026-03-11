@@ -692,6 +692,7 @@ export type Database = {
           link_value: string | null
           shop_id: string | null
           shop_name: string | null
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -706,6 +707,7 @@ export type Database = {
           link_value?: string | null
           shop_id?: string | null
           shop_name?: string | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -720,6 +722,7 @@ export type Database = {
           link_value?: string | null
           shop_id?: string | null
           shop_name?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
