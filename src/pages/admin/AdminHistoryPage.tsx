@@ -31,6 +31,7 @@ import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { toast } from '@/components/ui/sonner';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface RedemptionWithUser {
   id: string;
