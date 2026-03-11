@@ -248,16 +248,19 @@ export default function AdminPreloaderPage() {
                 max={10}
                 step={0.5}
                 className="flex-1"
+                disabled={!canManage}
               />
               <span className="text-lg font-semibold w-16 text-right">{duration} сек</span>
             </div>
-            <Button
-              onClick={() => saveConfig(duration)}
-              disabled={duration === savedDuration}
-              size="sm"
-            >
-              Сохранить
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => saveConfig(duration)}
+                disabled={duration === savedDuration}
+                size="sm"
+              >
+                Сохранить
+              </Button>
+            )}
           </div>
         </Card>
 
