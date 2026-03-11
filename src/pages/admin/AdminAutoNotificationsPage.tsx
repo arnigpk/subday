@@ -499,13 +499,14 @@ export default function AdminAutoNotificationsPage() {
   );
 }
 
-function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon, getTriggerIcon }: {
+function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon, getTriggerIcon, canManage }: {
   template: NotificationTemplate;
   onEdit: (t: NotificationTemplate) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string, v: boolean) => void;
   getChannelIcon: (ch: string) => React.ReactNode;
   getTriggerIcon: (type: string) => React.ReactNode;
+  canManage: boolean;
 }) {
   const config = t.trigger_config as any;
 
@@ -549,13 +550,17 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
-          <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
-            <Pencil size={16} />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
-            <Trash2 size={16} className="text-destructive" />
-          </Button>
+          {canManage && (
+            <>
+              <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
+              <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
+                <Pencil size={16} />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
+                <Trash2 size={16} className="text-destructive" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
