@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { 
   LayoutDashboard, 
   Users, 
@@ -69,7 +70,13 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <span className="text-sm">Вернуться в приложение</span>
           </Link>
           <h1 className="text-xl font-bold mt-3">subday admin</h1>
-          <p className="text-xs text-muted-foreground capitalize">{role === 'superadmin' ? 'СуперАдмин' : role}</p>
+          {role === 'superadmin' ? (
+            <Badge className="mt-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold">
+              ⭐ СуперАдмин
+            </Badge>
+          ) : (
+            <p className="text-xs text-muted-foreground capitalize mt-1">{role === 'admin' ? 'Админ' : role}</p>
+          )}
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
@@ -114,7 +121,13 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               <span>В приложение</span>
             </Link>
             <h1 className="font-bold">subday admin</h1>
-            <p className="text-xs text-muted-foreground capitalize">{role === 'superadmin' ? 'СуперАдмин' : role}</p>
+            {role === 'superadmin' ? (
+              <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold">
+                ⭐ СуперАдмин
+              </Badge>
+            ) : (
+              <p className="text-xs text-muted-foreground capitalize">{role === 'admin' ? 'Админ' : role}</p>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="w-5 h-5" />
