@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
@@ -53,7 +53,7 @@ interface Shop {
 }
 
 interface AdAnalytics {
-  [adId: string]: { views: number; clicks: number };
+  [adId: string]: { views: number; clicks: number; reactions: number; comments: number };
 }
 
 const TABS = [
@@ -91,18 +91,25 @@ export default function AdminSubFlowAdsPage() {
     // Fetch analytics for all ads
     if (adsData.length > 0) {
       const adIds = adsData.map((a: any) => a.id);
-      const { data: events } = await supabase
-        .from('subflow_ad_events')
-        .select('ad_id, event_type')
-        .in('ad_id', adIds);
+      const [{ data: events }, { data: reactionsData }, { data: commentsData }] = await Promise.all([
+        supabase.from('subflow_ad_events').select('ad_id, event_type').in('ad_id', adIds),
+        supabase.from('subflow_ad_reactions' as any).select('ad_id').in('ad_id', adIds),
+        supabase.from('subflow_ad_comments' as any).select('ad_id').in('ad_id', adIds),
+      ]);
 
       const analyticsMap: AdAnalytics = {};
-      adIds.forEach((id: string) => { analyticsMap[id] = { views: 0, clicks: 0 }; });
+      adIds.forEach((id: string) => { analyticsMap[id] = { views: 0, clicks: 0, reactions: 0, comments: 0 }; });
       (events || []).forEach((e: any) => {
         if (analyticsMap[e.ad_id]) {
           if (e.event_type === 'view') analyticsMap[e.ad_id].views++;
           else if (e.event_type === 'click') analyticsMap[e.ad_id].clicks++;
         }
+      });
+      ((reactionsData as any[]) || []).forEach((r: any) => {
+        if (analyticsMap[r.ad_id]) analyticsMap[r.ad_id].reactions++;
+      });
+      ((commentsData as any[]) || []).forEach((c: any) => {
+        if (analyticsMap[c.ad_id]) analyticsMap[c.ad_id].comments++;
       });
       setAnalytics(analyticsMap);
     }
@@ -201,12 +208,14 @@ export default function AdminSubFlowAdsPage() {
                     <TableHead className="text-center">Просмотры</TableHead>
                     <TableHead className="text-center">Клики</TableHead>
                     <TableHead className="text-center">CTR</TableHead>
+                    <TableHead className="text-center">Реакции</TableHead>
+                    <TableHead className="text-center">Комменты</TableHead>
                     <TableHead>Статус</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ads.map(ad => {
-                    const stats = analytics[ad.id] || { views: 0, clicks: 0 };
+                    const stats = analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 };
                     return (
                       <TableRow key={ad.id}>
                         <TableCell>
@@ -231,6 +240,18 @@ export default function AdminSubFlowAdsPage() {
                           <Badge variant="outline" className="font-semibold">
                             {getCTR(stats.views, stats.clicks)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Heart size={14} className="text-muted-foreground" />
+                            <span className="font-semibold">{stats.reactions}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <MessageCircle size={14} className="text-muted-foreground" />
+                            <span className="font-semibold">{stats.comments}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge className={ad.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
