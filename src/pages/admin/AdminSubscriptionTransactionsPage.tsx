@@ -650,6 +650,25 @@ export default function AdminSubscriptionTransactionsPage() {
                             {t.payment_id || '—'}
                           </TableCell>
                           <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить транзакцию?</AlertDialogTitle>
+                                  <AlertDialogDescription>Транзакция будет удалена безвозвратно. Она исчезнет и у пользователя.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteTransaction(t.id)}>Удалить</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
