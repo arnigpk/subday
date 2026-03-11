@@ -443,7 +443,7 @@ export default function AdminSubscriptionTransactionsPage() {
               <CardTitle>
                 {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
               </CardTitle>
-              {activeTab === 'transactions' ? (
+              {canManage && (activeTab === 'transactions' ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -491,7 +491,7 @@ export default function AdminSubscriptionTransactionsPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              )}
+              ))}
             </div>
 
             <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setPmPage(0); setTxPage(0); }}>
