@@ -241,6 +241,18 @@ export default function AdminSubFlowAdsPage() {
                             {getCTR(stats.views, stats.clicks)}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Heart size={14} className="text-muted-foreground" />
+                            <span className="font-semibold">{stats.reactions}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <MessageCircle size={14} className="text-muted-foreground" />
+                            <span className="font-semibold">{stats.comments}</span>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge className={ad.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                             {ad.is_active ? 'Активна' : 'Выкл'}
