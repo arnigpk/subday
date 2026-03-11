@@ -353,11 +353,12 @@ async function sendTelegramNotification(
   }
 }
 
-async function sendPushNotification(supabase: any, message: string) {
+async function sendPushNotification(supabase: any, userId: string, message: string) {
   try {
     await supabase.from('push_notifications').insert({
       title: '#subFlow',
       message,
+      user_id: userId,
     });
   } catch (err) {
     console.error('Failed to insert push notification:', err);
