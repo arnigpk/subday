@@ -53,7 +53,7 @@ interface Shop {
 }
 
 interface AdAnalytics {
-  [adId: string]: { views: number; clicks: number };
+  [adId: string]: { views: number; clicks: number; reactions: number; comments: number };
 }
 
 const TABS = [
