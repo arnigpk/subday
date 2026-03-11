@@ -603,6 +603,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Оплата</TableHead>
                         <TableHead>RRN / Payment ID</TableHead>
                         <TableHead>Дата</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
