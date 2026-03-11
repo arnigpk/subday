@@ -63,6 +63,7 @@ interface SubFlowAdFormProps {
 }
 
 export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAdFormProps) {
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [linkType, setLinkType] = useState('shop');
