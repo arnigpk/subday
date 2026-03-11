@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft, Megaphone } from 'lucide-react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
