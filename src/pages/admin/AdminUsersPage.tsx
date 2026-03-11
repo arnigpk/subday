@@ -80,6 +80,7 @@ const PAGE_SIZE = 20;
 
 const ROLE_LABELS: Record<UserRole, string> = {
   user: 'Пользователь',
+  superadmin: 'СуперАдмин',
   admin: 'Администратор',
   moderator: 'Модератор',
   partner: 'Партнёр',
