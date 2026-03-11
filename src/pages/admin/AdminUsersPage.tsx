@@ -808,13 +808,14 @@ export default function AdminUsersPage() {
               )}
             </div>
 
-            {canManage && (
+            {(canManage || isAdmin) && (
               <>
                 <div className="flex items-center gap-2">
                   <Switch
                     id="subflow_access"
                     checked={formData.subflow_access}
                     onCheckedChange={(checked) => setFormData({ ...formData, subflow_access: checked })}
+                    disabled={!canManage}
                   />
                   <Label htmlFor="subflow_access">#subFlow доступ</Label>
                 </div>
@@ -824,6 +825,7 @@ export default function AdminUsersPage() {
                     id="is_blocked"
                     checked={formData.is_blocked}
                     onCheckedChange={(checked) => setFormData({ ...formData, is_blocked: checked })}
+                    disabled={!canManage}
                   />
                   <Label htmlFor="is_blocked">Заблокирован</Label>
                 </div>
@@ -844,14 +846,16 @@ export default function AdminUsersPage() {
                               ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
                               : '—'}
                           </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                            onClick={() => handleResetSubscription('coffee')}
-                          >
-                            Обнулить
-                          </Button>
+                          {canManage && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleResetSubscription('coffee')}
+                            >
+                              Обнулить
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -867,14 +871,16 @@ export default function AdminUsersPage() {
                               ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
                               : '—'}
                           </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                            onClick={() => handleResetSubscription('drinks')}
-                          >
-                            Обнулить
-                          </Button>
+                          {canManage && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleResetSubscription('drinks')}
+                            >
+                              Обнулить
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}
