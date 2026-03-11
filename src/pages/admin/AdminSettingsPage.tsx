@@ -51,10 +51,10 @@ export default function AdminSettingsPage() {
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isSuperAdmin) {
       fetchRoles();
     }
-  }, [isAdmin]);
+  }, [isSuperAdmin]);
 
   const fetchRoles = async () => {
     try {
