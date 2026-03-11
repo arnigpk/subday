@@ -24,6 +24,8 @@ interface SubFlowAd {
   daily_limit: number;
   is_active: boolean;
   created_at: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 interface AdAnalytics {
