@@ -647,10 +647,43 @@ export type Database = {
           },
         ]
       }
+      subflow_ad_events: {
+        Row: {
+          ad_id: string
+          created_at: string
+          event_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subflow_ad_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "subflow_ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subflow_ads: {
         Row: {
           content: string
           created_at: string
+          daily_limit: number
           frequency: number
           id: string
           image_url: string | null
@@ -664,6 +697,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          daily_limit?: number
           frequency?: number
           id?: string
           image_url?: string | null
@@ -677,6 +711,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          daily_limit?: number
           frequency?: number
           id?: string
           image_url?: string | null
