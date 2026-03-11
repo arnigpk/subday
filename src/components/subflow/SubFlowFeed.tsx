@@ -340,7 +340,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
             />
             {adToShow && (
               <div className="mt-4">
-                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} />
+                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} currentUserId={currentUserId} />
               </div>
             )}
           </div>
