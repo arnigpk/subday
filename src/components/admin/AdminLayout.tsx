@@ -15,7 +15,8 @@ import {
   Image,
   Gift,
   Zap,
-  Loader
+  Loader,
+  Megaphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const navItems = [
   { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['admin', 'moderator', 'partner'] },
   { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['admin'] },
   { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['admin'] },
+  { icon: Megaphone, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['admin'] },
   { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['admin'] },
   { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['admin'] },
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['admin'] },

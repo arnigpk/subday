@@ -13,27 +13,58 @@ Deno.serve(async (req) => {
   try {
     const { shopName, time } = await req.json();
 
-    const botToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    // Get user from auth header
+    const authHeader = req.headers.get('Authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    if (!botToken || !chatId) {
-      console.error('Missing NOTIFICATION_BOT_TOKEN or NOTIFICATION_CHAT_ID');
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    let userId: string | null = null;
+    let shopId: string | null = null;
+
+    if (authHeader) {
+      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await anonClient.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+        // Get partner's shop_id
+        const { data: roleData } = await supabaseClient
+          .from('user_roles')
+          .select('shop_id')
+          .eq('user_id', user.id)
+          .eq('role', 'partner')
+          .maybeSingle();
+        shopId = roleData?.shop_id || null;
+      }
+    }
+
+    // Save to ad_requests table
+    if (userId) {
+      await supabaseClient.from('ad_requests').insert({
+        shop_name: shopName || 'Не указано',
+        shop_id: shopId,
+        partner_user_id: userId,
+        status: 'pending',
       });
     }
 
-    const message = `📢 *Заявка на рекламу*\n\n☕ Кофейня: *${shopName}*\n🕐 Время: ${time}`;
+    // Send Telegram notification
+    const botToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
 
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
-    });
+    if (botToken && chatId) {
+      const message = `📢 *Заявка на рекламу*\n\n☕ Кофейня: *${shopName}*\n🕐 Время: ${time}`;
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'Markdown',
+        }),
+      });
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

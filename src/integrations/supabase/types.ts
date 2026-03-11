@@ -99,6 +99,39 @@ export type Database = {
           },
         ]
       }
+      ad_requests: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          partner_user_id: string
+          shop_id: string | null
+          shop_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_user_id: string
+          shop_id?: string | null
+          shop_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_user_id?: string
+          shop_id?: string | null
+          shop_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       auto_notification_templates: {
         Row: {
           channel: string
@@ -610,6 +643,56 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subflow_ads: {
+        Row: {
+          content: string
+          created_at: string
+          frequency: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          link_type: string
+          link_value: string | null
+          shop_id: string | null
+          shop_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_type?: string
+          link_value?: string | null
+          shop_id?: string | null
+          shop_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          frequency?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_type?: string
+          link_value?: string | null
+          shop_id?: string | null
+          shop_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subflow_ads_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
             referencedColumns: ["id"]
           },
         ]

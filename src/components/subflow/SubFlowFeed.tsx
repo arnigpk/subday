@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
+import { SubFlowAdPost } from './SubFlowAdPost';
 import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
@@ -22,6 +23,17 @@ interface Post {
   comments_count: number;
 }
 
+interface SubFlowAd {
+  id: string;
+  content: string;
+  image_url: string | null;
+  link_type: string;
+  link_value: string | null;
+  shop_id: string | null;
+  shop_name: string | null;
+  frequency: number;
+}
+
 interface SubFlowFeedProps {
   refreshTrigger: number;
   currentUserId: string | null;
@@ -35,6 +47,7 @@ const POSTS_PER_PAGE = 10;
 
 export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActiveSubscription, highlightPostId, onHighlightDone }: SubFlowFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [ads, setAds] = useState<SubFlowAd[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -184,9 +197,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     isLoading: isLoadingMore,
   });
 
+  // Fetch ads
+  const fetchAds = useCallback(async () => {
+    const { data } = await supabase
+      .from('subflow_ads')
+      .select('id, content, image_url, link_type, link_value, shop_id, shop_name, frequency')
+      .eq('is_active', true);
+    setAds((data as any[]) || []);
+  }, []);
+
   // Initial fetch and refresh
   useEffect(() => {
     fetchPosts(true);
+    fetchAds();
   }, [refreshTrigger, currentUserId, shopFilter]);
 
   // Fetch highlighted post if not in feed
@@ -299,20 +322,40 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     );
   }
 
+  // Build feed items with ads inserted at configured frequency
+  const getAdForPosition = (postIndex: number): SubFlowAd | null => {
+    if (ads.length === 0) return null;
+    for (const ad of ads) {
+      if (ad.frequency > 0 && (postIndex + 1) % ad.frequency === 0) {
+        return ad;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-4">
-      {posts.map((post, index) => (
-        <SubFlowPost
-          key={post.id}
-          post={post}
-          currentUserId={currentUserId}
-          onUpdate={() => fetchPosts(true)}
-          animationDelay={index < 10 ? index * 0.05 : 0}
-          hasActiveSubscription={hasActiveSubscription}
-          isHighlighted={highlightPostId === post.id}
-          onHighlightDone={onHighlightDone}
-        />
-      ))}
+      {posts.map((post, index) => {
+        const adToShow = getAdForPosition(index);
+        return (
+          <div key={post.id}>
+            <SubFlowPost
+              post={post}
+              currentUserId={currentUserId}
+              onUpdate={() => fetchPosts(true)}
+              animationDelay={index < 10 ? index * 0.05 : 0}
+              hasActiveSubscription={hasActiveSubscription}
+              isHighlighted={highlightPostId === post.id}
+              onHighlightDone={onHighlightDone}
+            />
+            {adToShow && (
+              <div className="mt-4">
+                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} />
+              </div>
+            )}
+          </div>
+        );
+      })}
       
       {/* Infinite scroll trigger */}
       <div ref={loadMoreRef} className="h-4" />
