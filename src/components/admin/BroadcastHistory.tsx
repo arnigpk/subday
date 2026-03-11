@@ -160,7 +160,9 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
             <AlertDialogHeader>
               <AlertDialogTitle>Очистить историю?</AlertDialogTitle>
               <AlertDialogDescription>
-                Все записи о рассылках будут удалены. Это действие нельзя отменить.
+                Все записи о рассылках будут удалены.
+                {type === 'push' && ' Уведомления также исчезнут у всех пользователей приложения.'}
+                {' '}Это действие нельзя отменить.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
