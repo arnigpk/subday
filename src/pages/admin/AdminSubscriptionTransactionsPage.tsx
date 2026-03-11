@@ -521,6 +521,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Payment ID</TableHead>
                         <TableHead>Создан</TableHead>
                         <TableHead>Оплачен</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
