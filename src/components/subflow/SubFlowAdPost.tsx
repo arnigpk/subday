@@ -62,24 +62,24 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
   };
 
   return (
-    <div className="card-static animate-slide-up border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
+    <div className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-accent/15 flex items-center justify-center">
-            <Megaphone size={16} className="text-accent" />
+          <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shadow-sm">
+            <Megaphone size={18} className="text-accent" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">
+            <p className="text-sm font-bold text-foreground tracking-tight">
               {ad.shop_name || 'subday'}
             </p>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/30 text-accent font-semibold">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/40 text-accent font-bold uppercase tracking-wider">
               реклама
             </Badge>
           </div>
         </div>
       </div>
 
-      <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{ad.content}</p>
+      <p className="text-[15px] text-foreground leading-relaxed mb-3 whitespace-pre-wrap font-medium">{ad.content}</p>
 
       {ad.image_url && (
         <div className="mb-3 -mx-4 overflow-hidden">
@@ -90,9 +90,9 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
       {ad.link_value && (
         <button
           onClick={handleClick}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent/10 text-accent font-semibold text-sm hover:bg-accent/20 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-accent-foreground font-bold text-sm hover:bg-accent/90 active:scale-[0.98] transition-all shadow-sm"
         >
-          <ExternalLink size={14} />
+          <ExternalLink size={15} />
           {ad.link_type === 'shop' ? 'Перейти в кофейню' :
            ad.link_type === 'instagram' ? 'Открыть Instagram' :
            ad.link_type === 'whatsapp' ? 'Написать в WhatsApp' :
