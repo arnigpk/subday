@@ -332,10 +332,12 @@ export default function AdminBannersPage() {
                 Рекомендуемый размер: 1200×400px (3:1)
               </p>
             </div>
-            <Button onClick={openCreateDialog} className="gap-2">
-              <Plus size={16} />
-              Добавить
-            </Button>
+            {canManage && (
+              <Button onClick={openCreateDialog} className="gap-2">
+                <Plus size={16} />
+                Добавить
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CountryCityFilter
