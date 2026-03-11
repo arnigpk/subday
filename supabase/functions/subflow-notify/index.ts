@@ -316,7 +316,7 @@ async function sendExternalNotification(
   }
 
   if (channel === 'push' || channel === 'both') {
-    tasks.push(sendPushNotification(supabase, message));
+    tasks.push(sendPushNotification(supabase, userId, message));
   }
 
   await Promise.allSettled(tasks);
