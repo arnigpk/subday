@@ -1,0 +1,1 @@
+ALTER TABLE public.subflow_ads ADD COLUMN title text DEFAULT NULL;
