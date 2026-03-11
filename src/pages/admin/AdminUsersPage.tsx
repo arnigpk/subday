@@ -88,7 +88,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { canManage, isSuperAdmin } = useAdminAuth();
+  const { canManage, isSuperAdmin, isAdmin } = useAdminAuth();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
