@@ -39,7 +39,7 @@ export function AdminProtectedRoute({ children, allowedRoles }: AdminProtectedRo
     );
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
+  if (allowedRoles && role && !allowedRoles.includes(role) && role !== 'superadmin') {
     return <Navigate to="/admin" replace />;
   }
 
