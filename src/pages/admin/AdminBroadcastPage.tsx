@@ -22,7 +22,7 @@ interface TelegramUser {
   user_id: string;
 }
 
-export default function AdminBroadcastPage() {
+const { canManage } = useAdminAuth();
   const { canManage } = useAdminAuth();
   const [message, setMessage] = useState('');
   const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
