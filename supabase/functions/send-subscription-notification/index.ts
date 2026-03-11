@@ -189,6 +189,7 @@ Deno.serve(async (req) => {
         await supabase.from('push_notifications').insert({
           title: title,
           message: message,
+          user_id: userId,
         });
         pushSent = true;
         console.log('Push notification created');
