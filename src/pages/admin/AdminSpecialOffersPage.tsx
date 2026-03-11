@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
