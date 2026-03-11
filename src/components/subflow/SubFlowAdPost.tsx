@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, ExternalLink } from 'lucide-react';
 import { openWithDeepLink } from '@/utils/deepLinks';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SubFlowAd {
   id: string;
@@ -19,8 +21,36 @@ interface SubFlowAdPostProps {
 
 export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
   const navigate = useNavigate();
+  const viewTracked = useRef(false);
 
-  const handleClick = () => {
+  // Track view on mount
+  useEffect(() => {
+    if (viewTracked.current) return;
+    viewTracked.current = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase.from('subflow_ad_events').insert({
+        ad_id: ad.id,
+        user_id: data.user.id,
+        event_type: 'view',
+      } as any).then(() => {});
+    });
+  }, [ad.id]);
+
+  const trackClick = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      await supabase.from('subflow_ad_events').insert({
+        ad_id: ad.id,
+        user_id: data.user.id,
+        event_type: 'click',
+      } as any);
+    }
+  };
+
+  const handleClick = async () => {
+    await trackClick();
     if (ad.link_type === 'shop' && ad.link_value) {
       navigate(`/shops/${ad.link_value}`);
     } else if (ad.link_value) {
@@ -30,7 +60,6 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
 
   return (
     <div className="card-static animate-slide-up border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
-      {/* Ad badge */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-accent/15 flex items-center justify-center">
@@ -47,22 +76,14 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
         </div>
       </div>
 
-      {/* Content */}
       <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{ad.content}</p>
 
-      {/* Image */}
       {ad.image_url && (
         <div className="mb-3 -mx-4 overflow-hidden">
-          <img
-            src={ad.image_url}
-            alt="Реклама"
-            className="w-full object-cover"
-            loading="lazy"
-          />
+          <img src={ad.image_url} alt="Реклама" className="w-full object-cover" loading="lazy" />
         </div>
       )}
 
-      {/* CTA */}
       {ad.link_value && (
         <button
           onClick={handleClick}
