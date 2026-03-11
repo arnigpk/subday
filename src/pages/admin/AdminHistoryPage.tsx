@@ -193,6 +193,18 @@ export default function AdminHistoryPage() {
     }
   };
 
+  const handleDeleteRedemption = async (id: string) => {
+    try {
+      const { error } = await supabase.from('redemptions').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Запись удалена');
+      fetchRedemptions();
+    } catch (error) {
+      console.error('Error deleting redemption:', error);
+      toast.error('Ошибка удаления');
+    }
+  };
+
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') {
       return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
