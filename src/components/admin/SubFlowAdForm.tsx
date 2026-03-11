@@ -12,6 +12,7 @@ import { Plus, Loader2 } from 'lucide-react';
 
 interface SubFlowAd {
   id: string;
+  title: string | null;
   content: string;
   image_url: string | null;
   link_type: string;
