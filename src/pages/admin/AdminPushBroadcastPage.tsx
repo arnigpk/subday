@@ -96,12 +96,24 @@ export default function AdminPushBroadcastPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label>Заголовок (до 40 символов)</Label>
+              <Input
+                placeholder="Введите заголовок..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={40}
+              />
+              <p className="text-xs text-muted-foreground">
+                Осталось: {40 - title.length}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Текст уведомления</Label>
               <Textarea
                 placeholder="Введите текст уведомления..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={6}
+                rows={4}
                 className="resize-none"
                 maxLength={200}
               />
