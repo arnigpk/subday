@@ -254,7 +254,7 @@ export function SubFlowAdPost({ ad, currentUserId }: SubFlowAdPostProps) {
       )}
 
       {/* Reactions */}
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="flex flex-wrap gap-1 mb-3 justify-center">
         {REACTIONS.map(reaction => {
           const count = localReactions[reaction] || 0;
           const hasReacted = localUserReactions.includes(reaction);
