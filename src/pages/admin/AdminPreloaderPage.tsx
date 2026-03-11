@@ -173,13 +173,17 @@ export default function AdminPreloaderPage() {
                 </p>
               </div>
             </div>
-            <Switch
-              checked={enabled}
-              onCheckedChange={(val) => {
-                setEnabled(val);
-                saveConfig(duration, val);
-              }}
-            />
+            {canManage ? (
+              <Switch
+                checked={enabled}
+                onCheckedChange={(val) => {
+                  setEnabled(val);
+                  saveConfig(duration, val);
+                }}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">{enabled ? 'Вкл' : 'Выкл'}</span>
+            )}
           </div>
         </Card>
 
