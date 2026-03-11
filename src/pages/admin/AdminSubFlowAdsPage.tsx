@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
 import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface SubFlowAd {
   id: string;
