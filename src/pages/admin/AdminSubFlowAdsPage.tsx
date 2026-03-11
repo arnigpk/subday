@@ -159,20 +159,22 @@ export default function AdminSubFlowAdsPage() {
 
       {activeTab === 'create' && (
         <div className="space-y-6">
-          <SubFlowAdForm
-            shops={shops}
-            editingAd={editingAd}
-            onSaved={() => { setEditingAd(null); fetchData(); }}
-            onCancel={() => setEditingAd(null)}
-          />
+          {canManage && (
+            <SubFlowAdForm
+              shops={shops}
+              editingAd={editingAd}
+              onSaved={() => { setEditingAd(null); fetchData(); }}
+              onCancel={() => setEditingAd(null)}
+            />
+          )}
 
           <SubFlowAdsList
             ads={ads}
             analytics={analytics}
             isLoading={isLoading}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
+            onEdit={canManage ? handleEdit : undefined}
+            onDelete={canManage ? handleDelete : undefined}
+            onToggleActive={canManage ? handleToggleActive : undefined}
             formatDate={formatDate}
           />
         </div>
