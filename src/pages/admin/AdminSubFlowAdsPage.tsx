@@ -208,6 +208,8 @@ export default function AdminSubFlowAdsPage() {
                     <TableHead className="text-center">Просмотры</TableHead>
                     <TableHead className="text-center">Клики</TableHead>
                     <TableHead className="text-center">CTR</TableHead>
+                    <TableHead className="text-center">Реакции</TableHead>
+                    <TableHead className="text-center">Комменты</TableHead>
                     <TableHead>Статус</TableHead>
                   </TableRow>
                 </TableHeader>
