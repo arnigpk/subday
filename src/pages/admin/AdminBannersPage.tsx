@@ -6,12 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer, CalendarIcon } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
 import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 
 interface AdBanner {
