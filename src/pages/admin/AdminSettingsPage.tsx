@@ -232,6 +232,7 @@ export default function AdminSettingsPage() {
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="moderator">Moderator</SelectItem>
                         <SelectItem value="partner">Partner</SelectItem>
+                        <SelectItem value="barista">Barista</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
