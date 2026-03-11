@@ -98,12 +98,26 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
 
   const handleClearAll = async () => {
     try {
+      // Delete broadcast history
       const { error } = await supabase
         .from('broadcast_messages')
         .delete()
         .eq('broadcast_type', type);
 
       if (error) throw error;
+
+      // For push type, also clear push_notifications so they disappear for all users
+      if (type === 'push') {
+        const { error: pushError } = await supabase
+          .from('push_notifications')
+          .delete()
+          .not('id', 'is', null); // delete all
+
+        if (pushError) {
+          console.error('Error clearing push_notifications:', pushError);
+        }
+      }
+
       setMessages([]);
       toast.success('История очищена');
     } catch (error) {
@@ -146,7 +160,9 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
             <AlertDialogHeader>
               <AlertDialogTitle>Очистить историю?</AlertDialogTitle>
               <AlertDialogDescription>
-                Все записи о рассылках будут удалены. Это действие нельзя отменить.
+                Все записи о рассылках будут удалены.
+                {type === 'push' && ' Уведомления также исчезнут у всех пользователей приложения.'}
+                {' '}Это действие нельзя отменить.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

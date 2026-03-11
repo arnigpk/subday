@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
@@ -13,12 +14,17 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
   const { canManage } = useAdminAuth();
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   const handleSendPush = async () => {
+    if (!title.trim()) {
+      toast.error('Введите заголовок');
+      return;
+    }
     if (!message.trim()) {
       toast.error('Введите текст сообщения');
       return;
@@ -27,22 +33,21 @@ export default function AdminPushBroadcastPage() {
     setIsLoading(true);
 
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error('Ошибка авторизации');
         return;
       }
 
-      const trimmed = message.trim();
-      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+      const trimmedTitle = title.trim();
+      const trimmedMessage = message.trim();
 
-      // 1) Create in-app PUSH notification (delivered via Lovable Cloud realtime)
+      // 1) Create in-app PUSH notification
       const { error: pushError } = await supabase
         .from('push_notifications')
         .insert({
-          title,
-          message: trimmed,
+          title: trimmedTitle,
+          message: trimmedMessage,
           created_by: user.id,
         });
 
@@ -52,7 +57,7 @@ export default function AdminPushBroadcastPage() {
       const { error: historyError } = await supabase
         .from('broadcast_messages')
         .insert({
-          message: trimmed,
+          message: `${trimmedTitle}\n${trimmedMessage}`,
           broadcast_type: 'push',
           target_type: audienceTypes.join(','),
           recipient_count: 0,
@@ -64,6 +69,7 @@ export default function AdminPushBroadcastPage() {
       if (historyError) throw historyError;
 
       toast.success('PUSH-уведомление отправлено');
+      setTitle('');
       setMessage('');
       setHistoryRefresh(prev => prev + 1);
     } catch (error) {
@@ -90,12 +96,24 @@ export default function AdminPushBroadcastPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label>Заголовок (до 40 символов)</Label>
+              <Input
+                placeholder="Введите заголовок..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={40}
+              />
+              <p className="text-xs text-muted-foreground">
+                Осталось: {40 - title.length}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Текст уведомления</Label>
               <Textarea
                 placeholder="Введите текст уведомления..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={6}
+                rows={4}
                 className="resize-none"
                 maxLength={200}
               />
@@ -109,7 +127,7 @@ export default function AdminPushBroadcastPage() {
             {canManage ? (
               <Button
                 onClick={handleSendPush}
-                disabled={isLoading || !message.trim()}
+                disabled={isLoading || !title.trim() || !message.trim()}
                 className="w-full"
               >
                 {isLoading ? (
