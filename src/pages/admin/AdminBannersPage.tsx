@@ -214,17 +214,26 @@ export default function AdminBannersPage() {
 
     setIsSubmitting(true);
     try {
+      // Determine effective is_active based on scheduling
+      let effectiveIsActive = formData.is_active;
+      const now = new Date();
+      if (formData.starts_at && formData.starts_at > now) {
+        effectiveIsActive = false;
+      }
+
       const bannerData = {
         image_url: formData.image_url,
         caption: formData.caption || null,
         shop_id: formData.shop_id || null,
         external_url: formData.shop_id ? null : (formData.external_url || null),
-        is_active: formData.is_active,
+        is_active: effectiveIsActive,
         sort_order: formData.sort_order,
         autoplay_delay: formData.autoplay_delay,
         display_location: formData.display_location,
         country: formData.country || null,
         city: formData.city || null,
+        starts_at: formData.starts_at ? formData.starts_at.toISOString() : null,
+        ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
       };
 
       if (editingBanner) {
