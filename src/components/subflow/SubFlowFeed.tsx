@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowPost } from './SubFlowPost';
+import { SubFlowAdPost } from './SubFlowAdPost';
 import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
