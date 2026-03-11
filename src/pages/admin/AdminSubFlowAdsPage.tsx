@@ -63,6 +63,7 @@ const TABS = [
 ];
 
 export default function AdminSubFlowAdsPage() {
+  const { canManage } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('create');
   const [ads, setAds] = useState<SubFlowAd[]>([]);
   const [requests, setRequests] = useState<AdRequest[]>([]);
