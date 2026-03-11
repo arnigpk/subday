@@ -739,20 +739,21 @@ export default function AdminUsersPage() {
 
             <div className="border-t pt-4">
               <Label>Роль пользователя</Label>
-              <Select 
-                value={formData.role} 
-                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Пользователь</SelectItem>
-                  <SelectItem value="admin">Администратор</SelectItem>
-                  <SelectItem value="moderator">Модератор</SelectItem>
-                  <SelectItem value="partner">Партнёр</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select 
+                  value={formData.role} 
+                  onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Пользователь</SelectItem>
+                    {isSuperAdmin && <SelectItem value="superadmin">СуперАдмин</SelectItem>}
+                    <SelectItem value="admin">Администратор</SelectItem>
+                    <SelectItem value="moderator">Модератор</SelectItem>
+                    <SelectItem value="partner">Партнёр</SelectItem>
+                  </SelectContent>
+                </Select>
               
               {formData.role === 'partner' && (
                 <div className="mt-3">
