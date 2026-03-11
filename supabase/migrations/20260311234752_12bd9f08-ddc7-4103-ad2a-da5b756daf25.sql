@@ -1,0 +1,1 @@
+DELETE FROM push_notifications WHERE id IN ('25569b0d-2475-4cd5-ae57-cf3e0da67e4a', '92b6bbb9-9656-4426-97f4-02e5b0f1cbb7', '7dd1c6a8-a9a8-437b-b40f-3a5e6e762bc9')
