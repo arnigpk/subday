@@ -235,9 +235,9 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         <div className="space-y-3">
           {comments.map(comment => (
             <div key={comment.id} className="flex gap-2">
-              <Avatar className="w-8 h-8 flex-shrink-0">
+              <Avatar className="w-8 h-8 flex-shrink-0 ring-2 ring-primary/20">
                 {comment.author_avatar ? (
-                  <AvatarImage src={comment.author_avatar} alt={comment.author_name} />
+                  <AvatarImage src={comment.author_avatar} alt={comment.author_name} className="object-cover" />
                 ) : null}
                 <AvatarFallback className="bg-primary/10">
                   <User size={14} className="text-primary" />
