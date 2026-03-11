@@ -52,6 +52,7 @@ type PeriodType = 'last_month' | 'custom' | 'all';
 const PAGE_SIZE = 20;
 
 export default function AdminHistoryPage() {
+  const { canManage } = useAdminAuth();
   const [redemptions, setRedemptions] = useState<RedemptionWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
