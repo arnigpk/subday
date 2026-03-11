@@ -598,27 +598,27 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {(canManage || isAdmin) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(user)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
                             {canManage && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditDialog(user)}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleToggleBlock(user)}
-                                >
-                                  {user.is_blocked ? (
-                                    <UserCheck className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Ban className="w-4 h-4 text-destructive" />
-                                  )}
-                                </Button>
-                              </>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleBlock(user)}
+                              >
+                                {user.is_blocked ? (
+                                  <UserCheck className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Ban className="w-4 h-4 text-destructive" />
+                                )}
+                              </Button>
                             )}
                           </div>
                         </TableCell>
