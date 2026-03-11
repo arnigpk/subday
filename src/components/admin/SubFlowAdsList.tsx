@@ -36,9 +36,9 @@ interface SubFlowAdsListProps {
   ads: SubFlowAd[];
   analytics: AdAnalytics;
   isLoading: boolean;
-  onEdit: (ad: SubFlowAd) => void;
-  onDelete: (id: string) => void;
-  onToggleActive: (ad: SubFlowAd) => void;
+  onEdit?: (ad: SubFlowAd) => void;
+  onDelete?: (id: string) => void;
+  onToggleActive?: (ad: SubFlowAd) => void;
   formatDate: (d: string) => string;
 }
 
