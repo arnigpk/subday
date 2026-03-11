@@ -41,7 +41,7 @@ interface UserRole {
 }
 
 export default function AdminSettingsPage() {
-  const { isAdmin } = useAdminAuth();
+  const { isAdmin, isSuperAdmin } = useAdminAuth();
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
