@@ -22,6 +22,7 @@ import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface TransactionWithUser {
   id: string;
