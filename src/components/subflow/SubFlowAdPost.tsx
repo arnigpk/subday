@@ -91,7 +91,7 @@ export function SubFlowAdPost({ ad }: SubFlowAdPostProps) {
       {ad.link_value && (
         <button
           onClick={handleClick}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-transparent border-2 border-[hsl(0,60%,30%)] text-accent-foreground font-bold text-sm hover:bg-accent/10 active:scale-[0.98] transition-all"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[hsl(0,60%,30%)] text-white font-bold text-sm hover:bg-[hsl(0,60%,25%)] active:scale-[0.98] transition-all shadow-sm"
         >
           <ExternalLink size={15} />
           {ad.link_type === 'shop' ? 'Перейти в кофейню' :
