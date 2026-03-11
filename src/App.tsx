@@ -60,6 +60,7 @@ const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
 const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
 const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
 const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
+const PartnerAdvertisingPage = lazy(() => import("./pages/partner/PartnerAdvertisingPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
