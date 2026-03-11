@@ -80,6 +80,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
 
   useEffect(() => {
     if (editingAd) {
+      setTitle(editingAd.title || '');
       setContent(editingAd.content);
       setImageUrl(editingAd.image_url || '');
       setLinkType(editingAd.link_type);
