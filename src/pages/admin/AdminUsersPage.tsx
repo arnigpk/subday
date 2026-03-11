@@ -269,38 +269,51 @@ export default function AdminUsersPage() {
     if (!editingUser) return;
 
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name || null,
-          city: formData.city || null,
-          country: formData.country || 'KZ',
-          is_blocked: formData.is_blocked,
-          subflow_access: formData.subflow_access,
-        })
-        .eq('user_id', editingUser.user_id);
+      // SuperAdmin can update everything, admin can only update roles
+      if (canManage) {
+        // Update profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            name: formData.name || null,
+            city: formData.city || null,
+            country: formData.country || 'KZ',
+            is_blocked: formData.is_blocked,
+            subflow_access: formData.subflow_access,
+          })
+          .eq('user_id', editingUser.user_id);
 
-      if (profileError) throw profileError;
+        if (profileError) throw profileError;
 
-      // Update stats
-      const { error: statsError } = await supabase
-        .from('user_stats')
-        .update({
-          coffee_remaining: formData.coffee_remaining,
-          drinks_remaining: formData.drinks_remaining,
-        })
-        .eq('user_id', editingUser.user_id);
+        // Update stats
+        const { error: statsError } = await supabase
+          .from('user_stats')
+          .update({
+            coffee_remaining: formData.coffee_remaining,
+            drinks_remaining: formData.drinks_remaining,
+          })
+          .eq('user_id', editingUser.user_id);
 
-      if (statsError) throw statsError;
+        if (statsError) throw statsError;
+      }
 
-      // Handle role update
+      // Handle role update (both admin and superadmin can do this)
       const previousRole = editingUser.role || 'user';
       const newRole = formData.role;
 
+      // Admin cannot assign superadmin role
+      if (!isSuperAdmin && newRole === 'superadmin') {
+        toast({ title: 'Нельзя назначить роль СуперАдмина', variant: 'destructive' });
+        return;
+      }
+
       if (previousRole !== newRole) {
         if (previousRole !== 'user' && editingUser.role_id) {
-          // Delete existing role
+          // Don't allow deleting superadmin role
+          if (previousRole === 'superadmin' && !isSuperAdmin) {
+            toast({ title: 'Нельзя изменить роль СуперАдмина', variant: 'destructive' });
+            return;
+          }
           await supabase
             .from('user_roles')
             .delete()
@@ -308,7 +321,6 @@ export default function AdminUsersPage() {
         }
 
         if (newRole !== 'user') {
-          // Insert new role
           const { error: roleError } = await supabase
             .from('user_roles')
             .insert({
@@ -320,7 +332,6 @@ export default function AdminUsersPage() {
           if (roleError) throw roleError;
         }
       } else if (newRole === 'partner' && formData.shop_id !== editingUser.shop_id) {
-        // Update shop_id for partner
         if (editingUser.role_id) {
           await supabase
             .from('user_roles')
