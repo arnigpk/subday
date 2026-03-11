@@ -177,9 +177,11 @@ export default function AdminSpecialOffersPage() {
     <AdminLayout title="Спецпредложения">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openCreate} className="gap-2">
-            <Plus size={16} /> Создать предложение
-          </Button>
+          {canManage && (
+            <Button onClick={openCreate} className="gap-2">
+              <Plus size={16} /> Создать предложение
+            </Button>
+          )}
           <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Страна" />
