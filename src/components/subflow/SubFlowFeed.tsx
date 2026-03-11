@@ -197,9 +197,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     isLoading: isLoadingMore,
   });
 
+  // Fetch ads
+  const fetchAds = useCallback(async () => {
+    const { data } = await supabase
+      .from('subflow_ads')
+      .select('id, content, image_url, link_type, link_value, shop_id, shop_name, frequency')
+      .eq('is_active', true);
+    setAds((data as any[]) || []);
+  }, []);
+
   // Initial fetch and refresh
   useEffect(() => {
     fetchPosts(true);
+    fetchAds();
   }, [refreshTrigger, currentUserId, shopFilter]);
 
   // Fetch highlighted post if not in feed
