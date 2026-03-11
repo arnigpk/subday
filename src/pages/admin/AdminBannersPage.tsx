@@ -507,6 +507,70 @@ export default function AdminBannersPage() {
                   />
                 </div>
 
+                {/* Scheduling dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Дата начала</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !formData.starts_at && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.starts_at ? format(formData.starts_at, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.starts_at}
+                          onSelect={(d) => setFormData(prev => ({ ...prev, starts_at: d || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formData.starts_at && (
+                      <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setFormData(prev => ({ ...prev, starts_at: undefined }))}>Сбросить</button>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Дата окончания</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !formData.ends_at && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.ends_at ? format(formData.ends_at, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.ends_at}
+                          onSelect={(d) => setFormData(prev => ({ ...prev, ends_at: d || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formData.ends_at && (
+                      <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setFormData(prev => ({ ...prev, ends_at: undefined }))}>Сбросить</button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Если задать даты, баннер автоматически включится/выключится по расписанию.
+                </p>
                 {/* Country/City targeting */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
