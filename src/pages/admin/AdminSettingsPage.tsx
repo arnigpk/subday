@@ -177,7 +177,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (!isAdmin) {
+  if (!isSuperAdmin) {
     return (
       <AdminLayout title="Настройки">
         <Card>
