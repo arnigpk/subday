@@ -131,7 +131,9 @@ export function PushNotificationsBell() {
                     className={`px-4 py-3 transition-colors ${isNew ? 'bg-primary/5' : ''}`}
                   >
                     <p className="text-sm font-semibold text-foreground">{n.title}</p>
-                    <p className="text-sm text-foreground/80 mt-0.5">{n.message}</p>
+                    {n.title !== n.message && (
+                      <p className="text-sm text-foreground/80 mt-0.5">{n.message}</p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatDate(n.created_at)}
                       {n.user_id === null && (
