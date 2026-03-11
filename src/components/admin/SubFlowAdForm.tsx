@@ -7,8 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface SubFlowAd {
   id: string;
@@ -23,6 +28,8 @@ interface SubFlowAd {
   daily_limit: number;
   is_active: boolean;
   created_at: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 interface Shop {
@@ -77,6 +84,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [startsAt, setStartsAt] = useState<Date | undefined>(undefined);
+  const [endsAt, setEndsAt] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (editingAd) {
@@ -87,6 +96,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       setLinkValue(editingAd.link_value || '');
       setSelectedShopId(editingAd.shop_id || '');
       setIsActive(editingAd.is_active);
+      setStartsAt(editingAd.starts_at ? new Date(editingAd.starts_at) : undefined);
+      setEndsAt(editingAd.ends_at ? new Date(editingAd.ends_at) : undefined);
 
       const presetFreq = FREQUENCY_OPTIONS.find(f => f.value === editingAd.frequency && f.value !== 0);
       if (presetFreq) {
@@ -123,6 +134,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
     setCustomDailyLimit('');
     setIsActive(true);
     setImageFile(null);
+    setStartsAt(undefined);
+    setEndsAt(undefined);
   };
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
@@ -149,6 +162,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       return;
     }
 
+    if (startsAt && endsAt && startsAt >= endsAt) {
+      toast.error('Дата начала должна быть раньше даты окончания');
+      return;
+    }
+
     setIsSaving(true);
     try {
       let finalImageUrl = imageUrl;
@@ -162,6 +180,13 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       const actualDailyLimit = dailyLimit === -1 ? parseInt(customDailyLimit) || 0 : dailyLimit;
       const selectedShop = shops.find(s => s.id === selectedShopId);
 
+      // Determine is_active based on scheduling
+      let effectiveIsActive = isActive;
+      const now = new Date();
+      if (startsAt && startsAt > now) {
+        effectiveIsActive = false; // Will be activated by the cron job
+      }
+
       const adData: any = {
         title: title.trim() || null,
         content: content.trim(),
@@ -172,7 +197,9 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         shop_name: linkType === 'shop' ? selectedShop?.name || null : null,
         frequency: actualFrequency,
         daily_limit: actualDailyLimit,
-        is_active: isActive,
+        is_active: effectiveIsActive,
+        starts_at: startsAt ? startsAt.toISOString() : null,
+        ends_at: endsAt ? endsAt.toISOString() : null,
       };
 
       if (editingAd) {
@@ -316,6 +343,72 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
             </div>
           )}
         </div>
+
+        {/* Scheduling dates */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Дата начала</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal mt-1",
+                    !startsAt && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startsAt ? format(startsAt, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startsAt}
+                  onSelect={setStartsAt}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {startsAt && (
+              <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setStartsAt(undefined)}>Сбросить</button>
+            )}
+          </div>
+
+          <div>
+            <Label>Дата окончания</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal mt-1",
+                    !endsAt && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endsAt ? format(endsAt, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endsAt}
+                  onSelect={setEndsAt}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {endsAt && (
+              <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setEndsAt(undefined)}>Сбросить</button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Если задать даты, реклама автоматически включится в дату начала и выключится по окончании.
+        </p>
 
         <div className="flex items-center gap-2">
           <Switch checked={isActive} onCheckedChange={setIsActive} />

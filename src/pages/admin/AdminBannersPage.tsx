@@ -6,13 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer, CalendarIcon } from 'lucide-react';
 import { compressImage } from '@/utils/imageCompression';
 import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface AdBanner {
   id: string;
@@ -59,6 +64,8 @@ export default function AdminBannersPage() {
     display_location: 'shops',
     country: '',
     city: '',
+    starts_at: undefined as Date | undefined,
+    ends_at: undefined as Date | undefined,
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -132,6 +139,8 @@ export default function AdminBannersPage() {
       display_location: 'shops',
       country: '',
       city: '',
+      starts_at: undefined,
+      ends_at: undefined,
     });
     setEditingBanner(null);
   };
@@ -155,6 +164,8 @@ export default function AdminBannersPage() {
       display_location: banner.display_location || 'shops',
       country: (banner as any).country || '',
       city: (banner as any).city || '',
+      starts_at: (banner as any).starts_at ? new Date((banner as any).starts_at) : undefined,
+      ends_at: (banner as any).ends_at ? new Date((banner as any).ends_at) : undefined,
     });
     setIsDialogOpen(true);
   };
@@ -202,17 +213,26 @@ export default function AdminBannersPage() {
 
     setIsSubmitting(true);
     try {
+      // Determine effective is_active based on scheduling
+      let effectiveIsActive = formData.is_active;
+      const now = new Date();
+      if (formData.starts_at && formData.starts_at > now) {
+        effectiveIsActive = false;
+      }
+
       const bannerData = {
         image_url: formData.image_url,
         caption: formData.caption || null,
         shop_id: formData.shop_id || null,
         external_url: formData.shop_id ? null : (formData.external_url || null),
-        is_active: formData.is_active,
+        is_active: effectiveIsActive,
         sort_order: formData.sort_order,
         autoplay_delay: formData.autoplay_delay,
         display_location: formData.display_location,
         country: formData.country || null,
         city: formData.city || null,
+        starts_at: formData.starts_at ? formData.starts_at.toISOString() : null,
+        ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
       };
 
       if (editingBanner) {
@@ -487,6 +507,70 @@ export default function AdminBannersPage() {
                   />
                 </div>
 
+                {/* Scheduling dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Дата начала</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !formData.starts_at && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.starts_at ? format(formData.starts_at, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.starts_at}
+                          onSelect={(d) => setFormData(prev => ({ ...prev, starts_at: d || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formData.starts_at && (
+                      <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setFormData(prev => ({ ...prev, starts_at: undefined }))}>Сбросить</button>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Дата окончания</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal mt-1.5",
+                            !formData.ends_at && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.ends_at ? format(formData.ends_at, 'dd.MM.yyyy', { locale: ru }) : 'Не задана'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.ends_at}
+                          onSelect={(d) => setFormData(prev => ({ ...prev, ends_at: d || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formData.ends_at && (
+                      <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setFormData(prev => ({ ...prev, ends_at: undefined }))}>Сбросить</button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Если задать даты, баннер автоматически включится/выключится по расписанию.
+                </p>
                 {/* Country/City targeting */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -582,6 +666,11 @@ export default function AdminBannersPage() {
                       <div className="text-xs text-muted-foreground mt-0.5">
                         📍 {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Главная + Кофейни'}
                       </div>
+                      {((banner as any).starts_at || (banner as any).ends_at) && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          📅 {(banner as any).starts_at ? format(new Date((banner as any).starts_at), 'dd.MM.yyyy') : '...'} — {(banner as any).ends_at ? format(new Date((banner as any).ends_at), 'dd.MM.yyyy') : '...'}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <Switch

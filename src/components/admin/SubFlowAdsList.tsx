@@ -24,6 +24,8 @@ interface SubFlowAd {
   daily_limit: number;
   is_active: boolean;
   created_at: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 interface AdAnalytics {
@@ -86,6 +88,11 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                         CTR: {stats.views > 0 ? ((stats.clicks / stats.views) * 100).toFixed(1) : '0'}%
                       </span>
                     </div>
+                    {(ad.starts_at || ad.ends_at) && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        📅 {ad.starts_at ? formatDate(ad.starts_at) : '...'} — {ad.ends_at ? formatDate(ad.ends_at) : '...'}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">{formatDate(ad.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">

@@ -162,12 +162,18 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
 
   // Fetch ads and apply daily limit filtering
   const fetchAds = useCallback(async () => {
+    const now = new Date().toISOString();
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit')
+      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at')
       .eq('is_active', true);
     
-    const allAds = (data as any[]) || [];
+    // Client-side filter by date range (extra safety)
+    const allAds = ((data as any[]) || []).filter(ad => {
+      if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
+      if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
+      return true;
+    });
     setAds(allAds);
 
     // Filter by daily limit per user

@@ -51,12 +51,14 @@ export type Database = {
           country: string | null
           created_at: string
           display_location: string
+          ends_at: string | null
           external_url: string | null
           id: string
           image_url: string
           is_active: boolean
           shop_id: string | null
           sort_order: number
+          starts_at: string | null
           updated_at: string
         }
         Insert: {
@@ -66,12 +68,14 @@ export type Database = {
           country?: string | null
           created_at?: string
           display_location?: string
+          ends_at?: string | null
           external_url?: string | null
           id?: string
           image_url: string
           is_active?: boolean
           shop_id?: string | null
           sort_order?: number
+          starts_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -81,12 +85,14 @@ export type Database = {
           country?: string | null
           created_at?: string
           display_location?: string
+          ends_at?: string | null
           external_url?: string | null
           id?: string
           image_url?: string
           is_active?: boolean
           shop_id?: string | null
           sort_order?: number
+          starts_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -684,6 +690,7 @@ export type Database = {
           content: string
           created_at: string
           daily_limit: number
+          ends_at: string | null
           frequency: number
           id: string
           image_url: string | null
@@ -692,6 +699,7 @@ export type Database = {
           link_value: string | null
           shop_id: string | null
           shop_name: string | null
+          starts_at: string | null
           title: string | null
           updated_at: string
         }
@@ -699,6 +707,7 @@ export type Database = {
           content: string
           created_at?: string
           daily_limit?: number
+          ends_at?: string | null
           frequency?: number
           id?: string
           image_url?: string | null
@@ -707,6 +716,7 @@ export type Database = {
           link_value?: string | null
           shop_id?: string | null
           shop_name?: string | null
+          starts_at?: string | null
           title?: string | null
           updated_at?: string
         }
@@ -714,6 +724,7 @@ export type Database = {
           content?: string
           created_at?: string
           daily_limit?: number
+          ends_at?: string | null
           frequency?: number
           id?: string
           image_url?: string | null
@@ -722,6 +733,7 @@ export type Database = {
           link_value?: string | null
           shop_id?: string | null
           shop_name?: string | null
+          starts_at?: string | null
           title?: string | null
           updated_at?: string
         }

@@ -56,11 +56,15 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
       
       if (error) throw error;
       
+      const now = new Date();
       const filtered = (data as AdBanner[]).filter(banner => {
         const locationMatch = banner.display_location === location || banner.display_location === 'both';
         const countryMatch = !banner.country || banner.country === userCountry;
         const cityMatch = !banner.city || !userCity || banner.city === userCity;
-        return locationMatch && countryMatch && cityMatch;
+        // Date range filtering
+        const startsOk = !(banner as any).starts_at || new Date((banner as any).starts_at) <= now;
+        const endsOk = !(banner as any).ends_at || new Date((banner as any).ends_at) > now;
+        return locationMatch && countryMatch && cityMatch && startsOk && endsOk;
       });
       
       return filtered;
