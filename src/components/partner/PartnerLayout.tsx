@@ -30,6 +30,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
         { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
         { path: '/partner/history', icon: History, label: 'История' },
         { path: '/partner/staff', icon: Users, label: 'Сотрудники' },
+        { path: '/partner/advertising', icon: Megaphone, label: 'Реклама' },
       ]
     : isBarista
     ? [

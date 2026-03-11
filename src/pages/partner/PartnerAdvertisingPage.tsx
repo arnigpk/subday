@@ -19,9 +19,8 @@ export default function PartnerAdvertisingPage() {
     try {
       const now = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Aqtau' });
 
-      await supabase.functions.invoke('telegram-broadcast', {
+      await supabase.functions.invoke('partner-ad-request', {
         body: {
-          type: 'ad_request',
           shopName: shopName || 'Не указано',
           time: now,
         },
