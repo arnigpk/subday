@@ -344,6 +344,7 @@ export default function AdminAutoNotificationsPage() {
                     onToggle={handleToggle}
                     getChannelIcon={getChannelIcon}
                     getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
                   />
                 ))}
               </div>
