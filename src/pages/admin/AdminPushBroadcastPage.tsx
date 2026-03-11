@@ -21,6 +21,10 @@ export default function AdminPushBroadcastPage() {
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   const handleSendPush = async () => {
+    if (!title.trim()) {
+      toast.error('Введите заголовок');
+      return;
+    }
     if (!message.trim()) {
       toast.error('Введите текст сообщения');
       return;
@@ -29,22 +33,21 @@ export default function AdminPushBroadcastPage() {
     setIsLoading(true);
 
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error('Ошибка авторизации');
         return;
       }
 
-      const trimmed = message.trim();
-      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+      const trimmedTitle = title.trim();
+      const trimmedMessage = message.trim();
 
-      // 1) Create in-app PUSH notification (delivered via Lovable Cloud realtime)
+      // 1) Create in-app PUSH notification
       const { error: pushError } = await supabase
         .from('push_notifications')
         .insert({
-          title,
-          message: trimmed,
+          title: trimmedTitle,
+          message: trimmedMessage,
           created_by: user.id,
         });
 
