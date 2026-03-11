@@ -102,6 +102,7 @@ const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
 const isAdminTrigger = (type: string) => ADMIN_TRIGGERS.includes(type);
 
 export default function AdminAutoNotificationsPage() {
+  const { canManage } = useAdminAuth();
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
