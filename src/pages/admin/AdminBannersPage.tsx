@@ -666,6 +666,11 @@ export default function AdminBannersPage() {
                       <div className="text-xs text-muted-foreground mt-0.5">
                         📍 {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Главная + Кофейни'}
                       </div>
+                      {((banner as any).starts_at || (banner as any).ends_at) && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          📅 {(banner as any).starts_at ? format(new Date((banner as any).starts_at), 'dd.MM.yyyy') : '...'} — {(banner as any).ends_at ? format(new Date((banner as any).ends_at), 'dd.MM.yyyy') : '...'}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <Switch
