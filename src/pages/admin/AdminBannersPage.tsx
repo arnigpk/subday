@@ -46,6 +46,7 @@ interface BannerStats {
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 
 export default function AdminBannersPage() {
+  const { canManage } = useAdminAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<AdBanner | null>(null);
