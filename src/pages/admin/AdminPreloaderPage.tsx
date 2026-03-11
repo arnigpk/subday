@@ -216,7 +216,7 @@ export default function AdminPreloaderPage() {
               Не удалось загрузить
             </div>
           )}
-          {isCustom && (
+          {isCustom && canManage && (
             <Button
               variant="destructive"
               size="sm"
