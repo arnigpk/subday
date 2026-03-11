@@ -243,15 +243,21 @@ export default function AdminSpecialOffersPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={offer.is_active} onCheckedChange={(v) => handleToggle(offer.id, v)} />
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
-                        <Pencil size={16} />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(offer.id)}>
-                        <Trash2 size={16} className="text-destructive" />
-                      </Button>
-                    </div>
+                    {canManage ? (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={offer.is_active} onCheckedChange={(v) => handleToggle(offer.id, v)} />
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
+                          <Pencil size={16} />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(offer.id)}>
+                          <Trash2 size={16} className="text-destructive" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className={`text-xs px-2 py-1 rounded ${offer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {offer.is_active ? 'Вкл' : 'Выкл'}
+                      </span>
+                    )}
                   </div>
                 </div>
               );

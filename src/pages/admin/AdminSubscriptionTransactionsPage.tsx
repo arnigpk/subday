@@ -66,6 +66,7 @@ type PaymentStatusFilter = 'all' | 'paid' | 'pending' | 'failed';
 const PAGE_SIZE = 20;
 
 export default function AdminSubscriptionTransactionsPage() {
+  const { canManage } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('payments');
   
   // Transactions state

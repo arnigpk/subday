@@ -16,6 +16,7 @@ const FILE_PATH = 'preloader.gif';
 const CONFIG_PATH = 'preloader-config.json';
 
 export default function AdminPreloaderPage() {
+  const { canManage } = useAdminAuth();
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
   const [isCustom, setIsCustom] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);

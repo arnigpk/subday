@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {

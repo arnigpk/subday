@@ -12,6 +12,7 @@ import { AudienceTypeSelector, type AudienceType } from '@/components/admin/Audi
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
+  const { canManage } = useAdminAuth();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
