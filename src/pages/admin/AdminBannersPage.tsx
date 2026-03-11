@@ -140,6 +140,8 @@ export default function AdminBannersPage() {
       display_location: 'shops',
       country: '',
       city: '',
+      starts_at: undefined,
+      ends_at: undefined,
     });
     setEditingBanner(null);
   };
