@@ -288,6 +288,30 @@ export default function AdminSubscriptionTransactionsPage() {
     }
   };
 
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      const { error } = await supabase.from('subscription_transactions').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Транзакция удалена');
+      fetchTransactions();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Ошибка удаления');
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    try {
+      const { error } = await supabase.from('payment_orders').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Запись оплаты удалена');
+      fetchPayments();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast.error('Ошибка удаления');
+    }
+  };
+
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
     if (periodType === 'custom' && dateRange?.from) {
@@ -497,6 +521,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Payment ID</TableHead>
                         <TableHead>Создан</TableHead>
                         <TableHead>Оплачен</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -532,6 +557,25 @@ export default function AdminSubscriptionTransactionsPage() {
                           <TableCell className="text-xs">
                             {p.paid_at ? format(new Date(p.paid_at), 'd.MM.yyyy HH:mm', { locale: ru }) : '—'}
                           </TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
+                                  <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -559,6 +603,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Оплата</TableHead>
                         <TableHead>RRN / Payment ID</TableHead>
                         <TableHead>Дата</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -605,6 +650,25 @@ export default function AdminSubscriptionTransactionsPage() {
                             {t.payment_id || '—'}
                           </TableCell>
                           <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить транзакцию?</AlertDialogTitle>
+                                  <AlertDialogDescription>Транзакция будет удалена безвозвратно. Она исчезнет и у пользователя.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteTransaction(t.id)}>Удалить</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
