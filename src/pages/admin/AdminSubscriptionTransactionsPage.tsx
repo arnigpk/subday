@@ -288,6 +288,30 @@ export default function AdminSubscriptionTransactionsPage() {
     }
   };
 
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      const { error } = await supabase.from('subscription_transactions').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Транзакция удалена');
+      fetchTransactions();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Ошибка удаления');
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    try {
+      const { error } = await supabase.from('payment_orders').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Запись оплаты удалена');
+      fetchPayments();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast.error('Ошибка удаления');
+    }
+  };
+
   const formatPeriodLabel = () => {
     if (periodType === 'last_month') return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
     if (periodType === 'custom' && dateRange?.from) {
