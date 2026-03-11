@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface TelegramUser {
   id: string;
