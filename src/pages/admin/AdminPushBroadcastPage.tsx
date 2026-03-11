@@ -127,7 +127,7 @@ export default function AdminPushBroadcastPage() {
             {canManage ? (
               <Button
                 onClick={handleSendPush}
-                disabled={isLoading || !message.trim()}
+                disabled={isLoading || !title.trim() || !message.trim()}
                 className="w-full"
               >
                 {isLoading ? (
