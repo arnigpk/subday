@@ -72,12 +72,15 @@ export default function ProfilePage() {
   const handleCancelNameEdit = () => { setEditName(profile?.name || ''); setIsEditingName(false); };
 
   const handlePushToggle = async () => {
-    const success = await togglePush();
-    if (success) {
-      const nowEnabled = !notifSettings.pushEnabled || Notification.permission === 'granted';
-      toast.success(nowEnabled ? t('profile.notificationsEnabled') : t('profile.notificationsDisabled'));
+    const result = await togglePush();
+    if (result === 'granted') {
+      toast.success(t('profile.notificationsEnabled'));
+    } else if (result === 'denied') {
+      toast.error('Разрешение на уведомления отклонено. Включите в настройках устройства.');
     } else {
-      toast.error(t('profile.notificationsDenied'));
+      // toggled
+      const current = notifSettings.pushEnabled;
+      toast.success(current ? t('profile.notificationsDisabled') : t('profile.notificationsEnabled'));
     }
   };
   

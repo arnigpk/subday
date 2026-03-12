@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const STORAGE_KEY = 'subday_notification_settings';
 
@@ -31,15 +33,27 @@ function saveSettings(settings: NotificationSettings) {
 export function useNotificationSettings() {
   const [settings, setSettings] = useState<NotificationSettings>(loadSettings);
 
-  // Sync push state with browser permission on mount
+  // Check current push permission status on mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      setSettings(prev => {
-        const next = { ...prev, pushEnabled: true };
-        saveSettings(next);
-        return next;
-      });
-    }
+    const checkPermission = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const result = await PushNotifications.checkPermissions();
+          if (result.receive === 'granted') {
+            setSettings(prev => {
+              const next = { ...prev, pushEnabled: true };
+              saveSettings(next);
+              return next;
+            });
+          }
+        } catch {}
+      } else {
+        // Web fallback: just restore saved state
+        const saved = loadSettings();
+        setSettings(saved);
+      }
+    };
+    checkPermission();
   }, []);
 
   const update = useCallback((partial: Partial<NotificationSettings>) => {
@@ -50,21 +64,37 @@ export function useNotificationSettings() {
     });
   }, []);
 
-  const togglePush = useCallback(async (): Promise<boolean> => {
-    if (!('Notification' in window)) return false;
+  const togglePush = useCallback(async (): Promise<'granted' | 'denied' | 'toggled'> => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const permStatus = await PushNotifications.checkPermissions();
 
-    if (Notification.permission === 'granted') {
-      // Can't revoke browser permission, but we toggle our flag
-      update({ pushEnabled: !loadSettings().pushEnabled });
-      return true;
+        if (permStatus.receive === 'granted') {
+          // Already granted — just toggle our internal flag
+          const current = loadSettings();
+          update({ pushEnabled: !current.pushEnabled });
+          return 'toggled';
+        }
+
+        // Request native permission
+        const requestResult = await PushNotifications.requestPermissions();
+        if (requestResult.receive === 'granted') {
+          // Register for push notifications
+          await PushNotifications.register();
+          update({ pushEnabled: true });
+          return 'granted';
+        }
+
+        return 'denied';
+      } catch {
+        return 'denied';
+      }
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      update({ pushEnabled: true });
-      return true;
-    }
-    return false;
+    // Web/PWA fallback — simple toggle (no browser Notification API)
+    const current = loadSettings();
+    update({ pushEnabled: !current.pushEnabled });
+    return 'toggled';
   }, [update]);
 
   return { settings, update, togglePush };
