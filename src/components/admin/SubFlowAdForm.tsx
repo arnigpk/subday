@@ -87,6 +87,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   const [isUploading, setIsUploading] = useState(false);
   const [startsAt, setStartsAt] = useState<Date | undefined>(undefined);
   const [endsAt, setEndsAt] = useState<Date | undefined>(undefined);
+  const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   useEffect(() => {
     if (editingAd) {
