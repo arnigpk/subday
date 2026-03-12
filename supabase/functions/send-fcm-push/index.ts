@@ -5,10 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' | 'new_users' | 'inactive';
+
 interface FCMRequest {
   title: string;
   message: string;
-  targetUserIds?: string[]; // specific users, or all if empty
+  targetUserIds?: string[];
+  audienceTypes?: AudienceType[];
 }
 
 // Get OAuth2 access token from service account
@@ -115,6 +118,7 @@ Deno.serve(async (req) => {
 
     const body: FCMRequest = await req.json();
     const { title, message, targetUserIds } = body;
+    const audienceTypes: AudienceType[] = body.audienceTypes || ['all'];
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: 'Title and message are required' }), {
@@ -122,10 +126,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Resolve audience user IDs
+    let filteredUserIds: string[] | null = null;
+    if (targetUserIds && targetUserIds.length > 0) {
+      filteredUserIds = targetUserIds;
+    } else if (!audienceTypes.includes('all')) {
+      filteredUserIds = await resolveAudienceUserIds(supabase, audienceTypes);
+    }
+
     // Get FCM tokens from device_tokens table
     let query = supabase.from('device_tokens').select('token, user_id').eq('platform', 'android');
-    if (targetUserIds && targetUserIds.length > 0) {
-      query = query.in('user_id', targetUserIds);
+    if (filteredUserIds !== null) {
+      if (filteredUserIds.length === 0) {
+        return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No users in selected audience' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      query = query.in('user_id', filteredUserIds);
     }
 
     const { data: tokens, error: tokensError } = await query;
@@ -220,3 +237,52 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType[]): Promise<string[]> {
+  const now = new Date();
+  const allResults: Set<string> = new Set();
+  for (const audienceType of audienceTypes) {
+    const ids = await resolveOneAudience(supabase, audienceType, now);
+    ids.forEach((id: string) => allResults.add(id));
+  }
+  return [...allResults];
+}
+
+async function resolveOneAudience(supabase: any, audienceType: AudienceType, now: Date): Promise<string[]> {
+  switch (audienceType) {
+    case 'subscribers': {
+      const { data } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
+      return [...new Set((data || []).map((r: any) => r.user_id))];
+    }
+    case 'no_subscription': {
+      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
+      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
+      const activeSet = new Set((activeSubs || []).map((r: any) => r.user_id));
+      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+    }
+    case 'expiring_soon': {
+      const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase.from('user_subscriptions').select('user_id')
+        .eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString());
+      return [...new Set((data || []).map((r: any) => r.user_id))];
+    }
+    case 'new_users': {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo);
+      return (data || []).map((p: any) => p.user_id);
+    }
+    case 'inactive': {
+      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentActive } = await supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo);
+      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
+      const activeSet = new Set([
+        ...(recentActive || []).map((r: any) => r.user_id),
+        ...(activeSubs || []).map((r: any) => r.user_id),
+      ]);
+      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+    }
+    default:
+      return [];
+  }
+}
