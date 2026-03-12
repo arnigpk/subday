@@ -56,6 +56,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
+  const { matchesAudience } = useUserAudienceMatch();
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
