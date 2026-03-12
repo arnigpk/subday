@@ -100,6 +100,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       setIsActive(editingAd.is_active);
       setStartsAt(editingAd.starts_at ? new Date(editingAd.starts_at) : undefined);
       setEndsAt(editingAd.ends_at ? new Date(editingAd.ends_at) : undefined);
+      setAudienceTypes((editingAd as any).audience_types?.length > 0 ? (editingAd as any).audience_types : ['all']);
 
       const presetFreq = FREQUENCY_OPTIONS.find(f => f.value === editingAd.frequency && f.value !== 0);
       if (presetFreq) {
