@@ -10,6 +10,7 @@ import { Send, Bell, Loader2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { AudiencePreview } from '@/components/admin/AudiencePreview';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
@@ -108,6 +109,8 @@ export default function AdminPushBroadcastPage() {
             </div>
 
             <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
+
+            <AudiencePreview audienceTypes={audienceTypes} channel="push" />
 
             {canManage ? (
               <Button

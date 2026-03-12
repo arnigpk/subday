@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { AudiencePreview } from '@/components/admin/AudiencePreview';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface TelegramUser {
@@ -211,6 +212,8 @@ export default function AdminBroadcastPage() {
               </div>
 
               <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
+
+              <AudiencePreview audienceTypes={audienceTypes} channel="telegram" />
 
               <div className="space-y-3">
                 <Label>Кому отправить</Label>
