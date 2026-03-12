@@ -103,9 +103,8 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
 
   const deletePushNotificationsByBroadcastMessages = async (broadcastMsgs: BroadcastMessage[]) => {
     if (type !== 'push') return;
-    // For each broadcast message, find matching push_notifications by created_at + message content
+
     for (const msg of broadcastMsgs) {
-      // Parse title and message from the stored format "title\nmessage"
       const parts = msg.message.split('\n');
       const title = parts[0] || '';
       const message = parts.slice(1).join('\n') || '';
@@ -116,9 +115,22 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
           .delete()
           .eq('title', title)
           .eq('message', message)
+          .not('created_by', 'is', null);
+
+        // Backward compatibility for old broadcast rows
+        await supabase
+          .from('push_notifications')
+          .delete()
+          .eq('title', title)
+          .eq('message', message)
           .is('user_id', null);
       } else {
-        // Fallback: match by full message as title
+        await supabase
+          .from('push_notifications')
+          .delete()
+          .eq('title', msg.message)
+          .not('created_by', 'is', null);
+
         await supabase
           .from('push_notifications')
           .delete()
