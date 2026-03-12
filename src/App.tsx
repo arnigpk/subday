@@ -343,6 +343,7 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/gift-coffee" element={<GiftCoffeePage />} />
             <Route path="/subflow" element={<SubFlowPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
