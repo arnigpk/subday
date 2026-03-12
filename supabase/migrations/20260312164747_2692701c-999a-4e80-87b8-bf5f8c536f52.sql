@@ -1,0 +1,1 @@
+ALTER TABLE public.user_subscriptions ADD COLUMN daily_limit_reset_at timestamp with time zone DEFAULT NULL;
