@@ -135,6 +135,14 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   const { settings: notifSettings } = useNotificationSettings();
   const initialLoadDone = useRef(false);
 
+  // Use refs to avoid stale closures in realtime callback
+  const notifSettingsRef = useRef(notifSettings);
+  notifSettingsRef.current = notifSettings;
+  const playNotificationSoundRef = useRef(playNotificationSound);
+  playNotificationSoundRef.current = playNotificationSound;
+  const vibrateRef = useRef(vibrate);
+  vibrateRef.current = vibrate;
+
   const fetchNotifications = async () => {
     if (!userId) return;
 
