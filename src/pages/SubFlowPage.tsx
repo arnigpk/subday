@@ -130,13 +130,14 @@ export default function SubFlowPage() {
       {!isSubLoading && hasActiveSubscription && (
         <button
           onClick={() => setShowCreateDialog(true)}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-accent text-accent-foreground font-semibold text-sm shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
+          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-5 py-3 rounded-full font-semibold text-sm text-foreground backdrop-blur-xl border border-border/40 transition-all duration-300 hover:scale-105 active:scale-95"
           style={{
-            boxShadow: '0 0 12px hsl(var(--accent) / 0.3), 0 2px 8px hsl(var(--accent) / 0.2)',
+            background: 'hsl(var(--background) / 0.65)',
+            boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
           }}
         >
           <Pencil size={16} />
-          Сделать пост
+          {t('subflow.createPost') || 'Сделать пост'}
         </button>
       )}
 
