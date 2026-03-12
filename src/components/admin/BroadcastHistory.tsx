@@ -29,7 +29,7 @@ interface BroadcastMessage {
   sent_count: number;
   failed_count: number;
   created_at: string;
-  recipients: { name: string; telegram_id: string }[] | null;
+  recipients: { name: string; telegram_id?: string; user_id?: string }[] | null;
 }
 
 interface BroadcastHistoryProps {
