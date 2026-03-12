@@ -150,7 +150,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
       <SheetTrigger asChild>
-        <button className="relative group p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 hover:from-primary/20 hover:to-accent/20 border border-primary/15 hover:border-primary/30 transition-all duration-300 hover:shadow-[0_0_12px_hsl(var(--primary)/0.2)]">
+        <button className="relative group p-2.5 rounded-xl transition-all duration-300">
           <div className="relative">
             <Bell
               size={20}
