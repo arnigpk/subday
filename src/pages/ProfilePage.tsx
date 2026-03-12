@@ -4,7 +4,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
+import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2, Volume2, Vibrate, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -18,13 +18,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CountryCityDialog } from '@/components/profile/CountryCityDialog';
 import { getCountryFlag } from '@/utils/countries';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
@@ -32,8 +32,10 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCityDialog, setShowCityDialog] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
+  const { settings: notifSettings, update: updateNotifSettings, togglePush } = useNotificationSettings();
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
@@ -69,27 +71,13 @@ export default function ProfilePage() {
 
   const handleCancelNameEdit = () => { setEditName(profile?.name || ''); setIsEditingName(false); };
 
-  useEffect(() => {
-    if ('Notification' in window) setNotificationsEnabled(Notification.permission === 'granted');
-  }, []);
-  
-  const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) { toast.error(t('profile.notificationsNotSupported')); return; }
-    if (notificationsEnabled) { setNotificationsEnabled(false); toast.info(t('profile.notificationsDisabled')); return; }
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setNotificationsEnabled(true);
-        toast.success(t('profile.notificationsEnabled'));
-        new Notification('subday', { body: `${t('profile.notificationsEnabled')} ☕`, icon: '/favicon.ico' });
-      } else if (permission === 'denied') {
-        toast.error(t('profile.notificationsDenied'));
-      } else {
-        toast.info(t('profile.notificationsCancelled'));
-      }
-    } catch (error) {
-      console.error('Notification permission error:', error);
-      toast.error(t('profile.saveError'));
+  const handlePushToggle = async () => {
+    const success = await togglePush();
+    if (success) {
+      const nowEnabled = !notifSettings.pushEnabled || Notification.permission === 'granted';
+      toast.success(nowEnabled ? t('profile.notificationsEnabled') : t('profile.notificationsDisabled'));
+    } else {
+      toast.error(t('profile.notificationsDenied'));
     }
   };
   
@@ -284,11 +272,11 @@ export default function ProfilePage() {
               const Icon = item.icon;
               if (item.type === 'notification') {
                 return (
-                  <div key={item.label} className="card-static flex items-center gap-3">
+                  <button key={item.label} onClick={() => setShowNotificationSettings(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
-                    <span className="flex-1 font-medium text-foreground">{item.label}</span>
-                    <Switch checked={notificationsEnabled} onCheckedChange={handleNotificationToggle} />
-                  </div>
+                    <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
+                    <ChevronRight size={18} className="text-muted-foreground" />
+                  </button>
                 );
               }
               if (item.type === 'support') {
@@ -390,6 +378,70 @@ export default function ProfilePage() {
             currentCity={profile?.city || null}
             onSaved={refetch}
           />
+
+          {/* Notification Settings Dialog */}
+          <Dialog open={showNotificationSettings} onOpenChange={setShowNotificationSettings}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Bell size={20} className="text-primary" />
+                  {t('profile.notifications')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                {/* Push notifications */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Smartphone size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Push-уведомления</p>
+                      <p className="text-xs text-muted-foreground">Системные уведомления</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.pushEnabled}
+                    onCheckedChange={handlePushToggle}
+                  />
+                </div>
+
+                {/* SubFlow sound */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center">
+                      <Volume2 size={18} className="text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Звук #subFlow</p>
+                      <p className="text-xs text-muted-foreground">Звук при новых уведомлениях</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.subflowSoundEnabled}
+                    onCheckedChange={(v) => updateNotifSettings({ subflowSoundEnabled: v })}
+                  />
+                </div>
+
+                {/* Vibration */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <Vibrate size={18} className="text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Вибрация</p>
+                      <p className="text-xs text-muted-foreground">Вибрация при уведомлениях</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.vibrationEnabled}
+                    onCheckedChange={(v) => updateNotifSettings({ vibrationEnabled: v })}
+                  />
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
         </div>
