@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 
 interface AdBanner {
   id: string;
