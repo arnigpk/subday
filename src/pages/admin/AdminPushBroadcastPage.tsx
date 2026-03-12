@@ -42,7 +42,7 @@ export default function AdminPushBroadcastPage() {
       const trimmedTitle = title.trim();
       const trimmedMessage = message.trim();
 
-      // 1) Create in-app PUSH notification
+      // 1) Create in-app PUSH notification (visible in bell)
       const { error: pushError } = await supabase
         .from('push_notifications')
         .insert({
@@ -53,7 +53,21 @@ export default function AdminPushBroadcastPage() {
 
       if (pushError) throw pushError;
 
-      // 2) Save broadcast history record for admin UI
+      // 2) Send native FCM push to Android/iOS devices
+      try {
+        const { data: fcmResult, error: fcmError } = await supabase.functions.invoke('send-fcm-push', {
+          body: { title: trimmedTitle, message: trimmedMessage },
+        });
+        if (fcmError) {
+          console.warn('FCM send warning:', fcmError);
+        } else {
+          console.log('FCM result:', fcmResult);
+        }
+      } catch (fcmErr) {
+        console.warn('FCM send failed (non-critical):', fcmErr);
+      }
+
+      // 3) Save broadcast history record for admin UI
       const { error: historyError } = await supabase
         .from('broadcast_messages')
         .insert({
