@@ -66,7 +66,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo),
       ]);
 
-      setAllProfiles(profilesRes.data || []);
+      setAllProfiles(profiles);
       const activeSet = new Set((subsRes.data || []).map(r => r.user_id));
       setActiveSubIds(activeSet);
       setExpiringSoonIds(new Set((expiringRes.data || []).map(r => r.user_id)));
