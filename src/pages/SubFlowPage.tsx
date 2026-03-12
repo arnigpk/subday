@@ -26,10 +26,32 @@ export default function SubFlowPage() {
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const playNotificationSound = useNotificationSound();
+  const { vibrate } = useVibration();
+  const { settings: notifSettings } = useNotificationSettings();
+  const entryAlertFired = useRef(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id || null));
   }, []);
+
+  // Play sound + vibration on page entry if there are unread notifications
+  useEffect(() => {
+    if (!userId || entryAlertFired.current) return;
+    const checkUnread = async () => {
+      const { count } = await supabase
+        .from('subflow_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      if (count && count > 0) {
+        entryAlertFired.current = true;
+        if (notifSettings.subflowSoundEnabled) playNotificationSound();
+        if (notifSettings.vibrationEnabled) vibrate(3000);
+      }
+    };
+    checkUnread();
+  }, [userId, notifSettings, playNotificationSound, vibrate]);
 
   useEffect(() => {
     const handleScroll = () => {
