@@ -272,11 +272,11 @@ export default function ProfilePage() {
               const Icon = item.icon;
               if (item.type === 'notification') {
                 return (
-                  <div key={item.label} className="card-static flex items-center gap-3">
+                  <button key={item.label} onClick={() => setShowNotificationSettings(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
-                    <span className="flex-1 font-medium text-foreground">{item.label}</span>
-                    <Switch checked={notificationsEnabled} onCheckedChange={handleNotificationToggle} />
-                  </div>
+                    <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
+                    <ChevronRight size={18} className="text-muted-foreground" />
+                  </button>
                 );
               }
               if (item.type === 'support') {
