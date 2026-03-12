@@ -477,6 +477,7 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleToggleBlock = async (user: UserWithStats) => {
     try {
       const { error } = await supabase
         .from('profiles')
