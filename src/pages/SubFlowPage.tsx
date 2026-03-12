@@ -145,7 +145,11 @@ export default function SubFlowPage() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 left-4 z-40 w-11 h-11 rounded-full bg-secondary/90 backdrop-blur-sm border border-border flex items-center justify-center text-foreground shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 animate-fade-in"
+          className="fixed bottom-24 left-4 z-40 w-11 h-11 rounded-full backdrop-blur-xl border border-border/40 flex items-center justify-center text-foreground transition-all duration-300 hover:scale-105 active:scale-95 animate-fade-in"
+          style={{
+            background: 'hsl(var(--background) / 0.65)',
+            boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
+          }}
         >
           <ChevronUp size={20} />
         </button>

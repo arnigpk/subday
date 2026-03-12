@@ -121,7 +121,11 @@ export default function GiftCoffeePage() {
             <button
               onClick={handleGrant}
               disabled={isLoading || !publicId.trim()}
-              className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 px-8 rounded-2xl font-bold text-accent-foreground backdrop-blur-xl border border-accent/30 transition-all duration-200 active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: 'linear-gradient(135deg, hsl(82 85% 50% / 0.85), hsl(82 85% 40% / 0.85))',
+                boxShadow: '0 0 24px hsl(82 85% 45% / 0.4), 0 4px 16px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(82 85% 60% / 0.3)',
+              }}
             >
               {isLoading ? t('guest.granting') : t('guest.grantButton')}
             </button>
