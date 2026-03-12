@@ -12,17 +12,22 @@ export function useVibration() {
   const isNative = Capacitor.isNativePlatform();
   const tgHaptic = window.Telegram?.WebApp?.HapticFeedback;
 
-  const vibrate = useCallback((pattern: number | number[] = 300) => {
+  const vibrate = useCallback((pattern: number | number[] = 500) => {
     if (isNative) {
+      // Triple heavy impact for maximum feel
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+      setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {}), 100);
+      setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {}), 200);
       return;
     }
     if (tgHaptic) {
       tgHaptic.impactOccurred('heavy');
+      setTimeout(() => tgHaptic.impactOccurred('heavy'), 100);
+      setTimeout(() => tgHaptic.impactOccurred('heavy'), 200);
       return;
     }
     if ('vibrate' in navigator) {
-      try { navigator.vibrate(pattern); } catch {}
+      try { navigator.vibrate(typeof pattern === 'number' ? [pattern, 80, pattern] : pattern); } catch {}
     }
   }, [isNative, tgHaptic]);
 
