@@ -214,7 +214,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={t('subflow.placeholder')}
+        placeholder={placeholder}
         rows={3}
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
