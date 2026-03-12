@@ -122,6 +122,11 @@ export default function AdminShopsPage() {
 
   useEffect(() => {
     fetchShops();
+    const channel = supabase
+      .channel('shops_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shops' }, () => fetchShops())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchShops = async () => {

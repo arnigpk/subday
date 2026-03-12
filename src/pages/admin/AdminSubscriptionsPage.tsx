@@ -116,6 +116,11 @@ export default function AdminSubscriptionsPage() {
 
   useEffect(() => {
     fetchSubscriptions();
+    const channel = supabase
+      .channel('subscription_types_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subscription_types' }, () => fetchSubscriptions())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchSubscriptions = async () => {
