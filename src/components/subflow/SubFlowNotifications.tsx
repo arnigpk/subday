@@ -104,6 +104,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       }, () => {
         if (initialLoadDone.current) {
           playNotificationSound();
+          vibrate(2000);
         }
         fetchNotifications();
       })
