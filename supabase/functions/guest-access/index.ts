@@ -66,17 +66,91 @@ function jsonRes(data: any, status = 200) {
 // Get current month_key in Asia/Aqtau timezone
 function getMonthKey(): string {
   const now = new Date();
-  // Asia/Aqtau is UTC+5
   const aqtau = new Date(now.getTime() + 5 * 60 * 60 * 1000);
   const year = aqtau.getUTCFullYear();
   const month = String(aqtau.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}-01`;
 }
 
+// Send guest coffee notification to invitee (Telegram + Push)
+async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string) {
+  const message = "Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚";
+  
+  try {
+    // Get invitee profile for Telegram check
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone, name")
+      .eq("user_id", inviteeUserId)
+      .single();
+
+    // Send Telegram if user has telegram phone
+    const telegramId = profile?.phone ? extractTelegramId(profile.phone) : null;
+    if (telegramId) {
+      const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+      if (botToken) {
+        sendTelegramMessage(telegramId, message, botToken).catch(e => console.error("TG error:", e));
+      }
+    }
+
+    // Send Push notification
+    const { data: tokens } = await supabase
+      .from("device_tokens")
+      .select("token")
+      .eq("user_id", inviteeUserId);
+
+    if (tokens && tokens.length > 0) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          tokens: tokens.map((t: any) => t.token),
+          title: "Подарок от друга ☕",
+          body: message,
+        }),
+      }).catch(e => console.error("Push error:", e));
+    }
+
+    // Save to push_notifications table
+    await supabase.from("push_notifications").insert({
+      user_id: inviteeUserId,
+      title: "Подарок от друга ☕",
+      message: message,
+    });
+  } catch (err) {
+    console.error("Guest notification error:", err);
+  }
+}
+
+function extractTelegramId(phone: string): string | null {
+  const match = phone.match(/^\+telegram_(\d+)$/);
+  return match ? match[1] : null;
+}
+
+async function sendTelegramMessage(telegramId: string, message: string, botToken: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: "HTML" }),
+    });
+    const result = await response.json();
+    if (!result.ok) { console.error("Telegram API error:", result); return false; }
+    return true;
+  } catch (error) {
+    console.error("Error sending Telegram message:", error);
+    return false;
+  }
+}
+
 async function handleStatus(supabase: any, userId: string) {
   const monthKey = getMonthKey();
 
-  // Check if user has used their monthly invite
   const { data: grant } = await supabase
     .from("guest_grants")
     .select("id")
@@ -84,7 +158,6 @@ async function handleStatus(supabase: any, userId: string) {
     .eq("month_key", monthKey)
     .maybeSingle();
 
-  // Get user's public_id
   const { data: profile } = await supabase
     .from("profiles")
     .select("public_id")
@@ -136,7 +209,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
       .single();
     inviteeProfile = data;
   } else if (mode === "phone") {
-    // Normalize phone
     let phone = value.replace(/\D/g, "");
     if (phone.length === 10) phone = "7" + phone;
     if (phone.length === 11 && phone.startsWith("8")) phone = "7" + phone.slice(1);
@@ -149,10 +221,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
       .single();
     inviteeProfile = data;
 
-    // If not found, check with telegram prefix
     if (!inviteeProfile) {
-      // Create pending grant
-      // First check if phone already has a pending/active grant
       const { data: existingPhoneGrant } = await supabase
         .from("guest_grants")
         .select("id, status")
@@ -163,7 +232,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
       }
 
-      // Create pending grant (don't deduct coffee yet)
       const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
       const { error: insertError } = await supabase
         .from("guest_grants")
@@ -183,7 +251,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         return jsonRes({ error: "Ошибка создания приглашения" }, 500);
       }
 
-      // Insert history record for inviter (pending)
       await supabase.from("redemptions").insert({
         user_id: inviterId,
         shop_name: "subday",
@@ -241,7 +308,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
   }
 
-  // Check existing grant for this invitee
   const { data: existingInviteeGrant } = await supabase
     .from("guest_grants")
     .select("id")
@@ -285,11 +351,13 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     drink_type: "coffee",
   });
 
+  // Send notification to invitee (fire-and-forget)
+  sendGuestCoffeeNotification(supabase, inviteeProfile.user_id).catch(e => console.error("Notification error:", e));
+
   return jsonRes({ status: "active", expires_at: result.expires_at });
 }
 
 async function handleClaim(supabase: any, inviteeId: string) {
-  // Get invitee's phone
   const { data: profile } = await supabase
     .from("profiles")
     .select("phone")
@@ -308,6 +376,11 @@ async function handleClaim(supabase: any, inviteeId: string) {
   if (error) {
     console.error("Claim error:", error);
     return jsonRes({ success: false, reason: "error" });
+  }
+
+  // Send notification on successful claim
+  if (result?.success) {
+    sendGuestCoffeeNotification(supabase, inviteeId).catch(e => console.error("Claim notification error:", e));
   }
 
   return jsonRes(result);
