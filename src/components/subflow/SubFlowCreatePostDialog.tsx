@@ -63,6 +63,58 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!showShopPicker) return;
+
+    const container = contentScrollRef.current;
+    if (!container) return;
+
+    const previousOverflowY = container.style.overflowY;
+    const previousTouchAction = container.style.touchAction;
+
+    container.style.overflowY = 'hidden';
+    container.style.touchAction = 'none';
+
+    return () => {
+      container.style.overflowY = previousOverflowY;
+      container.style.touchAction = previousTouchAction;
+    };
+  }, [showShopPicker]);
+
+  useEffect(() => {
+    if (!showShopPicker) return;
+
+    const picker = shopPickerRef.current;
+    if (!picker) return;
+
+    let touchStartY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const currentY = event.touches[0]?.clientY ?? touchStartY;
+      const deltaY = currentY - touchStartY;
+      const isAtTop = picker.scrollTop <= 0;
+      const isAtBottom = Math.ceil(picker.scrollTop + picker.clientHeight) >= picker.scrollHeight;
+
+      if ((isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) {
+        event.preventDefault();
+      }
+
+      event.stopPropagation();
+    };
+
+    picker.addEventListener('touchstart', handleTouchStart, { passive: true });
+    picker.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      picker.removeEventListener('touchstart', handleTouchStart);
+      picker.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [showShopPicker]);
+
   const fetchShops = async () => {
     const { data } = await supabase
       .from('shops')
