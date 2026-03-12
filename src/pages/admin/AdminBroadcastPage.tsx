@@ -213,6 +213,8 @@ export default function AdminBroadcastPage() {
 
               <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
+              <AudiencePreview audienceTypes={audienceTypes} channel="telegram" />
+
               <div className="space-y-3">
                 <Label>Кому отправить</Label>
                 <RadioGroup
