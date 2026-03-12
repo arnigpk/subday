@@ -70,8 +70,9 @@ export default function HomePage() {
                   backgroundPosition: 'center',
                 }}
               />
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <span className="text-2xl">🇰🇿</span>
+                <LanguageSwitcher />
               </div>
               <div className="absolute left-1/2 -translate-x-1/2">
                 <div className="w-20 h-20">
