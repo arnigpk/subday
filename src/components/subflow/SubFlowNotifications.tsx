@@ -100,6 +100,9 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
         table: 'subflow_notifications',
         filter: `user_id=eq.${userId}`,
       }, () => {
+        if (initialLoadDone.current) {
+          playNotificationSound();
+        }
         fetchNotifications();
       })
       .subscribe();
