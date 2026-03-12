@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { useVibration } from '@/hooks/useVibration';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
