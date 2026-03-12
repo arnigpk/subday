@@ -150,13 +150,18 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
       <SheetTrigger asChild>
-        <button className="relative p-2 rounded-full hover:bg-secondary transition-colors">
-          <Bell size={22} className="text-foreground" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
+        <button className="relative group p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 hover:from-primary/20 hover:to-accent/20 border border-primary/15 hover:border-primary/30 transition-all duration-300 hover:shadow-[0_0_12px_hsl(var(--primary)/0.2)]">
+          <div className="relative">
+            <Bell
+              size={20}
+              className={`text-primary transition-transform duration-300 group-hover:rotate-12 ${unreadCount > 0 ? 'animate-[swing_2s_ease-in-out_infinite]' : ''}`}
+            />
+            {unreadCount > 0 && (
+              <span className="absolute -top-2.5 -right-2.5 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-gradient-to-br from-destructive to-destructive/80 text-destructive-foreground text-[10px] font-bold px-1 shadow-[0_2px_8px_hsl(var(--destructive)/0.4)] animate-[pulse_2s_ease-in-out_infinite]">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </div>
         </button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
