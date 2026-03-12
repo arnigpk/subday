@@ -90,7 +90,6 @@ export default function HomePage() {
                     💻
                   </button>
                 )}
-                <LanguageSwitcher />
               </div>
             </div>
           </LiquidGlassHeader>
