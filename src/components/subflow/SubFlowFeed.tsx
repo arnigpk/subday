@@ -5,6 +5,7 @@ import { SubFlowAdPost } from './SubFlowAdPost';
 import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
+import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
