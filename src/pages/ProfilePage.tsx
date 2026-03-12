@@ -24,8 +24,7 @@ export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
