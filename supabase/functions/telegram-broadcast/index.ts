@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     }
 
     // Get telegram users
-    let query = supabase.from('profiles').select('id, phone, name').like('phone', '+telegram_%');
+    let query = supabase.from('profiles').select('id, phone, name, user_id').like('phone', '+telegram_%');
 
     if (filteredUserIds !== null) {
       if (filteredUserIds.length === 0) {
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      query = query.in('id', filteredUserIds);
+      query = query.in('user_id', filteredUserIds);
     }
 
     const { data: profiles, error: profilesError } = await query;

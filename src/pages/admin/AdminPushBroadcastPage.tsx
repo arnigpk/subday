@@ -55,8 +55,8 @@ export default function AdminPushBroadcastPage() {
 
       // 2) Send native FCM push to Android/iOS devices
       try {
-        const { data: fcmResult, error: fcmError } = await supabase.functions.invoke('send-fcm-push', {
-          body: { title: trimmedTitle, message: trimmedMessage },
+      const { data: fcmResult, error: fcmError } = await supabase.functions.invoke('send-fcm-push', {
+          body: { title: trimmedTitle, message: trimmedMessage, audienceTypes },
         });
         if (fcmError) {
           console.warn('FCM send warning:', fcmError);
