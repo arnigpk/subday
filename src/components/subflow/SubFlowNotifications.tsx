@@ -202,8 +202,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
         filter: `user_id=eq.${userId}`,
       }, () => {
         if (initialLoadDone.current) {
-          if (notifSettings.subflowSoundEnabled) playNotificationSound();
-          if (notifSettings.vibrationEnabled) vibrate(2000);
+          if (notifSettingsRef.current.subflowSoundEnabled) playNotificationSoundRef.current();
+          if (notifSettingsRef.current.vibrationEnabled) vibrateRef.current(2000);
         }
         fetchNotifications();
       })
