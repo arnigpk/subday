@@ -53,11 +53,11 @@ function PolicyRu() {
       <h1 className="text-2xl font-bold">Политика конфиденциальности</h1>
       <p>
         Настоящая Политика конфиденциальности описывает, каким образом ТОО «Subday Group»
-        (БИН 260240030635, далее — «Компания», «мы») собирает, использует и защищает персональные
+        (БИН 260240030635, далее — «Оператор») собирает, использует и защищает персональные
         данные пользователей мобильного приложения SubDay (далее — «Приложение»).
       </p>
 
-      <h2 className="text-lg font-semibold">1. Какие данные мы собираем</h2>
+      <h2 className="text-lg font-semibold">1. Какие данные собирает Оператор</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Номер телефона — для регистрации и авторизации</li>
         <li>Имя и фото профиля — для персонализации</li>
@@ -68,7 +68,7 @@ function PolicyRu() {
         <li>Данные Telegram-аккаунта (при авторизации через Telegram)</li>
       </ul>
 
-      <h2 className="text-lg font-semibold">2. Как мы используем данные</h2>
+      <h2 className="text-lg font-semibold">2. Как используются данные</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Предоставление доступа к сервису и управление подписками</li>
         <li>Отправка push-уведомлений и сообщений</li>
@@ -80,20 +80,20 @@ function PolicyRu() {
       <h2 className="text-lg font-semibold">3. Платежи</h2>
       <p>
         Оплата производится онлайн банковскими картами Visa/Mastercard через сертифицированный
-        платёжный сервис Paylink. Мы не храним данные банковских карт — они обрабатываются
+        платёжный сервис Paylink. Оператор не хранит данные банковских карт — они обрабатываются
         непосредственно платёжным провайдером.
       </p>
 
       <h2 className="text-lg font-semibold">4. Хранение и защита данных</h2>
       <p>
-        Данные хранятся на защищённых серверах с шифрованием. Мы применяем технические и
+        Данные хранятся на защищённых серверах с шифрованием. Оператор применяет технические и
         организационные меры для защиты от несанкционированного доступа, утраты или изменения данных.
         Доступ к персональным данным имеют только уполномоченные сотрудники.
       </p>
 
       <h2 className="text-lg font-semibold">5. Передача данных третьим лицам</h2>
       <p>
-        Мы не продаём и не передаём ваши персональные данные третьим лицам, за исключением
+        Оператор не продаёт и не передаёт ваши персональные данные третьим лицам, за исключением
         случаев, предусмотренных законодательством Республики Казахстан, а также:
       </p>
       <ul className="list-disc pl-5 space-y-1">
@@ -106,7 +106,7 @@ function PolicyRu() {
         <li>Просмотр и редактирование ваших данных в профиле Приложения</li>
         <li>Отключение push-уведомлений в настройках</li>
         <li>Удаление аккаунта — через раздел «Профиль» в Приложении</li>
-        <li>Запрос на удаление всех данных — по запросу на subday.group@gmail.com</li>
+        <li>Запрос на удаление всех данных — по запросу на supp@subday.app</li>
       </ul>
 
       <h2 className="text-lg font-semibold">7. Файлы cookie</h2>
@@ -117,21 +117,21 @@ function PolicyRu() {
 
       <h2 className="text-lg font-semibold">8. Дети</h2>
       <p>
-        Приложение не предназначено для лиц младше 16 лет. Мы сознательно не собираем
+        Приложение не предназначено для лиц младше 16 лет. Оператор сознательно не собирает
         данные детей.
       </p>
 
       <h2 className="text-lg font-semibold">9. Изменения политики</h2>
       <p>
-        Мы можем обновлять настоящую Политику. Актуальная версия всегда доступна в Приложении.
-        При существенных изменениях мы уведомим вас через push-уведомление.
+        Оператор может обновлять настоящую Политику. Актуальная версия всегда доступна в Приложении.
+        При существенных изменениях пользователи будут уведомлены через push-уведомление.
       </p>
 
       <h2 className="text-lg font-semibold">10. Контакты</h2>
       <p>
         ТОО «Subday Group»<br />
         БИН: 260240030635<br />
-        Email: subday.group@gmail.com
+        Email: supp@subday.app
       </p>
     </article>
   );
@@ -143,11 +143,11 @@ function PolicyEn() {
       <h1 className="text-2xl font-bold">Privacy Policy</h1>
       <p>
         This Privacy Policy describes how Subday Group LLP (BIN 260240030635, hereinafter
-        "Company", "we") collects, uses, and protects personal data of users of the SubDay
+        the "Operator") collects, uses, and protects personal data of users of the SubDay
         mobile application (hereinafter "Application").
       </p>
 
-      <h2 className="text-lg font-semibold">1. Data We Collect</h2>
+      <h2 className="text-lg font-semibold">1. Data the Operator Collects</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Phone number — for registration and authentication</li>
         <li>Name and profile photo — for personalization</li>
@@ -158,7 +158,7 @@ function PolicyEn() {
         <li>Telegram account data (when signing in via Telegram)</li>
       </ul>
 
-      <h2 className="text-lg font-semibold">2. How We Use Your Data</h2>
+      <h2 className="text-lg font-semibold">2. How Your Data Is Used</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Providing access to the service and managing subscriptions</li>
         <li>Sending push notifications and messages</li>
@@ -170,20 +170,20 @@ function PolicyEn() {
       <h2 className="text-lg font-semibold">3. Payments</h2>
       <p>
         Payments are processed online using Visa/Mastercard bank cards through the certified
-        payment service Paylink. We do not store bank card data — it is processed directly
+        payment service Paylink. The Operator does not store bank card data — it is processed directly
         by the payment provider.
       </p>
 
       <h2 className="text-lg font-semibold">4. Data Storage and Security</h2>
       <p>
-        Data is stored on encrypted, secure servers. We implement technical and organizational
+        Data is stored on encrypted, secure servers. The Operator implements technical and organizational
         measures to protect against unauthorized access, loss, or alteration. Access to personal
         data is limited to authorized personnel only.
       </p>
 
       <h2 className="text-lg font-semibold">5. Third-Party Data Sharing</h2>
       <p>
-        We do not sell or share your personal data with third parties, except as required by the
+        The Operator does not sell or share your personal data with third parties, except as required by the
         laws of the Republic of Kazakhstan, and:
       </p>
       <ul className="list-disc pl-5 space-y-1">
@@ -196,7 +196,7 @@ function PolicyEn() {
         <li>View and edit your data in your Application profile</li>
         <li>Disable push notifications in settings</li>
         <li>Delete your account — via the "Profile" section in the Application</li>
-        <li>Request deletion of all data — by contacting subday.group@gmail.com</li>
+        <li>Request deletion of all data — by contacting supp@subday.app</li>
       </ul>
 
       <h2 className="text-lg font-semibold">7. Cookies</h2>
@@ -207,21 +207,21 @@ function PolicyEn() {
 
       <h2 className="text-lg font-semibold">8. Children</h2>
       <p>
-        The Application is not intended for individuals under 16 years of age. We do not
+        The Application is not intended for individuals under 16 years of age. The Operator does not
         knowingly collect data from children.
       </p>
 
       <h2 className="text-lg font-semibold">9. Policy Changes</h2>
       <p>
-        We may update this Policy. The current version is always available in the Application.
-        We will notify you of significant changes via push notification.
+        The Operator may update this Policy. The current version is always available in the Application.
+        Users will be notified of significant changes via push notification.
       </p>
 
       <h2 className="text-lg font-semibold">10. Contact Us</h2>
       <p>
         Subday Group LLP<br />
         BIN: 260240030635<br />
-        Email: subday.group@gmail.com
+        Email: supp@subday.app
       </p>
     </article>
   );
