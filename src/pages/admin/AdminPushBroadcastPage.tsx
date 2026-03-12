@@ -50,7 +50,9 @@ export default function AdminPushBroadcastPage() {
         toast.warning('Нет пользователей в выбранной аудитории');
       } else {
         toast.success(`Отправлено на ${fcmResult.recipient_count} пользователей`);
-        if ((fcmResult?.failed || 0) > 0) {
+        if (fcmResult?.push_enabled === false) {
+          toast.warning('FCM не настроен: уведомление отправлено только внутри приложения');
+        } else if ((fcmResult?.failed || 0) > 0) {
           toast.warning(`Не удалось доставить на ${fcmResult.failed} устройств`);
         }
       }

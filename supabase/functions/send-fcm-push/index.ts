@@ -74,15 +74,23 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
 
-    if (!fcmServiceAccountJson) {
-      return new Response(JSON.stringify({ error: 'FCM_SERVICE_ACCOUNT not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let serviceAccount: any = null;
+    if (fcmServiceAccountJson) {
+      try {
+        serviceAccount = JSON.parse(fcmServiceAccountJson);
+      } catch (parseError) {
+        console.error('Invalid FCM_SERVICE_ACCOUNT JSON:', parseError);
+        return new Response(JSON.stringify({ error: 'Invalid FCM_SERVICE_ACCOUNT format' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const serviceAccount = JSON.parse(fcmServiceAccountJson);
-    const projectId = serviceAccount.project_id;
+    const canSendDevicePush = Boolean(
+      serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key,
+    );
+    const projectId = serviceAccount?.project_id;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify admin
