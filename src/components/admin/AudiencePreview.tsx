@@ -39,13 +39,27 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      let profilesQuery = supabase.from('profiles').select('user_id, name, phone').order('name');
-      if (channel === 'telegram') {
-        profilesQuery = profilesQuery.like('phone', '+telegram_%');
-      }
+      // Fetch all profiles (paginate past 1000 limit)
+      const fetchAllProfiles = async () => {
+        const allResults: { user_id: string; name: string | null; phone: string }[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          let q = supabase.from('profiles').select('user_id, name, phone').order('name').range(from, from + pageSize - 1);
+          if (channel === 'telegram') {
+            q = q.like('phone', '+telegram_%');
+          }
+          const { data } = await q;
+          if (!data || data.length === 0) break;
+          allResults.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return allResults;
+      };
 
-      const [profilesRes, subsRes, expiringRes, newRes, recentActiveRes] = await Promise.all([
-        profilesQuery,
+      const [profiles, subsRes, expiringRes, newRes, recentActiveRes] = await Promise.all([
+        fetchAllProfiles(),
         supabase.from('user_subscriptions').select('user_id').eq('is_active', true),
         supabase.from('user_subscriptions').select('user_id').eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString()),
         supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo),

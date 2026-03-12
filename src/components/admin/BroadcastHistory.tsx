@@ -348,16 +348,12 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                       <p className="text-sm text-foreground line-clamp-3 whitespace-pre-line">
                         {msg.message}
                       </p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span className="text-green-600">
-                          Отправлено: {msg.sent_count}
-                        </span>
-                        {msg.failed_count > 0 && (
-                          <span className="text-red-600">
-                            Ошибки: {msg.failed_count}
-                          </span>
-                        )}
-                      </div>
+                      {/* Recipients count shown inline when no expandable list */}
+                      {recipients.length === 0 && msg.recipient_count > 0 && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          Получатели: {msg.recipient_count}
+                        </div>
+                      )}
 
                       {/* Recipients list */}
                       {recipients.length > 0 && (
