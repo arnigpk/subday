@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -35,6 +36,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const playNotificationSound = useNotificationSound();
+  const initialLoadDone = useRef(false);
 
   const fetchNotifications = async () => {
     if (!userId) return;
@@ -82,7 +85,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications().then(() => { initialLoadDone.current = true; });
   }, [userId]);
 
   // Realtime for new notifications
@@ -97,6 +100,9 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
         table: 'subflow_notifications',
         filter: `user_id=eq.${userId}`,
       }, () => {
+        if (initialLoadDone.current) {
+          playNotificationSound();
+        }
         fetchNotifications();
       })
       .subscribe();
