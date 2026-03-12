@@ -262,7 +262,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         </DialogHeader>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div ref={contentScrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Content input */}
           <textarea
             value={content}
