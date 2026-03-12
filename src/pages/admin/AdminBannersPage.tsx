@@ -124,7 +124,16 @@ export default function AdminBannersPage() {
     },
   });
 
-  const getStats = (bannerId: string) => {
+  useEffect(() => {
+    const channel = supabase
+      .channel('ad_banners_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
     const stats = bannerStats.find(s => s.banner_id === bannerId);
     return stats || { views: 0, clicks: 0 };
   };
