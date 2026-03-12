@@ -66,13 +66,13 @@ const POSTS_PER_PAGE = 10;
 
 export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActiveSubscription, highlightPostId, onHighlightDone }: SubFlowFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [ads, setAds] = useState<SubFlowAd[]>([]);
+  const [rawAds, setRawAds] = useState<RawSubFlowAd[]>([]);
   const [filteredAds, setFilteredAds] = useState<SubFlowAd[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
-  const { matchesAudience } = useUserAudienceMatch();
+  const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
