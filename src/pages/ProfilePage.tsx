@@ -32,8 +32,10 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCityDialog, setShowCityDialog] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
+  const { settings: notifSettings, update: updateNotifSettings, togglePush } = useNotificationSettings();
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
