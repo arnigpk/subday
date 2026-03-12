@@ -195,9 +195,10 @@ Deno.serve(async (req) => {
 
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
     const invalidTokens: string[] = [];
 
-    if (deviceTokens.length > 0) {
+    if (deviceTokens.length > 0 && canSendDevicePush) {
       const accessToken = await getAccessToken(serviceAccount);
 
       for (const deviceToken of deviceTokens) {
@@ -248,6 +249,9 @@ Deno.serve(async (req) => {
           console.error('FCM send error:', err);
         }
       }
+    } else if (deviceTokens.length > 0) {
+      skippedCount = deviceTokens.length;
+      console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
 
     if (invalidTokens.length > 0) {
