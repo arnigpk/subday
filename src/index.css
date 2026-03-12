@@ -406,3 +406,14 @@
 .qr-scanner-container #qr-reader > div:first-child {
   display: none !important;
 }
+
+/* SubFlow bell swing animation */
+@keyframes swing {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-12deg); }
+  30% { transform: rotate(8deg); }
+  40% { transform: rotate(-6deg); }
+  50% { transform: rotate(3deg); }
+  60% { transform: rotate(0deg); }
+}
