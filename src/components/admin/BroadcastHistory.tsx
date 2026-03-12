@@ -29,7 +29,7 @@ interface BroadcastMessage {
   sent_count: number;
   failed_count: number;
   created_at: string;
-  recipients: { name: string; telegram_id: string }[] | null;
+  recipients: { name: string; telegram_id?: string; user_id?: string }[] | null;
 }
 
 interface BroadcastHistoryProps {
@@ -374,7 +374,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                               <div className="flex flex-wrap gap-1">
                                 {recipients.map((r, i) => (
                                   <span key={i} className="text-xs bg-background px-2 py-0.5 rounded border">
-                                    {r.name || `@${r.telegram_id}`}
+                                    {r.name || (r.telegram_id ? `@${r.telegram_id}` : 'Без имени')}
                                   </span>
                                 ))}
                               </div>
