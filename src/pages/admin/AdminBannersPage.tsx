@@ -155,6 +155,7 @@ export default function AdminBannersPage() {
       city: '',
       starts_at: undefined,
       ends_at: undefined,
+      audience_types: ['all'],
     });
     setEditingBanner(null);
   };
