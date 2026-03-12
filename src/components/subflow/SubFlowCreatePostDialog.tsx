@@ -331,6 +331,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           {/* Shop picker */}
           {showShopPicker && (
             <div 
+              ref={shopPickerRef}
+              onWheel={(event) => event.stopPropagation()}
               className="p-2 bg-secondary/50 rounded-xl max-h-48 overflow-y-auto border border-border/30 overscroll-contain touch-pan-y"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
