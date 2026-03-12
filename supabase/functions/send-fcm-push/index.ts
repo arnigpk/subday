@@ -266,6 +266,9 @@ Deno.serve(async (req) => {
       recipientUserIds,
     });
 
+    // Fetch recipient names for history metadata
+    const recipientsMeta = await fetchRecipientsMeta(supabase, recipientUserIds);
+
     await savePushBroadcastHistory(supabase, {
       sentBy: userId,
       title,
@@ -274,6 +277,7 @@ Deno.serve(async (req) => {
       recipientCount: recipientUserIds.length,
       sentCount: successCount,
       failedCount: failCount,
+      recipients: recipientsMeta,
     });
 
     return new Response(JSON.stringify({
