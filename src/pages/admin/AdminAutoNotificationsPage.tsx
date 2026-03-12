@@ -111,6 +111,21 @@ export default function AdminAutoNotificationsPage() {
 
   useEffect(() => {
     fetchTemplates();
+
+    const channel = supabase
+      .channel('auto_notification_templates_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'auto_notification_templates' },
+        () => {
+          fetchTemplates();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchTemplates = async () => {
