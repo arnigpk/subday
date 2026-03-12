@@ -24,6 +24,22 @@ interface Post {
   comments_count: number;
 }
 
+interface RawSubFlowAd {
+  id: string;
+  title: string | null;
+  content: string;
+  image_url: string | null;
+  link_type: string;
+  link_value: string | null;
+  shop_id: string | null;
+  shop_name: string | null;
+  frequency: number;
+  daily_limit: number;
+  audience_types: string[];
+  starts_at: string | null;
+  ends_at: string | null;
+}
+
 interface SubFlowAd {
   id: string;
   title: string | null;
