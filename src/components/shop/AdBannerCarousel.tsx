@@ -45,6 +45,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
+  const { matchesAudience } = useUserAudienceMatch();
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
