@@ -1,0 +1,1 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.auto_notification_templates;
