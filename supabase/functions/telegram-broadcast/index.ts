@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: roleData } = await supabase
       .from('user_roles').select('role')
-      .eq('user_id', user.id).eq('role', 'admin').maybeSingle();
+      .eq('user_id', user.id).in('role', ['admin', 'superadmin']).maybeSingle();
 
     if (!roleData) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
