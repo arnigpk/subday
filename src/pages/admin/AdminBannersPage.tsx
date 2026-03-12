@@ -249,6 +249,7 @@ export default function AdminBannersPage() {
         city: formData.city || null,
         starts_at: formData.starts_at ? formData.starts_at.toISOString() : null,
         ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
+        audience_types: formData.audience_types,
       };
 
       if (editingBanner) {
