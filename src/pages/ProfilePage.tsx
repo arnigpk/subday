@@ -71,27 +71,13 @@ export default function ProfilePage() {
 
   const handleCancelNameEdit = () => { setEditName(profile?.name || ''); setIsEditingName(false); };
 
-  useEffect(() => {
-    if ('Notification' in window) setNotificationsEnabled(Notification.permission === 'granted');
-  }, []);
-  
-  const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) { toast.error(t('profile.notificationsNotSupported')); return; }
-    if (notificationsEnabled) { setNotificationsEnabled(false); toast.info(t('profile.notificationsDisabled')); return; }
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setNotificationsEnabled(true);
-        toast.success(t('profile.notificationsEnabled'));
-        new Notification('subday', { body: `${t('profile.notificationsEnabled')} ☕`, icon: '/favicon.ico' });
-      } else if (permission === 'denied') {
-        toast.error(t('profile.notificationsDenied'));
-      } else {
-        toast.info(t('profile.notificationsCancelled'));
-      }
-    } catch (error) {
-      console.error('Notification permission error:', error);
-      toast.error(t('profile.saveError'));
+  const handlePushToggle = async () => {
+    const success = await togglePush();
+    if (success) {
+      const nowEnabled = !notifSettings.pushEnabled || Notification.permission === 'granted';
+      toast.success(nowEnabled ? t('profile.notificationsEnabled') : t('profile.notificationsDisabled'));
+    } else {
+      toast.error(t('profile.notificationsDenied'));
     }
   };
   
