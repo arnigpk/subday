@@ -59,8 +59,8 @@ interface UserWithStats {
   role?: UserRole;
   role_id?: string;
   shop_id?: string | null;
-  coffee_subscription?: { name: string; expires_at: string | null } | null;
-  lunch_subscription?: { name: string; expires_at: string | null } | null;
+  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
+  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
 }
 
 interface SubscriptionType {
