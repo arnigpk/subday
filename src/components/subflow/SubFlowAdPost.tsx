@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, ExternalLink, MessageCircle } from 'lucide-react';
 import { openWithDeepLink } from '@/utils/deepLinks';
