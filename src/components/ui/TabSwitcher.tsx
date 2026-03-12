@@ -21,7 +21,7 @@ export function TabSwitcher({ tabs, activeTab, onChange, className = '' }: TabSw
           onClick={() => onChange(tab.id)}
           className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 ${
             activeTab === tab.id
-              ? 'bg-background/80 backdrop-blur-md text-accent font-bold shadow-[0_2px_8px_hsl(var(--foreground)/0.06),inset_0_1px_0_hsl(var(--background)/0.5)] border border-border/30'
+              ? 'bg-background/80 backdrop-blur-md text-accent font-bold shadow-[0_2px_8px_hsl(var(--foreground)/0.06),inset_0_1px_0_hsl(var(--background)/0.5)] border-2 border-accent/60'
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
