@@ -295,6 +295,7 @@ const AppContent = () => {
   return (
     <UserStatsProvider>
       <BrowserRouter>
+        <DeepLinkHandler />
         <Toaster />
         <Sonner />
         <Suspense fallback={<LazyFallback />}>
