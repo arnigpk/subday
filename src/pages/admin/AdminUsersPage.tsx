@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -59,8 +59,8 @@ interface UserWithStats {
   role?: UserRole;
   role_id?: string;
   shop_id?: string | null;
-  coffee_subscription?: { name: string; expires_at: string | null } | null;
-  lunch_subscription?: { name: string; expires_at: string | null } | null;
+  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
+  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
 }
 
 interface SubscriptionType {
@@ -86,6 +86,102 @@ const ROLE_LABELS: Record<UserRole, string> = {
   partner: 'Партнёр',
   barista: 'Бариста',
 };
+
+function SubscriptionRow({ sub, icon, type, canManage, onReset, onUpdateDailyLimit }: {
+  sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null };
+  icon: React.ReactNode;
+  type: string;
+  canManage: boolean;
+  onReset: () => void;
+  onUpdateDailyLimit: (val: number | null) => void;
+}) {
+  const [editingLimit, setEditingLimit] = useState(false);
+  const effectiveLimit = sub.daily_limit_override ?? sub.daily_limit;
+  const [limitValue, setLimitValue] = useState<string>(effectiveLimit?.toString() || '');
+
+  return (
+    <div className="bg-secondary/50 rounded-lg px-3 py-2 space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-sm font-medium">{sub.name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            до {sub.expires_at 
+              ? new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+              : '—'}
+          </span>
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+              onClick={onReset}
+            >
+              Обнулить
+            </Button>
+          )}
+        </div>
+      </div>
+      {/* Daily limit row */}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-xs text-muted-foreground">
+          Дневной лимит: {effectiveLimit !== null && effectiveLimit !== undefined ? effectiveLimit : 'без лимита'}
+          {sub.daily_limit_override !== null && (
+            <span className="ml-1 text-primary">(индивид.)</span>
+          )}
+        </span>
+        {canManage && (
+          editingLimit ? (
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                min="0"
+                value={limitValue}
+                onChange={(e) => setLimitValue(e.target.value)}
+                className="h-6 w-16 text-xs px-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  const val = limitValue.trim() === '' ? null : parseInt(limitValue, 10);
+                  onUpdateDailyLimit(isNaN(val as number) ? null : val);
+                  setEditingLimit(false);
+                }}
+              >
+                ✓
+              </Button>
+              {sub.daily_limit_override !== null && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1 text-xs text-muted-foreground"
+                  onClick={() => { onUpdateDailyLimit(null); setEditingLimit(false); }}
+                  title="Сбросить на стандартный"
+                >
+                  ✕
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs gap-1"
+              onClick={() => { setLimitValue((effectiveLimit ?? '').toString()); setEditingLimit(true); }}
+            >
+              <RefreshCw className="w-3 h-3" />
+              Изменить
+            </Button>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminUsersPage() {
   const { canManage, isSuperAdmin, isAdmin } = useAdminAuth();
@@ -201,7 +297,7 @@ export default function AdminUsersPage() {
           .in('user_id', userIds),
         supabase
           .from('user_subscriptions')
-          .select('user_id, expires_at, is_active, subscription_types(name, type)')
+          .select('id, user_id, expires_at, is_active, daily_limit_override, subscription_types(name, type, daily_limit)')
           .in('user_id', userIds)
           .eq('is_active', true),
       ]);
@@ -209,16 +305,23 @@ export default function AdminUsersPage() {
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
       const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
       
-      // Build subscription maps per user
-      const coffeeSubMap = new Map<string, { name: string; expires_at: string | null }>();
-      const lunchSubMap = new Map<string, { name: string; expires_at: string | null }>();
+      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null };
+      const coffeeSubMap = new Map<string, SubInfo>();
+      const lunchSubMap = new Map<string, SubInfo>();
       for (const sub of (subsResult.data || [])) {
-        const subType = sub.subscription_types as unknown as { name: string; type: string } | null;
+        const subType = sub.subscription_types as unknown as { name: string; type: string; daily_limit: number | null } | null;
         if (!subType) continue;
+        const info: SubInfo = {
+          name: subType.name,
+          expires_at: sub.expires_at,
+          sub_id: sub.id,
+          daily_limit: subType.daily_limit,
+          daily_limit_override: (sub as any).daily_limit_override ?? null,
+        };
         if (subType.type === 'coffee') {
-          coffeeSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+          coffeeSubMap.set(sub.user_id, info);
         } else if (subType.type === 'drinks') {
-          lunchSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+          lunchSubMap.set(sub.user_id, info);
         }
       }
 
@@ -452,6 +555,21 @@ export default function AdminUsersPage() {
     } catch (error) {
       console.error('Error resetting subscription:', error);
       toast({ title: 'Ошибка обнуления', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateDailyLimit = async (subId: string, newLimit: number | null) => {
+    try {
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({ daily_limit_override: newLimit })
+        .eq('id', subId);
+      if (error) throw error;
+      toast({ title: newLimit !== null ? `Дневной лимит обновлён: ${newLimit}` : 'Дневной лимит сброшен на стандартный' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating daily limit:', error);
+      toast({ title: 'Ошибка обновления лимита', variant: 'destructive' });
     }
   };
 
@@ -835,54 +953,24 @@ export default function AdminUsersPage() {
                   <div className="border-t pt-4 space-y-2">
                     <Label>Активные подписки</Label>
                     {editingUser?.coffee_subscription && (
-                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <Coffee className="w-4 h-4 text-amber-600" />
-                          <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            до {editingUser.coffee_subscription.expires_at 
-                              ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : '—'}
-                          </span>
-                          {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                              onClick={() => handleResetSubscription('coffee')}
-                            >
-                              Обнулить
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      <SubscriptionRow
+                        sub={editingUser.coffee_subscription}
+                        icon={<Coffee className="w-4 h-4 text-amber-600" />}
+                        type="coffee"
+                        canManage={canManage}
+                        onReset={() => handleResetSubscription('coffee')}
+                        onUpdateDailyLimit={(val) => handleUpdateDailyLimit(editingUser.coffee_subscription!.sub_id, val)}
+                      />
                     )}
                     {editingUser?.lunch_subscription && (
-                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <UtensilsCrossed className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            до {editingUser.lunch_subscription.expires_at 
-                              ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : '—'}
-                          </span>
-                          {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                              onClick={() => handleResetSubscription('drinks')}
-                            >
-                              Обнулить
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      <SubscriptionRow
+                        sub={editingUser.lunch_subscription}
+                        icon={<UtensilsCrossed className="w-4 h-4 text-purple-600" />}
+                        type="drinks"
+                        canManage={canManage}
+                        onReset={() => handleResetSubscription('drinks')}
+                        onUpdateDailyLimit={(val) => handleUpdateDailyLimit(editingUser.lunch_subscription!.sub_id, val)}
+                      />
                     )}
                   </div>
                 )}
