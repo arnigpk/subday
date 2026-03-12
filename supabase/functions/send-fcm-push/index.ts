@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
 
     const body: FCMRequest = await req.json();
     const { title, message, targetUserIds } = body;
+    const audienceTypes: AudienceType[] = body.audienceTypes || ['all'];
 
     if (!title?.trim() || !message?.trim()) {
       return new Response(JSON.stringify({ error: 'Title and message are required' }), {
@@ -125,10 +126,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Resolve audience user IDs
+    let filteredUserIds: string[] | null = null;
+    if (targetUserIds && targetUserIds.length > 0) {
+      filteredUserIds = targetUserIds;
+    } else if (!audienceTypes.includes('all')) {
+      filteredUserIds = await resolveAudienceUserIds(supabase, audienceTypes);
+    }
+
     // Get FCM tokens from device_tokens table
     let query = supabase.from('device_tokens').select('token, user_id').eq('platform', 'android');
-    if (targetUserIds && targetUserIds.length > 0) {
-      query = query.in('user_id', targetUserIds);
+    if (filteredUserIds !== null) {
+      if (filteredUserIds.length === 0) {
+        return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No users in selected audience' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      query = query.in('user_id', filteredUserIds);
     }
 
     const { data: tokens, error: tokensError } = await query;
