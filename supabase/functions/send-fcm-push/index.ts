@@ -280,9 +280,11 @@ Deno.serve(async (req) => {
       success: true,
       sent: successCount,
       failed: failCount,
+      skipped: skippedCount,
       total: deviceTokens.length,
       recipient_count: recipientUserIds.length,
       in_app_created: inAppCreated,
+      push_enabled: canSendDevicePush,
       cleaned: invalidTokens.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
