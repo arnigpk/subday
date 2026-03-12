@@ -280,16 +280,16 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
-          <div className="flex items-center justify-between">
-            {notifications.length > 0 ? (
+          <div className="flex items-center relative">
+            {notifications.length > 0 && (
               <button
                 onClick={handleClearAll}
-                className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="absolute left-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <Trash2 size={18} />
               </button>
-            ) : <div />}
-            <SheetTitle className="text-lg font-bold">Уведомления #subFlow</SheetTitle>
+            )}
+            <SheetTitle className="text-lg font-bold w-full text-center">Уведомления #subFlow</SheetTitle>
           </div>
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
