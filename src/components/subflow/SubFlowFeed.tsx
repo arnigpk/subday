@@ -167,7 +167,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     const now = new Date().toISOString();
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at')
+      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types')
       .eq('is_active', true);
     
     // Client-side filter by date range and audience
