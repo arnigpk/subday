@@ -13,6 +13,8 @@ import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
 
 // Eager-loaded core pages
 import HomePage from "./pages/HomePage";
