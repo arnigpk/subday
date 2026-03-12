@@ -183,6 +183,7 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onUpdateDailyLim
   );
 }
 
+export default function AdminUsersPage() {
   const { canManage, isSuperAdmin, isAdmin } = useAdminAuth();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
