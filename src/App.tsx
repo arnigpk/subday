@@ -32,6 +32,7 @@ const HistoryPage = lazy(() => import("./pages/HistoryPage"));
 const StreaksPage = lazy(() => import("./pages/StreaksPage"));
 const BonusesPage = lazy(() => import("./pages/BonusesPage"));
 const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 
 // Register service worker for PWA  
 if ('serviceWorker' in navigator) {
@@ -342,6 +343,7 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/gift-coffee" element={<GiftCoffeePage />} />
             <Route path="/subflow" element={<SubFlowPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
