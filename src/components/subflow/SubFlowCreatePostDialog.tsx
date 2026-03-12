@@ -305,15 +305,17 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors"
+            className="flex flex-col items-center gap-0.5 p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors"
           >
             <Image size={20} />
+            <span className="text-[10px]">{t('subflow.hintPhoto')}</span>
           </button>
           <button
             onClick={() => setShowShopPicker(!showShopPicker)}
-            className={`p-2.5 rounded-xl transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+            className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
           >
             <MapPin size={20} />
+            <span className="text-[10px]">{t('subflow.hintLocation')}</span>
           </button>
           <div className="flex-1" />
           <Button
