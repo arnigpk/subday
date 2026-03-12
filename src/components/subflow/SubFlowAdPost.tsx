@@ -214,7 +214,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
   };
 
   return (
-    <div className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
+    <div ref={ref} className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shadow-sm">
