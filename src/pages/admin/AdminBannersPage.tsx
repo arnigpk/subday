@@ -696,6 +696,11 @@ export default function AdminBannersPage() {
                           📅 {(banner as any).starts_at ? format(new Date((banner as any).starts_at), 'dd.MM.yyyy') : '...'} — {(banner as any).ends_at ? format(new Date((banner as any).ends_at), 'dd.MM.yyyy') : '...'}
                         </div>
                       )}
+                      {(banner as any).audience_types && !(banner as any).audience_types?.includes('all') && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          👥 {((banner as any).audience_types as string[]).map(t => audienceOptions.find(o => o.value === t)?.label || t).join(', ')}
+                        </div>
+                      )}
                     </div>
                     {canManage ? (
                       <div className="flex items-center gap-1">
