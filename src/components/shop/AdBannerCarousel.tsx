@@ -66,7 +66,9 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
         // Date range filtering
         const startsOk = !(banner as any).starts_at || new Date((banner as any).starts_at) <= now;
         const endsOk = !(banner as any).ends_at || new Date((banner as any).ends_at) > now;
-        return locationMatch && countryMatch && cityMatch && startsOk && endsOk;
+        // Audience filtering
+        const audienceOk = matchesAudience((banner as any).audience_types);
+        return locationMatch && countryMatch && cityMatch && startsOk && endsOk && audienceOk;
       });
       
       return filtered;

@@ -170,10 +170,11 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at')
       .eq('is_active', true);
     
-    // Client-side filter by date range (extra safety)
+    // Client-side filter by date range and audience
     const allAds = ((data as any[]) || []).filter(ad => {
       if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
       if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
+      if (!matchesAudience(ad.audience_types)) return false;
       return true;
     });
     setAds(allAds);
