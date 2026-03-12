@@ -178,60 +178,69 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
 
   const { loadMoreRef } = useInfiniteScroll({ onLoadMore: loadMore, hasMore, isLoading: isLoadingMore });
 
-  // Fetch ads and apply daily limit filtering
+  // Fetch raw ads (no audience filtering - that's done reactively below)
   const fetchAds = useCallback(async () => {
-    const now = new Date().toISOString();
     const { data } = await supabase
       .from('subflow_ads')
       .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types')
       .eq('is_active', true);
     
-    // Client-side filter by date range and audience
-    const allAds = ((data as any[]) || []).filter(ad => {
+    // Client-side filter by date range only
+    const dateFiltered = ((data as RawSubFlowAd[]) || []).filter(ad => {
       if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
       if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
-      if (!matchesAudience(ad.audience_types)) return false;
       return true;
     });
-    setAds(allAds);
+    setRawAds(dateFiltered);
+  }, []);
 
-    // Filter by daily limit per user
-    if (!currentUserId || allAds.length === 0) {
-      setFilteredAds(allAds);
-      return;
-    }
+  // Reactively filter by audience when matchesAudience updates
+  const audienceFilteredAds = useMemo(() => {
+    if (isAudienceLoading) return [];
+    return rawAds.filter(ad => matchesAudience(ad.audience_types));
+  }, [rawAds, matchesAudience, isAudienceLoading]);
 
-    const adsWithLimit = allAds.filter(a => a.daily_limit > 0);
-    if (adsWithLimit.length === 0) {
-      setFilteredAds(allAds);
-      return;
-    }
+  // Apply daily limit filtering on top of audience-filtered ads
+  useEffect(() => {
+    const applyDailyLimits = async () => {
+      if (!currentUserId || audienceFilteredAds.length === 0) {
+        setFilteredAds(audienceFilteredAds);
+        return;
+      }
 
-    // Check today's view counts for ads with daily limits
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+      const adsWithLimit = audienceFilteredAds.filter(a => a.daily_limit > 0);
+      if (adsWithLimit.length === 0) {
+        setFilteredAds(audienceFilteredAds);
+        return;
+      }
 
-    const { data: todayEvents } = await supabase
-      .from('subflow_ad_events')
-      .select('ad_id')
-      .eq('user_id', currentUserId)
-      .eq('event_type', 'view')
-      .gte('created_at', todayStart.toISOString())
-      .in('ad_id', adsWithLimit.map(a => a.id));
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-    const viewCounts = new Map<string, number>();
-    (todayEvents || []).forEach((e: any) => {
-      viewCounts.set(e.ad_id, (viewCounts.get(e.ad_id) || 0) + 1);
-    });
+      const { data: todayEvents } = await supabase
+        .from('subflow_ad_events')
+        .select('ad_id')
+        .eq('user_id', currentUserId)
+        .eq('event_type', 'view')
+        .gte('created_at', todayStart.toISOString())
+        .in('ad_id', adsWithLimit.map(a => a.id));
 
-    const filtered = allAds.filter(ad => {
-      if (ad.daily_limit <= 0) return true; // no limit
-      const todayViews = viewCounts.get(ad.id) || 0;
-      return todayViews < ad.daily_limit;
-    });
+      const viewCounts = new Map<string, number>();
+      (todayEvents || []).forEach((e: any) => {
+        viewCounts.set(e.ad_id, (viewCounts.get(e.ad_id) || 0) + 1);
+      });
 
-    setFilteredAds(filtered);
-  }, [currentUserId]);
+      const filtered = audienceFilteredAds.filter(ad => {
+        if (ad.daily_limit <= 0) return true;
+        const todayViews = viewCounts.get(ad.id) || 0;
+        return todayViews < ad.daily_limit;
+      });
+
+      setFilteredAds(filtered);
+    };
+
+    applyDailyLimits();
+  }, [audienceFilteredAds, currentUserId]);
 
   useEffect(() => {
     fetchPosts(true);
