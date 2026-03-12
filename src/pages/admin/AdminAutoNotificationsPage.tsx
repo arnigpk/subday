@@ -58,6 +58,7 @@ const triggerLabels: Record<string, string> = {
   admin_register_telegram: 'Регистрация через Telegram Bot',
   admin_payment: 'Новая оплата подписки',
   admin_payment_special: 'Оплата (спецпредложение)',
+  guest_coffee: 'Подарок кофе от друга',
 };
 
 const channelLabels: Record<string, string> = {
