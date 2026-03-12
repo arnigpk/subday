@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import defaultPreloader from '@/assets/preloader.gif';
 import logo from '@/assets/logo.png';
 import { Toaster } from "@/components/ui/toaster";
