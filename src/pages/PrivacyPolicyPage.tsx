@@ -143,11 +143,11 @@ function PolicyEn() {
       <h1 className="text-2xl font-bold">Privacy Policy</h1>
       <p>
         This Privacy Policy describes how Subday Group LLP (BIN 260240030635, hereinafter
-        "Company", "we") collects, uses, and protects personal data of users of the SubDay
+        the "Operator") collects, uses, and protects personal data of users of the SubDay
         mobile application (hereinafter "Application").
       </p>
 
-      <h2 className="text-lg font-semibold">1. Data We Collect</h2>
+      <h2 className="text-lg font-semibold">1. Data the Operator Collects</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Phone number — for registration and authentication</li>
         <li>Name and profile photo — for personalization</li>
@@ -158,7 +158,7 @@ function PolicyEn() {
         <li>Telegram account data (when signing in via Telegram)</li>
       </ul>
 
-      <h2 className="text-lg font-semibold">2. How We Use Your Data</h2>
+      <h2 className="text-lg font-semibold">2. How Your Data Is Used</h2>
       <ul className="list-disc pl-5 space-y-1">
         <li>Providing access to the service and managing subscriptions</li>
         <li>Sending push notifications and messages</li>
@@ -170,20 +170,20 @@ function PolicyEn() {
       <h2 className="text-lg font-semibold">3. Payments</h2>
       <p>
         Payments are processed online using Visa/Mastercard bank cards through the certified
-        payment service Paylink. We do not store bank card data — it is processed directly
+        payment service Paylink. The Operator does not store bank card data — it is processed directly
         by the payment provider.
       </p>
 
       <h2 className="text-lg font-semibold">4. Data Storage and Security</h2>
       <p>
-        Data is stored on encrypted, secure servers. We implement technical and organizational
+        Data is stored on encrypted, secure servers. The Operator implements technical and organizational
         measures to protect against unauthorized access, loss, or alteration. Access to personal
         data is limited to authorized personnel only.
       </p>
 
       <h2 className="text-lg font-semibold">5. Third-Party Data Sharing</h2>
       <p>
-        We do not sell or share your personal data with third parties, except as required by the
+        The Operator does not sell or share your personal data with third parties, except as required by the
         laws of the Republic of Kazakhstan, and:
       </p>
       <ul className="list-disc pl-5 space-y-1">
@@ -196,7 +196,7 @@ function PolicyEn() {
         <li>View and edit your data in your Application profile</li>
         <li>Disable push notifications in settings</li>
         <li>Delete your account — via the "Profile" section in the Application</li>
-        <li>Request deletion of all data — by contacting subday.group@gmail.com</li>
+        <li>Request deletion of all data — by contacting supp@subday.app</li>
       </ul>
 
       <h2 className="text-lg font-semibold">7. Cookies</h2>
@@ -207,21 +207,21 @@ function PolicyEn() {
 
       <h2 className="text-lg font-semibold">8. Children</h2>
       <p>
-        The Application is not intended for individuals under 16 years of age. We do not
+        The Application is not intended for individuals under 16 years of age. The Operator does not
         knowingly collect data from children.
       </p>
 
       <h2 className="text-lg font-semibold">9. Policy Changes</h2>
       <p>
-        We may update this Policy. The current version is always available in the Application.
-        We will notify you of significant changes via push notification.
+        The Operator may update this Policy. The current version is always available in the Application.
+        Users will be notified of significant changes via push notification.
       </p>
 
       <h2 className="text-lg font-semibold">10. Contact Us</h2>
       <p>
         Subday Group LLP<br />
         BIN: 260240030635<br />
-        Email: subday.group@gmail.com
+        Email: supp@subday.app
       </p>
     </article>
   );
