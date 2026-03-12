@@ -931,7 +931,7 @@ export default function AdminUsersPage() {
                         type="drinks"
                         canManage={canManage}
                         onReset={() => handleResetSubscription('drinks')}
-                        onUpdateDailyLimit={(val) => handleUpdateDailyLimit(editingUser.lunch_subscription!.sub_id, val)}
+                        onResetDailyLimit={() => handleResetDailyLimit(editingUser.lunch_subscription!.sub_id)}
                       />
                     )}
                   </div>
