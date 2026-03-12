@@ -165,6 +165,23 @@ Deno.serve(async (req) => {
   }
 });
 
+// Paginated fetch to bypass 1000-row default limit
+async function fetchAllRows(supabase: any, table: string, selectCols: string, filters?: (q: any) => any): Promise<any[]> {
+  const results: any[] = [];
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    let q = supabase.from(table).select(selectCols).range(from, from + pageSize - 1);
+    if (filters) q = filters(q);
+    const { data } = await q;
+    if (!data || data.length === 0) break;
+    results.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return results;
+}
+
 async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType[]): Promise<string[]> {
   const now = new Date();
   const allResults: Set<string> = new Set();
@@ -180,36 +197,41 @@ async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType
 async function resolveOneAudience(supabase: any, audienceType: AudienceType, now: Date): Promise<string[]> {
   switch (audienceType) {
     case 'subscribers': {
-      const { data } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
-      return [...new Set((data || []).map((r: any) => r.user_id))];
+      const data = await fetchAllRows(supabase, 'user_subscriptions', 'user_id', (q: any) => q.eq('is_active', true));
+      return [...new Set(data.map((r: any) => r.user_id))];
     }
     case 'no_subscription': {
-      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
-      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
-      const activeSet = new Set((activeSubs || []).map((r: any) => r.user_id));
-      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+      const [allProfiles, activeSubs] = await Promise.all([
+        fetchAllRows(supabase, 'profiles', 'user_id'),
+        fetchAllRows(supabase, 'user_subscriptions', 'user_id', (q: any) => q.eq('is_active', true)),
+      ]);
+      const activeSet = new Set(activeSubs.map((r: any) => r.user_id));
+      return allProfiles.map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
     }
     case 'expiring_soon': {
       const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase.from('user_subscriptions').select('user_id')
-        .eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString());
-      return [...new Set((data || []).map((r: any) => r.user_id))];
+      const data = await fetchAllRows(supabase, 'user_subscriptions', 'user_id', (q: any) =>
+        q.eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString())
+      );
+      return [...new Set(data.map((r: any) => r.user_id))];
     }
     case 'new_users': {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo);
-      return (data || []).map((p: any) => p.user_id);
+      const data = await fetchAllRows(supabase, 'profiles', 'user_id', (q: any) => q.gte('created_at', sevenDaysAgo));
+      return data.map((p: any) => p.user_id);
     }
     case 'inactive': {
-      const { data: allProfiles } = await supabase.from('profiles').select('user_id');
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: recentActive } = await supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo);
-      const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
-      const activeSet = new Set([
-        ...(recentActive || []).map((r: any) => r.user_id),
-        ...(activeSubs || []).map((r: any) => r.user_id),
+      const [allProfiles, recentActive, activeSubs] = await Promise.all([
+        fetchAllRows(supabase, 'profiles', 'user_id'),
+        fetchAllRows(supabase, 'redemptions', 'user_id', (q: any) => q.gte('redeemed_at', thirtyDaysAgo)),
+        fetchAllRows(supabase, 'user_subscriptions', 'user_id', (q: any) => q.eq('is_active', true)),
       ]);
-      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+      const activeSet = new Set([
+        ...recentActive.map((r: any) => r.user_id),
+        ...activeSubs.map((r: any) => r.user_id),
+      ]);
+      return allProfiles.map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
     }
     default:
       return [];
