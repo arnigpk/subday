@@ -256,6 +256,20 @@ Deno.serve(async (req) => {
 
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
 
+    // If remaining hits 0, deactivate the subscription
+    if (newRemaining <= 0 && matchingSub) {
+      supabase.from('user_subscriptions')
+        .update({ is_active: false })
+        .eq('id', matchingSub.id)
+        .then(({ error: deactivateError }) => {
+          if (deactivateError) {
+            console.error('Error deactivating subscription:', deactivateError);
+          } else {
+            console.log(`Subscription ${matchingSub.id} deactivated: ${drinkType} remaining = 0`);
+          }
+        });
+    }
+
     // Fire-and-forget: low balance & expiry notifications
     if (profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
@@ -263,6 +277,12 @@ Deno.serve(async (req) => {
         const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
         if (telegramBotToken) {
           const subName = subscriptionName || (drinkType === 'coffee' ? 'Кофе' : 'Ланч');
+          
+          // Subscription exhausted notification
+          if (newRemaining <= 0) {
+            const exhaustedUnit = drinkType === 'coffee' ? 'напитки' : 'ланчи';
+            sendTelegramMessage(telegramId, `📋 Ваши ${exhaustedUnit} по подписке ${subName} закончились. Подписка деактивирована. Оформите новую подписку! ☕`, telegramBotToken);
+          }
           
           // Low balance notification (only at exactly 5 or 2 remaining)
           if (newRemaining === 5 || newRemaining === 2) {
