@@ -462,7 +462,21 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleToggleBlock = async (user: UserWithStats) => {
+  const handleUpdateDailyLimit = async (subId: string, newLimit: number | null) => {
+    try {
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({ daily_limit_override: newLimit })
+        .eq('id', subId);
+      if (error) throw error;
+      toast({ title: newLimit !== null ? `Дневной лимит обновлён: ${newLimit}` : 'Дневной лимит сброшен на стандартный' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating daily limit:', error);
+      toast({ title: 'Ошибка обновления лимита', variant: 'destructive' });
+    }
+  };
+
     try {
       const { error } = await supabase
         .from('profiles')
