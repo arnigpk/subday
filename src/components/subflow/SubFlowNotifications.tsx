@@ -231,10 +231,9 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
 
   const handleClearAll = async () => {
     if (!userId || notifications.length === 0) return;
-    const ids = notifications.map(n => n.id);
     setNotifications([]);
     setUnreadCount(0);
-    await supabase.from('subflow_notifications').delete().in('id', ids);
+    await supabase.from('subflow_notifications').delete().eq('user_id', userId);
     toast({ title: 'Уведомления очищены' });
   };
 
