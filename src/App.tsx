@@ -114,6 +114,36 @@ function LazyFallback() {
   );
 }
 
+// Deep link handler for native apps (Universal Links / App Links)
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // Handle deep link when app is opened via URL
+    const handleAppUrlOpen = (data: { url: string }) => {
+      try {
+        const url = new URL(data.url);
+        const path = url.pathname + url.search + url.hash;
+        if (path && path !== '/') {
+          navigate(path);
+        }
+      } catch (e) {
+        console.error('Deep link parse error:', e);
+      }
+    };
+
+    CapApp.addListener('appUrlOpen', handleAppUrlOpen);
+
+    return () => {
+      CapApp.removeAllListeners();
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
