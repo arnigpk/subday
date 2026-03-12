@@ -1284,6 +1284,7 @@ export type Database = {
         Row: {
           created_at: string | null
           daily_limit_override: number | null
+          daily_limit_reset_at: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
@@ -1294,6 +1295,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           daily_limit_override?: number | null
+          daily_limit_reset_at?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -1304,6 +1306,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           daily_limit_override?: number | null
+          daily_limit_reset_at?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
