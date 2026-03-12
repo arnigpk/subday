@@ -40,6 +40,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   const [open, setOpen] = useState(false);
   const playNotificationSound = useNotificationSound();
   const { vibrate } = useVibration();
+  const { settings: notifSettings } = useNotificationSettings();
   const initialLoadDone = useRef(false);
 
   const fetchNotifications = async () => {
