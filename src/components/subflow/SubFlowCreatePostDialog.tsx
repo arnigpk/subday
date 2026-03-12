@@ -26,8 +26,22 @@ interface SubFlowCreatePostDialogProps {
 
 const MAX_IMAGES = 5;
 
+const ROTATING_PLACEHOLDERS = [
+  'Сохрани этот момент здесь',
+  'Начни новый пост',
+  'Что происходит вокруг тебя сейчас?',
+  'Добавь новый след дня..',
+  'Что происходит прямо сейчас?',
+  'Этот момент стоит сохранить',
+  'Этот момент — твой!',
+  'Этот момент начинается здесь...',
+];
+
+let placeholderIndex = 0;
+
 export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: SubFlowCreatePostDialogProps) {
   const [content, setContent] = useState('');
+  const [placeholder, setPlaceholder] = useState('');
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
