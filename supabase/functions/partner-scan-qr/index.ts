@@ -256,6 +256,20 @@ Deno.serve(async (req) => {
 
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
 
+    // If remaining hits 0, deactivate the subscription
+    if (newRemaining <= 0 && matchingSub) {
+      supabase.from('user_subscriptions')
+        .update({ is_active: false })
+        .eq('id', matchingSub.id)
+        .then(({ error: deactivateError }) => {
+          if (deactivateError) {
+            console.error('Error deactivating subscription:', deactivateError);
+          } else {
+            console.log(`Subscription ${matchingSub.id} deactivated: ${drinkType} remaining = 0`);
+          }
+        });
+    }
+
     // Fire-and-forget: low balance & expiry notifications
     if (profile?.phone) {
       const telegramId = extractTelegramId(profile.phone);
