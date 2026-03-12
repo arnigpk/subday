@@ -400,6 +400,23 @@ async function createInAppNotifications(
   return inserted;
 }
 
+async function fetchRecipientsMeta(
+  supabase: any,
+  userIds: string[],
+): Promise<{ name: string; user_id: string }[]> {
+  if (userIds.length === 0) return [];
+  const batchSize = 500;
+  const results: { name: string; user_id: string }[] = [];
+  for (let i = 0; i < userIds.length; i += batchSize) {
+    const batch = userIds.slice(i, i + batchSize);
+    const { data } = await supabase.from('profiles').select('user_id, name, phone').in('user_id', batch);
+    (data || []).forEach((p: any) => {
+      results.push({ name: p.name || p.phone || 'Без имени', user_id: p.user_id });
+    });
+  }
+  return results;
+}
+
 async function savePushBroadcastHistory(
   supabase: any,
   params: {
@@ -410,9 +427,10 @@ async function savePushBroadcastHistory(
     recipientCount: number;
     sentCount: number;
     failedCount: number;
+    recipients: { name: string; user_id: string }[];
   },
 ): Promise<void> {
-  const { sentBy, title, message, targetType, recipientCount, sentCount, failedCount } = params;
+  const { sentBy, title, message, targetType, recipientCount, sentCount, failedCount, recipients } = params;
 
   const { error } = await supabase.from('broadcast_messages').insert({
     message: `${title}\n${message}`,
@@ -422,6 +440,7 @@ async function savePushBroadcastHistory(
     sent_count: sentCount,
     failed_count: failedCount,
     sent_by: sentBy,
+    recipients: recipients,
   });
 
   if (error) {
