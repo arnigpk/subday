@@ -5,6 +5,7 @@ import { SubFlowAdPost } from './SubFlowAdPost';
 import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
+import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -55,6 +56,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
+  const { matchesAudience } = useUserAudienceMatch();
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
@@ -165,13 +167,14 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     const now = new Date().toISOString();
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at')
+      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types')
       .eq('is_active', true);
     
-    // Client-side filter by date range (extra safety)
+    // Client-side filter by date range and audience
     const allAds = ((data as any[]) || []).filter(ad => {
       if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
       if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
+      if (!matchesAudience(ad.audience_types)) return false;
       return true;
     });
     setAds(allAds);

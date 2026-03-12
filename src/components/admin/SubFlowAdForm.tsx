@@ -14,6 +14,7 @@ import { Plus, Loader2, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 
 interface SubFlowAd {
   id: string;
@@ -86,6 +87,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   const [isUploading, setIsUploading] = useState(false);
   const [startsAt, setStartsAt] = useState<Date | undefined>(undefined);
   const [endsAt, setEndsAt] = useState<Date | undefined>(undefined);
+  const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   useEffect(() => {
     if (editingAd) {
@@ -98,6 +100,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       setIsActive(editingAd.is_active);
       setStartsAt(editingAd.starts_at ? new Date(editingAd.starts_at) : undefined);
       setEndsAt(editingAd.ends_at ? new Date(editingAd.ends_at) : undefined);
+      setAudienceTypes((editingAd as any).audience_types?.length > 0 ? (editingAd as any).audience_types : ['all']);
 
       const presetFreq = FREQUENCY_OPTIONS.find(f => f.value === editingAd.frequency && f.value !== 0);
       if (presetFreq) {
@@ -136,6 +139,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
     setImageFile(null);
     setStartsAt(undefined);
     setEndsAt(undefined);
+    setAudienceTypes(['all']);
   };
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
@@ -200,6 +204,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         is_active: effectiveIsActive,
         starts_at: startsAt ? startsAt.toISOString() : null,
         ends_at: endsAt ? endsAt.toISOString() : null,
+        audience_types: audienceTypes,
       };
 
       if (editingAd) {
@@ -409,6 +414,9 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         <p className="text-xs text-muted-foreground">
           Если задать даты, реклама автоматически включится в дату начала и выключится по окончании.
         </p>
+
+        {/* Audience types */}
+        <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
 
         <div className="flex items-center gap-2">
           <Switch checked={isActive} onCheckedChange={setIsActive} />

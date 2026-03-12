@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { AudienceTypeSelector, type AudienceType, audienceOptions } from '@/components/admin/AudienceTypeSelector';
 
 interface AdBanner {
   id: string;
@@ -68,6 +69,7 @@ export default function AdminBannersPage() {
     city: '',
     starts_at: undefined as Date | undefined,
     ends_at: undefined as Date | undefined,
+    audience_types: ['all'] as AudienceType[],
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -153,6 +155,7 @@ export default function AdminBannersPage() {
       city: '',
       starts_at: undefined,
       ends_at: undefined,
+      audience_types: ['all'],
     });
     setEditingBanner(null);
   };
@@ -178,6 +181,7 @@ export default function AdminBannersPage() {
       city: (banner as any).city || '',
       starts_at: (banner as any).starts_at ? new Date((banner as any).starts_at) : undefined,
       ends_at: (banner as any).ends_at ? new Date((banner as any).ends_at) : undefined,
+      audience_types: (banner as any).audience_types?.length > 0 ? (banner as any).audience_types : ['all'],
     });
     setIsDialogOpen(true);
   };
@@ -245,6 +249,7 @@ export default function AdminBannersPage() {
         city: formData.city || null,
         starts_at: formData.starts_at ? formData.starts_at.toISOString() : null,
         ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
+        audience_types: formData.audience_types,
       };
 
       if (editingBanner) {
@@ -609,6 +614,12 @@ export default function AdminBannersPage() {
                   </div>
                 </div>
 
+                {/* Audience types */}
+                <AudienceTypeSelector
+                  value={formData.audience_types}
+                  onChange={(v) => setFormData(prev => ({ ...prev, audience_types: v }))}
+                />
+
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !formData.image_url}
@@ -683,6 +694,11 @@ export default function AdminBannersPage() {
                       {((banner as any).starts_at || (banner as any).ends_at) && (
                         <div className="text-xs text-muted-foreground mt-0.5">
                           📅 {(banner as any).starts_at ? format(new Date((banner as any).starts_at), 'dd.MM.yyyy') : '...'} — {(banner as any).ends_at ? format(new Date((banner as any).ends_at), 'dd.MM.yyyy') : '...'}
+                        </div>
+                      )}
+                      {(banner as any).audience_types && !(banner as any).audience_types?.includes('all') && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          👥 {((banner as any).audience_types as string[]).map(t => audienceOptions.find(o => o.value === t)?.label || t).join(', ')}
                         </div>
                       )}
                     </div>

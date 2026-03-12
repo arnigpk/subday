@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 
 interface AdBanner {
   id: string;
@@ -44,6 +45,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
+  const { matchesAudience } = useUserAudienceMatch();
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
@@ -64,7 +66,9 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
         // Date range filtering
         const startsOk = !(banner as any).starts_at || new Date((banner as any).starts_at) <= now;
         const endsOk = !(banner as any).ends_at || new Date((banner as any).ends_at) > now;
-        return locationMatch && countryMatch && cityMatch && startsOk && endsOk;
+        // Audience filtering
+        const audienceOk = matchesAudience((banner as any).audience_types);
+        return locationMatch && countryMatch && cityMatch && startsOk && endsOk && audienceOk;
       });
       
       return filtered;

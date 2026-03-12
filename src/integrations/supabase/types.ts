@@ -45,6 +45,7 @@ export type Database = {
       }
       ad_banners: {
         Row: {
+          audience_types: string[]
           autoplay_delay: number
           caption: string | null
           city: string | null
@@ -62,6 +63,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience_types?: string[]
           autoplay_delay?: number
           caption?: string | null
           city?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience_types?: string[]
           autoplay_delay?: number
           caption?: string | null
           city?: string | null
@@ -781,6 +784,7 @@ export type Database = {
       }
       subflow_ads: {
         Row: {
+          audience_types: string[]
           content: string
           created_at: string
           daily_limit: number
@@ -798,6 +802,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience_types?: string[]
           content: string
           created_at?: string
           daily_limit?: number
@@ -815,6 +820,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience_types?: string[]
           content?: string
           created_at?: string
           daily_limit?: number
