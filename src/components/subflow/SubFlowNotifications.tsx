@@ -85,7 +85,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications().then(() => { initialLoadDone.current = true; });
   }, [userId]);
 
   // Realtime for new notifications
