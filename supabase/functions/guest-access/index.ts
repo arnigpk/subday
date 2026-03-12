@@ -74,9 +74,20 @@ function getMonthKey(): string {
 
 // Send guest coffee notification to invitee (Telegram + Push)
 async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string) {
-  const message = "Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚";
-  
   try {
+    // Fetch template from DB
+    const { data: template } = await supabase
+      .from("auto_notification_templates")
+      .select("message_template, channel, is_active")
+      .eq("trigger_type", "guest_coffee")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!template) return; // Template disabled or not found
+
+    const message = template.message_template;
+    const channel: string = template.channel || "both";
+
     // Get invitee profile for Telegram check
     const { data: profile } = await supabase
       .from("profiles")
@@ -84,36 +95,40 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
       .eq("user_id", inviteeUserId)
       .single();
 
-    // Send Telegram if user has telegram phone
-    const telegramId = profile?.phone ? extractTelegramId(profile.phone) : null;
-    if (telegramId) {
-      const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
-      if (botToken) {
-        sendTelegramMessage(telegramId, message, botToken).catch(e => console.error("TG error:", e));
+    // Send Telegram if channel allows
+    if (channel === "telegram" || channel === "both") {
+      const telegramId = profile?.phone ? extractTelegramId(profile.phone) : null;
+      if (telegramId) {
+        const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+        if (botToken) {
+          sendTelegramMessage(telegramId, message, botToken).catch(e => console.error("TG error:", e));
+        }
       }
     }
 
-    // Send Push notification
-    const { data: tokens } = await supabase
-      .from("device_tokens")
-      .select("token")
-      .eq("user_id", inviteeUserId);
+    // Send Push if channel allows
+    if (channel === "push" || channel === "both") {
+      const { data: tokens } = await supabase
+        .from("device_tokens")
+        .select("token")
+        .eq("user_id", inviteeUserId);
 
-    if (tokens && tokens.length > 0) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({
-          tokens: tokens.map((t: any) => t.token),
-          title: "Подарок от друга ☕",
-          body: message,
-        }),
-      }).catch(e => console.error("Push error:", e));
+      if (tokens && tokens.length > 0) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            tokens: tokens.map((t: any) => t.token),
+            title: "Подарок от друга ☕",
+            body: message,
+          }),
+        }).catch(e => console.error("Push error:", e));
+      }
     }
 
     // Save to push_notifications table
