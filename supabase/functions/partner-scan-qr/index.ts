@@ -278,6 +278,12 @@ Deno.serve(async (req) => {
         if (telegramBotToken) {
           const subName = subscriptionName || (drinkType === 'coffee' ? 'Кофе' : 'Ланч');
           
+          // Subscription exhausted notification
+          if (newRemaining <= 0) {
+            const exhaustedUnit = drinkType === 'coffee' ? 'напитки' : 'ланчи';
+            sendTelegramMessage(telegramId, `📋 Ваши ${exhaustedUnit} по подписке ${subName} закончились. Подписка деактивирована. Оформите новую подписку! ☕`, telegramBotToken);
+          }
+          
           // Low balance notification (only at exactly 5 or 2 remaining)
           if (newRemaining === 5 || newRemaining === 2) {
             const unitWord = drinkType === 'coffee'
