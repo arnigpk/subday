@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
         total: 0,
         recipient_count: 0,
         in_app_created: 0,
+        push_enabled: canSendDevicePush,
         message: 'No users in selected audience',
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
