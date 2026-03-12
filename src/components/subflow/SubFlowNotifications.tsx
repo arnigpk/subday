@@ -36,6 +36,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const playNotificationSound = useNotificationSound();
+  const initialLoadDone = useRef(false);
 
   const fetchNotifications = async () => {
     if (!userId) return;
