@@ -21,7 +21,7 @@ export function ServiceRulesDialog({ children }: ServiceRulesDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] p-0">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] p-0">
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-lg font-bold">Правила сервиса</DialogTitle>
         </DialogHeader>
