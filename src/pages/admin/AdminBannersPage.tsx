@@ -69,6 +69,7 @@ export default function AdminBannersPage() {
     city: '',
     starts_at: undefined as Date | undefined,
     ends_at: undefined as Date | undefined,
+    audience_types: ['all'] as AudienceType[],
   });
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
