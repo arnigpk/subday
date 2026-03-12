@@ -183,7 +183,7 @@ export default function ProfilePage() {
                 {showAvatarMenu && (
                   <>
                     <div className="fixed inset-0 z-[100]" onClick={() => setShowAvatarMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 z-[101] bg-card border border-border rounded-xl shadow-lg p-1 animate-slide-up">
+                    <div className="absolute left-0 top-full mt-2 z-[101] bg-background/75 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] p-1 animate-slide-up">
                       <button onClick={handleAvatarMenuSelect}
                         className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors whitespace-nowrap">
                         <Camera size={16} className="text-primary flex-shrink-0" />
