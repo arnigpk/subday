@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
@@ -21,9 +21,11 @@ interface AdBanner {
   display_location: string;
   country: string | null;
   city: string | null;
+  audience_types: string[];
+  starts_at: string | null;
+  ends_at: string | null;
 }
 
-// Preload images for instant display
 function preloadImages(urls: string[]) {
   urls.forEach(url => {
     const img = new Image();
@@ -45,9 +47,10 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
-  const { matchesAudience } = useUserAudienceMatch();
+  const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
 
-  const { data: banners = [], isLoading } = useQuery({
+  // Fetch all active banners (no audience filtering here)
+  const { data: allBanners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,22 +62,23 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
       if (error) throw error;
       
       const now = new Date();
-      const filtered = (data as AdBanner[]).filter(banner => {
+      return ((data as AdBanner[]) || []).filter(banner => {
         const locationMatch = banner.display_location === location || banner.display_location === 'both';
         const countryMatch = !banner.country || banner.country === userCountry;
         const cityMatch = !banner.city || !userCity || banner.city === userCity;
-        // Date range filtering
-        const startsOk = !(banner as any).starts_at || new Date((banner as any).starts_at) <= now;
-        const endsOk = !(banner as any).ends_at || new Date((banner as any).ends_at) > now;
-        // Audience filtering
-        const audienceOk = matchesAudience((banner as any).audience_types);
-        return locationMatch && countryMatch && cityMatch && startsOk && endsOk && audienceOk;
+        const startsOk = !banner.starts_at || new Date(banner.starts_at) <= now;
+        const endsOk = !banner.ends_at || new Date(banner.ends_at) > now;
+        return locationMatch && countryMatch && cityMatch && startsOk && endsOk;
       });
-      
-      return filtered;
     },
     staleTime: 60 * 1000,
   });
+
+  // Apply audience filtering reactively (re-runs when matchesAudience updates)
+  const banners = useMemo(() => {
+    if (isAudienceLoading) return [];
+    return allBanners.filter(banner => matchesAudience(banner.audience_types));
+  }, [allBanners, matchesAudience, isAudienceLoading]);
 
   // Preload all banner images when data is loaded
   useEffect(() => {
@@ -83,15 +87,13 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
       const imageUrls = banners.map(b => b.image_url);
       preloadImages(imageUrls);
       
-      // Wait for first image to load before showing carousel
       const firstImg = new Image();
       firstImg.onload = () => setImagesLoaded(true);
-      firstImg.onerror = () => setImagesLoaded(true); // Show anyway on error
+      firstImg.onerror = () => setImagesLoaded(true);
       firstImg.src = banners[0].image_url;
     }
   }, [banners]);
 
-  // Get autoplay delay from first banner (or use default)
   useEffect(() => {
     if (banners.length > 0 && banners[0].autoplay_delay) {
       setAutoplayDelay(banners[0].autoplay_delay * 1000);
@@ -109,7 +111,6 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     [autoplayPlugin]
   );
 
-  // Track banner view
   const trackView = useCallback(async (bannerId: string) => {
     if (viewedBanners.current.has(bannerId)) return;
     viewedBanners.current.add(bannerId);
@@ -128,7 +129,6 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     const index = emblaApi.selectedScrollSnap();
     setSelectedIndex(index);
     
-    // Track view for current banner
     if (banners[index]) {
       trackView(banners[index].id);
     }
@@ -143,16 +143,13 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     };
   }, [emblaApi, onSelect]);
 
-  // Update autoplay delay when it changes
   useEffect(() => {
     if (emblaApi && autoplayPlugin) {
       autoplayPlugin.reset();
     }
   }, [autoplayDelay, emblaApi]);
 
-  // Track click and navigate
   const handleBannerClick = async (banner: AdBanner) => {
-    // Track click
     try {
       await supabase
         .from('ad_banner_events')
@@ -164,7 +161,6 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     if (banner.shop_id) {
       navigate(`/shops/${banner.shop_id}`);
     } else if (banner.external_url) {
-      // Use deep links for popular apps with fallback to web version
       openWithDeepLink(banner.external_url);
     }
   };
@@ -173,8 +169,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     return banner.shop_id || banner.external_url;
   };
 
-  // Show skeleton while loading data or images
-  if (isLoading || (banners.length > 0 && !imagesLoaded)) {
+  if (isLoading || isAudienceLoading || (banners.length > 0 && !imagesLoaded)) {
     return (
       <div className="w-full mb-4">
         <Skeleton className="w-full h-32 rounded-2xl" />
@@ -217,7 +212,6 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
         </div>
       </div>
       
-      {/* Dots indicator */}
       {banners.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-2">
           {banners.map((_, index) => (
