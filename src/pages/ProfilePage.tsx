@@ -379,6 +379,70 @@ export default function ProfilePage() {
             onSaved={refetch}
           />
 
+          {/* Notification Settings Dialog */}
+          <Dialog open={showNotificationSettings} onOpenChange={setShowNotificationSettings}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Bell size={20} className="text-primary" />
+                  {t('profile.notifications')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                {/* Push notifications */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Smartphone size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Push-уведомления</p>
+                      <p className="text-xs text-muted-foreground">Системные уведомления</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.pushEnabled}
+                    onCheckedChange={handlePushToggle}
+                  />
+                </div>
+
+                {/* SubFlow sound */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center">
+                      <Volume2 size={18} className="text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Звук #subFlow</p>
+                      <p className="text-xs text-muted-foreground">Звук при новых уведомлениях</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.subflowSoundEnabled}
+                    onCheckedChange={(v) => updateNotifSettings({ subflowSoundEnabled: v })}
+                  />
+                </div>
+
+                {/* Vibration */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <Vibrate size={18} className="text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Вибрация</p>
+                      <p className="text-xs text-muted-foreground">Вибрация при уведомлениях</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={notifSettings.vibrationEnabled}
+                    onCheckedChange={(v) => updateNotifSettings({ vibrationEnabled: v })}
+                  />
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
         </div>
       </div>
