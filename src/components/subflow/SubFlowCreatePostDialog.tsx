@@ -37,6 +37,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  const shopPickerRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -60,6 +62,58 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       setCompressionProgress(0);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!showShopPicker) return;
+
+    const container = contentScrollRef.current;
+    if (!container) return;
+
+    const previousOverflowY = container.style.overflowY;
+    const previousTouchAction = container.style.touchAction;
+
+    container.style.overflowY = 'hidden';
+    container.style.touchAction = 'none';
+
+    return () => {
+      container.style.overflowY = previousOverflowY;
+      container.style.touchAction = previousTouchAction;
+    };
+  }, [showShopPicker]);
+
+  useEffect(() => {
+    if (!showShopPicker) return;
+
+    const picker = shopPickerRef.current;
+    if (!picker) return;
+
+    let touchStartY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const currentY = event.touches[0]?.clientY ?? touchStartY;
+      const deltaY = currentY - touchStartY;
+      const isAtTop = picker.scrollTop <= 0;
+      const isAtBottom = Math.ceil(picker.scrollTop + picker.clientHeight) >= picker.scrollHeight;
+
+      if ((isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) {
+        event.preventDefault();
+      }
+
+      event.stopPropagation();
+    };
+
+    picker.addEventListener('touchstart', handleTouchStart, { passive: true });
+    picker.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      picker.removeEventListener('touchstart', handleTouchStart);
+      picker.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [showShopPicker]);
 
   const fetchShops = async () => {
     const { data } = await supabase
@@ -208,7 +262,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         </DialogHeader>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div ref={contentScrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Content input */}
           <textarea
             value={content}
@@ -277,6 +331,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           {/* Shop picker */}
           {showShopPicker && (
             <div 
+              ref={shopPickerRef}
+              onWheel={(event) => event.stopPropagation()}
               className="p-2 bg-secondary/50 rounded-xl max-h-48 overflow-y-auto border border-border/30 overscroll-contain touch-pan-y"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
