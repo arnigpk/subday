@@ -219,10 +219,14 @@ Deno.serve(async (req) => {
     const effectiveDailyLimit = (matchingSub as any)?.daily_limit_override ?? subTypes?.daily_limit;
     
     if (effectiveDailyLimit !== null && effectiveDailyLimit !== undefined) {
+      // If daily limit was reset by admin today, only count redemptions after the reset
+      const resetAt = (matchingSub as any)?.daily_limit_reset_at;
+      const countAfter = resetAt && resetAt.startsWith(today) ? resetAt : `${today}T00:00:00`;
+      
       const { count: todayCount } = await supabase
         .from('redemptions').select('*', { count: 'exact', head: true })
         .eq('user_id', userId).eq('drink_type', drinkType)
-        .gte('redeemed_at', `${today}T00:00:00`).lt('redeemed_at', `${today}T23:59:59.999`);
+        .gte('redeemed_at', countAfter).lt('redeemed_at', `${today}T23:59:59.999`);
 
       if ((todayCount || 0) >= effectiveDailyLimit) {
         return new Response(JSON.stringify({ 
