@@ -265,8 +265,8 @@ export default function ProfilePage() {
               {isDark ? <Moon size={20} className="text-muted-foreground" /> : <Sun size={20} className="text-muted-foreground" />}
               <span className="font-medium text-foreground">{t('profile.theme')} {isDark ? t('profile.espresso') : t('profile.latte')}</span>
             </div>
-            <button onClick={toggleTheme} className="w-12 h-7 rounded-full bg-secondary flex items-center p-1 transition-all">
-              <div className={`w-5 h-5 rounded-full bg-accent transition-all ${isDark ? 'translate-x-5' : ''}`} />
+            <button onClick={toggleTheme} className="w-12 h-7 rounded-full backdrop-blur-lg border border-border/40 flex items-center p-1 transition-all" style={{ background: 'hsl(var(--background) / 0.5)', boxShadow: 'inset 0 1px 2px hsl(var(--foreground) / 0.06)' }}>
+              <div className={`w-5 h-5 rounded-full bg-accent/90 backdrop-blur-sm shadow-[0_1px_3px_hsl(var(--foreground)/0.1)] transition-all ${isDark ? 'translate-x-5' : ''}`} />
             </button>
           </div>
           

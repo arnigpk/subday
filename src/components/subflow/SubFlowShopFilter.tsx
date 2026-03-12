@@ -86,7 +86,7 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
             onClick={() => setIsOpen(false)} 
           />
           
-          <div className="absolute left-0 top-full mt-2 z-50 bg-card border border-border rounded-xl shadow-lg p-2 min-w-[200px] max-h-[300px] overflow-y-auto animate-slide-up">
+          <div className="absolute left-0 top-full mt-2 z-50 bg-background/75 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] p-2 min-w-[200px] max-h-[300px] overflow-y-auto animate-slide-up">
             <button
               onClick={() => handleSelect(null)}
               className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors ${
