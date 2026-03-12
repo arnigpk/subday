@@ -134,6 +134,7 @@ export default function AdminBannersPage() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  const getStats = (bannerId: string) => {
     const stats = bannerStats.find(s => s.banner_id === bannerId);
     return stats || { views: 0, clicks: 0 };
   };
