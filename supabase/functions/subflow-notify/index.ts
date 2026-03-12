@@ -355,13 +355,32 @@ async function sendTelegramNotification(
 
 async function sendPushNotification(supabase: any, userId: string, message: string) {
   try {
-    await supabase.from('push_notifications').insert({
-      title: '#subFlow',
-      message,
-      user_id: userId,
+    // Send native FCM push only — do NOT insert into push_notifications table
+    // push_notifications is for admin broadcasts shown on the home page bell
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const { data: tokens } = await supabase
+      .from('device_tokens')
+      .select('token')
+      .eq('user_id', userId);
+
+    if (!tokens || tokens.length === 0) return;
+
+    await fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        title: '#subFlow',
+        message,
+        targetUserIds: [userId],
+      }),
     });
   } catch (err) {
-    console.error('Failed to insert push notification:', err);
+    console.error('Failed to send FCM push:', err);
   }
 }
 
