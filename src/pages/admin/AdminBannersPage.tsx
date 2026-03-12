@@ -614,6 +614,12 @@ export default function AdminBannersPage() {
                   </div>
                 </div>
 
+                {/* Audience types */}
+                <AudienceTypeSelector
+                  value={formData.audience_types}
+                  onChange={(v) => setFormData(prev => ({ ...prev, audience_types: v }))}
+                />
+
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !formData.image_url}
