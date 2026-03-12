@@ -1,0 +1,1 @@
+DELETE FROM public.push_notifications WHERE title = '#subFlow';
