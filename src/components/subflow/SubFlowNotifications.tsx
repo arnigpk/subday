@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { useVibration } from '@/hooks/useVibration';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -37,6 +38,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const playNotificationSound = useNotificationSound();
+  const { vibrate } = useVibration();
   const initialLoadDone = useRef(false);
 
   const fetchNotifications = async () => {
@@ -102,6 +104,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       }, () => {
         if (initialLoadDone.current) {
           playNotificationSound();
+          vibrate(2000);
         }
         fetchNotifications();
       })
