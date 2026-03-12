@@ -3,11 +3,11 @@ import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, ChevronRight } from 'lucide-react';
+import { Bell, ChevronRight, Trash2, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { toast } from '@/hooks/use-toast';
 import {
   Sheet,
   SheetContent,
@@ -34,6 +34,98 @@ interface SubFlowNotificationsProps {
   onNavigateToPost?: (postId: string) => void;
 }
 
+function SwipeableSubFlowNotification({
+  notification,
+  isClickable,
+  onDismiss,
+  onClick,
+  getNotificationText,
+  formatDate,
+}: {
+  notification: Notification;
+  isClickable: boolean;
+  onDismiss: (id: string) => void;
+  onClick: () => void;
+  getNotificationText: (n: Notification) => string;
+  formatDate: (d: string) => string;
+}) {
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const isDragging = useRef(false);
+  const elRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = 0;
+    isDragging.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || !elRef.current) return;
+    const diff = e.touches[0].clientX - startX.current;
+    currentX.current = Math.min(0, diff);
+    elRef.current.style.transform = `translateX(${currentX.current}px)`;
+    elRef.current.style.transition = 'none';
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    if (!elRef.current) return;
+    if (currentX.current < -80) {
+      elRef.current.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+      elRef.current.style.transform = 'translateX(-100%)';
+      elRef.current.style.opacity = '0';
+      setTimeout(() => onDismiss(notification.id), 300);
+    } else {
+      elRef.current.style.transition = 'transform 0.2s ease';
+      elRef.current.style.transform = 'translateX(0)';
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-end bg-destructive/90 px-4">
+        <Trash2 size={18} className="text-destructive-foreground" />
+      </div>
+      <div
+        ref={elRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={onClick}
+        className={`relative flex items-start gap-3 px-4 py-3 bg-background transition-colors ${
+          !notification.is_read ? 'bg-primary/5' : ''
+        } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
+      >
+        <Avatar className="w-9 h-9 shrink-0">
+          <AvatarFallback className="bg-primary/10">
+            <User size={16} className="text-primary" />
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">{notification.actor_name}</span>{' '}
+            {getNotificationText(notification)}
+          </p>
+          {notification.post_preview && (
+            <p className="text-xs text-muted-foreground mt-0.5 truncate italic">
+              «{notification.post_preview}»
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {formatDate(notification.created_at)}
+          </p>
+        </div>
+        {isClickable ? (
+          <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1.5" />
+        ) : !notification.is_read ? (
+          <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -55,7 +147,6 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
 
     if (!notifs) return;
 
-    // Get actor profiles
     const actorIds = [...new Set(notifs.map(n => n.actor_id))];
     const { data: profiles } = await supabase
       .from('profiles')
@@ -66,7 +157,6 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       (profiles || []).map(p => [p.user_id, p])
     );
 
-    // Fetch post previews for notifications with post_id
     const postIds = [...new Set(notifs.filter(n => n.post_id).map(n => n.post_id!))];
     const { data: postsData } = postIds.length > 0
       ? await supabase.from('subflow_posts').select('id, content').in('id', postIds)
@@ -92,7 +182,6 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
     fetchNotifications().then(() => { initialLoadDone.current = true; });
   }, [userId]);
 
-  // Realtime for new notifications
   useEffect(() => {
     if (!userId) return;
 
@@ -135,6 +224,20 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
     }
   };
 
+  const handleDismissOne = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await supabase.from('subflow_notifications').delete().eq('id', id);
+  };
+
+  const handleClearAll = async () => {
+    if (!userId || notifications.length === 0) return;
+    const ids = notifications.map(n => n.id);
+    setNotifications([]);
+    setUnreadCount(0);
+    await supabase.from('subflow_notifications').delete().in('id', ids);
+    toast({ title: 'Уведомления очищены' });
+  };
+
   const getNotificationText = (n: Notification) => {
     switch (n.type) {
       case 'reaction':
@@ -150,7 +253,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDateStr = (dateStr: string) => {
     try {
       return format(parseISO(dateStr), 'd MMM в HH:mm', { locale: ru });
     } catch {
@@ -177,7 +280,17 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
-          <SheetTitle className="text-lg font-bold">Уведомления #subFlow</SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-lg font-bold">Уведомления #subFlow</SheetTitle>
+            {notifications.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
           {notifications.length === 0 ? (
@@ -190,43 +303,20 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
               {notifications.map(n => {
                 const isClickable = !!n.post_id && !!onNavigateToPost;
                 return (
-                  <div
+                  <SwipeableSubFlowNotification
                     key={n.id}
+                    notification={n}
+                    isClickable={isClickable}
+                    onDismiss={handleDismissOne}
                     onClick={() => {
                       if (isClickable) {
                         setOpen(false);
                         setTimeout(() => onNavigateToPost!(n.post_id!), 300);
                       }
                     }}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                      !n.is_read ? 'bg-primary/5' : ''
-                    } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
-                  >
-                    <Avatar className="w-9 h-9 shrink-0">
-                      <AvatarFallback className="bg-primary/10">
-                        <User size={16} className="text-primary" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">
-                        <span className="font-semibold">{n.actor_name}</span>{' '}
-                        {getNotificationText(n)}
-                      </p>
-                      {n.post_preview && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate italic">
-                          «{n.post_preview}»
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(n.created_at)}
-                      </p>
-                    </div>
-                    {isClickable ? (
-                      <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1.5" />
-                    ) : !n.is_read ? (
-                      <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-                    ) : null}
-                  </div>
+                    getNotificationText={getNotificationText}
+                    formatDate={formatDateStr}
+                  />
                 );
               })}
             </div>
