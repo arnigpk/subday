@@ -203,7 +203,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         {/* Header */}
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/30 shrink-0">
           <DialogTitle className="text-lg font-bold text-foreground text-center">
-            ✍️ {t('subflow.newPost')}
+            {t('subflow.newPost')}
           </DialogTitle>
         </DialogHeader>
 
