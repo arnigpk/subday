@@ -1,0 +1,1 @@
+ALTER TABLE public.user_subscriptions ADD COLUMN daily_limit_override integer DEFAULT NULL;
