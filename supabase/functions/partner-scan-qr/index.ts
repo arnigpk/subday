@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
     // Check daily limit + get subscription info
     const { data: subscriptions } = await supabase
       .from('user_subscriptions')
-      .select(`id, expires_at, daily_limit_override, subscription_types ( daily_limit, type, name )`)
+      .select(`id, expires_at, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name )`)
       .eq('user_id', userId).eq('is_active', true);
 
     interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }

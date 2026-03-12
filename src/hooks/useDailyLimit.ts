@@ -72,12 +72,16 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       }
 
       const today = new Date().toISOString().split('T')[0];
+      // If daily limit was reset by admin today, only count redemptions after the reset
+      const resetAt = (subscription as any)?.daily_limit_reset_at;
+      const countAfter = resetAt && typeof resetAt === 'string' && resetAt.startsWith(today) ? resetAt : `${today}T00:00:00`;
+      
       const { count, error: countError } = await supabase
         .from('redemptions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('drink_type', subscriptionType)
-        .gte('redeemed_at', `${today}T00:00:00`)
+        .gte('redeemed_at', countAfter)
         .lt('redeemed_at', `${today}T23:59:59.999`);
 
       if (countError) {
