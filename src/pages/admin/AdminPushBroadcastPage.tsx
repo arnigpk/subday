@@ -33,56 +33,27 @@ export default function AdminPushBroadcastPage() {
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Ошибка авторизации');
-        return;
-      }
-
       const trimmedTitle = title.trim();
       const trimmedMessage = message.trim();
 
-      // 1) Create in-app PUSH notification (visible in bell)
-      const { error: pushError } = await supabase
-        .from('push_notifications')
-        .insert({
-          title: trimmedTitle,
-          message: trimmedMessage,
-          created_by: user.id,
-        });
-
-      if (pushError) throw pushError;
-
-      // 2) Send native FCM push to Android/iOS devices
-      try {
       const { data: fcmResult, error: fcmError } = await supabase.functions.invoke('send-fcm-push', {
-          body: { title: trimmedTitle, message: trimmedMessage, audienceTypes },
-        });
-        if (fcmError) {
-          console.warn('FCM send warning:', fcmError);
-        } else {
-          console.log('FCM result:', fcmResult);
-        }
-      } catch (fcmErr) {
-        console.warn('FCM send failed (non-critical):', fcmErr);
+        body: { title: trimmedTitle, message: trimmedMessage, audienceTypes },
+      });
+
+      if (fcmError) throw fcmError;
+      if (!fcmResult?.success) {
+        throw new Error(fcmResult?.error || 'Ошибка отправки PUSH');
       }
 
-      // 3) Save broadcast history record for admin UI
-      const { error: historyError } = await supabase
-        .from('broadcast_messages')
-        .insert({
-          message: `${trimmedTitle}\n${trimmedMessage}`,
-          broadcast_type: 'push',
-          target_type: audienceTypes.join(','),
-          recipient_count: 0,
-          sent_count: 0,
-          failed_count: 0,
-          sent_by: user.id,
-        });
+      if ((fcmResult?.recipient_count || 0) === 0) {
+        toast.warning('Нет пользователей в выбранной аудитории');
+      } else {
+        toast.success(`Отправлено на ${fcmResult.recipient_count} пользователей`);
+        if ((fcmResult?.failed || 0) > 0) {
+          toast.warning(`Не удалось доставить на ${fcmResult.failed} устройств`);
+        }
+      }
 
-      if (historyError) throw historyError;
-
-      toast.success('PUSH-уведомление отправлено');
       setTitle('');
       setMessage('');
       setHistoryRefresh(prev => prev + 1);

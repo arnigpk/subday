@@ -26,7 +26,6 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
     exp: now + 3600,
   }));
 
-  // Import private key for signing
   const pemContents = serviceAccount.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
     .replace(/-----END PRIVATE KEY-----/, '')
@@ -45,7 +44,9 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
   const signatureInput = new TextEncoder().encode(`${header}.${payload}`);
   const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, signatureInput);
   const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
   const jwt = `${header.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${payload.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${signatureB64}`;
 
@@ -75,20 +76,21 @@ Deno.serve(async (req) => {
 
     if (!fcmServiceAccountJson) {
       return new Response(JSON.stringify({ error: 'FCM_SERVICE_ACCOUNT not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const serviceAccount = JSON.parse(fcmServiceAccountJson);
     const projectId = serviceAccount.project_id;
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -101,47 +103,76 @@ Deno.serve(async (req) => {
 
     if (authError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const userId = claimsData.claims.sub as string;
     const { data: roleData } = await supabase
-      .from('user_roles').select('role')
-      .eq('user_id', userId).in('role', ['admin', 'superadmin']).maybeSingle();
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .in('role', ['admin', 'superadmin'])
+      .maybeSingle();
 
     if (!roleData) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const body: FCMRequest = await req.json();
-    const { title, message, targetUserIds } = body;
     const audienceTypes: AudienceType[] = body.audienceTypes || ['all'];
+    const title = body.title?.trim();
+    const message = body.message?.trim();
+    const targetUserIds = body.targetUserIds;
 
-    if (!title?.trim() || !message?.trim()) {
+    if (!title || !message) {
       return new Response(JSON.stringify({ error: 'Title and message are required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Resolve audience user IDs
     let filteredUserIds: string[] | null = null;
     if (targetUserIds && targetUserIds.length > 0) {
-      filteredUserIds = targetUserIds;
+      filteredUserIds = uniqueUserIds(targetUserIds);
     } else if (!audienceTypes.includes('all')) {
       filteredUserIds = await resolveAudienceUserIds(supabase, audienceTypes);
+    }
+
+    const recipientUserIds = await resolveRecipientUserIds(supabase, filteredUserIds);
+
+    if (recipientUserIds.length === 0) {
+      await savePushBroadcastHistory(supabase, {
+        sentBy: userId,
+        title,
+        message,
+        targetType: audienceTypes.join(','),
+        recipientCount: 0,
+        sentCount: 0,
+        failedCount: 0,
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        sent: 0,
+        failed: 0,
+        total: 0,
+        recipient_count: 0,
+        in_app_created: 0,
+        message: 'No users in selected audience',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get FCM tokens from device_tokens table
     let query = supabase.from('device_tokens').select('token, user_id').eq('platform', 'android');
     if (filteredUserIds !== null) {
-      if (filteredUserIds.length === 0) {
-        return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No users in selected audience' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
       query = query.in('user_id', filteredUserIds);
     }
 
@@ -149,91 +180,108 @@ Deno.serve(async (req) => {
     if (tokensError) {
       console.error('Error fetching tokens:', tokensError);
       return new Response(JSON.stringify({ error: 'Failed to fetch device tokens' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!tokens || tokens.length === 0) {
-      return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No devices registered' }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get OAuth2 access token for FCM v1 API
-    const accessToken = await getAccessToken(serviceAccount);
+    const deviceTokens = tokens || [];
 
     let successCount = 0;
     let failCount = 0;
     const invalidTokens: string[] = [];
 
-    // Send to each device
-    for (const deviceToken of tokens) {
-      try {
-        const fcmResponse = await fetch(
-          `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: {
-                token: deviceToken.token,
-                notification: {
-                  title: title.trim(),
-                  body: message.trim(),
-                },
-                android: {
-                  priority: 'high',
+    if (deviceTokens.length > 0) {
+      const accessToken = await getAccessToken(serviceAccount);
+
+      for (const deviceToken of deviceTokens) {
+        try {
+          const fcmResponse = await fetch(
+            `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: {
+                  token: deviceToken.token,
                   notification: {
-                    sound: 'default',
-                    channel_id: 'default',
+                    title,
+                    body: message,
+                  },
+                  android: {
+                    priority: 'high',
+                    notification: {
+                      sound: 'default',
+                      channel_id: 'default',
+                    },
                   },
                 },
-              },
-            }),
-          }
-        );
+              }),
+            }
+          );
 
-        if (fcmResponse.ok) {
-          successCount++;
-        } else {
-          const errorData = await fcmResponse.json();
+          if (fcmResponse.ok) {
+            successCount++;
+          } else {
+            const errorData = await fcmResponse.json();
+            failCount++;
+            console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
+
+            if (
+              errorData?.error?.code === 404 ||
+              errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
+            ) {
+              invalidTokens.push(deviceToken.token);
+            }
+          }
+        } catch (err) {
           failCount++;
-          console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
-
-          // Mark invalid tokens for cleanup
-          if (errorData?.error?.code === 404 || errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')) {
-            invalidTokens.push(deviceToken.token);
-          }
+          console.error('FCM send error:', err);
         }
-      } catch (err) {
-        failCount++;
-        console.error('FCM send error:', err);
       }
     }
 
-    // Cleanup invalid tokens
     if (invalidTokens.length > 0) {
       await supabase.from('device_tokens').delete().in('token', invalidTokens);
       console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
     }
 
+    const inAppCreated = await createInAppNotifications(supabase, {
+      title,
+      message,
+      createdBy: userId,
+      recipientUserIds,
+    });
+
+    await savePushBroadcastHistory(supabase, {
+      sentBy: userId,
+      title,
+      message,
+      targetType: audienceTypes.join(','),
+      recipientCount: recipientUserIds.length,
+      sentCount: successCount,
+      failedCount: failCount,
+    });
+
     return new Response(JSON.stringify({
       success: true,
       sent: successCount,
       failed: failCount,
-      total: tokens.length,
+      total: deviceTokens.length,
+      recipient_count: recipientUserIds.length,
+      in_app_created: inAppCreated,
       cleaned: invalidTokens.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (err) {
     console.error('FCM push error:', err);
     return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
@@ -241,10 +289,12 @@ Deno.serve(async (req) => {
 async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType[]): Promise<string[]> {
   const now = new Date();
   const allResults: Set<string> = new Set();
+
   for (const audienceType of audienceTypes) {
     const ids = await resolveOneAudience(supabase, audienceType, now);
     ids.forEach((id: string) => allResults.add(id));
   }
+
   return [...allResults];
 }
 
@@ -252,24 +302,28 @@ async function resolveOneAudience(supabase: any, audienceType: AudienceType, now
   switch (audienceType) {
     case 'subscribers': {
       const { data } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
-      return [...new Set((data || []).map((r: any) => r.user_id))];
+      return uniqueUserIds((data || []).map((r: any) => r.user_id));
     }
     case 'no_subscription': {
       const { data: allProfiles } = await supabase.from('profiles').select('user_id');
       const { data: activeSubs } = await supabase.from('user_subscriptions').select('user_id').eq('is_active', true);
       const activeSet = new Set((activeSubs || []).map((r: any) => r.user_id));
-      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+      return uniqueUserIds((allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid)));
     }
     case 'expiring_soon': {
       const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase.from('user_subscriptions').select('user_id')
-        .eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString());
-      return [...new Set((data || []).map((r: any) => r.user_id))];
+      const { data } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('is_active', true)
+        .lte('expires_at', fiveDaysLater)
+        .gte('expires_at', now.toISOString());
+      return uniqueUserIds((data || []).map((r: any) => r.user_id));
     }
     case 'new_users': {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo);
-      return (data || []).map((p: any) => p.user_id);
+      return uniqueUserIds((data || []).map((p: any) => p.user_id));
     }
     case 'inactive': {
       const { data: allProfiles } = await supabase.from('profiles').select('user_id');
@@ -280,9 +334,85 @@ async function resolveOneAudience(supabase: any, audienceType: AudienceType, now
         ...(recentActive || []).map((r: any) => r.user_id),
         ...(activeSubs || []).map((r: any) => r.user_id),
       ]);
-      return (allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid));
+      return uniqueUserIds((allProfiles || []).map((p: any) => p.user_id).filter((uid: string) => !activeSet.has(uid)));
     }
     default:
       return [];
   }
+}
+
+async function resolveRecipientUserIds(supabase: any, filteredUserIds: string[] | null): Promise<string[]> {
+  if (filteredUserIds !== null) {
+    return uniqueUserIds(filteredUserIds);
+  }
+
+  const { data, error } = await supabase.from('profiles').select('user_id');
+  if (error) {
+    throw new Error('Failed to resolve recipients');
+  }
+
+  return uniqueUserIds((data || []).map((p: any) => p.user_id));
+}
+
+async function createInAppNotifications(
+  supabase: any,
+  params: { title: string; message: string; createdBy: string; recipientUserIds: string[] },
+): Promise<number> {
+  const { title, message, createdBy, recipientUserIds } = params;
+  if (recipientUserIds.length === 0) return 0;
+
+  const batchSize = 500;
+  let inserted = 0;
+
+  for (let i = 0; i < recipientUserIds.length; i += batchSize) {
+    const batch = recipientUserIds.slice(i, i + batchSize).map((userId) => ({
+      title,
+      message,
+      user_id: userId,
+      created_by: createdBy,
+    }));
+
+    const { error } = await supabase.from('push_notifications').insert(batch);
+    if (error) {
+      console.error('Failed to insert in-app notifications batch:', error);
+      continue;
+    }
+
+    inserted += batch.length;
+  }
+
+  return inserted;
+}
+
+async function savePushBroadcastHistory(
+  supabase: any,
+  params: {
+    sentBy: string;
+    title: string;
+    message: string;
+    targetType: string;
+    recipientCount: number;
+    sentCount: number;
+    failedCount: number;
+  },
+): Promise<void> {
+  const { sentBy, title, message, targetType, recipientCount, sentCount, failedCount } = params;
+
+  const { error } = await supabase.from('broadcast_messages').insert({
+    message: `${title}\n${message}`,
+    broadcast_type: 'push',
+    target_type: targetType,
+    recipient_count: recipientCount,
+    sent_count: sentCount,
+    failed_count: failedCount,
+    sent_by: sentBy,
+  });
+
+  if (error) {
+    console.error('Failed to save push broadcast history:', error);
+  }
+}
+
+function uniqueUserIds(ids: unknown[]): string[] {
+  return [...new Set(ids.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 }

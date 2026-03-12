@@ -193,12 +193,12 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
 
   const handleClearAll = async () => {
     try {
-      // For push type, also clear push_notifications so they disappear for all users
+      // For push type, clear broadcast-created notifications (new targeted + old global format)
       if (type === 'push') {
         const { error: pushError } = await supabase
           .from('push_notifications')
           .delete()
-          .is('user_id', null);
+          .not('created_by', 'is', null);
 
         if (pushError) {
           console.error('Error clearing push_notifications:', pushError);
