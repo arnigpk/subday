@@ -74,15 +74,23 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
 
-    if (!fcmServiceAccountJson) {
-      return new Response(JSON.stringify({ error: 'FCM_SERVICE_ACCOUNT not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let serviceAccount: any = null;
+    if (fcmServiceAccountJson) {
+      try {
+        serviceAccount = JSON.parse(fcmServiceAccountJson);
+      } catch (parseError) {
+        console.error('Invalid FCM_SERVICE_ACCOUNT JSON:', parseError);
+        return new Response(JSON.stringify({ error: 'Invalid FCM_SERVICE_ACCOUNT format' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const serviceAccount = JSON.parse(fcmServiceAccountJson);
-    const projectId = serviceAccount.project_id;
+    const canSendDevicePush = Boolean(
+      serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key,
+    );
+    const projectId = serviceAccount?.project_id;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify admin
@@ -161,6 +169,7 @@ Deno.serve(async (req) => {
         total: 0,
         recipient_count: 0,
         in_app_created: 0,
+        push_enabled: canSendDevicePush,
         message: 'No users in selected audience',
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -186,9 +195,10 @@ Deno.serve(async (req) => {
 
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
     const invalidTokens: string[] = [];
 
-    if (deviceTokens.length > 0) {
+    if (deviceTokens.length > 0 && canSendDevicePush) {
       const accessToken = await getAccessToken(serviceAccount);
 
       for (const deviceToken of deviceTokens) {
@@ -239,6 +249,9 @@ Deno.serve(async (req) => {
           console.error('FCM send error:', err);
         }
       }
+    } else if (deviceTokens.length > 0) {
+      skippedCount = deviceTokens.length;
+      console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
 
     if (invalidTokens.length > 0) {
@@ -267,9 +280,11 @@ Deno.serve(async (req) => {
       success: true,
       sent: successCount,
       failed: failCount,
+      skipped: skippedCount,
       total: deviceTokens.length,
       recipient_count: recipientUserIds.length,
       in_app_created: inAppCreated,
+      push_enabled: canSendDevicePush,
       cleaned: invalidTokens.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
