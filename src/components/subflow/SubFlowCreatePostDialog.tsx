@@ -276,7 +276,10 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
           {/* Shop picker */}
           {showShopPicker && (
-            <div className="p-2 bg-secondary/50 rounded-xl max-h-36 overflow-y-auto border border-border/30">
+            <div 
+              className="p-2 bg-secondary/50 rounded-xl max-h-48 overflow-y-auto border border-border/30 overscroll-contain touch-pan-y"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
               {shops.map(shop => (
                 <button
                   key={shop.id}
@@ -284,7 +287,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                     setSelectedShop(shop);
                     setShowShopPicker(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-background rounded-lg transition-colors"
+                  className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-background rounded-lg transition-colors"
                 >
                   {shop.name}
                 </button>
