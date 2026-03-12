@@ -113,7 +113,7 @@ export function PushNotificationsBell() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
-          <SheetTitle className="text-lg font-bold">Уведомления</SheetTitle>
+          <SheetTitle className="text-lg font-bold">Уведомления и Обновления</SheetTitle>
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
           {notifications.length === 0 ? (
