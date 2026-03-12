@@ -201,7 +201,7 @@ export default function AdminUsersPage() {
           .in('user_id', userIds),
         supabase
           .from('user_subscriptions')
-          .select('user_id, expires_at, is_active, subscription_types(name, type)')
+          .select('id, user_id, expires_at, is_active, daily_limit_override, subscription_types(name, type, daily_limit)')
           .in('user_id', userIds)
           .eq('is_active', true),
       ]);
@@ -209,16 +209,23 @@ export default function AdminUsersPage() {
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
       const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
       
-      // Build subscription maps per user
-      const coffeeSubMap = new Map<string, { name: string; expires_at: string | null }>();
-      const lunchSubMap = new Map<string, { name: string; expires_at: string | null }>();
+      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null };
+      const coffeeSubMap = new Map<string, SubInfo>();
+      const lunchSubMap = new Map<string, SubInfo>();
       for (const sub of (subsResult.data || [])) {
-        const subType = sub.subscription_types as unknown as { name: string; type: string } | null;
+        const subType = sub.subscription_types as unknown as { name: string; type: string; daily_limit: number | null } | null;
         if (!subType) continue;
+        const info: SubInfo = {
+          name: subType.name,
+          expires_at: sub.expires_at,
+          sub_id: sub.id,
+          daily_limit: subType.daily_limit,
+          daily_limit_override: (sub as any).daily_limit_override ?? null,
+        };
         if (subType.type === 'coffee') {
-          coffeeSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+          coffeeSubMap.set(sub.user_id, info);
         } else if (subType.type === 'drinks') {
-          lunchSubMap.set(sub.user_id, { name: subType.name, expires_at: sub.expires_at });
+          lunchSubMap.set(sub.user_id, info);
         }
       }
 
