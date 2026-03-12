@@ -58,6 +58,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   useEffect(() => {
     if (open) {
       fetchShops();
+      setPlaceholder(ROTATING_PLACEHOLDERS[placeholderIndex % ROTATING_PLACEHOLDERS.length]);
+      placeholderIndex++;
     }
   }, [open]);
 
