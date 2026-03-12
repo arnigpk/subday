@@ -74,6 +74,11 @@ export default function AdminSubFlowAdsPage() {
 
   useEffect(() => {
     fetchData();
+    const channel = supabase
+      .channel('subflow_ads_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => fetchData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchData = async () => {
