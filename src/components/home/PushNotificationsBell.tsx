@@ -82,8 +82,8 @@ function SwipeableNotification({
   return (
     <div className="relative overflow-hidden">
       {/* Delete background */}
-      <div className="absolute inset-y-0 right-0 w-20 bg-destructive flex items-center justify-center">
-        <Trash2 className="w-5 h-5 text-destructive-foreground" />
+      <div className="absolute inset-0 flex items-center justify-end bg-destructive/90 px-4">
+        <Trash2 size={18} className="text-destructive-foreground" />
       </div>
       <div
         ref={elRef}
