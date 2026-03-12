@@ -87,17 +87,15 @@ const ROLE_LABELS: Record<UserRole, string> = {
   barista: 'Бариста',
 };
 
-function SubscriptionRow({ sub, icon, type, canManage, onReset, onUpdateDailyLimit }: {
+function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
   sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null };
   icon: React.ReactNode;
   type: string;
   canManage: boolean;
   onReset: () => void;
-  onUpdateDailyLimit: (val: number | null) => void;
+  onResetDailyLimit: () => void;
 }) {
-  const [editingLimit, setEditingLimit] = useState(false);
   const effectiveLimit = sub.daily_limit_override ?? sub.daily_limit;
-  const [limitValue, setLimitValue] = useState<string>(effectiveLimit?.toString() || '');
 
   return (
     <div className="bg-secondary/50 rounded-lg px-3 py-2 space-y-1">
@@ -125,60 +123,24 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onUpdateDailyLim
         </div>
       </div>
       {/* Daily limit row */}
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-xs text-muted-foreground">
-          Дневной лимит: {effectiveLimit !== null && effectiveLimit !== undefined ? effectiveLimit : 'без лимита'}
-          {sub.daily_limit_override !== null && (
-            <span className="ml-1 text-primary">(индивид.)</span>
-          )}
-        </span>
-        {canManage && (
-          editingLimit ? (
-            <div className="flex items-center gap-1">
-              <Input
-                type="number"
-                min="0"
-                value={limitValue}
-                onChange={(e) => setLimitValue(e.target.value)}
-                className="h-6 w-16 text-xs px-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => {
-                  const val = limitValue.trim() === '' ? null : parseInt(limitValue, 10);
-                  onUpdateDailyLimit(isNaN(val as number) ? null : val);
-                  setEditingLimit(false);
-                }}
-              >
-                ✓
-              </Button>
-              {sub.daily_limit_override !== null && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-1 text-xs text-muted-foreground"
-                  onClick={() => { onUpdateDailyLimit(null); setEditingLimit(false); }}
-                  title="Сбросить на стандартный"
-                >
-                  ✕
-                </Button>
-              )}
-            </div>
-          ) : (
+      {effectiveLimit !== null && effectiveLimit !== undefined && (
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs text-muted-foreground">
+            Дневной лимит: {effectiveLimit}
+          </span>
+          {canManage && (
             <Button
               variant="ghost"
               size="sm"
               className="h-6 px-2 text-xs gap-1"
-              onClick={() => { setLimitValue((effectiveLimit ?? '').toString()); setEditingLimit(true); }}
+              onClick={onResetDailyLimit}
             >
               <RefreshCw className="w-3 h-3" />
-              Изменить
+              Обновить
             </Button>
-          )
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
