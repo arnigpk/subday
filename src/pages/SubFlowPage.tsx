@@ -8,6 +8,9 @@ import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostD
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
 import { SubFlowFollowerCount } from '@/components/subflow/SubFlowFollowerCount';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
+import { useVibration } from '@/hooks/useVibration';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
