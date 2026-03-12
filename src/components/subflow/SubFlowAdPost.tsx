@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, ExternalLink, MessageCircle } from 'lucide-react';
 import { openWithDeepLink } from '@/utils/deepLinks';
@@ -27,7 +27,7 @@ interface SubFlowAdPostProps {
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export function SubFlowAdPost({ ad, currentUserId }: SubFlowAdPostProps) {
+export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(function SubFlowAdPost({ ad, currentUserId }, ref) {
   const navigate = useNavigate();
   const viewTracked = useRef(false);
   const { vibrateShort } = useVibration();
@@ -214,7 +214,7 @@ export function SubFlowAdPost({ ad, currentUserId }: SubFlowAdPostProps) {
   };
 
   return (
-    <div className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
+    <div ref={ref} className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shadow-sm">
@@ -299,4 +299,4 @@ export function SubFlowAdPost({ ad, currentUserId }: SubFlowAdPostProps) {
       )}
     </div>
   );
-}
+});

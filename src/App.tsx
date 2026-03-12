@@ -1,11 +1,11 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import defaultPreloader from '@/assets/preloader.gif';
 import logo from '@/assets/logo.png';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
@@ -13,6 +13,8 @@ import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
 
 // Eager-loaded core pages
 import HomePage from "./pages/HomePage";
@@ -110,6 +112,36 @@ function LazyFallback() {
       </div>
     </div>
   );
+}
+
+// Deep link handler for native apps (Universal Links / App Links)
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // Handle deep link when app is opened via URL
+    const handleAppUrlOpen = (data: { url: string }) => {
+      try {
+        const url = new URL(data.url);
+        const path = url.pathname + url.search + url.hash;
+        if (path && path !== '/') {
+          navigate(path);
+        }
+      } catch (e) {
+        console.error('Deep link parse error:', e);
+      }
+    };
+
+    CapApp.addListener('appUrlOpen', handleAppUrlOpen);
+
+    return () => {
+      CapApp.removeAllListeners();
+    };
+  }, [navigate]);
+
+  return null;
 }
 
 const AppContent = () => {
@@ -293,6 +325,7 @@ const AppContent = () => {
   return (
     <UserStatsProvider>
       <BrowserRouter>
+        <DeepLinkHandler />
         <Toaster />
         <Sonner />
         <Suspense fallback={<LazyFallback />}>

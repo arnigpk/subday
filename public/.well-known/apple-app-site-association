@@ -4,8 +4,22 @@
     "details": [
       {
         "appIDs": ["TEAM_ID.app.lovable.1f0fb7ffd23642dc84de6a2e07064142"],
-        "paths": ["/*"]
+        "paths": [
+          "/shops/*",
+          "/packages/*",
+          "/subflow",
+          "/profile",
+          "/redeem",
+          "/history",
+          "/streaks",
+          "/bonuses",
+          "/gift-coffee",
+          "/"
+        ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["TEAM_ID.app.lovable.1f0fb7ffd23642dc84de6a2e07064142"]
   }
 }
