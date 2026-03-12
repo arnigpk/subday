@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
     // Check daily limit + get subscription info
     const { data: subscriptions } = await supabase
       .from('user_subscriptions')
-      .select(`id, expires_at, subscription_types ( daily_limit, type, name )`)
+      .select(`id, expires_at, daily_limit_override, subscription_types ( daily_limit, type, name )`)
       .eq('user_id', userId).eq('is_active', true);
 
     interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
@@ -215,15 +215,18 @@ Deno.serve(async (req) => {
     });
     const subTypes = matchingSub?.subscription_types as unknown as SubTypeInfo | null;
     
-    if (subTypes && subTypes.daily_limit !== null) {
+    // Use per-user override if set, otherwise use subscription type default
+    const effectiveDailyLimit = (matchingSub as any)?.daily_limit_override ?? subTypes?.daily_limit;
+    
+    if (effectiveDailyLimit !== null && effectiveDailyLimit !== undefined) {
       const { count: todayCount } = await supabase
         .from('redemptions').select('*', { count: 'exact', head: true })
         .eq('user_id', userId).eq('drink_type', drinkType)
         .gte('redeemed_at', `${today}T00:00:00`).lt('redeemed_at', `${today}T23:59:59.999`);
 
-      if ((todayCount || 0) >= subTypes.daily_limit) {
+      if ((todayCount || 0) >= effectiveDailyLimit) {
         return new Response(JSON.stringify({ 
-          error: `Дневной лимит исчерпан (${subTypes.daily_limit} в день)`, dailyLimitReached: true 
+          error: `Дневной лимит исчерпан (${effectiveDailyLimit} в день)`, dailyLimitReached: true 
         }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
