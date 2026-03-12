@@ -72,15 +72,6 @@ export default function HomePage() {
               />
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🇰🇿</span>
-                <LanguageSwitcher />
-              </div>
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <div className="w-20 h-20">
-                  <img src={logo} alt="subday" className="w-full h-full object-contain" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <PushNotificationsBell />
                 {showAdminButton && (
                   <button
                     onClick={handleAdminClick}
@@ -90,6 +81,15 @@ export default function HomePage() {
                     💻
                   </button>
                 )}
+              </div>
+              <div className="absolute left-1/2 -translate-x-1/2">
+                <div className="w-20 h-20">
+                  <img src={logo} alt="subday" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <PushNotificationsBell />
+                <LanguageSwitcher />
               </div>
             </div>
           </LiquidGlassHeader>
