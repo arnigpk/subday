@@ -19,8 +19,26 @@ interface SubFlowCreatePostProps {
 
 const MAX_IMAGES = 5;
 
+const ROTATING_PLACEHOLDERS = [
+  'Сохрани этот момент здесь',
+  'Начни новый пост',
+  'Что происходит вокруг тебя сейчас?',
+  'Добавь новый след дня..',
+  'Что происходит прямо сейчас?',
+  'Этот момент стоит сохранить',
+  'Этот момент — твой!',
+  'Этот момент начинается здесь...',
+];
+
+let placeholderIndex = 0;
+
 export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostProps) {
   const [content, setContent] = useState('');
+  const [placeholder] = useState(() => {
+    const text = ROTATING_PLACEHOLDERS[placeholderIndex % ROTATING_PLACEHOLDERS.length];
+    placeholderIndex++;
+    return text;
+  });
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
@@ -196,7 +214,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder={t('subflow.placeholder')}
+        placeholder={placeholder}
         rows={3}
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
