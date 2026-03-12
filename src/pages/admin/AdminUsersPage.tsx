@@ -857,54 +857,24 @@ export default function AdminUsersPage() {
                   <div className="border-t pt-4 space-y-2">
                     <Label>Активные подписки</Label>
                     {editingUser?.coffee_subscription && (
-                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <Coffee className="w-4 h-4 text-amber-600" />
-                          <span className="text-sm font-medium">{editingUser.coffee_subscription.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            до {editingUser.coffee_subscription.expires_at 
-                              ? new Date(editingUser.coffee_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : '—'}
-                          </span>
-                          {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                              onClick={() => handleResetSubscription('coffee')}
-                            >
-                              Обнулить
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      <SubscriptionRow
+                        sub={editingUser.coffee_subscription}
+                        icon={<Coffee className="w-4 h-4 text-amber-600" />}
+                        type="coffee"
+                        canManage={canManage}
+                        onReset={() => handleResetSubscription('coffee')}
+                        onUpdateDailyLimit={(val) => handleUpdateDailyLimit(editingUser.coffee_subscription!.sub_id, val)}
+                      />
                     )}
                     {editingUser?.lunch_subscription && (
-                      <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <UtensilsCrossed className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm font-medium">{editingUser.lunch_subscription.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            до {editingUser.lunch_subscription.expires_at 
-                              ? new Date(editingUser.lunch_subscription.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : '—'}
-                          </span>
-                          {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                              onClick={() => handleResetSubscription('drinks')}
-                            >
-                              Обнулить
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      <SubscriptionRow
+                        sub={editingUser.lunch_subscription}
+                        icon={<UtensilsCrossed className="w-4 h-4 text-purple-600" />}
+                        type="drinks"
+                        canManage={canManage}
+                        onReset={() => handleResetSubscription('drinks')}
+                        onUpdateDailyLimit={(val) => handleUpdateDailyLimit(editingUser.lunch_subscription!.sub_id, val)}
+                      />
                     )}
                   </div>
                 )}
