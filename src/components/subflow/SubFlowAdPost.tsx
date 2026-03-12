@@ -27,7 +27,7 @@ interface SubFlowAdPostProps {
 const REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export function SubFlowAdPost({ ad, currentUserId }: SubFlowAdPostProps) {
+export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(function SubFlowAdPost({ ad, currentUserId }, ref) {
   const navigate = useNavigate();
   const viewTracked = useRef(false);
   const { vibrateShort } = useVibration();
