@@ -57,19 +57,15 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    const { data: { user: authUser }, error: claimsError } = await supabase.auth.getUser(token);
 
-    if (claimsError || !claimsData?.claims) {
+    if (claimsError || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const user = { id: claimsData.claims.sub as string };
+    const user = { id: authUser.id };
 
     console.log('Verifying payment for user:', user.id);
 

@@ -55,22 +55,17 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    const { data: { user: authUser }, error: claimsError } = await supabase.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
+    if (claimsError || !authUser) {
       return new Response(JSON.stringify({ error: 'Ошибка авторизации' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const scannerId = claimsData.claims.sub;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const scannerId = authUser.id;
 
     // Parse body and check scanner role in parallel
     const bodyPromise = req.json() as Promise<ScanRequest>;
