@@ -19,8 +19,26 @@ interface SubFlowCreatePostProps {
 
 const MAX_IMAGES = 5;
 
+const ROTATING_PLACEHOLDERS = [
+  'Сохрани этот момент здесь',
+  'Начни новый пост',
+  'Что происходит вокруг тебя сейчас?',
+  'Добавь новый след дня..',
+  'Что происходит прямо сейчас?',
+  'Этот момент стоит сохранить',
+  'Этот момент — твой!',
+  'Этот момент начинается здесь...',
+];
+
+let placeholderIndex = 0;
+
 export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostProps) {
   const [content, setContent] = useState('');
+  const [placeholder] = useState(() => {
+    const text = ROTATING_PLACEHOLDERS[placeholderIndex % ROTATING_PLACEHOLDERS.length];
+    placeholderIndex++;
+    return text;
+  });
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
