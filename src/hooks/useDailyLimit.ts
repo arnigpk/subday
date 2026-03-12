@@ -38,7 +38,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
 
       const { data: subscriptions, error: subError } = await supabase
         .from('user_subscriptions')
-        .select(`id, subscription_types (daily_limit, type)`)
+        .select(`id, daily_limit_reset_at, subscription_types (daily_limit, type)`)
         .eq('user_id', user.id)
         .eq('is_active', true);
 
