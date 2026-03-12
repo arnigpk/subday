@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, ChevronRight } from 'lucide-react';
+import { Bell, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { toast } from '@/hooks/use-toast';
 
 interface PushNotification {
   id: string;
@@ -19,8 +20,96 @@ interface PushNotification {
   user_id: string | null;
 }
 
+const DISMISSED_KEY = 'push_dismissed_ids';
+
+function getDismissedIds(): Set<string> {
+  try {
+    const stored = localStorage.getItem(DISMISSED_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch { return new Set(); }
+}
+
+function saveDismissedIds(ids: Set<string>) {
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]));
+}
+
+function SwipeableNotification({
+  notification,
+  isNew,
+  formatDate,
+  onDismiss,
+}: {
+  notification: PushNotification;
+  isNew: boolean;
+  formatDate: (d: string) => string;
+  onDismiss: (id: string) => void;
+}) {
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const isDragging = useRef(false);
+  const elRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = 0;
+    isDragging.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || !elRef.current) return;
+    const diff = e.touches[0].clientX - startX.current;
+    // Only allow swipe left
+    currentX.current = Math.min(0, diff);
+    elRef.current.style.transform = `translateX(${currentX.current}px)`;
+    elRef.current.style.transition = 'none';
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    if (!elRef.current) return;
+    if (currentX.current < -80) {
+      // Dismiss
+      elRef.current.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+      elRef.current.style.transform = 'translateX(-100%)';
+      elRef.current.style.opacity = '0';
+      setTimeout(() => onDismiss(notification.id), 300);
+    } else {
+      elRef.current.style.transition = 'transform 0.2s ease';
+      elRef.current.style.transform = 'translateX(0)';
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* Delete background */}
+      <div className="absolute inset-y-0 right-0 w-20 bg-destructive flex items-center justify-center">
+        <Trash2 className="w-5 h-5 text-destructive-foreground" />
+      </div>
+      <div
+        ref={elRef}
+        className={`relative px-4 py-3 transition-colors bg-background ${isNew ? 'bg-primary/5' : ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <p className="text-sm font-semibold text-foreground">{notification.title}</p>
+        {notification.title !== notification.message && (
+          <p className="text-sm text-foreground/80 mt-0.5">{notification.message}</p>
+        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          {formatDate(notification.created_at)}
+          {notification.user_id === null && (
+            <span className="ml-2 text-xs text-primary/60">📢</span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function PushNotificationsBell() {
   const [notifications, setNotifications] = useState<PushNotification[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
@@ -28,6 +117,7 @@ export function PushNotificationsBell() {
   useEffect(() => {
     const stored = localStorage.getItem('push_last_seen_at');
     if (stored) setLastSeenAt(stored);
+    setDismissedIds(getDismissedIds());
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id || null);
@@ -37,7 +127,6 @@ export function PushNotificationsBell() {
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
 
-    // Fetch notifications for this user OR broadcast (user_id IS NULL)
     const { data } = await supabase
       .from('push_notifications')
       .select('*')
@@ -66,9 +155,18 @@ export function PushNotificationsBell() {
         table: 'push_notifications',
       }, (payload) => {
         const newNotif = payload.new as PushNotification;
-        // Only add if it's for this user or broadcast
         if (newNotif.user_id === null || newNotif.user_id === userId) {
           setNotifications(prev => [newNotif, ...prev].slice(0, 30));
+        }
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'push_notifications',
+      }, (payload) => {
+        const deletedId = (payload.old as any)?.id;
+        if (deletedId) {
+          setNotifications(prev => prev.filter(n => n.id !== deletedId));
         }
       })
       .subscribe();
@@ -76,17 +174,34 @@ export function PushNotificationsBell() {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  const visibleNotifications = notifications.filter(n => !dismissedIds.has(n.id));
+
   const unreadCount = lastSeenAt
-    ? notifications.filter(n => n.created_at > lastSeenAt).length
-    : notifications.length;
+    ? visibleNotifications.filter(n => n.created_at > lastSeenAt).length
+    : visibleNotifications.length;
 
   const handleOpen = (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen && notifications.length > 0) {
+    if (isOpen && visibleNotifications.length > 0) {
       const now = new Date().toISOString();
       setLastSeenAt(now);
       localStorage.setItem('push_last_seen_at', now);
     }
+  };
+
+  const handleDismissOne = (id: string) => {
+    const newDismissed = new Set(dismissedIds);
+    newDismissed.add(id);
+    setDismissedIds(newDismissed);
+    saveDismissedIds(newDismissed);
+  };
+
+  const handleClearAll = () => {
+    const allIds = new Set(dismissedIds);
+    visibleNotifications.forEach(n => allIds.add(n.id));
+    setDismissedIds(allIds);
+    saveDismissedIds(allIds);
+    toast({ title: 'Уведомления очищены' });
   };
 
   const formatDate = (dateStr: string) => {
@@ -113,34 +228,42 @@ export function PushNotificationsBell() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
-          <SheetTitle className="text-lg font-bold">Уведомления и Обновления</SheetTitle>
+          <div className="flex items-center justify-between">
+            {visibleNotifications.length > 0 ? (
+              <button
+                onClick={handleClearAll}
+                className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors"
+                title="Очистить все"
+              >
+                <Trash2 size={18} className="text-destructive" />
+              </button>
+            ) : (
+              <div className="w-[30px]" />
+            )}
+            <SheetTitle className="text-lg font-bold flex-1 text-center">
+              Уведомления и Обновления
+            </SheetTitle>
+            <div className="w-[30px]" />
+          </div>
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
-          {notifications.length === 0 ? (
+          {visibleNotifications.length === 0 ? (
             <div className="text-center py-16">
               <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map(n => {
+              {visibleNotifications.map(n => {
                 const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
                 return (
-                  <div
+                  <SwipeableNotification
                     key={n.id}
-                    className={`px-4 py-3 transition-colors ${isNew ? 'bg-primary/5' : ''}`}
-                  >
-                    <p className="text-sm font-semibold text-foreground">{n.title}</p>
-                    {n.title !== n.message && (
-                      <p className="text-sm text-foreground/80 mt-0.5">{n.message}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDate(n.created_at)}
-                      {n.user_id === null && (
-                        <span className="ml-2 text-xs text-primary/60">📢</span>
-                      )}
-                    </p>
-                  </div>
+                    notification={n}
+                    isNew={isNew}
+                    formatDate={formatDate}
+                    onDismiss={handleDismissOne}
+                  />
                 );
               })}
             </div>
