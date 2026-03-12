@@ -415,7 +415,9 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
           Если задать даты, реклама автоматически включится в дату начала и выключится по окончании.
         </p>
 
-        <div className="flex items-center gap-2">
+        {/* Audience types */}
+        <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
+
           <Switch checked={isActive} onCheckedChange={setIsActive} />
           <Label>Активна</Label>
         </div>
