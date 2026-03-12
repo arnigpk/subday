@@ -418,6 +418,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         {/* Audience types */}
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
 
+        <div className="flex items-center gap-2">
           <Switch checked={isActive} onCheckedChange={setIsActive} />
           <Label>Активна</Label>
         </div>
