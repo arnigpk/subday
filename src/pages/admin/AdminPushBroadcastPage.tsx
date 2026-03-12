@@ -110,6 +110,8 @@ export default function AdminPushBroadcastPage() {
 
             <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
+            <AudiencePreview audienceTypes={audienceTypes} channel="push" />
+
             {canManage ? (
               <Button
                 onClick={handleSendPush}
