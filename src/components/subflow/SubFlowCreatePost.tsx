@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
-import { compressImage, getFileExtension, formatFileSize } from '@/utils/imageCompression';
+import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Shop {
@@ -17,7 +17,14 @@ interface SubFlowCreatePostProps {
   onPostCreated: () => void;
 }
 
-const MAX_IMAGES = 5;
+interface MediaFile {
+  blob: Blob;
+  preview: string;
+  type: 'image' | 'video';
+}
+
+const MAX_MEDIA = 5;
+const MAX_VIDEO_DURATION = 30;
 
 const ROTATING_PLACEHOLDERS = [
   'Сохрани этот момент здесь',
@@ -42,8 +49,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
-  const [imageFiles, setImageFiles] = useState<Blob[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -55,88 +61,75 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   }, []);
 
   const fetchShops = async () => {
-    const { data } = await supabase
-      .from('shops')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('sort_order');
-    
+    const { data } = await supabase.from('shops').select('id, name').eq('is_active', true).order('sort_order');
     setShops(data || []);
   };
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const remainingSlots = MAX_IMAGES - imageFiles.length;
+    const remainingSlots = MAX_MEDIA - mediaFiles.length;
     if (remainingSlots <= 0) {
-      toast.error(`Максимум ${MAX_IMAGES} фото`);
+      toast.error(`Максимум ${MAX_MEDIA} медиа`);
       return;
     }
 
-    // Filter valid files first
-    const validFiles: File[] = [];
-    for (const file of files.slice(0, remainingSlots)) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(t('subflow.selectImage'));
-        continue;
-      }
-
-      if (file.size > 15 * 1024 * 1024) {
-        toast.error(t('subflow.fileTooLarge'));
-        continue;
-      }
-
-      validFiles.push(file);
-    }
-
-    if (!validFiles.length) return;
-
-    // Compress images
     setIsCompressing(true);
     setCompressionProgress(0);
-    
-    const compressedBlobs: Blob[] = [];
-    const newPreviews: string[] = [];
-    
+
+    const newMedia: MediaFile[] = [];
+    const filesToProcess = files.slice(0, remainingSlots);
+
     try {
-      for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
-        const originalSize = file.size;
-        
-        const { blob } = await compressImage(file, {
-          maxWidth: 1200,
-          quality: 0.75
-        });
-        
-        const compressedSize = blob.size;
-        console.log(`Compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`);
-        
-        compressedBlobs.push(blob);
-        newPreviews.push(URL.createObjectURL(blob));
-        setCompressionProgress(Math.round(((i + 1) / validFiles.length) * 100));
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+
+        if (file.type.startsWith('video/')) {
+          if (file.size > 50 * 1024 * 1024) {
+            toast.error(t('subflow.videoTooLargeFile'));
+            continue;
+          }
+          try {
+            const duration = await getVideoDuration(file);
+            if (duration > MAX_VIDEO_DURATION) {
+              toast.error(t('subflow.videoTooLong'));
+              continue;
+            }
+          } catch {
+            toast.error('Не удалось прочитать видео');
+            continue;
+          }
+          newMedia.push({ blob: file, preview: URL.createObjectURL(file), type: 'video' });
+        } else if (file.type.startsWith('image/')) {
+          if (file.size > 15 * 1024 * 1024) {
+            toast.error(t('subflow.fileTooLarge'));
+            continue;
+          }
+          const { blob } = await compressImage(file, { maxWidth: 1200, quality: 0.75 });
+          console.log(`Compressed: ${formatFileSize(file.size)} → ${formatFileSize(blob.size)}`);
+          newMedia.push({ blob, preview: URL.createObjectURL(blob), type: 'image' });
+        } else {
+          toast.error(t('subflow.selectImage'));
+          continue;
+        }
+        setCompressionProgress(Math.round(((i + 1) / filesToProcess.length) * 100));
       }
-      
-      setImageFiles(prev => [...prev, ...compressedBlobs]);
-      setImagePreviews(prev => [...prev, ...newPreviews]);
+      setMediaFiles(prev => [...prev, ...newMedia]);
     } catch (error) {
-      console.error('Compression error:', error);
+      console.error('Media processing error:', error);
       toast.error(t('subflow.compressionError'));
     } finally {
       setIsCompressing(false);
       setCompressionProgress(0);
     }
-    
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
+  const removeMedia = (index: number) => {
+    setMediaFiles(prev => {
+      URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -153,18 +146,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const imageUrls: string[] = [];
+      const mediaUrls: string[] = [];
 
-      // Upload all compressed images
-      for (const imageBlob of imageFiles) {
-        const fileExt = getFileExtension(imageBlob);
+      for (const media of mediaFiles) {
+        const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('subflow-images')
-          .upload(fileName, imageBlob, {
-            contentType: imageBlob.type,
-            cacheControl: '31536000' // 1 year cache
+          .upload(fileName, media.blob, {
+            contentType: media.blob.type,
+            cacheControl: '31536000'
           });
 
         if (uploadError) throw uploadError;
@@ -173,17 +165,16 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           .from('subflow-images')
           .getPublicUrl(fileName);
 
-        imageUrls.push(publicUrl);
+        mediaUrls.push(publicUrl);
       }
 
-      // Create post with image_urls array
       const { error: postError } = await supabase
         .from('subflow_posts')
         .insert({
           user_id: user.id,
           content: content.trim(),
-          image_url: imageUrls[0] || null, // Keep for backward compatibility
-          image_urls: imageUrls,
+          image_url: mediaUrls[0] || null,
+          image_urls: mediaUrls,
           shop_id: selectedShop?.id || null,
           shop_name: selectedShop?.name || null,
         });
@@ -202,7 +193,6 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
 
   return (
     <div className="card-static mb-4 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-lg text-foreground">{t('subflow.newPost')}</h2>
         <button onClick={onClose} className="p-1.5 rounded-full text-muted-foreground hover:bg-secondary transition-colors">
@@ -210,7 +200,6 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         </button>
       </div>
 
-      {/* Content input */}
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -219,7 +208,6 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent mb-3 transition-all"
       />
 
-      {/* Compression progress */}
       {isCompressing && (
         <div className="mb-3 p-3 bg-secondary rounded-xl">
           <div className="flex items-center justify-between mb-2">
@@ -230,19 +218,23 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         </div>
       )}
 
-      {/* Image previews */}
-      {imagePreviews.length > 0 && (
+      {mediaFiles.length > 0 && (
         <div className="mb-3">
-          <div className={`grid gap-2 ${imagePreviews.length === 1 ? 'grid-cols-1' : imagePreviews.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            {imagePreviews.map((preview, index) => (
+          <div className={`grid gap-2 ${mediaFiles.length === 1 ? 'grid-cols-1' : mediaFiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {mediaFiles.map((media, index) => (
               <div key={index} className="relative aspect-square">
-                <img
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
-                  className="w-full h-full object-cover rounded-xl"
-                />
+                {media.type === 'video' ? (
+                  <div className="w-full h-full rounded-xl bg-black flex items-center justify-center overflow-hidden">
+                    <video src={media.preview} className="w-full h-full object-cover rounded-xl" muted />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Play size={32} className="text-white/80" fill="white" />
+                    </div>
+                  </div>
+                ) : (
+                  <img src={media.preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-xl" />
+                )}
                 <button
-                  onClick={() => removeImage(index)}
+                  onClick={() => removeMedia(index)}
                   disabled={isCompressing}
                   className="absolute top-1 right-1 p-1 bg-foreground/50 rounded-full text-background disabled:opacity-50"
                 >
@@ -250,7 +242,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
                 </button>
               </div>
             ))}
-            {imageFiles.length < MAX_IMAGES && !isCompressing && (
+            {mediaFiles.length < MAX_MEDIA && !isCompressing && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="aspect-square border-2 border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
@@ -260,12 +252,11 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-1 text-center">
-            {imageFiles.length}/{MAX_IMAGES} фото
+            {mediaFiles.length}/{MAX_MEDIA} медиа
           </p>
         </div>
       )}
 
-      {/* Shop tag */}
       {selectedShop && (
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
@@ -278,16 +269,12 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         </div>
       )}
 
-      {/* Shop picker */}
       {showShopPicker && (
         <div className="mb-3 p-2 bg-secondary rounded-xl max-h-40 overflow-y-auto">
           {shops.map(shop => (
             <button
               key={shop.id}
-              onClick={() => {
-                setSelectedShop(shop);
-                setShowShopPicker(false);
-              }}
+              onClick={() => { setSelectedShop(shop); setShowShopPicker(false); }}
               className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-background rounded-lg transition-colors"
             >
               {shop.name}
@@ -296,15 +283,14 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-2">
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           className="hidden"
-          onChange={handleImageSelect}
+          onChange={handleMediaSelect}
         />
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -324,11 +310,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           disabled={isSubmitting || isCompressing || !content.trim()}
           className="btn-primary"
         >
-          {isSubmitting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            t('subflow.publish')
-          )}
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('subflow.publish')}
         </Button>
       </div>
     </div>
