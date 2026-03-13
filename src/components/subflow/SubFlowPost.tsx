@@ -8,7 +8,6 @@ import { SubFlowImageViewer } from './SubFlowImageViewer';
 import { SubFlowVideoPlayer } from './SubFlowVideoPlayer';
 import { isVideoUrl } from '@/utils/imageCompression';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
