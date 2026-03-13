@@ -122,7 +122,39 @@ export async function createThumbnail(file: File): Promise<Blob> {
 export function getFileExtension(blob: Blob): string {
   if (blob.type === 'image/webp') return 'webp';
   if (blob.type === 'image/jpeg') return 'jpg';
+  if (blob.type === 'image/png') return 'png';
+  if (blob.type === 'video/mp4') return 'mp4';
+  if (blob.type === 'video/quicktime') return 'mov';
+  if (blob.type === 'video/webm') return 'webm';
+  if (blob.type.startsWith('video/')) return 'mp4';
   return 'jpg';
+}
+
+/**
+ * Check if a URL points to a video file
+ */
+export function isVideoUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return /\.(mp4|mov|webm|avi|mkv|m4v)(\?|$)/.test(lower) || lower.includes('video');
+}
+
+/**
+ * Get duration of a video file in seconds
+ */
+export function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src);
+      reject(new Error('Failed to load video'));
+    };
+    video.src = URL.createObjectURL(file);
+  });
 }
 
 /**
