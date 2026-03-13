@@ -316,8 +316,21 @@ export default function AdminUsersPage() {
     }
   };
 
-  const openEditDialog = (user: UserWithStats) => {
+  const openEditDialog = async (user: UserWithStats) => {
     setEditingUser(user);
+    let investorPercent = 0;
+    let investorNote = '';
+    if (user.role === 'investor') {
+      const { data } = await supabase
+        .from('investor_settings')
+        .select('profit_percent, note')
+        .eq('user_id', user.user_id)
+        .maybeSingle();
+      if (data) {
+        investorPercent = Number(data.profit_percent);
+        investorNote = data.note || '';
+      }
+    }
     setFormData({
       name: user.name || '',
       phone: user.phone,
@@ -329,6 +342,8 @@ export default function AdminUsersPage() {
       role: user.role || 'user',
       shop_id: user.shop_id || '',
       subflow_access: user.subflow_access || false,
+      investor_percent: investorPercent,
+      investor_note: investorNote,
     });
     setSelectedSubscription('');
   };
