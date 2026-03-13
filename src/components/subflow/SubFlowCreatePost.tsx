@@ -195,6 +195,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       toast.error(t('subflow.postError'));
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
