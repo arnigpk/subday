@@ -66,6 +66,10 @@ const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage
 const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
 const PartnerAdvertisingPage = lazy(() => import("./pages/partner/PartnerAdvertisingPage"));
 
+// Lazy-loaded investor pages
+const InvestorProtectedRoute = lazy(() => import("@/components/investor/InvestorProtectedRoute").then(m => ({ default: m.InvestorProtectedRoute })));
+const InvestorDashboard = lazy(() => import("./pages/investor/InvestorDashboard"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
