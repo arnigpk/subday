@@ -173,7 +173,7 @@ export default function AdminBroadcastPage() {
     if (selectedUsers.length === filteredUsers.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map(u => u.id));
+      setSelectedUsers(filteredUsers.map(u => u.user_id));
     }
   };
 
