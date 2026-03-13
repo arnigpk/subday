@@ -142,14 +142,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       const mediaUrls: string[] = [];
+      const totalSteps = mediaFiles.length + 1;
 
-      for (const media of mediaFiles) {
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const media = mediaFiles[i];
         const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
