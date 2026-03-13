@@ -51,6 +51,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [showShopPicker, setShowShopPicker] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,14 +142,17 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       const mediaUrls: string[] = [];
+      const totalSteps = mediaFiles.length + 1;
 
-      for (const media of mediaFiles) {
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const media = mediaFiles[i];
         const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -166,8 +170,10 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           .getPublicUrl(fileName);
 
         mediaUrls.push(publicUrl);
+        setUploadProgress(Math.round(((i + 1) / totalSteps) * 100));
       }
 
+      setUploadProgress(Math.round((mediaFiles.length / totalSteps) * 100));
       const { error: postError } = await supabase
         .from('subflow_posts')
         .insert({
@@ -181,6 +187,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
 
       if (postError) throw postError;
 
+      setUploadProgress(100);
       toast.success(t('subflow.posted'));
       onPostCreated();
     } catch (error) {
@@ -188,6 +195,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       toast.error(t('subflow.postError'));
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -304,7 +312,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         >
           <MapPin size={22} />
         </button>
-        <div className="flex-1" />
+        {isSubmitting && (
+          <div className="flex-1 flex items-center gap-2 mx-2">
+            <Progress value={uploadProgress} className="h-2 flex-1" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{uploadProgress}%</span>
+          </div>
+        )}
+        {!isSubmitting && <div className="flex-1" />}
         <Button
           onClick={handleSubmit}
           disabled={isSubmitting || isCompressing || !content.trim()}
