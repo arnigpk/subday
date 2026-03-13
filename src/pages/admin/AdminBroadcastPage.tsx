@@ -321,7 +321,7 @@ export default function AdminBroadcastPage() {
                         onClick={() => targetType === 'specific' && toggleUser(user.user_id)}
                       >
                         <Checkbox
-                          checked={selectedUsers.includes(user.id)}
+                          checked={selectedUsers.includes(user.user_id)}
                           disabled={targetType === 'all'}
                           className="pointer-events-none"
                         />
