@@ -899,8 +899,35 @@ export default function AdminUsersPage() {
                     <SelectItem value="moderator">Модератор</SelectItem>
                     <SelectItem value="partner">Партнёр</SelectItem>
                     <SelectItem value="barista">Бариста</SelectItem>
+                    {isSuperAdmin && <SelectItem value="investor">Инвестор</SelectItem>}
                   </SelectContent>
                 </Select>
+              
+              {formData.role === 'investor' && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <Label>Процент заработка (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={formData.investor_percent}
+                      onChange={(e) => setFormData({ ...formData, investor_percent: parseFloat(e.target.value) || 0 })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Заметка для инвестора</Label>
+                    <Input
+                      value={formData.investor_note}
+                      onChange={(e) => setFormData({ ...formData, investor_note: e.target.value })}
+                      placeholder="Комментарий (необязательно)"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
               
               {formData.role === 'partner' && (
                 <div className="mt-3">
