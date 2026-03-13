@@ -423,6 +423,24 @@ export default function AdminUsersPage() {
         }
       }
 
+      // Handle investor settings
+      if (newRole === 'investor') {
+        await supabase
+          .from('investor_settings')
+          .upsert({
+            user_id: editingUser.user_id,
+            profit_percent: formData.investor_percent,
+            note: formData.investor_note || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+      } else if (previousRole === 'investor' && newRole !== 'investor') {
+        // Remove investor settings when role changes away
+        await supabase
+          .from('investor_settings')
+          .delete()
+          .eq('user_id', editingUser.user_id);
+      }
+
       toast({ title: 'Пользователь обновлён' });
       setEditingUser(null);
       fetchUsers();
