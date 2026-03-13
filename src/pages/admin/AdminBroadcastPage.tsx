@@ -173,7 +173,7 @@ export default function AdminBroadcastPage() {
     if (selectedUsers.length === filteredUsers.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map(u => u.id));
+      setSelectedUsers(filteredUsers.map(u => u.user_id));
     }
   };
 
@@ -312,16 +312,16 @@ export default function AdminBroadcastPage() {
                   <div className="space-y-2">
                     {filteredUsers.map((user) => (
                       <div
-                        key={user.id}
+                        key={user.user_id}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                          selectedUsers.includes(user.id)
+                          selectedUsers.includes(user.user_id)
                             ? 'bg-primary/10 border-primary'
                             : 'bg-card hover:bg-muted'
                         } ${targetType === 'all' ? 'pointer-events-none' : ''}`}
-                        onClick={() => targetType === 'specific' && toggleUser(user.id)}
+                        onClick={() => targetType === 'specific' && toggleUser(user.user_id)}
                       >
                         <Checkbox
-                          checked={selectedUsers.includes(user.id)}
+                          checked={selectedUsers.includes(user.user_id)}
                           disabled={targetType === 'all'}
                           className="pointer-events-none"
                         />

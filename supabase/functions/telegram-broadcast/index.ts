@@ -75,24 +75,28 @@ Deno.serve(async (req) => {
       filteredUserIds = await resolveAudienceUserIds(supabase, audienceTypes);
     }
 
-    // Get telegram users
-    let query = supabase.from('profiles').select('id, phone, name, user_id').like('phone', '+telegram_%');
-
-    if (filteredUserIds !== null) {
-      if (filteredUserIds.length === 0) {
-        return new Response(JSON.stringify({ success: true, sent: 0, failed: 0, total: 0, message: 'Нет пользователей в выбранной аудитории' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Get telegram users (paginated to bypass 1000-row limit)
+    const allTelegramProfiles: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      let q = supabase.from('profiles').select('id, phone, name, user_id').like('phone', '+telegram_%').range(from, from + pageSize - 1);
+      if (filteredUserIds !== null) {
+        q = q.in('user_id', filteredUserIds);
+      }
+      const { data, error: profilesError } = await q;
+      if (profilesError) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch users' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      query = query.in('user_id', filteredUserIds);
+      if (!data || data.length === 0) break;
+      allTelegramProfiles.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
     }
 
-    const { data: profiles, error: profilesError } = await query;
-    if (profilesError) {
-      return new Response(JSON.stringify({ error: 'Failed to fetch users' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const profiles = allTelegramProfiles;
 
     if (!profiles || profiles.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No Telegram users found' }), {
