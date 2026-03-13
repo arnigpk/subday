@@ -272,6 +272,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       toast.error(t('subflow.postError'));
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
