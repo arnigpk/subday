@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
-export type AppRole = 'superadmin' | 'admin' | 'moderator' | 'partner' | 'barista';
+export type AppRole = 'superadmin' | 'admin' | 'moderator' | 'partner' | 'barista' | 'investor';
 
 interface AdminAuthState {
   session: Session | null;
@@ -14,6 +14,7 @@ interface AdminAuthState {
   isModerator: boolean;
   isPartner: boolean;
   isBarista: boolean;
+  isInvestor: boolean;
   hasAccess: boolean;
   canManage: boolean; // true only for superadmin — full edit/add/delete rights
 }
@@ -98,7 +99,8 @@ export function useAdminAuth(): AdminAuthState {
   const isModerator = role === 'moderator';
   const isPartner = role === 'partner';
   const isBarista = role === 'barista';
-  const hasAccess = isAdmin || isModerator || isPartner || isBarista;
+  const isInvestor = role === 'investor';
+  const hasAccess = isAdmin || isModerator || isPartner || isBarista || isInvestor;
   const canManage = isSuperAdmin; // Only superadmin can add/edit/delete
 
   return {
@@ -111,6 +113,7 @@ export function useAdminAuth(): AdminAuthState {
     isModerator,
     isPartner,
     isBarista,
+    isInvestor,
     hasAccess,
     canManage,
   };
