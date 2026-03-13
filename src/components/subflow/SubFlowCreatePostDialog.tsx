@@ -264,6 +264,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         }).catch(() => {});
       }
 
+      setUploadProgress(100);
       toast.success(t('subflow.posted'));
       onPostCreated();
     } catch (error) {
