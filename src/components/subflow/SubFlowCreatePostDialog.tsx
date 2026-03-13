@@ -146,11 +146,6 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         const file = filesToProcess[i];
 
         if (file.type.startsWith('video/')) {
-          // Validate video duration
-          if (file.size > 50 * 1024 * 1024) {
-            toast.error(t('subflow.videoTooLargeFile'));
-            continue;
-          }
           try {
             const duration = await getVideoDuration(file);
             if (duration > MAX_VIDEO_DURATION) {
