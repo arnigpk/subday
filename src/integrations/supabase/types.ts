@@ -276,6 +276,33 @@ export type Database = {
         }
         Relationships: []
       }
+      investor_settings: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          profit_percent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          profit_percent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          profit_percent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           code: string
