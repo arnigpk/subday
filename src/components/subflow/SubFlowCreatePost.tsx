@@ -51,6 +51,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [showShopPicker, setShowShopPicker] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
