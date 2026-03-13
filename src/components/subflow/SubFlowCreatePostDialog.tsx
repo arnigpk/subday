@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
-import { compressImage, getFileExtension, formatFileSize } from '@/utils/imageCompression';
+import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Dialog,
@@ -24,7 +24,14 @@ interface SubFlowCreatePostDialogProps {
   onPostCreated: () => void;
 }
 
-const MAX_IMAGES = 5;
+interface MediaFile {
+  blob: Blob;
+  preview: string;
+  type: 'image' | 'video';
+}
+
+const MAX_MEDIA = 5;
+const MAX_VIDEO_DURATION = 30;
 
 const ROTATING_PLACEHOLDERS = [
   'Сохрани этот момент здесь',
@@ -45,8 +52,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
-  const [imageFiles, setImageFiles] = useState<Blob[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -63,15 +69,13 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
     }
   }, [open]);
 
-  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setContent('');
       setSelectedShop(null);
       setShowShopPicker(false);
-      setImageFiles([]);
-      setImagePreviews(prev => {
-        prev.forEach(url => URL.revokeObjectURL(url));
+      setMediaFiles(prev => {
+        prev.forEach(m => URL.revokeObjectURL(m.preview));
         return [];
       });
       setIsCompressing(false);
@@ -81,16 +85,12 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
   useEffect(() => {
     if (!showShopPicker) return;
-
     const container = contentScrollRef.current;
     if (!container) return;
-
     const previousOverflowY = container.style.overflowY;
     const previousTouchAction = container.style.touchAction;
-
     container.style.overflowY = 'hidden';
     container.style.touchAction = 'none';
-
     return () => {
       container.style.overflowY = previousOverflowY;
       container.style.touchAction = previousTouchAction;
@@ -99,32 +99,20 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
   useEffect(() => {
     if (!showShopPicker) return;
-
     const picker = shopPickerRef.current;
     if (!picker) return;
-
     let touchStartY = 0;
-
-    const handleTouchStart = (event: TouchEvent) => {
-      touchStartY = event.touches[0]?.clientY ?? 0;
-    };
-
+    const handleTouchStart = (event: TouchEvent) => { touchStartY = event.touches[0]?.clientY ?? 0; };
     const handleTouchMove = (event: TouchEvent) => {
       const currentY = event.touches[0]?.clientY ?? touchStartY;
       const deltaY = currentY - touchStartY;
       const isAtTop = picker.scrollTop <= 0;
       const isAtBottom = Math.ceil(picker.scrollTop + picker.clientHeight) >= picker.scrollHeight;
-
-      if ((isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) {
-        event.preventDefault();
-      }
-
+      if ((isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) event.preventDefault();
       event.stopPropagation();
     };
-
     picker.addEventListener('touchstart', handleTouchStart, { passive: true });
     picker.addEventListener('touchmove', handleTouchMove, { passive: false });
-
     return () => {
       picker.removeEventListener('touchstart', handleTouchStart);
       picker.removeEventListener('touchmove', handleTouchMove);
@@ -132,58 +120,74 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   }, [showShopPicker]);
 
   const fetchShops = async () => {
-    const { data } = await supabase
-      .from('shops')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('sort_order');
+    const { data } = await supabase.from('shops').select('id, name').eq('is_active', true).order('sort_order');
     setShops(data || []);
   };
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const remainingSlots = MAX_IMAGES - imageFiles.length;
+    const remainingSlots = MAX_MEDIA - mediaFiles.length;
     if (remainingSlots <= 0) {
-      toast.error(`Максимум ${MAX_IMAGES} фото`);
+      toast.error(`Максимум ${MAX_MEDIA} медиа`);
       return;
     }
-
-    const validFiles: File[] = [];
-    for (const file of files.slice(0, remainingSlots)) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(t('subflow.selectImage'));
-        continue;
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        toast.error(t('subflow.fileTooLarge'));
-        continue;
-      }
-      validFiles.push(file);
-    }
-
-    if (!validFiles.length) return;
 
     setIsCompressing(true);
     setCompressionProgress(0);
 
-    const compressedBlobs: Blob[] = [];
-    const newPreviews: string[] = [];
+    const newMedia: MediaFile[] = [];
+    const filesToProcess = files.slice(0, remainingSlots);
 
     try {
-      for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
-        const { blob } = await compressImage(file, { maxWidth: 1200, quality: 0.75 });
-        console.log(`Compressed: ${formatFileSize(file.size)} → ${formatFileSize(blob.size)}`);
-        compressedBlobs.push(blob);
-        newPreviews.push(URL.createObjectURL(blob));
-        setCompressionProgress(Math.round(((i + 1) / validFiles.length) * 100));
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+
+        if (file.type.startsWith('video/')) {
+          // Validate video duration
+          if (file.size > 50 * 1024 * 1024) {
+            toast.error(t('subflow.videoTooLargeFile'));
+            continue;
+          }
+          try {
+            const duration = await getVideoDuration(file);
+            if (duration > MAX_VIDEO_DURATION) {
+              toast.error(t('subflow.videoTooLong'));
+              continue;
+            }
+          } catch {
+            toast.error('Не удалось прочитать видео');
+            continue;
+          }
+          newMedia.push({
+            blob: file,
+            preview: URL.createObjectURL(file),
+            type: 'video',
+          });
+        } else if (file.type.startsWith('image/')) {
+          if (file.size > 15 * 1024 * 1024) {
+            toast.error(t('subflow.fileTooLarge'));
+            continue;
+          }
+          const { blob } = await compressImage(file, { maxWidth: 1200, quality: 0.75 });
+          console.log(`Compressed: ${formatFileSize(file.size)} → ${formatFileSize(blob.size)}`);
+          newMedia.push({
+            blob,
+            preview: URL.createObjectURL(blob),
+            type: 'image',
+          });
+        } else {
+          toast.error(t('subflow.selectImage'));
+          continue;
+        }
+
+        setCompressionProgress(Math.round(((i + 1) / filesToProcess.length) * 100));
       }
-      setImageFiles(prev => [...prev, ...compressedBlobs]);
-      setImagePreviews(prev => [...prev, ...newPreviews]);
+
+      setMediaFiles(prev => [...prev, ...newMedia]);
     } catch (error) {
-      console.error('Compression error:', error);
+      console.error('Media processing error:', error);
       toast.error(t('subflow.compressionError'));
     } finally {
       setIsCompressing(false);
@@ -193,10 +197,9 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
+  const removeMedia = (index: number) => {
+    setMediaFiles(prev => {
+      URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -213,16 +216,16 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const imageUrls: string[] = [];
+      const mediaUrls: string[] = [];
 
-      for (const imageBlob of imageFiles) {
-        const fileExt = getFileExtension(imageBlob);
+      for (const media of mediaFiles) {
+        const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('subflow-images')
-          .upload(fileName, imageBlob, {
-            contentType: imageBlob.type,
+          .upload(fileName, media.blob, {
+            contentType: media.blob.type,
             cacheControl: '31536000',
           });
 
@@ -232,7 +235,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           .from('subflow-images')
           .getPublicUrl(fileName);
 
-        imageUrls.push(publicUrl);
+        mediaUrls.push(publicUrl);
       }
 
       const { error: postError, data: postData } = await supabase
@@ -240,8 +243,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         .insert({
           user_id: user.id,
           content: content.trim(),
-          image_url: imageUrls[0] || null,
-          image_urls: imageUrls,
+          image_url: mediaUrls[0] || null,
+          image_urls: mediaUrls,
           shop_id: selectedShop?.id || null,
           shop_name: selectedShop?.name || null,
         })
@@ -250,7 +253,6 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
       if (postError) throw postError;
 
-      // Fire-and-forget notification to followers
       if (postData?.id) {
         supabase.functions.invoke('subflow-notify', {
           body: { type: 'new_post', postId: postData.id, actorId: user.id }
@@ -270,16 +272,13 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md w-[calc(100%-2rem)] rounded-2xl p-0 gap-0 border-border/50 max-h-[80vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/30 shrink-0">
           <DialogTitle className="text-lg font-bold text-foreground text-center">
             {t('subflow.newPost')}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Scrollable content */}
         <div ref={contentScrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* Content input */}
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -289,7 +288,6 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             className="w-full px-4 py-3 bg-secondary/50 border border-border/50 rounded-xl text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-[16px]"
           />
 
-          {/* Compression progress */}
           {isCompressing && (
             <div className="p-3 bg-secondary/50 rounded-xl">
               <div className="flex items-center justify-between mb-2">
@@ -300,15 +298,23 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             </div>
           )}
 
-          {/* Image previews */}
-          {imagePreviews.length > 0 && (
+          {mediaFiles.length > 0 && (
             <div>
-              <div className={`grid gap-2 ${imagePreviews.length === 1 ? 'grid-cols-1' : imagePreviews.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {imagePreviews.map((preview, index) => (
+              <div className={`grid gap-2 ${mediaFiles.length === 1 ? 'grid-cols-1' : mediaFiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {mediaFiles.map((media, index) => (
                   <div key={index} className="relative aspect-square">
-                    <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-xl" />
+                    {media.type === 'video' ? (
+                      <div className="w-full h-full rounded-xl bg-black flex items-center justify-center overflow-hidden">
+                        <video src={media.preview} className="w-full h-full object-cover rounded-xl" muted />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Play size={32} className="text-white/80" fill="white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <img src={media.preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded-xl" />
+                    )}
                     <button
-                      onClick={() => removeImage(index)}
+                      onClick={() => removeMedia(index)}
                       disabled={isCompressing}
                       className="absolute top-1.5 right-1.5 p-1 bg-foreground/60 rounded-full text-background disabled:opacity-50 hover:bg-foreground/80 transition-colors"
                     >
@@ -316,7 +322,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                     </button>
                   </div>
                 ))}
-                {imageFiles.length < MAX_IMAGES && !isCompressing && (
+                {mediaFiles.length < MAX_MEDIA && !isCompressing && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="aspect-square border-2 border-dashed border-border/60 rounded-xl flex items-center justify-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
@@ -326,12 +332,11 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5 text-center">
-                {imageFiles.length}/{MAX_IMAGES} фото
+                {mediaFiles.length}/{MAX_MEDIA} медиа
               </p>
             </div>
           )}
 
-          {/* Shop tag */}
           {selectedShop && (
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm">
@@ -344,9 +349,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             </div>
           )}
 
-          {/* Shop picker */}
           {showShopPicker && (
-            <div 
+            <div
               ref={shopPickerRef}
               onWheel={(event) => event.stopPropagation()}
               className="p-2 bg-secondary/50 rounded-xl max-h-48 overflow-y-auto border border-border/30 overscroll-contain touch-pan-y"
@@ -355,10 +359,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
               {shops.map(shop => (
                 <button
                   key={shop.id}
-                  onClick={() => {
-                    setSelectedShop(shop);
-                    setShowShopPicker(false);
-                  }}
+                  onClick={() => { setSelectedShop(shop); setShowShopPicker(false); }}
                   className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-background rounded-lg transition-colors"
                 >
                   {shop.name}
@@ -368,15 +369,14 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           )}
         </div>
 
-        {/* Bottom actions bar */}
         <div className="px-5 py-4 border-t border-border/30 flex items-center gap-2 shrink-0 bg-background">
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             multiple
             className="hidden"
-            onChange={handleImageSelect}
+            onChange={handleMediaSelect}
           />
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -398,11 +398,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             disabled={isSubmitting || isCompressing || !content.trim()}
             className="btn-accent rounded-xl px-6"
           >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              t('subflow.publish')
-            )}
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('subflow.publish')}
           </Button>
         </div>
       </DialogContent>
