@@ -381,8 +381,8 @@ export default function AdminUsersPage() {
       }
 
       // Handle role update (both admin and superadmin can do this)
-      const previousRole = editingUser.role || 'user';
-      const newRole = formData.role;
+      const previousRole: string = editingUser.role || 'user';
+      const newRole: string = formData.role;
 
       // Admin cannot assign superadmin role
       if (!isSuperAdmin && newRole === 'superadmin') {
