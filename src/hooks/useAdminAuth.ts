@@ -99,7 +99,8 @@ export function useAdminAuth(): AdminAuthState {
   const isModerator = role === 'moderator';
   const isPartner = role === 'partner';
   const isBarista = role === 'barista';
-  const hasAccess = isAdmin || isModerator || isPartner || isBarista;
+  const isInvestor = role === 'investor';
+  const hasAccess = isAdmin || isModerator || isPartner || isBarista || isInvestor;
   const canManage = isSuperAdmin; // Only superadmin can add/edit/delete
 
   return {
@@ -112,6 +113,7 @@ export function useAdminAuth(): AdminAuthState {
     isModerator,
     isPartner,
     isBarista,
+    isInvestor,
     hasAccess,
     canManage,
   };

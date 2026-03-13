@@ -85,6 +85,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   moderator: 'Модератор',
   partner: 'Партнёр',
   barista: 'Бариста',
+  investor: 'Инвестор',
 };
 
 function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
