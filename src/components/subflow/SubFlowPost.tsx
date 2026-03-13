@@ -463,7 +463,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
       )}
 
-      {/* Images carousel with swipe support and progressive loading */}
+      {/* Media carousel with swipe support and progressive loading */}
       {images.length > 0 && (
         <div 
           className="mb-4 -mx-4 overflow-hidden relative touch-pan-y"
@@ -491,67 +491,73 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             touchEndX.current = null;
           }}
         >
-          {/* Blur placeholder while loading */}
-          {!imageLoaded[currentImageIndex] && (
-            <div className="absolute inset-0 bg-muted animate-pulse" />
-          )}
-          <img
-            ref={postImgRef}
-            src={images[currentImageIndex]}
-            alt={`Post image ${currentImageIndex + 1}`}
-            className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
-              imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
-            }`}
-            loading="lazy"
-            draggable={false}
-            onClick={() => {
-              if (postImgRef.current) {
-                const rect = postImgRef.current.getBoundingClientRect();
-                setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-              }
-              setLightboxOpen(true);
-              const cnt = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
-              if (cnt < MAX_HINT_SHOWS) {
-                localStorage.setItem('subflow_image_hint_count', String(cnt + 1));
-              }
-              setShowImageHint(false);
-            }}
-            onLoad={() => {
-              setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }));
-              const hintCount = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
-              if (hintCount < MAX_HINT_SHOWS) {
-                setShowImageHint(true);
-              }
-            }}
-          />
-          {/* Maximize icon overlay */}
-          <button
-            onClick={() => {
-              if (postImgRef.current) {
-                const rect = postImgRef.current.getBoundingClientRect();
-                setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-              }
-              setLightboxOpen(true);
-              // Count interaction and dismiss hint
-              const count = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
-              if (count < MAX_HINT_SHOWS) {
-                localStorage.setItem('subflow_image_hint_count', String(count + 1));
-              }
-              setShowImageHint(false);
-            }}
-            className={`absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-all hover:bg-black/50 active:scale-90 ${showImageHint ? 'animate-pulse' : ''}`}
-          >
-            <Maximize2 size={14} />
-          </button>
-          {/* One-time tooltip hint */}
-          {showImageHint && (
-            <div
-              onClick={() => setShowImageHint(false)}
-              className="absolute bottom-10 right-2 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-medium whitespace-nowrap animate-fade-in cursor-pointer"
-            >
-              {t('subflow.tapToEnlarge')}
-              <div className="absolute -bottom-1 right-4 w-2 h-2 bg-black/70 rotate-45" />
-            </div>
+          {isVideoUrl(images[currentImageIndex]) ? (
+            /* Video player */
+            <SubFlowVideoPlayer src={images[currentImageIndex]} />
+          ) : (
+            <>
+              {/* Blur placeholder while loading */}
+              {!imageLoaded[currentImageIndex] && (
+                <div className="absolute inset-0 bg-muted animate-pulse" />
+              )}
+              <img
+                ref={postImgRef}
+                src={images[currentImageIndex]}
+                alt={`Post image ${currentImageIndex + 1}`}
+                className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
+                  imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'
+                }`}
+                loading="lazy"
+                draggable={false}
+                onClick={() => {
+                  if (postImgRef.current) {
+                    const rect = postImgRef.current.getBoundingClientRect();
+                    setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                  }
+                  setLightboxOpen(true);
+                  const cnt = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
+                  if (cnt < MAX_HINT_SHOWS) {
+                    localStorage.setItem('subflow_image_hint_count', String(cnt + 1));
+                  }
+                  setShowImageHint(false);
+                }}
+                onLoad={() => {
+                  setImageLoaded(prev => ({ ...prev, [currentImageIndex]: true }));
+                  const hintCount = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
+                  if (hintCount < MAX_HINT_SHOWS) {
+                    setShowImageHint(true);
+                  }
+                }}
+              />
+              {/* Maximize icon overlay */}
+              <button
+                onClick={() => {
+                  if (postImgRef.current) {
+                    const rect = postImgRef.current.getBoundingClientRect();
+                    setLightboxRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                  }
+                  setLightboxOpen(true);
+                  const count = parseInt(localStorage.getItem('subflow_image_hint_count') || '0', 10);
+                  if (count < MAX_HINT_SHOWS) {
+                    localStorage.setItem('subflow_image_hint_count', String(count + 1));
+                  }
+                  setShowImageHint(false);
+                }}
+                className={`absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-all hover:bg-black/50 active:scale-90 ${showImageHint ? 'animate-pulse' : ''}`}
+              >
+                <Maximize2 size={14} />
+              </button>
+              {/* One-time tooltip hint */}
+              {showImageHint && (
+                <div
+                  onClick={() => setShowImageHint(false)}
+                  className="absolute bottom-10 right-2 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-medium whitespace-nowrap animate-fade-in cursor-pointer"
+                >
+                  {t('subflow.tapToEnlarge')}
+                  <div className="absolute -bottom-1 right-4 w-2 h-2 bg-black/70 rotate-45" />
+                </div>
+              )}
+            </>
           )}
           {images.length > 1 && (
             <>
