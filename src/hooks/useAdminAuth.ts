@@ -14,6 +14,7 @@ interface AdminAuthState {
   isModerator: boolean;
   isPartner: boolean;
   isBarista: boolean;
+  isInvestor: boolean;
   hasAccess: boolean;
   canManage: boolean; // true only for superadmin — full edit/add/delete rights
 }
