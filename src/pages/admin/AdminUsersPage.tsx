@@ -408,7 +408,7 @@ export default function AdminUsersPage() {
             .from('user_roles')
             .insert({
               user_id: editingUser.user_id,
-              role: newRole,
+              role: newRole as any,
               shop_id: newRole === 'partner' ? formData.shop_id || null : null,
             });
 
