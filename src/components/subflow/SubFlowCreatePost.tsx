@@ -312,7 +312,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         >
           <MapPin size={22} />
         </button>
-        <div className="flex-1" />
+        {isSubmitting && (
+          <div className="flex-1 flex items-center gap-2 mx-2">
+            <Progress value={uploadProgress} className="h-2 flex-1" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{uploadProgress}%</span>
+          </div>
+        )}
+        {!isSubmitting && <div className="flex-1" />}
         <Button
           onClick={handleSubmit}
           disabled={isSubmitting || isCompressing || !content.trim()}
