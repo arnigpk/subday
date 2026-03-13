@@ -372,6 +372,9 @@ const AppContent = () => {
             <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
             <Route path="/partner/advertising" element={<PartnerProtectedRoute allowBarista={false}><PartnerAdvertisingPage /></PartnerProtectedRoute>} />
             
+            {/* Investor Routes */}
+            <Route path="/investor" element={<InvestorProtectedRoute><InvestorDashboard /></InvestorProtectedRoute>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
