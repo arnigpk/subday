@@ -176,6 +176,8 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const onPlay = () => {
       setIsPlaying(true);
       setShowPlayButton(false);
+      setHasError(false);
+      setIsPaused(false);
     };
     const onPause = () => setIsPlaying(false);
     const onEnded = () => {
@@ -188,8 +190,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       setCurrentTime(video.currentTime || 0);
     };
     const onDurationChange = () => setDuration(video.duration || 0);
+    const onWaiting = () => setIsBuffering(true);
+    const onCanPlay = () => setIsBuffering(false);
+    const onPlaying = () => setIsBuffering(false);
     const onError = () => {
       setIsPlaying(false);
+      setIsBuffering(false);
+      setHasError(true);
       setShowPlayButton(true);
       setShowNativeControls(true);
     };
@@ -200,6 +207,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('durationchange', onDurationChange);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('playing', onPlaying);
     video.addEventListener('error', onError);
 
     return () => {
@@ -209,6 +219,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('durationchange', onDurationChange);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('error', onError);
     };
   }, []);
