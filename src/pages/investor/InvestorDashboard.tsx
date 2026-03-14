@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrendingUp, Users, Percent, DollarSign, Calendar, LogOut } from 'lucide-react';
+import { TrendingUp, Users, Percent, DollarSign, Calendar, LogOut, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 type PeriodFilter = 'all' | 'month' | 'custom';
 
@@ -17,12 +18,19 @@ interface Transaction {
   transaction_type: string;
 }
 
+interface MonthlyData {
+  month: string;
+  total: number;
+  earnings: number;
+}
+
 export default function InvestorDashboard() {
   const { session } = useAdminAuth();
   const [profitPercent, setProfitPercent] = useState<number>(0);
   const [note, setNote] = useState<string>('');
   const [activeSubscriptions, setActiveSubscriptions] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [customFrom, setCustomFrom] = useState('');
@@ -32,6 +40,7 @@ export default function InvestorDashboard() {
     if (!session?.user) return;
     fetchInvestorSettings();
     fetchActiveSubscriptions();
+    fetchAllTransactions();
   }, [session]);
 
   useEffect(() => {
@@ -59,6 +68,14 @@ export default function InvestorDashboard() {
       .eq('is_active', true);
 
     setActiveSubscriptions(count || 0);
+  };
+
+  const fetchAllTransactions = async () => {
+    const { data } = await supabase
+      .from('subscription_transactions')
+      .select('id, subscription_name, amount, created_at, transaction_type')
+      .order('created_at', { ascending: true });
+    setAllTransactions(data || []);
   };
 
   const fetchTransactions = async () => {
@@ -95,12 +112,49 @@ export default function InvestorDashboard() {
     return Math.round(totalAmount * profitPercent / 100);
   }, [totalAmount, profitPercent]);
 
+  // Monthly chart data
+  const monthlyChartData = useMemo((): MonthlyData[] => {
+    const monthMap = new Map<string, number>();
+    
+    for (const t of allTransactions) {
+      const date = new Date(t.created_at);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthMap.set(key, (monthMap.get(key) || 0) + (t.amount || 0));
+    }
+
+    const months = Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12); // Last 12 months
+
+    const MONTH_NAMES = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+    return months.map(([key, total]) => {
+      const [, m] = key.split('-');
+      return {
+        month: MONTH_NAMES[parseInt(m) - 1],
+        total,
+        earnings: Math.round(total * profitPercent / 100),
+      };
+    });
+  }, [allTransactions, profitPercent]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('ru-RU') + ' ₸';
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+        <p className="font-medium text-sm mb-1">{label}</p>
+        <p className="text-xs text-muted-foreground">Оборот: {formatAmount(payload[0]?.value || 0)}</p>
+        <p className="text-xs text-primary font-medium">Доход: {formatAmount(payload[1]?.value || 0)}</p>
+      </div>
+    );
   };
 
   return (
@@ -158,6 +212,34 @@ export default function InvestorDashboard() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Monthly Revenue Chart */}
+        {monthlyChartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Доход по месяцам
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={monthlyChartData} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis 
+                    className="text-xs" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="total" fill="hsl(var(--muted-foreground) / 0.2)" radius={[4, 4, 0, 0]} name="Оборот" />
+                  <Bar dataKey="earnings" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Доход" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Period Filter */}
         <div className="space-y-3">
