@@ -85,6 +85,8 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     setShowPlayButton(false);
     setShowNativeControls(false);
     setIsMuted(true);
+    setDuration(0);
+    setCurrentTime(0);
 
     configureVideoElement(video, true);
     video.load();
