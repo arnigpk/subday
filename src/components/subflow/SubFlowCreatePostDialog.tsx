@@ -242,7 +242,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
         mediaUrls.push(publicUrl);
       }
 
-      setUploadProgress(Math.round(((mediaFiles.length) / totalSteps) * 100));
+      setUploadProgress(96);
       const { error: postError, data: postData } = await supabase
         .from('subflow_posts')
         .insert({
