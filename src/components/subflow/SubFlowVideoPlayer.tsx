@@ -241,6 +241,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       className={`relative ${className}`}
       onPointerUp={(e) => { void handleVideoTap(e); }}
     >
+      {/* eslint-disable-next-line */}
       <video
         ref={videoRef}
         src={src}
@@ -251,10 +252,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         autoPlay
         controls={showNativeControls}
         preload="auto"
-        crossOrigin="anonymous"
-      >
-        <source src={src} type={getMimeTypeFromSrc(src)} />
-      </video>
+        // @ts-ignore — mobile browser compatibility attrs
+        x5-video-player-type="h5"
+        x5-video-orientation="portraint"
+      />
 
       {/* Remaining time */}
       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
