@@ -14,6 +14,13 @@ const getMimeTypeFromSrc = (url: string): string => {
   return 'video/mp4';
 };
 
+const formatRemainingTime = (value: number): string => {
+  const safeValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  const minutes = Math.floor(safeValue / 60);
+  const seconds = safeValue % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
