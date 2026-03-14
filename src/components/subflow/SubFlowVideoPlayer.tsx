@@ -156,6 +156,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     } else {
       video.pause();
       setIsPlaying(false);
+      // Brief pause indicator
+      setIsPaused(true);
+      if (pauseIndicatorTimer.current) clearTimeout(pauseIndicatorTimer.current);
+      pauseIndicatorTimer.current = setTimeout(() => setIsPaused(false), 1500);
     }
   }, [showPlayButton, playVideo]);
 
