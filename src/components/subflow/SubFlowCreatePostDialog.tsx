@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
+import { uploadWithProgress } from '@/utils/xhrUpload';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Dialog,
