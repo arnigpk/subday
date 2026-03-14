@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
+import { uploadWithProgress } from '@/utils/xhrUpload';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Shop {
@@ -145,31 +146,34 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       if (!user) throw new Error('Not authenticated');
 
       const mediaUrls: string[] = [];
-      const totalSteps = mediaFiles.length + 1;
+      const totalBytes = mediaFiles.reduce((sum, m) => sum + m.blob.size, 0);
+      let uploadedBytes = 0;
 
       for (let i = 0; i < mediaFiles.length; i++) {
         const media = mediaFiles[i];
         const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const mediaSizeBefore = uploadedBytes;
 
-        const { error: uploadError } = await supabase.storage
-          .from('subflow-images')
-          .upload(fileName, media.blob, {
-            contentType: media.blob.type,
-            cacheControl: '31536000'
-          });
+        const { publicUrl } = await uploadWithProgress({
+          bucket: 'subflow-images',
+          path: fileName,
+          blob: media.blob,
+          contentType: media.blob.type,
+          onProgress: (_percent, loaded) => {
+            const currentTotal = mediaSizeBefore + loaded;
+            const overallPercent = totalBytes > 0 
+              ? Math.round((currentTotal / totalBytes) * 95) // 95% for uploads, 5% for post insert
+              : Math.round(((i + 1) / (mediaFiles.length + 1)) * 100);
+            setUploadProgress(Math.min(overallPercent, 95));
+          },
+        });
 
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('subflow-images')
-          .getPublicUrl(fileName);
-
+        uploadedBytes += media.blob.size;
         mediaUrls.push(publicUrl);
-        setUploadProgress(Math.round(((i + 1) / totalSteps) * 100));
       }
 
-      setUploadProgress(Math.round((mediaFiles.length / totalSteps) * 100));
+      setUploadProgress(96);
       const { error: postError } = await supabase
         .from('subflow_posts')
         .insert({
