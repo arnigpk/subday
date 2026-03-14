@@ -54,29 +54,38 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const video = videoRef.current;
     if (!video) return false;
 
-    // For maximum cross-browser compatibility, always start muted first
-    if (fromUserGesture) {
-      setIsMuted(true);
-      configureVideoElement(video, true);
-    } else {
-      configureVideoElement(video, true);
+    configureVideoElement(video, fromUserGesture ? true : true);
+    if (fromUserGesture) setIsMuted(true);
+
+    // Wait for readyState if not ready yet
+    if (video.readyState < 3) {
+      await new Promise<void>((resolve) => {
+        const onReady = () => { video.removeEventListener('canplay', onReady); resolve(); };
+        video.addEventListener('canplay', onReady);
+        // Timeout fallback — don't wait forever
+        setTimeout(() => { video.removeEventListener('canplay', onReady); resolve(); }, 2000);
+      });
     }
 
-    try {
-      await video.play();
-      setShowPlayButton(false);
-      return true;
-    } catch (err) {
-      console.log('Video play blocked or failed:', err);
-      setIsPlaying(false);
-      setShowPlayButton(true);
-
-      // If manual play fails, expose native controls as final fallback
-      if (fromUserGesture) {
-        setShowNativeControls(true);
+    // Retry logic: 3 attempts with 300ms delay
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await video.play();
+        setShowPlayButton(false);
+        return true;
+      } catch (err) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 300));
+        } else {
+          console.log('Video play blocked after retries:', err);
+          setIsPlaying(false);
+          setShowPlayButton(true);
+          if (fromUserGesture) setShowNativeControls(true);
+          return false;
+        }
       }
-      return false;
     }
+    return false;
   }, [configureVideoElement]);
 
   // Reset and prepare video when source changes
