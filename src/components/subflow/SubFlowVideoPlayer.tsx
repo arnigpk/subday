@@ -175,8 +175,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     <div
       ref={containerRef}
       className={`relative ${className}`}
-      onClick={(e) => { void handleVideoTap(e); }}
-      onTouchEnd={(e) => { void handleVideoTap(e); }}
+      onPointerUp={(e) => { void handleVideoTap(e); }}
     >
       <video
         ref={videoRef}
