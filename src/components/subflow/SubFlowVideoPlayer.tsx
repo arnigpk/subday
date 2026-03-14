@@ -218,6 +218,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         autoPlay
         controls={showNativeControls}
         preload="auto"
+        crossOrigin="anonymous"
       >
         <source src={src} type={getMimeTypeFromSrc(src)} />
       </video>
