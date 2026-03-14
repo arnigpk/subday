@@ -252,6 +252,33 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         {remainingTimeLabel}
       </div>
 
+      {/* Status indicators */}
+      {isBuffering && isPlaying && !hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-1.5">
+            <Loader2 size={14} className="text-white animate-spin" />
+            <span className="text-white text-[11px] font-medium">Загрузка…</span>
+          </div>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="px-3 py-1.5 rounded-full bg-red-900/60 backdrop-blur-sm flex items-center gap-1.5">
+            <AlertCircle size={14} className="text-red-300" />
+            <span className="text-red-200 text-[11px] font-medium">Ошибка</span>
+          </div>
+        </div>
+      )}
+
+      {isPaused && !showPlayButton && !isBuffering && !hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <Pause size={22} className="text-white" />
+          </div>
+        </div>
+      )}
+
       {/* Play button overlay when autoplay is blocked */}
       {showPlayButton && !isPlaying && (
         <button
