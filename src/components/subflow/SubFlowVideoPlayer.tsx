@@ -28,6 +28,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
   const [showNativeControls, setShowNativeControls] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const remainingTimeLabel = useMemo(() => {
+    const base = duration > 0 ? duration - currentTime : 0;
+    return formatRemainingTime(base);
+  }, [duration, currentTime]);
 
   const configureVideoElement = useCallback((video: HTMLVideoElement, muted: boolean) => {
     video.muted = muted;
