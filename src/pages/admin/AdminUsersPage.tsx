@@ -85,7 +85,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   moderator: 'Модератор',
   partner: 'Партнёр',
   barista: 'Бариста',
-  investor: 'Инвестор',
 };
 
 function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
@@ -172,8 +171,6 @@ export default function AdminUsersPage() {
     role: 'user' as UserRole,
     shop_id: '',
     subflow_access: false,
-    investor_percent: 0,
-    investor_note: '',
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
@@ -316,21 +313,8 @@ export default function AdminUsersPage() {
     }
   };
 
-  const openEditDialog = async (user: UserWithStats) => {
+  const openEditDialog = (user: UserWithStats) => {
     setEditingUser(user);
-    let investorPercent = 0;
-    let investorNote = '';
-    if (user.role === 'investor') {
-      const { data } = await supabase
-        .from('investor_settings')
-        .select('profit_percent, note')
-        .eq('user_id', user.user_id)
-        .maybeSingle();
-      if (data) {
-        investorPercent = Number(data.profit_percent);
-        investorNote = data.note || '';
-      }
-    }
     setFormData({
       name: user.name || '',
       phone: user.phone,
@@ -342,8 +326,6 @@ export default function AdminUsersPage() {
       role: user.role || 'user',
       shop_id: user.shop_id || '',
       subflow_access: user.subflow_access || false,
-      investor_percent: investorPercent,
-      investor_note: investorNote,
     });
     setSelectedSubscription('');
   };
@@ -381,8 +363,8 @@ export default function AdminUsersPage() {
       }
 
       // Handle role update (both admin and superadmin can do this)
-      const previousRole: string = editingUser.role || 'user';
-      const newRole: string = formData.role;
+      const previousRole = editingUser.role || 'user';
+      const newRole = formData.role;
 
       // Admin cannot assign superadmin role
       if (!isSuperAdmin && newRole === 'superadmin') {
@@ -408,7 +390,7 @@ export default function AdminUsersPage() {
             .from('user_roles')
             .insert({
               user_id: editingUser.user_id,
-              role: newRole as any,
+              role: newRole,
               shop_id: newRole === 'partner' ? formData.shop_id || null : null,
             });
 
@@ -421,24 +403,6 @@ export default function AdminUsersPage() {
             .update({ shop_id: formData.shop_id || null })
             .eq('id', editingUser.role_id);
         }
-      }
-
-      // Handle investor settings
-      if (newRole === 'investor') {
-        await supabase
-          .from('investor_settings')
-          .upsert({
-            user_id: editingUser.user_id,
-            profit_percent: formData.investor_percent,
-            note: formData.investor_note || null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' });
-      } else if (previousRole === 'investor' && newRole !== 'investor') {
-        // Remove investor settings when role changes away
-        await supabase
-          .from('investor_settings')
-          .delete()
-          .eq('user_id', editingUser.user_id);
       }
 
       toast({ title: 'Пользователь обновлён' });
@@ -899,35 +863,8 @@ export default function AdminUsersPage() {
                     <SelectItem value="moderator">Модератор</SelectItem>
                     <SelectItem value="partner">Партнёр</SelectItem>
                     <SelectItem value="barista">Бариста</SelectItem>
-                    {isSuperAdmin && <SelectItem value="investor">Инвестор</SelectItem>}
                   </SelectContent>
                 </Select>
-              
-              {formData.role === 'investor' && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label>Процент заработка (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={formData.investor_percent}
-                      onChange={(e) => setFormData({ ...formData, investor_percent: parseFloat(e.target.value) || 0 })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Заметка для инвестора</Label>
-                    <Input
-                      value={formData.investor_note}
-                      onChange={(e) => setFormData({ ...formData, investor_note: e.target.value })}
-                      placeholder="Комментарий (необязательно)"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              )}
               
               {formData.role === 'partner' && (
                 <div className="mt-3">

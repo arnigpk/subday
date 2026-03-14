@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
-import { uploadWithProgress } from '@/utils/uploadWithProgress';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Shop {
@@ -153,38 +152,20 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        const isVideo = media.type === 'video';
+        const { error: uploadError } = await supabase.storage
+          .from('subflow-images')
+          .upload(fileName, media.blob, {
+            contentType: media.blob.type,
+            cacheControl: '31536000'
+          });
 
-        if (isVideo) {
-          // Use XHR for videos to get byte-level progress
-          const { publicUrl } = await uploadWithProgress(
-            'subflow-images',
-            fileName,
-            media.blob,
-            (percent) => {
-              const fileProgress = (i / totalSteps) + (percent / 100) * (1 / totalSteps);
-              setUploadProgress(Math.round(fileProgress * 100));
-            }
-          );
-          mediaUrls.push(publicUrl);
-        } else {
-          // Use SDK for images (small files)
-          const { error: uploadError } = await supabase.storage
-            .from('subflow-images')
-            .upload(fileName, media.blob, {
-              contentType: media.blob.type,
-              cacheControl: '31536000'
-            });
+        if (uploadError) throw uploadError;
 
-          if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage
+          .from('subflow-images')
+          .getPublicUrl(fileName);
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('subflow-images')
-            .getPublicUrl(fileName);
-
-          mediaUrls.push(publicUrl);
-        }
-
+        mediaUrls.push(publicUrl);
         setUploadProgress(Math.round(((i + 1) / totalSteps) * 100));
       }
 
