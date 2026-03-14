@@ -153,20 +153,38 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         const fileExt = getFileExtension(media.blob);
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('subflow-images')
-          .upload(fileName, media.blob, {
-            contentType: media.blob.type,
-            cacheControl: '31536000'
-          });
+        const isVideo = media.type === 'video';
 
-        if (uploadError) throw uploadError;
+        if (isVideo) {
+          // Use XHR for videos to get byte-level progress
+          const { publicUrl } = await uploadWithProgress(
+            'subflow-images',
+            fileName,
+            media.blob,
+            (percent) => {
+              const fileProgress = (i / totalSteps) + (percent / 100) * (1 / totalSteps);
+              setUploadProgress(Math.round(fileProgress * 100));
+            }
+          );
+          mediaUrls.push(publicUrl);
+        } else {
+          // Use SDK for images (small files)
+          const { error: uploadError } = await supabase.storage
+            .from('subflow-images')
+            .upload(fileName, media.blob, {
+              contentType: media.blob.type,
+              cacheControl: '31536000'
+            });
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('subflow-images')
-          .getPublicUrl(fileName);
+          if (uploadError) throw uploadError;
 
-        mediaUrls.push(publicUrl);
+          const { data: { publicUrl } } = supabase.storage
+            .from('subflow-images')
+            .getPublicUrl(fileName);
+
+          mediaUrls.push(publicUrl);
+        }
+
         setUploadProgress(Math.round(((i + 1) / totalSteps) * 100));
       }
 
