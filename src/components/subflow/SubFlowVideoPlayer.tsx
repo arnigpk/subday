@@ -222,6 +222,11 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         <source src={src} type={getMimeTypeFromSrc(src)} />
       </video>
 
+      {/* Remaining time */}
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
+        {remainingTimeLabel}
+      </div>
+
       {/* Play button overlay when autoplay is blocked */}
       {showPlayButton && !isPlaying && (
         <button
