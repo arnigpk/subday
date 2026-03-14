@@ -173,7 +173,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         mediaUrls.push(publicUrl);
       }
 
-      setUploadProgress(Math.round((mediaFiles.length / totalSteps) * 100));
+      setUploadProgress(96);
       const { error: postError } = await supabase
         .from('subflow_posts')
         .insert({
