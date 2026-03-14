@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Play } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;
@@ -30,6 +30,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [showNativeControls, setShowNativeControls] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const remainingTimeLabel = useMemo(() => {
     const base = duration > 0 ? duration - currentTime : 0;
@@ -87,6 +91,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     setIsMuted(true);
     setDuration(0);
     setCurrentTime(0);
+    setIsBuffering(false);
+    setHasError(false);
+    setIsPaused(false);
 
     configureVideoElement(video, true);
     video.load();
@@ -149,6 +156,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     } else {
       video.pause();
       setIsPlaying(false);
+      // Brief pause indicator
+      setIsPaused(true);
+      if (pauseIndicatorTimer.current) clearTimeout(pauseIndicatorTimer.current);
+      pauseIndicatorTimer.current = setTimeout(() => setIsPaused(false), 1500);
     }
   }, [showPlayButton, playVideo]);
 
@@ -165,6 +176,8 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const onPlay = () => {
       setIsPlaying(true);
       setShowPlayButton(false);
+      setHasError(false);
+      setIsPaused(false);
     };
     const onPause = () => setIsPlaying(false);
     const onEnded = () => {
@@ -177,8 +190,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       setCurrentTime(video.currentTime || 0);
     };
     const onDurationChange = () => setDuration(video.duration || 0);
+    const onWaiting = () => setIsBuffering(true);
+    const onCanPlay = () => setIsBuffering(false);
+    const onPlaying = () => setIsBuffering(false);
     const onError = () => {
       setIsPlaying(false);
+      setIsBuffering(false);
+      setHasError(true);
       setShowPlayButton(true);
       setShowNativeControls(true);
     };
@@ -189,6 +207,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('durationchange', onDurationChange);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('playing', onPlaying);
     video.addEventListener('error', onError);
 
     return () => {
@@ -198,6 +219,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('durationchange', onDurationChange);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('error', onError);
     };
   }, []);
@@ -227,6 +251,33 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
         {remainingTimeLabel}
       </div>
+
+      {/* Status indicators */}
+      {isBuffering && isPlaying && !hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-1.5">
+            <Loader2 size={14} className="text-white animate-spin" />
+            <span className="text-white text-[11px] font-medium">Загрузка…</span>
+          </div>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="px-3 py-1.5 rounded-full bg-red-900/60 backdrop-blur-sm flex items-center gap-1.5">
+            <AlertCircle size={14} className="text-red-300" />
+            <span className="text-red-200 text-[11px] font-medium">Ошибка</span>
+          </div>
+        </div>
+      )}
+
+      {isPaused && !showPlayButton && !isBuffering && !hasError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-fade-in">
+          <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <Pause size={22} className="text-white" />
+          </div>
+        </div>
+      )}
 
       {/* Play button overlay when autoplay is blocked */}
       {showPlayButton && !isPlaying && (
