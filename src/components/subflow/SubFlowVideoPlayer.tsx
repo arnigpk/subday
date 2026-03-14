@@ -30,6 +30,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [showNativeControls, setShowNativeControls] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const remainingTimeLabel = useMemo(() => {
     const base = duration > 0 ? duration - currentTime : 0;
