@@ -312,7 +312,13 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                   <div key={index} className="relative aspect-square">
                     {media.type === 'video' ? (
                       <div className="w-full h-full rounded-xl bg-black flex items-center justify-center overflow-hidden">
-                        <video src={media.preview} className="w-full h-full object-cover rounded-xl" muted />
+                        <video
+                          src={media.preview}
+                          className="w-full h-full object-cover rounded-xl"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
                         <div className="absolute inset-0 flex items-center justify-center">
                           <Play size={32} className="text-white/80" fill="white" />
                         </div>

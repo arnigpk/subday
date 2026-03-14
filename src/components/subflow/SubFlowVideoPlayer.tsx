@@ -6,36 +6,75 @@ interface SubFlowVideoPlayerProps {
   className?: string;
 }
 
+const getMimeTypeFromSrc = (url: string): string => {
+  const cleanUrl = url.split('?')[0].toLowerCase();
+  if (cleanUrl.endsWith('.webm')) return 'video/webm';
+  if (cleanUrl.endsWith('.mov')) return 'video/quicktime';
+  if (cleanUrl.endsWith('.m4v')) return 'video/mp4';
+  return 'video/mp4';
+};
+
 export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [showNativeControls, setShowNativeControls] = useState(false);
 
-  // Try to play video — if blocked by browser, show play button
-  const tryPlay = useCallback(async () => {
+  const configureVideoElement = useCallback((video: HTMLVideoElement, muted: boolean) => {
+    video.muted = muted;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.preload = 'auto';
+    // setAttribute ensures HTML attributes are present (important for mobile Safari)
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+  }, []);
+
+  const playVideo = useCallback(async (fromUserGesture: boolean) => {
+    const video = videoRef.current;
+    if (!video) return false;
+
+    // For maximum cross-browser compatibility, always start muted first
+    if (fromUserGesture) {
+      setIsMuted(true);
+      configureVideoElement(video, true);
+    } else {
+      configureVideoElement(video, true);
+    }
+
+    try {
+      await video.play();
+      setShowPlayButton(false);
+      return true;
+    } catch (err) {
+      console.log('Video play blocked or failed:', err);
+      setIsPlaying(false);
+      setShowPlayButton(true);
+
+      // If manual play fails, expose native controls as final fallback
+      if (fromUserGesture) {
+        setShowNativeControls(true);
+      }
+      return false;
+    }
+  }, [configureVideoElement]);
+
+  // Reset and prepare video when source changes
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    try {
-      // Ensure muted for autoplay policy compliance
-      video.muted = true;
-      video.playsInline = true;
-      // setAttribute ensures the HTML attribute is present (Safari checks this)
-      video.setAttribute('playsinline', '');
-      video.setAttribute('webkit-playsinline', '');
+    video.pause();
+    setIsPlaying(false);
+    setShowPlayButton(false);
+    setShowNativeControls(false);
+    setIsMuted(true);
 
-      await video.play();
-      setIsPlaying(true);
-      setShowPlayButton(false);
-    } catch (err) {
-      console.log('Autoplay blocked, showing play button:', err);
-      setIsPlaying(false);
-      setShowPlayButton(true);
-    }
-  }, []);
+    configureVideoElement(video, true);
+    video.load();
+  }, [src, configureVideoElement]);
 
   // IntersectionObserver for autoplay
   useEffect(() => {
@@ -47,22 +86,21 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         const video = videoRef.current;
         if (!video) return;
 
-        if (entry.isIntersecting) {
-          tryPlay();
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
+          void playVideo(false);
         } else {
           video.pause();
           setIsPlaying(false);
-          // Mute when scrolled away
           setIsMuted(true);
-          if (video) video.muted = true;
+          video.muted = true;
         }
       },
-      { threshold: 0.5 }
+      { threshold: [0.2, 0.35, 0.6] }
     );
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [tryPlay]);
+  }, [playVideo]);
 
   // Sync muted state
   useEffect(() => {
@@ -71,48 +109,32 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     }
   }, [isMuted]);
 
-  // Handle manual play tap (for when autoplay is blocked)
+  // Manual play for blocked autoplay
   const handlePlayTap = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    e.preventDefault();
-    const video = videoRef.current;
-    if (!video) return;
+    await playVideo(true);
+  }, [playVideo]);
 
-    setHasUserInteracted(true);
-
-    try {
-      // First attempt muted (guaranteed to work after user gesture)
-      video.muted = true;
-      await video.play();
-      setIsPlaying(true);
-      setShowPlayButton(false);
-    } catch (err) {
-      console.error('Play failed even after user gesture:', err);
-    }
-  }, []);
-
-  // Handle tap on video area to toggle play/pause
-  const handleVideoTap = useCallback((e: React.MouseEvent) => {
-    // Don't intercept if clicking the mute button
+  // Tap video area to toggle play/pause
+  const handleVideoTap = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
-    
+
     const video = videoRef.current;
     if (!video) return;
 
     if (showPlayButton) {
-      handlePlayTap(e);
+      await playVideo(true);
       return;
     }
 
     if (video.paused) {
-      video.play().then(() => {
-        setIsPlaying(true);
-      }).catch(() => {});
+      const played = await playVideo(true);
+      if (!played) setShowNativeControls(true);
     } else {
       video.pause();
       setIsPlaying(false);
     }
-  }, [showPlayButton, handlePlayTap]);
+  }, [showPlayButton, playVideo]);
 
   const toggleMute = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -124,18 +146,28 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const video = videoRef.current;
     if (!video) return;
 
-    const onPlay = () => { setIsPlaying(true); setShowPlayButton(false); };
+    const onPlay = () => {
+      setIsPlaying(true);
+      setShowPlayButton(false);
+    };
     const onPause = () => setIsPlaying(false);
     const onEnded = () => setIsPlaying(false);
+    const onError = () => {
+      setIsPlaying(false);
+      setShowPlayButton(true);
+      setShowNativeControls(true);
+    };
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEnded);
+    video.addEventListener('error', onError);
 
     return () => {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
+      video.removeEventListener('error', onError);
     };
   }, []);
 
@@ -143,27 +175,31 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     <div
       ref={containerRef}
       className={`relative ${className}`}
-      onClick={handleVideoTap}
+      onClick={(e) => { void handleVideoTap(e); }}
+      onTouchEnd={(e) => { void handleVideoTap(e); }}
     >
       <video
         ref={videoRef}
         src={src}
         className="w-full max-h-[28rem] object-contain bg-black/5 dark:bg-white/5 rounded-sm"
         loop
-        muted
+        muted={isMuted}
         playsInline
-        // @ts-ignore — webkit attribute for older iOS Safari
-        webkit-playsinline=""
+        autoPlay
+        controls={showNativeControls}
         preload="auto"
-        // poster helps Safari show first frame before play
-        poster=""
-      />
+      >
+        <source src={src} type={getMimeTypeFromSrc(src)} />
+      </video>
 
       {/* Play button overlay when autoplay is blocked */}
       {showPlayButton && !isPlaying && (
         <button
-          onClick={handlePlayTap}
+          type="button"
+          onClick={(e) => { void handlePlayTap(e); }}
+          onTouchEnd={(e) => { void handlePlayTap(e); }}
           className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] transition-all active:bg-black/30"
+          aria-label="Воспроизвести видео"
         >
           <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
             <Play size={28} className="text-white ml-1" fill="white" />
@@ -173,8 +209,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
 
       {/* Mute toggle */}
       <button
+        type="button"
         onClick={toggleMute}
         className="absolute bottom-3 right-3 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white/90 transition-all hover:bg-black/70 active:scale-90"
+        aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
       >
         {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
       </button>
