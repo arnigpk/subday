@@ -91,6 +91,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     setIsMuted(true);
     setDuration(0);
     setCurrentTime(0);
+    setIsBuffering(false);
+    setHasError(false);
+    setIsPaused(false);
 
     configureVideoElement(video, true);
     video.load();
