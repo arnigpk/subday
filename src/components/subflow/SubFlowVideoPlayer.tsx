@@ -195,8 +195,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       {showPlayButton && !isPlaying && (
         <button
           type="button"
-          onClick={(e) => { void handlePlayTap(e); }}
-          onTouchEnd={(e) => { void handlePlayTap(e); }}
+          onPointerUp={(e) => { void handlePlayTap(e); }}
           className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] transition-all active:bg-black/30"
           aria-label="Воспроизвести видео"
         >
