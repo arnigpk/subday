@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Volume2, VolumeX, Play } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
@@ -14,6 +14,13 @@ const getMimeTypeFromSrc = (url: string): string => {
   return 'video/mp4';
 };
 
+const formatRemainingTime = (value: number): string => {
+  const safeValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  const minutes = Math.floor(safeValue / 60);
+  const seconds = safeValue % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,6 +28,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
   const [showNativeControls, setShowNativeControls] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const remainingTimeLabel = useMemo(() => {
+    const base = duration > 0 ? duration - currentTime : 0;
+    return formatRemainingTime(base);
+  }, [duration, currentTime]);
 
   const configureVideoElement = useCallback((video: HTMLVideoElement, muted: boolean) => {
     video.muted = muted;
@@ -71,6 +85,8 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     setShowPlayButton(false);
     setShowNativeControls(false);
     setIsMuted(true);
+    setDuration(0);
+    setCurrentTime(0);
 
     configureVideoElement(video, true);
     video.load();
@@ -151,7 +167,16 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       setShowPlayButton(false);
     };
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIsPlaying(false);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    const onTimeUpdate = () => setCurrentTime(video.currentTime || 0);
+    const onLoadedMetadata = () => {
+      setDuration(video.duration || 0);
+      setCurrentTime(video.currentTime || 0);
+    };
+    const onDurationChange = () => setDuration(video.duration || 0);
     const onError = () => {
       setIsPlaying(false);
       setShowPlayButton(true);
@@ -161,12 +186,18 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEnded);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('loadedmetadata', onLoadedMetadata);
+    video.addEventListener('durationchange', onDurationChange);
     video.addEventListener('error', onError);
 
     return () => {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('durationchange', onDurationChange);
       video.removeEventListener('error', onError);
     };
   }, []);
@@ -187,9 +218,15 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         autoPlay
         controls={showNativeControls}
         preload="auto"
+        crossOrigin="anonymous"
       >
         <source src={src} type={getMimeTypeFromSrc(src)} />
       </video>
+
+      {/* Remaining time */}
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
+        {remainingTimeLabel}
+      </div>
 
       {/* Play button overlay when autoplay is blocked */}
       {showPlayButton && !isPlaying && (
