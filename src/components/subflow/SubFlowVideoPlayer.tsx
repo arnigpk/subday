@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Play } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;
