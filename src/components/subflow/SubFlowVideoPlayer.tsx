@@ -110,13 +110,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   }, [isMuted]);
 
   // Manual play for blocked autoplay
-  const handlePlayTap = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
+  const handlePlayTap = useCallback(async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.stopPropagation();
     await playVideo(true);
   }, [playVideo]);
 
   // Tap video area to toggle play/pause
-  const handleVideoTap = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
+  const handleVideoTap = useCallback(async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
 
     const video = videoRef.current;
