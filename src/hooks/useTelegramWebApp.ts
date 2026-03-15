@@ -80,27 +80,46 @@ export function useTelegramWebApp() {
   const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    
-    if (tg && tg.initData) {
-      console.log('Telegram WebApp detected');
-      console.log('Platform:', tg.platform);
-      console.log('initData available:', !!tg.initData);
+    const init = () => {
+      const tg = window.Telegram?.WebApp;
       
-      setWebApp(tg);
-      setIsTelegramMiniApp(true);
-      
-      // Inform Telegram that the app is ready
-      tg.ready();
-      
-      // Expand to full height
-      tg.expand();
-      
+      if (tg && tg.initData) {
+        console.log('Telegram WebApp detected');
+        setWebApp(tg);
+        setIsTelegramMiniApp(true);
+        tg.ready();
+        tg.expand();
+      }
       setIsReady(true);
-    } else {
-      console.log('Not running in Telegram Mini App');
-      setIsReady(true);
+    };
+
+    // If Telegram SDK already loaded (sync or cached)
+    if (window.Telegram?.WebApp) {
+      init();
+      return;
     }
+
+    // SDK might still be loading (deferred) — wait for it briefly
+    const tgScript = document.querySelector('script[src*="telegram-web-app"]');
+    if (tgScript && !tgScript.hasAttribute('data-loaded')) {
+      const onLoad = () => {
+        tgScript.setAttribute('data-loaded', '1');
+        init();
+      };
+      tgScript.addEventListener('load', onLoad, { once: true });
+      // Fallback: don't block forever
+      const fallback = setTimeout(() => {
+        tgScript.removeEventListener('load', onLoad);
+        init();
+      }, 3000);
+      return () => {
+        clearTimeout(fallback);
+        tgScript.removeEventListener('load', onLoad);
+      };
+    }
+
+    // No Telegram script at all — not a mini app
+    init();
   }, []);
 
   const getInitData = useCallback(() => {
