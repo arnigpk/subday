@@ -51,21 +51,21 @@ export function usePrefetch() {
           queryClient.prefetchQuery({
             queryKey: queryKeys.shops,
             queryFn: prefetchShops,
-            staleTime: 30 * 1000, // 30 seconds
+            staleTime: 5 * 60 * 1000,
           });
           break;
         case 'packages':
           queryClient.prefetchQuery({
             queryKey: queryKeys.subscriptions,
             queryFn: prefetchSubscriptions,
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 5 * 60 * 1000,
           });
           break;
         case 'subflow':
           queryClient.prefetchQuery({
             queryKey: queryKeys.subflowPosts,
             queryFn: prefetchSubflowPosts,
-            staleTime: 15 * 1000, // 15 seconds - fresher data for social feed
+            staleTime: 30 * 1000,
           });
           break;
         case 'home':
@@ -83,12 +83,12 @@ export function usePrefetch() {
       queryClient.prefetchQuery({
         queryKey: queryKeys.shops,
         queryFn: prefetchShops,
-        staleTime: 30 * 1000,
+        staleTime: 5 * 60 * 1000,
       }),
       queryClient.prefetchQuery({
         queryKey: queryKeys.subscriptions,
         queryFn: prefetchSubscriptions,
-        staleTime: 60 * 1000,
+        staleTime: 5 * 60 * 1000,
       }),
     ]);
   }, [queryClient]);

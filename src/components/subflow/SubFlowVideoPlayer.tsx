@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Play } from 'lucide-react';
+import { Volume2, VolumeX, Play, Loader2 } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;
@@ -23,6 +23,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [loadSrc, setLoadSrc] = useState(false);
   const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,19 +45,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const video = videoRef.current;
     if (!video) return false;
 
-    configureVideoElement(video, fromUserGesture ? true : true);
+    configureVideoElement(video, true);
     if (fromUserGesture) setIsMuted(true);
 
-    // Wait for readyState if not ready yet
-    if (video.readyState < 3) {
-      await new Promise<void>((resolve) => {
-        const onReady = () => { video.removeEventListener('canplay', onReady); resolve(); };
-        video.addEventListener('canplay', onReady);
-        setTimeout(() => { video.removeEventListener('canplay', onReady); resolve(); }, 2000);
-      });
-    }
-
-    // Retry logic: 3 attempts with 300ms delay
+    // Start playback immediately without waiting for full buffer
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await video.play();
@@ -174,7 +166,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const onTimeUpdate = () => setCurrentTime(video.currentTime || 0);
     const onLoadedMetadata = () => { setDuration(video.duration || 0); setCurrentTime(video.currentTime || 0); };
     const onDurationChange = () => setDuration(video.duration || 0);
-    const onError = () => { setIsPlaying(false); setShowPlayButton(true); setShowNativeControls(true); };
+    const onError = () => { setIsPlaying(false); setShowPlayButton(true); setShowNativeControls(true); setIsBuffering(false); };
+    const onWaiting = () => setIsBuffering(true);
+    const onCanPlay = () => setIsBuffering(false);
+    const onPlaying = () => setIsBuffering(false);
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
@@ -183,6 +178,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('durationchange', onDurationChange);
     video.addEventListener('error', onError);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('playing', onPlaying);
 
     return () => {
       video.removeEventListener('play', onPlay);
@@ -192,6 +190,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('durationchange', onDurationChange);
       video.removeEventListener('error', onError);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('playing', onPlaying);
     };
   }, [loadSrc]);
 
@@ -222,10 +223,17 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         </div>
       )}
 
-      {/* Remaining time */}
+      {/* Remaining time + buffering indicator */}
       {loadSrc && (
-        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
-          {remainingTimeLabel}
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none">
+          {isBuffering && (
+            <div className="p-1 rounded-full bg-black/55 backdrop-blur-sm">
+              <Loader2 size={12} className="text-white animate-spin" />
+            </div>
+          )}
+          <div className="px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide">
+            {remainingTimeLabel}
+          </div>
         </div>
       )}
 
