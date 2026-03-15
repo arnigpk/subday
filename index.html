@@ -24,22 +24,9 @@
     <!-- Telegram WebApp SDK — load sync so mini app init is instant -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <style>
-      #inline-preloader {
-        position: fixed; inset: 0; z-index: 9999;
-        display: flex; align-items: center; justify-content: center;
-        background: #FAF9F6;
-      }
-      #inline-preloader img { width: 100%; height: 100%; object-fit: contain; }
-      #inline-preloader.hidden { display: none; }
-    </style>
   </head>
 
   <body>
-    <!-- Instant preloader before React boots -->
-    <div id="inline-preloader">
-      <img src="/src/assets/preloader.gif" alt="Loading" />
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
