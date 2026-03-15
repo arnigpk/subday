@@ -382,6 +382,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_access: boolean
           avatar_url: string | null
           city: string | null
           country: string | null
@@ -400,6 +401,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_access?: boolean
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -418,6 +420,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_access?: boolean
           avatar_url?: string | null
           city?: string | null
           country?: string | null
