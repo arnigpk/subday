@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus, Play } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -55,6 +55,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
@@ -130,6 +131,36 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
+  };
+
+  const handleAiCaption = async () => {
+    const firstImage = mediaFiles.find(m => m.type === 'image');
+    if (!firstImage) return;
+
+    setIsGeneratingCaption(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(firstImage.blob);
+      });
+
+      const { data, error } = await supabase.functions.invoke('subflow-ai-caption', {
+        body: { image: base64 },
+      });
+
+      if (error) throw error;
+      if (data?.caption) {
+        setContent(prev => prev ? `${prev}\n${data.caption}` : data.caption);
+        toast.success('Текст сгенерирован ✨');
+      }
+    } catch (err) {
+      console.error('AI caption error:', err);
+      toast.error('Не удалось сгенерировать текст');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -317,6 +348,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           className={`p-2 rounded-lg transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
         >
           <MapPin size={22} />
+        </button>
+        <button
+          onClick={handleAiCaption}
+          disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
+          className={`p-2 rounded-lg transition-colors ${mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption ? 'text-accent hover:bg-accent/10' : 'text-muted-foreground/40'}`}
+        >
+          {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <Wand2 size={22} />}
         </button>
         {isSubmitting && (
           <div className="flex-1 flex items-center gap-2 mx-2">

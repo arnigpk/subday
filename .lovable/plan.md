@@ -1,33 +1,57 @@
 
 
-## Plan: AI Magic Wand for SubFlow Post Creation
+## Анализ текущих узких мест
 
-### What We'll Build
-A "magic wand" button in the SubFlow create post form that analyzes uploaded photos using AI and generates suggested caption text.
+Сейчас процесс сканирования тормозится в нескольких местах:
 
-### How It Works
-1. User uploads one or more photos
-2. The wand icon becomes active (highlighted)
-3. User taps the wand → AI analyzes the first image and suggests a caption
-4. Suggested text appears in the textarea (user can edit or replace it)
+**Клиент (QRScanner.tsx):**
+1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
+2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
+3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
+4. Дубликат-защита 3 секунды -- можно сократить
 
-### Technical Approach
+**Клиент (PartnerScanPage.tsx):**
+5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
+6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
 
-**1. New Edge Function: `supabase/functions/subflow-ai-caption/index.ts`**
-- Accepts a base64-encoded image
-- Calls Lovable AI Gateway with `google/gemini-2.5-flash` (multimodal, fast, cheap)
-- System prompt instructs the model to generate a short, engaging social media caption in Russian based on the image
-- Returns the generated text
-- Add to `config.toml` with `verify_jwt = false`
+**Сервер (partner-scan-qr):**
+7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
 
-**2. Frontend Changes: `SubFlowCreatePost.tsx`**
-- Add a `Wand2` (lucide) icon button next to the existing Image and MapPin buttons
-- Button is disabled/dimmed when no images are loaded; active when `mediaFiles` has at least one image
-- On click: convert the first image blob to base64, call the edge function via `supabase.functions.invoke('subflow-ai-caption', ...)`
-- Show a loading spinner on the wand button while generating
-- On success: set the textarea content to the AI-generated text (or append if text already exists)
-- On error: show a toast
+## План ускорения
 
-### UI Placement
-The wand button sits in the bottom toolbar row, next to the Image and MapPin buttons — same styling, with a purple/accent highlight when active.
+### 1. Убрать искусственную задержку в 1 секунду
+Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
+
+### 2. Автозапуск камеры
+Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
+
+### 3. Не останавливать камеру при обработке
+Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
+
+### 4. Увеличить область сканирования
+`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
+
+### 5. Сократить защиту от дубликатов
+С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
+
+### 6. Запрос высокого разрешения камеры
+Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
+
+### 7. Автовозврат к сканеру после результата
+После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
+
+### 8. Не прятать сканер при статусах scanning/success/error
+Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
+
+### Затрагиваемые файлы
+- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
+- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
+
+### Итого выигрыш по скорости
+- Убрана 1с задержка
+- Убрано время запуска камеры (~1-2с)
+- Убрано время перезапуска камеры между сканами (~1-2с)  
+- Увеличена область захвата и разрешение -- быстрее распознавание
+
+Общий выигрыш: **3-5 секунд** на каждое сканирование.
 
