@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, VolumeX, Play, Pause, Loader2, AlertCircle } from 'lucide-react';
+import { Volume2, VolumeX, Play } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;
   className?: string;
 }
-
-const getMimeTypeFromSrc = (url: string): string => {
-  const cleanUrl = url.split('?')[0].toLowerCase();
-  if (cleanUrl.endsWith('.webm')) return 'video/webm';
-  if (cleanUrl.endsWith('.mov')) return 'video/quicktime';
-  if (cleanUrl.endsWith('.m4v')) return 'video/mp4';
-  return 'video/mp4';
-};
 
 const formatRemainingTime = (value: number): string => {
   const safeValue = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -30,9 +22,8 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [showNativeControls, setShowNativeControls] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [hasError, setHasError] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [loadSrc, setLoadSrc] = useState(false);
   const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const remainingTimeLabel = useMemo(() => {
@@ -45,7 +36,6 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.playsInline = true;
     video.autoplay = true;
     video.preload = 'auto';
-    // setAttribute ensures HTML attributes are present (important for mobile Safari)
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
   }, []);
@@ -62,7 +52,6 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       await new Promise<void>((resolve) => {
         const onReady = () => { video.removeEventListener('canplay', onReady); resolve(); };
         video.addEventListener('canplay', onReady);
-        // Timeout fallback — don't wait forever
         setTimeout(() => { video.removeEventListener('canplay', onReady); resolve(); }, 2000);
       });
     }
@@ -88,32 +77,25 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     return false;
   }, [configureVideoElement]);
 
-  // Reset and prepare video when source changes
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    video.pause();
-    setIsPlaying(false);
-    setShowPlayButton(false);
-    setShowNativeControls(false);
-    setIsMuted(true);
-    setDuration(0);
-    setCurrentTime(0);
-    setIsBuffering(false);
-    setHasError(false);
-    setIsPaused(false);
-
-    configureVideoElement(video, true);
-    video.load();
-  }, [src, configureVideoElement]);
-
-  // IntersectionObserver for autoplay
+  // Lazy loading: load src when approaching viewport
+  // Autoplay: play when visible, pause when not
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const observer = new IntersectionObserver(
+    // Preload observer: start loading video when within 500px of viewport
+    const preloadObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setLoadSrc(true);
+          preloadObserver.unobserve(entry.target);
+        }
+      },
+      { rootMargin: '500px 0px' }
+    );
+
+    // Playback observer: autoplay when 35%+ visible
+    const playbackObserver = new IntersectionObserver(
       ([entry]) => {
         const video = videoRef.current;
         if (!video) return;
@@ -130,8 +112,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       { threshold: [0.2, 0.35, 0.6] }
     );
 
-    observer.observe(el);
-    return () => observer.disconnect();
+    preloadObserver.observe(el);
+    playbackObserver.observe(el);
+
+    return () => {
+      preloadObserver.disconnect();
+      playbackObserver.disconnect();
+    };
   }, [playVideo]);
 
   // Sync muted state
@@ -165,7 +152,6 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     } else {
       video.pause();
       setIsPlaying(false);
-      // Brief pause indicator
       setIsPaused(true);
       if (pauseIndicatorTimer.current) clearTimeout(pauseIndicatorTimer.current);
       pauseIndicatorTimer.current = setTimeout(() => setIsPaused(false), 1500);
@@ -177,38 +163,18 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     setIsMuted(prev => !prev);
   }, []);
 
-  // Listen to video events for accurate state
+  // Listen to video events
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const onPlay = () => {
-      setIsPlaying(true);
-      setShowPlayButton(false);
-      setHasError(false);
-      setIsPaused(false);
-    };
+    const onPlay = () => { setIsPlaying(true); setShowPlayButton(false); setIsPaused(false); };
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-    };
+    const onEnded = () => { setIsPlaying(false); setCurrentTime(0); };
     const onTimeUpdate = () => setCurrentTime(video.currentTime || 0);
-    const onLoadedMetadata = () => {
-      setDuration(video.duration || 0);
-      setCurrentTime(video.currentTime || 0);
-    };
+    const onLoadedMetadata = () => { setDuration(video.duration || 0); setCurrentTime(video.currentTime || 0); };
     const onDurationChange = () => setDuration(video.duration || 0);
-    const onWaiting = () => setIsBuffering(true);
-    const onCanPlay = () => setIsBuffering(false);
-    const onPlaying = () => setIsBuffering(false);
-    const onError = () => {
-      setIsPlaying(false);
-      setIsBuffering(false);
-      setHasError(true);
-      setShowPlayButton(true);
-      setShowNativeControls(true);
-    };
+    const onError = () => { setIsPlaying(false); setShowPlayButton(true); setShowNativeControls(true); };
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
@@ -216,9 +182,6 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('durationchange', onDurationChange);
-    video.addEventListener('waiting', onWaiting);
-    video.addEventListener('canplay', onCanPlay);
-    video.addEventListener('playing', onPlaying);
     video.addEventListener('error', onError);
 
     return () => {
@@ -228,12 +191,9 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('durationchange', onDurationChange);
-      video.removeEventListener('waiting', onWaiting);
-      video.removeEventListener('canplay', onCanPlay);
-      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('error', onError);
     };
-  }, []);
+  }, [loadSrc]);
 
   return (
     <div
@@ -241,30 +201,36 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       className={`relative ${className}`}
       onPointerUp={(e) => { void handleVideoTap(e); }}
     >
-      {/* eslint-disable-next-line */}
-      <video
-        ref={videoRef}
-        src={src}
-        className="w-full max-h-[28rem] object-contain bg-black/5 dark:bg-white/5 rounded-sm"
-        loop
-        muted={isMuted}
-        playsInline
-        autoPlay
-        controls={showNativeControls}
-        preload="auto"
-        // @ts-ignore — mobile browser compatibility attrs
-        x5-video-player-type="h5"
-        x5-video-orientation="portraint"
-      />
+      {loadSrc ? (
+        <video
+          ref={videoRef}
+          src={src}
+          className="w-full max-h-[28rem] object-contain bg-black/5 dark:bg-white/5 rounded-sm"
+          loop
+          muted={isMuted}
+          playsInline
+          autoPlay
+          controls={showNativeControls}
+          preload="auto"
+          // @ts-ignore — mobile browser compatibility attrs
+          x5-video-player-type="h5"
+          x5-video-orientation="portraint"
+        />
+      ) : (
+        <div className="w-full max-h-[28rem] aspect-video bg-black/5 dark:bg-white/5 rounded-sm flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+        </div>
+      )}
 
       {/* Remaining time */}
-      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
-        {remainingTimeLabel}
-      </div>
-
+      {loadSrc && (
+        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
+          {remainingTimeLabel}
+        </div>
+      )}
 
       {/* Play button overlay when autoplay is blocked */}
-      {showPlayButton && !isPlaying && (
+      {showPlayButton && !isPlaying && loadSrc && (
         <button
           type="button"
           onPointerUp={(e) => { void handlePlayTap(e); }}
@@ -278,14 +244,16 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       )}
 
       {/* Mute toggle */}
-      <button
-        type="button"
-        onClick={toggleMute}
-        className="absolute bottom-3 right-3 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white/90 transition-all hover:bg-black/70 active:scale-90"
-        aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
-      >
-        {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-      </button>
+      {loadSrc && (
+        <button
+          type="button"
+          onClick={toggleMute}
+          className="absolute bottom-3 right-3 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white/90 transition-all hover:bg-black/70 active:scale-90"
+          aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+        >
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+      )}
     </div>
   );
 }
