@@ -71,6 +71,19 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       fetchShops();
       setPlaceholder(ROTATING_PLACEHOLDERS[placeholderIndex % ROTATING_PLACEHOLDERS.length]);
       placeholderIndex++;
+      // Check AI access
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase
+            .from('profiles')
+            .select('ai_access')
+            .eq('user_id', user.id)
+            .single()
+            .then(({ data }) => {
+              setHasAiAccess(!!(data as any)?.ai_access);
+            });
+        }
+      });
     }
   }, [open]);
 
