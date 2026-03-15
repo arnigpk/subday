@@ -905,6 +905,17 @@ export default function AdminUsersPage() {
                   <Label htmlFor="subflow_access">#subFlow доступ</Label>
                 </div>
 
+                {isSuperAdmin && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="ai_access"
+                      checked={formData.ai_access}
+                      onCheckedChange={(checked) => setFormData({ ...formData, ai_access: checked })}
+                    />
+                    <Label htmlFor="ai_access">AI</Label>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <Switch
                     id="is_blocked"
