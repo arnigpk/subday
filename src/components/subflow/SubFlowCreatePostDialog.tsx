@@ -60,6 +60,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [hasAiAccess, setHasAiAccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const shopPickerRef = useRef<HTMLDivElement>(null);
