@@ -165,10 +165,6 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             type: 'video',
           });
         } else if (file.type.startsWith('image/')) {
-          if (file.size > 15 * 1024 * 1024) {
-            toast.error(t('subflow.fileTooLarge'));
-            continue;
-          }
           const { blob } = await compressImage(file, { maxWidth: 1200, quality: 0.75 });
           console.log(`Compressed: ${formatFileSize(file.size)} → ${formatFileSize(blob.size)}`);
           newMedia.push({
