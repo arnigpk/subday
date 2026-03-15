@@ -133,6 +133,36 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     });
   };
 
+  const handleAiCaption = async () => {
+    const firstImage = mediaFiles.find(m => m.type === 'image');
+    if (!firstImage) return;
+
+    setIsGeneratingCaption(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(firstImage.blob);
+      });
+
+      const { data, error } = await supabase.functions.invoke('subflow-ai-caption', {
+        body: { image: base64 },
+      });
+
+      if (error) throw error;
+      if (data?.caption) {
+        setContent(prev => prev ? `${prev}\n${data.caption}` : data.caption);
+        toast.success('Текст сгенерирован ✨');
+      }
+    } catch (err) {
+      console.error('AI caption error:', err);
+      toast.error('Не удалось сгенерировать текст');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       toast.error(t('subflow.writeText'));
