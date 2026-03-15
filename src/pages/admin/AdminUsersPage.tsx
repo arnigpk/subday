@@ -327,6 +327,7 @@ export default function AdminUsersPage() {
       role: user.role || 'user',
       shop_id: user.shop_id || '',
       subflow_access: user.subflow_access || false,
+      ai_access: user.ai_access || false,
     });
     setSelectedSubscription('');
   };
