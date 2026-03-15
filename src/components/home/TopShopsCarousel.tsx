@@ -38,8 +38,8 @@ export function TopShopsCarousel() {
   const { data: shops = [], isLoading } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
   useEffect(() => {

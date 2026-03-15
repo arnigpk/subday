@@ -83,12 +83,12 @@ export function usePrefetch() {
       queryClient.prefetchQuery({
         queryKey: queryKeys.shops,
         queryFn: prefetchShops,
-        staleTime: 30 * 1000,
+        staleTime: 5 * 60 * 1000,
       }),
       queryClient.prefetchQuery({
         queryKey: queryKeys.subscriptions,
         queryFn: prefetchSubscriptions,
-        staleTime: 60 * 1000,
+        staleTime: 5 * 60 * 1000,
       }),
     ]);
   }, [queryClient]);
