@@ -23,6 +23,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [loadSrc, setLoadSrc] = useState(false);
   const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
