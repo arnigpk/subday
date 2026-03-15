@@ -223,10 +223,17 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         </div>
       )}
 
-      {/* Remaining time */}
+      {/* Remaining time + buffering indicator */}
       {loadSrc && (
-        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide pointer-events-none">
-          {remainingTimeLabel}
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 pointer-events-none">
+          {isBuffering && (
+            <div className="p-1 rounded-full bg-black/55 backdrop-blur-sm">
+              <Loader2 size={12} className="text-white animate-spin" />
+            </div>
+          )}
+          <div className="px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] leading-none font-medium tracking-wide">
+            {remainingTimeLabel}
+          </div>
         </div>
       )}
 
