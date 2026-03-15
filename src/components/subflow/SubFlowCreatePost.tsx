@@ -56,6 +56,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+  const [showStylePicker, setShowStylePicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
