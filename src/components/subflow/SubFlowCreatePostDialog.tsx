@@ -200,9 +200,9 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   };
 
   const CAPTION_STYLES = [
-    { id: 'fun', label: '😄 Весёлый', prompt: 'Пиши весело, с юмором и лёгкостью.' },
-    { id: 'minimal', label: '✨ Минималистичный', prompt: 'Пиши очень коротко, лаконично, одно предложение максимум.' },
-    { id: 'info', label: '📝 Информативный', prompt: 'Пиши информативно, опиши что происходит на фото.' },
+    { id: 'fun', label: 'Весёлый', prompt: 'Пиши весело, с юмором и лёгкостью.' },
+    { id: 'minimal', label: 'Минималистичный', prompt: 'Пиши очень коротко, лаконично, одно предложение максимум.' },
+    { id: 'info', label: 'Информативный', prompt: 'Пиши информативно, опиши что происходит на фото.' },
   ];
 
   const handleAiCaption = async (styleId: string) => {
