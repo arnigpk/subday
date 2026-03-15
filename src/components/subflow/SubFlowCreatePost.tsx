@@ -134,10 +134,18 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
     });
   };
 
-  const handleAiCaption = async () => {
+  const CAPTION_STYLES = [
+    { id: 'fun', label: '😄 Весёлый', prompt: 'Пиши весело, с юмором и лёгкостью.' },
+    { id: 'minimal', label: '✨ Минималистичный', prompt: 'Пиши очень коротко, лаконично, одно предложение максимум.' },
+    { id: 'info', label: '📝 Информативный', prompt: 'Пиши информативно, опиши что происходит на фото.' },
+  ];
+
+  const handleAiCaption = async (styleId: string) => {
+    setShowStylePicker(false);
     const firstImage = mediaFiles.find(m => m.type === 'image');
     if (!firstImage) return;
 
+    const style = CAPTION_STYLES.find(s => s.id === styleId);
     setIsGeneratingCaption(true);
     try {
       const reader = new FileReader();
@@ -148,7 +156,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       });
 
       const { data, error } = await supabase.functions.invoke('subflow-ai-caption', {
-        body: { image: base64 },
+        body: { image: base64, style: style?.prompt || '' },
       });
 
       if (error) throw error;
