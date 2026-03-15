@@ -349,6 +349,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         >
           <MapPin size={22} />
         </button>
+        <button
+          onClick={handleAiCaption}
+          disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
+          className={`p-2 rounded-lg transition-colors ${mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption ? 'text-accent hover:bg-accent/10' : 'text-muted-foreground/40'}`}
+        >
+          {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <Wand2 size={22} />}
+        </button>
         {isSubmitting && (
           <div className="flex-1 flex items-center gap-2 mx-2">
             <Progress value={uploadProgress} className="h-2 flex-1" />
