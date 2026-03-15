@@ -284,11 +284,9 @@ const AppContent = () => {
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
   const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
 
-  // Hide inline HTML preloader and vibrate when loading completes
+  // Vibrate when loading completes
   useEffect(() => {
     if (!isLoading) {
-      const inlinePreloader = document.getElementById('inline-preloader');
-      if (inlinePreloader) inlinePreloader.classList.add('hidden');
       vibrateShort();
     }
   }, [isLoading, vibrateShort]);
