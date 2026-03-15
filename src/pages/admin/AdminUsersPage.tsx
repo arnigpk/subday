@@ -295,6 +295,7 @@ export default function AdminUsersPage() {
           ...profile,
           is_blocked: profile.is_blocked || false,
           subflow_access: (profile as any).subflow_access || false,
+          ai_access: (profile as any).ai_access || false,
           coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
           drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
           total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
