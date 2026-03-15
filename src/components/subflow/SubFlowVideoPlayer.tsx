@@ -45,19 +45,10 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const video = videoRef.current;
     if (!video) return false;
 
-    configureVideoElement(video, fromUserGesture ? true : true);
+    configureVideoElement(video, true);
     if (fromUserGesture) setIsMuted(true);
 
-    // Wait for readyState if not ready yet
-    if (video.readyState < 3) {
-      await new Promise<void>((resolve) => {
-        const onReady = () => { video.removeEventListener('canplay', onReady); resolve(); };
-        video.addEventListener('canplay', onReady);
-        setTimeout(() => { video.removeEventListener('canplay', onReady); resolve(); }, 2000);
-      });
-    }
-
-    // Retry logic: 3 attempts with 300ms delay
+    // Start playback immediately without waiting for full buffer
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await video.play();
