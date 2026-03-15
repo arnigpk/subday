@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon';
+  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon' | 'guest_coffee';
   userId: string;
   cupsCount?: number;
   daysCount?: number;
@@ -46,6 +46,150 @@ async function sendTelegramMessage(telegramId: string, message: string, botToken
   }
 }
 
+// Get OAuth2 access token from FCM service account
+async function getAccessToken(serviceAccount: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = btoa(JSON.stringify({
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  }));
+
+  const pemContents = serviceAccount.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\n/g, '');
+
+  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signatureInput = new TextEncoder().encode(`${header}.${payload}`);
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, signatureInput);
+  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const jwt = `${header.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${payload.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${signatureB64}`;
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  });
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`);
+  }
+
+  return tokenData.access_token;
+}
+
+// Send FCM push to a specific user's devices
+async function sendFcmPushToUser(
+  supabase: any,
+  userId: string,
+  title: string,
+  body: string,
+): Promise<{ sent: number; failed: number }> {
+  const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
+  if (!fcmServiceAccountJson) {
+    console.warn('FCM_SERVICE_ACCOUNT not configured, skipping device push');
+    return { sent: 0, failed: 0 };
+  }
+
+  let serviceAccount: any;
+  try {
+    serviceAccount = JSON.parse(fcmServiceAccountJson);
+  } catch {
+    console.error('Invalid FCM_SERVICE_ACCOUNT JSON');
+    return { sent: 0, failed: 0 };
+  }
+
+  if (!serviceAccount?.project_id || !serviceAccount?.client_email || !serviceAccount?.private_key) {
+    console.warn('FCM service account incomplete, skipping device push');
+    return { sent: 0, failed: 0 };
+  }
+
+  // Fetch user's device tokens
+  const { data: tokens } = await supabase
+    .from('device_tokens')
+    .select('token')
+    .eq('user_id', userId);
+
+  if (!tokens || tokens.length === 0) {
+    console.log('No device tokens for user:', userId);
+    return { sent: 0, failed: 0 };
+  }
+
+  const accessToken = await getAccessToken(serviceAccount);
+  const projectId = serviceAccount.project_id;
+  let sent = 0;
+  let failed = 0;
+  const invalidTokens: string[] = [];
+
+  for (const deviceToken of tokens) {
+    try {
+      const fcmResponse = await fetch(
+        `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: {
+              token: deviceToken.token,
+              notification: { title, body },
+              android: {
+                priority: 'high',
+                notification: { sound: 'default', channel_id: 'default' },
+              },
+            },
+          }),
+        }
+      );
+
+      if (fcmResponse.ok) {
+        sent++;
+      } else {
+        const errorData = await fcmResponse.json();
+        failed++;
+        console.error(`FCM send failed:`, errorData);
+        if (
+          errorData?.error?.code === 404 ||
+          errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
+        ) {
+          invalidTokens.push(deviceToken.token);
+        }
+      }
+    } catch (err) {
+      failed++;
+      console.error('FCM send error:', err);
+    }
+  }
+
+  // Cleanup invalid tokens
+  if (invalidTokens.length > 0) {
+    await supabase.from('device_tokens').delete().in('token', invalidTokens);
+    console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
+  }
+
+  return { sent, failed };
+}
+
 function getUnitWord(count: number, drinkType?: string): string {
   if (drinkType === 'drinks') {
     return count === 2 ? 'ланча' : 'ланчей';
@@ -65,6 +209,17 @@ function renderTemplate(template: string, vars: Record<string, string>): string 
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
   }
   return result;
+}
+
+function getNotificationTitle(type: string): string {
+  switch (type) {
+    case 'activated_special': return '🎉 Спецпредложение активировано';
+    case 'activated': return '🎉 Подписка активирована';
+    case 'low_balance': return '⚠️ Низкий баланс';
+    case 'expiring_soon': return '⚠️ Подписка заканчивается';
+    case 'guest_coffee': return '🎁 Подарок кофе';
+    default: return '📢 Уведомление';
+  }
 }
 
 Deno.serve(async (req) => {
@@ -113,7 +268,7 @@ Deno.serve(async (req) => {
             matchedTemplate = tmpl;
             break;
           }
-        } else if (type === 'activated' || type === 'activated_special') {
+        } else if (type === 'activated' || type === 'activated_special' || type === 'guest_coffee') {
           matchedTemplate = tmpl;
           break;
         }
@@ -161,6 +316,8 @@ Deno.serve(async (req) => {
         message = `⚠️ У вас осталось ${count} ${unit} по подписке ${subName}`;
       } else if (type === 'expiring_soon') {
         message = `⚠️ У вас осталось ${count} ${unit} до окончания подписки ${subName}`;
+      } else if (type === 'guest_coffee') {
+        message = `🎁 Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚`;
       } else {
         return new Response(
           JSON.stringify({ error: 'Invalid notification type' }),
@@ -170,32 +327,34 @@ Deno.serve(async (req) => {
     }
 
     const channel = matchedTemplate?.channel || 'telegram';
+    const title = getNotificationTitle(type);
     let telegramSent = false;
-    let pushSent = false;
+    let pushInAppCreated = false;
+    let fcmResult = { sent: 0, failed: 0 };
 
     // Send Telegram if applicable
     if ((channel === 'telegram' || channel === 'both') && telegramId && telegramBotToken) {
       telegramSent = await sendTelegramMessage(telegramId, message, telegramBotToken);
     }
 
-    // Send Push notification if applicable
+    // Send Push notification if applicable (in-app + FCM device push)
     if (channel === 'push' || channel === 'both') {
+      // 1. Create in-app notification (visible in notification bell)
       try {
-        const title = type === 'activated_special' ? '🎉 Спецпредложение активировано' :
-                      type === 'activated' ? '🎉 Подписка активирована' :
-                      type === 'low_balance' ? '⚠️ Низкий баланс' :
-                      '⚠️ Подписка заканчивается';
-        
         await supabase.from('push_notifications').insert({
-          title: title,
-          message: message,
+          title,
+          message,
           user_id: userId,
         });
-        pushSent = true;
-        console.log('Push notification created');
+        pushInAppCreated = true;
+        console.log('In-app notification created');
       } catch (pushErr) {
-        console.error('Push notification error:', pushErr);
+        console.error('In-app notification error:', pushErr);
       }
+
+      // 2. Send actual FCM device push notification
+      fcmResult = await sendFcmPushToUser(supabase, userId, title, message);
+      console.log('FCM push result:', fcmResult);
     }
 
     if (!telegramId && (channel === 'telegram' || channel === 'both')) {
@@ -203,7 +362,15 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, telegramSent, pushSent, type, channel }),
+      JSON.stringify({
+        success: true,
+        telegramSent,
+        pushInAppCreated,
+        fcmDeviceSent: fcmResult.sent,
+        fcmDeviceFailed: fcmResult.failed,
+        type,
+        channel,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
