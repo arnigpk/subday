@@ -203,7 +203,7 @@ export default function AdminUsersPage() {
     try {
       let query = supabase
         .from('profiles')
-        .select('user_id, name, phone, public_id, city, country, created_at, is_blocked, subflow_access', { count: 'exact' });
+        .select('user_id, name, phone, public_id, city, country, created_at, is_blocked, subflow_access, ai_access', { count: 'exact' });
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,public_id.ilike.%${search}%`);
