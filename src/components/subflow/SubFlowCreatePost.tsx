@@ -358,13 +358,32 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
         >
           <MapPin size={22} />
         </button>
-        <button
-          onClick={handleAiCaption}
-          disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
-          className={`p-2 rounded-lg transition-colors ${mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption ? 'text-accent hover:bg-accent/10' : 'text-muted-foreground/40'}`}
-        >
-          {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <Wand2 size={22} />}
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => {
+              if (mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption) {
+                setShowStylePicker(!showStylePicker);
+              }
+            }}
+            disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
+            className={`p-2 rounded-lg transition-colors ${mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption ? 'text-accent hover:bg-accent/10' : 'text-muted-foreground/40'}`}
+          >
+            {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <Wand2 size={22} />}
+          </button>
+          {showStylePicker && (
+            <div className="absolute bottom-full left-0 mb-2 p-1.5 bg-card border border-border rounded-xl shadow-lg min-w-[180px] z-50 animate-slide-up">
+              {CAPTION_STYLES.map(style => (
+                <button
+                  key={style.id}
+                  onClick={() => handleAiCaption(style.id)}
+                  className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                >
+                  {style.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {isSubmitting && (
           <div className="flex-1 flex items-center gap-2 mx-2">
             <Progress value={uploadProgress} className="h-2 flex-1" />
