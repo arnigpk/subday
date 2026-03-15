@@ -21,8 +21,8 @@
     <link rel="preload" as="image" href="/src/assets/preloader.gif" />
     <link rel="preload" as="image" href="/src/assets/logo.png" />
 
-    <!-- Telegram WebApp SDK — defer to not block rendering -->
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <!-- Telegram WebApp SDK — load sync so mini app init is instant -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
       #inline-preloader {
