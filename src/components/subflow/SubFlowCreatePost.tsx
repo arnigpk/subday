@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus, Play } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
