@@ -446,7 +446,7 @@ export default function ProfilePage() {
             </DialogContent>
           </Dialog>
 
-          <p className="text-center text-xs text-muted-foreground mt-8">subday v1.0.0</p>
+          <p className="text-center text-xs text-muted-foreground mt-8">ТОО "Subday Group" Все права защищены</p>
         </div>
       </div>
       </PullToRefresh>
