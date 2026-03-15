@@ -203,6 +203,44 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
     });
   };
 
+  const CAPTION_STYLES = [
+    { id: 'fun', label: '😄 Весёлый', prompt: 'Пиши весело, с юмором и лёгкостью.' },
+    { id: 'minimal', label: '✨ Минималистичный', prompt: 'Пиши очень коротко, лаконично, одно предложение максимум.' },
+    { id: 'info', label: '📝 Информативный', prompt: 'Пиши информативно, опиши что происходит на фото.' },
+  ];
+
+  const handleAiCaption = async (styleId: string) => {
+    setShowStylePicker(false);
+    const firstImage = mediaFiles.find(m => m.type === 'image');
+    if (!firstImage) return;
+
+    const style = CAPTION_STYLES.find(s => s.id === styleId);
+    setIsGeneratingCaption(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(firstImage.blob);
+      });
+
+      const { data, error } = await supabase.functions.invoke('subflow-ai-caption', {
+        body: { image: base64, style: style?.prompt || '' },
+      });
+
+      if (error) throw error;
+      if (data?.caption) {
+        setContent(prev => prev ? `${prev}\n${data.caption}` : data.caption);
+        toast.success('Текст сгенерирован ✨');
+      }
+    } catch (err) {
+      console.error('AI caption error:', err);
+      toast.error('Не удалось сгенерировать текст');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       toast.error(t('subflow.writeText'));
