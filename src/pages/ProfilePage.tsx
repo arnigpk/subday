@@ -446,7 +446,11 @@ export default function ProfilePage() {
             </DialogContent>
           </Dialog>
 
-          <p className="text-center text-xs text-muted-foreground mt-8">ТОО "Subday Group" Все права защищены</p>
+          <p className="text-center text-[10px] sm:text-xs text-muted-foreground mt-8 px-4 leading-relaxed">
+            ТОО &ldquo;Subday Group&rdquo;
+            <br className="sm:hidden" />
+            Все права защищены
+          </p>
         </div>
       </div>
       </PullToRefresh>
