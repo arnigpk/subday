@@ -314,7 +314,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2rem)] rounded-2xl p-0 gap-0 border-border/50 max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-md w-[calc(100%-1rem)] rounded-2xl p-0 gap-0 border-border/50 max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/30 shrink-0">
           <DialogTitle className="text-lg font-bold text-foreground text-center">
             {t('subflow.newPost')}
@@ -418,7 +418,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           )}
         </div>
 
-        <div className="px-5 py-4 border-t border-border/30 flex items-center gap-2 shrink-0 bg-background">
+        <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-border/30 flex items-center gap-1 sm:gap-2 shrink-0 bg-background">
           <input
             ref={fileInputRef}
             type="file"
@@ -429,51 +429,51 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-0.5 p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors"
+            className="flex flex-col items-center gap-0.5 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors min-w-[44px]"
           >
-            <Image size={20} />
-            <span className="text-[10px]">{t('subflow.hintPhoto')}</span>
+            <Image size={18} className="sm:w-5 sm:h-5" />
+            <span className="text-[9px] sm:text-[10px] whitespace-nowrap">{t('subflow.hintPhoto')}</span>
           </button>
-           <button
-             onClick={() => setShowShopPicker(!showShopPicker)}
-             className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
-           >
-             <MapPin size={20} />
-             <span className="text-[10px]">{t('subflow.hintLocation')}</span>
-           </button>
-           <div className="relative">
-             <button
-               onClick={() => {
-                 if (mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption) {
-                   setShowStylePicker(!showStylePicker);
-                 }
-               }}
-               disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
-               className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${
-                 mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption
-                   ? 'text-accent hover:bg-accent/10'
-                   : 'text-muted-foreground/40'
-               }`}
-             >
-               {isGeneratingCaption ? <Loader2 size={20} className="animate-spin" /> : <Wand2 size={20} />}
-               <span className="text-[10px]">AI</span>
-             </button>
-             {showStylePicker && (
-               <div className="absolute bottom-full left-0 mb-2 p-1.5 bg-card border border-border rounded-xl shadow-lg min-w-[180px] z-50 animate-slide-up">
-                 {CAPTION_STYLES.map(style => (
-                   <button
-                     key={style.id}
-                     onClick={() => handleAiCaption(style.id)}
-                     className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
-                   >
-                     {style.label}
-                   </button>
-                 ))}
-               </div>
-             )}
-           </div>
+          <button
+            onClick={() => setShowShopPicker(!showShopPicker)}
+            className={`flex flex-col items-center gap-0.5 p-1.5 sm:p-2 rounded-xl transition-colors min-w-[44px] ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+          >
+            <MapPin size={18} className="sm:w-5 sm:h-5" />
+            <span className="text-[9px] sm:text-[10px] whitespace-nowrap">{t('subflow.hintLocation')}</span>
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption) {
+                  setShowStylePicker(!showStylePicker);
+                }
+              }}
+              disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
+              className={`flex flex-col items-center gap-0.5 p-1.5 sm:p-2 rounded-xl transition-colors min-w-[44px] ${
+                mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption
+                  ? 'text-accent hover:bg-accent/10'
+                  : 'text-muted-foreground/40'
+              }`}
+            >
+              {isGeneratingCaption ? <Loader2 size={18} className="animate-spin sm:w-5 sm:h-5" /> : <Wand2 size={18} className="sm:w-5 sm:h-5" />}
+              <span className="text-[9px] sm:text-[10px]">AI</span>
+            </button>
+            {showStylePicker && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mb-2 p-1.5 bg-card border border-border rounded-xl shadow-lg min-w-[170px] z-50 animate-slide-up">
+                {CAPTION_STYLES.map(style => (
+                  <button
+                    key={style.id}
+                    onClick={() => handleAiCaption(style.id)}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                  >
+                    {style.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {isSubmitting && (
-            <div className="flex-1 flex items-center gap-2 mx-2">
+            <div className="flex-1 flex items-center gap-1.5 mx-1">
               <Progress value={uploadProgress} className="h-2 flex-1" />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{uploadProgress}%</span>
             </div>
@@ -482,7 +482,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || isCompressing || !content.trim()}
-            className="btn-accent rounded-xl px-6"
+            className="btn-accent rounded-xl px-4 sm:px-6 text-sm shrink-0"
           >
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('subflow.publish')}
           </Button>
