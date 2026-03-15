@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus, Play } from 'lucide-react';
+import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -58,6 +58,8 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+  const [showStylePicker, setShowStylePicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const shopPickerRef = useRef<HTMLDivElement>(null);
@@ -199,6 +201,44 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
+  };
+
+  const CAPTION_STYLES = [
+    { id: 'fun', label: '😄 Весёлый', prompt: 'Пиши весело, с юмором и лёгкостью.' },
+    { id: 'minimal', label: '✨ Минималистичный', prompt: 'Пиши очень коротко, лаконично, одно предложение максимум.' },
+    { id: 'info', label: '📝 Информативный', prompt: 'Пиши информативно, опиши что происходит на фото.' },
+  ];
+
+  const handleAiCaption = async (styleId: string) => {
+    setShowStylePicker(false);
+    const firstImage = mediaFiles.find(m => m.type === 'image');
+    if (!firstImage) return;
+
+    const style = CAPTION_STYLES.find(s => s.id === styleId);
+    setIsGeneratingCaption(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(firstImage.blob);
+      });
+
+      const { data, error } = await supabase.functions.invoke('subflow-ai-caption', {
+        body: { image: base64, style: style?.prompt || '' },
+      });
+
+      if (error) throw error;
+      if (data?.caption) {
+        setContent(prev => prev ? `${prev}\n${data.caption}` : data.caption);
+        toast.success('Текст сгенерирован ✨');
+      }
+    } catch (err) {
+      console.error('AI caption error:', err);
+      toast.error('Не удалось сгенерировать текст');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -398,13 +438,44 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             <Image size={20} />
             <span className="text-[10px]">{t('subflow.hintPhoto')}</span>
           </button>
-          <button
-            onClick={() => setShowShopPicker(!showShopPicker)}
-            className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
-          >
-            <MapPin size={20} />
-            <span className="text-[10px]">{t('subflow.hintLocation')}</span>
-          </button>
+           <button
+             onClick={() => setShowShopPicker(!showShopPicker)}
+             className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+           >
+             <MapPin size={20} />
+             <span className="text-[10px]">{t('subflow.hintLocation')}</span>
+           </button>
+           <div className="relative">
+             <button
+               onClick={() => {
+                 if (mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption) {
+                   setShowStylePicker(!showStylePicker);
+                 }
+               }}
+               disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
+               className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-colors ${
+                 mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption
+                   ? 'text-accent hover:bg-accent/10'
+                   : 'text-muted-foreground/40'
+               }`}
+             >
+               {isGeneratingCaption ? <Loader2 size={20} className="animate-spin" /> : <Wand2 size={20} />}
+               <span className="text-[10px]">AI</span>
+             </button>
+             {showStylePicker && (
+               <div className="absolute bottom-full left-0 mb-2 p-1.5 bg-card border border-border rounded-xl shadow-lg min-w-[180px] z-50 animate-slide-up">
+                 {CAPTION_STYLES.map(style => (
+                   <button
+                     key={style.id}
+                     onClick={() => handleAiCaption(style.id)}
+                     className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                   >
+                     {style.label}
+                   </button>
+                 ))}
+               </div>
+             )}
+           </div>
           {isSubmitting && (
             <div className="flex-1 flex items-center gap-2 mx-2">
               <Progress value={uploadProgress} className="h-2 flex-1" />
