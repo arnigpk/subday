@@ -171,6 +171,7 @@ export default function AdminUsersPage() {
     role: 'user' as UserRole,
     shop_id: '',
     subflow_access: false,
+    ai_access: false,
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
 
