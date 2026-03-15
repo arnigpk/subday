@@ -56,8 +56,8 @@ export function TopShopsByVisits() {
   const { data: shops = [], isLoading: shopsLoading } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
   const { data: visitCounts = new Map(), isLoading: visitsLoading } = useQuery({
