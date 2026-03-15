@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.subflow-notify]
 verify_jwt = false
+
+[functions.subflow-ai-caption]
+verify_jwt = false
