@@ -212,6 +212,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         starts_at: startsAt ? startsAt.toISOString() : null,
         ends_at: endsAt ? endsAt.toISOString() : null,
         audience_types: audienceTypes,
+        country: country || null,
+        city: city || null,
       };
 
       if (editingAd) {
