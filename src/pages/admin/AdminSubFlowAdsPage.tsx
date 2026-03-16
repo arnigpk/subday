@@ -258,7 +258,7 @@ export default function AdminSubFlowAdsPage() {
             <SubFlowAdForm
               shops={shops}
               editingAd={editingAd}
-              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to); }}
+              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter); }}
               onCancel={() => setEditingAd(null)}
             />
           )}
