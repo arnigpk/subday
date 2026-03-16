@@ -373,7 +373,56 @@ export default function AdminBannersPage() {
               onCountryChange={setListCountryFilter}
               onCityChange={setListCityFilter}
             />
+
+            {/* Analytics date filter */}
+            <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
+                  <BarChart3 size={14} />
+                  {analyticsDateRange.from && analyticsDateRange.to
+                    ? `${format(analyticsDateRange.from, 'd MMM', { locale: ru })} — ${format(analyticsDateRange.to, 'd MMM', { locale: ru })}`
+                    : analyticsDateRange.from
+                    ? `с ${format(analyticsDateRange.from, 'd MMM', { locale: ru })}`
+                    : 'Аналитика: всё время'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={analyticsDateRange.from ? { from: analyticsDateRange.from, to: analyticsDateRange.to } : undefined}
+                  onSelect={(range) => setAnalyticsDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={1}
+                  locale={ru}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {analyticsDateRange.from && (
+              <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setAnalyticsDateRange({ from: undefined, to: undefined }); setAnalyticsCalendarOpen(false); }}>
+                Сбросить
+              </Button>
+            )}
           </div>
+
+          {/* Summary KPIs */}
+          {!bannersLoading && !bannerStatsLoading && banners.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(() => {
+                const totalViews = bannerStats.reduce((sum, s) => sum + s.views, 0);
+                const totalClicks = bannerStats.reduce((sum, s) => sum + s.clicks, 0);
+                const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
+                const activeBanners = banners.filter(b => b.is_active).length;
+                return (
+                  <>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalViews.toLocaleString()}</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalClicks.toLocaleString()}</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний CTR</p><p className="text-xl font-bold text-foreground">{avgCtr}%</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Активных</p><p className="text-xl font-bold text-foreground">{activeBanners}/{banners.length}</p></CardContent></Card>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
