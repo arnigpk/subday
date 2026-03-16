@@ -145,6 +145,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
     setStartsAt(undefined);
     setEndsAt(undefined);
     setAudienceTypes(['all']);
+    setCountry('');
+    setCity('');
   };
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
