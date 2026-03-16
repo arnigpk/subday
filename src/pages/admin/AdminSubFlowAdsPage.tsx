@@ -220,15 +220,23 @@ export default function AdminSubFlowAdsPage() {
     return 'За всё время';
   }, [analyticsDateRange]);
 
+  const filteredAnalyticsAds = useMemo(() => {
+    return ads.filter(ad => {
+      if (analyticsCountryFilter !== 'all' && (ad as any).country !== analyticsCountryFilter) return false;
+      if (analyticsCityFilter !== 'all' && (ad as any).city !== analyticsCityFilter) return false;
+      return true;
+    });
+  }, [ads, analyticsCountryFilter, analyticsCityFilter]);
+
   const totalStats = useMemo(() => {
-    const vals = Object.values(analytics);
+    const vals = filteredAnalyticsAds.map(ad => analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 });
     const totalViews = vals.reduce((s, v) => s + v.views, 0);
     const totalClicks = vals.reduce((s, v) => s + v.clicks, 0);
     const totalReactions = vals.reduce((s, v) => s + v.reactions, 0);
     const totalComments = vals.reduce((s, v) => s + v.comments, 0);
     const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
     return { totalViews, totalClicks, totalReactions, totalComments, avgCtr };
-  }, [analytics]);
+  }, [analytics, filteredAnalyticsAds]);
 
   return (
     <AdminLayout title="Реклама subFlow">
