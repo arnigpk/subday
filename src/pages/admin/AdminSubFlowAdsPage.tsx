@@ -334,7 +334,7 @@ export default function AdminSubFlowAdsPage() {
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
-              ) : ads.length === 0 ? (
+              ) : filteredAnalyticsAds.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
               ) : (
               <Table>
