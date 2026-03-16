@@ -424,6 +424,30 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
           Если задать даты, реклама автоматически включится в дату начала и выключится по окончании.
         </p>
 
+        {/* Country/City targeting */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Страна</Label>
+            <Select value={country || 'all'} onValueChange={(v) => { setCountry(v === 'all' ? '' : v); setCity(''); }}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Все страны" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все страны</SelectItem>
+                {COUNTRY_OPTIONS.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Город</Label>
+            <Select value={city || 'all'} onValueChange={(v) => setCity(v === 'all' ? '' : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Все города" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все города</SelectItem>
+                {country && getCitiesForCountry(country).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Audience types */}
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
 
