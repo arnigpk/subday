@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Megaphone, TrendingUp, Users, Target, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { PartnerActiveAds } from '@/components/partner/PartnerActiveAds';
 
 export default function PartnerAdvertisingPage() {
-  const { shopName } = usePartnerAuth();
+  const { shopName, shopId } = usePartnerAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -164,6 +165,9 @@ export default function PartnerAdvertisingPage() {
             В ближайшее время с вами свяжется менеджер subday
           </p>
         )}
+
+        {/* Active Ads Section */}
+        <PartnerActiveAds shopId={shopId} />
       </div>
     </PartnerLayout>
   );
