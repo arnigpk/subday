@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle, CalendarIcon, TrendingUp } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
 import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -71,8 +74,15 @@ export default function AdminSubFlowAdsPage() {
   const [analytics, setAnalytics] = useState<AdAnalytics>({});
   const [isLoading, setIsLoading] = useState(true);
   const [editingAd, setEditingAd] = useState<SubFlowAd | null>(null);
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const analyticsRange = useMemo(() => ({
+    from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
+    to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
+  }), [analyticsDateRange]);
+
+  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null) => {
     setIsLoading(true);
 
     try {
@@ -80,7 +90,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
         supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
-        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: null, _to: null }),
+        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: fromDate, _to: toDate }),
       ]);
 
       if (adsRes.error) throw adsRes.error;
