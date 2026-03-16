@@ -189,7 +189,7 @@ export default function AdminSubFlowAdsPage() {
   const handleToggleActive = async (ad: SubFlowAd) => {
     const { error } = await supabase.from('subflow_ads').update({ is_active: !ad.is_active }).eq('id', ad.id);
     if (error) { toast.error('Ошибка'); return; }
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const handleUpdateRequestStatus = async (id: string, status: string) => {
