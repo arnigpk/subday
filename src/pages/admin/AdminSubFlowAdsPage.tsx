@@ -252,19 +252,58 @@ export default function AdminSubFlowAdsPage() {
       )}
 
       {activeTab === 'analytics' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 size={18} />
-              Аналитика рекламы
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
-            ) : ads.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
-            ) : (
+        <div className="space-y-4">
+          {/* Date filter + KPI summary */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
+                  <CalendarIcon size={14} />
+                  {analyticsDateLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={analyticsDateRange.from ? { from: analyticsDateRange.from, to: analyticsDateRange.to } : undefined}
+                  onSelect={(range) => setAnalyticsDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={1}
+                  locale={ru}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {analyticsDateRange.from && (
+              <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setAnalyticsDateRange({ from: undefined, to: undefined }); setAnalyticsCalendarOpen(false); }}>
+                Сбросить
+              </Button>
+            )}
+          </div>
+
+          {/* Summary KPIs */}
+          {!isLoading && ads.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalStats.totalViews.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalStats.totalClicks.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний CTR</p><p className="text-xl font-bold text-foreground">{totalStats.avgCtr}%</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Реакции</p><p className="text-xl font-bold text-foreground">{totalStats.totalReactions.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Комменты</p><p className="text-xl font-bold text-foreground">{totalStats.totalComments.toLocaleString()}</p></CardContent></Card>
+            </div>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 size={18} />
+                Аналитика рекламы
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              ) : ads.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
