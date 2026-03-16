@@ -108,7 +108,7 @@ export default function AdminBannersPage() {
   }), [analyticsDateRange]);
 
   const { data: bannerStats = [], isLoading: bannerStatsLoading } = useQuery({
-    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to],
+    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to, listCountryFilter, listCityFilter],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
         _shop_id: null,
@@ -715,8 +715,10 @@ export default function AdminBannersPage() {
           <div className="space-y-4">
             {banners
               .filter(b => {
-                if (listCountryFilter !== 'all' && (b as any).country !== listCountryFilter) return false;
-                if (listCityFilter !== 'all' && (b as any).city !== listCityFilter) return false;
+                const bCountry = (b as any).country;
+                const bCity = (b as any).city;
+                if (listCountryFilter !== 'all' && bCountry !== null && bCountry !== listCountryFilter) return false;
+                if (listCityFilter !== 'all' && bCity !== null && bCity !== listCityFilter) return false;
                 return true;
               })
               .map((banner) => (

@@ -1398,16 +1398,33 @@ export type Database = {
         }[]
       }
       get_staff_shop_id: { Args: { _user_id: string }; Returns: string }
-      get_subflow_ad_analytics: {
-        Args: { _from?: string; _shop_id?: string; _to?: string }
-        Returns: {
-          ad_id: string
-          clicks: number
-          comments: number
-          reactions: number
-          views: number
-        }[]
-      }
+      get_subflow_ad_analytics:
+        | {
+            Args: { _from?: string; _shop_id?: string; _to?: string }
+            Returns: {
+              ad_id: string
+              clicks: number
+              comments: number
+              reactions: number
+              views: number
+            }[]
+          }
+        | {
+            Args: {
+              _city?: string
+              _country?: string
+              _from?: string
+              _shop_id?: string
+              _to?: string
+            }
+            Returns: {
+              ad_id: string
+              clicks: number
+              comments: number
+              reactions: number
+              views: number
+            }[]
+          }
       grant_guest_access: {
         Args: {
           _expires_at: string

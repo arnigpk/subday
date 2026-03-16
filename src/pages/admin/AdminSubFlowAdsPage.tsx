@@ -88,7 +88,7 @@ export default function AdminSubFlowAdsPage() {
     to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
   }), [analyticsDateRange]);
 
-  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null) => {
+  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null, country?: string, city?: string) => {
     setIsLoading(true);
 
     try {
@@ -96,7 +96,13 @@ export default function AdminSubFlowAdsPage() {
         supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
         supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
-        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: fromDate, _to: toDate }),
+        supabase.rpc('get_subflow_ad_analytics' as any, {
+          _shop_id: null,
+          _from: fromDate,
+          _to: toDate,
+          _country: country && country !== 'all' ? country : null,
+          _city: city && city !== 'all' ? city : null,
+        }),
       ]);
 
       if (adsRes.error) throw adsRes.error;
@@ -137,10 +143,10 @@ export default function AdminSubFlowAdsPage() {
   }, []);
 
   useEffect(() => {
-    void fetchData(analyticsRange.from, analyticsRange.to);
+    void fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
 
     const refresh = () => {
-      void fetchData(analyticsRange.from, analyticsRange.to);
+      void fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
     };
 
     const channels = [
@@ -165,7 +171,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.removeChannel(channel);
       });
     };
-  }, [fetchData, analyticsRange.from, analyticsRange.to]);
+  }, [fetchData, analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter]);
 
   const handleEdit = (ad: SubFlowAd) => {
     setEditingAd(ad);
@@ -177,20 +183,20 @@ export default function AdminSubFlowAdsPage() {
     const { error } = await supabase.from('subflow_ads').delete().eq('id', id);
     if (error) { toast.error('Ошибка удаления'); return; }
     toast.success('Реклама удалена');
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const handleToggleActive = async (ad: SubFlowAd) => {
     const { error } = await supabase.from('subflow_ads').update({ is_active: !ad.is_active }).eq('id', ad.id);
     if (error) { toast.error('Ошибка'); return; }
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const handleUpdateRequestStatus = async (id: string, status: string) => {
     const { error } = await supabase.from('ad_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) { toast.error('Ошибка'); return; }
     toast.success(`Статус обновлен: ${status === 'approved' ? 'Одобрено' : status === 'rejected' ? 'Отклонено' : 'В ожидании'}`);
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const formatDate = (d: string) => {
@@ -222,8 +228,12 @@ export default function AdminSubFlowAdsPage() {
 
   const filteredAnalyticsAds = useMemo(() => {
     return ads.filter(ad => {
-      if (analyticsCountryFilter !== 'all' && (ad as any).country !== analyticsCountryFilter) return false;
-      if (analyticsCityFilter !== 'all' && (ad as any).city !== analyticsCityFilter) return false;
+      const adCountry = (ad as any).country;
+      const adCity = (ad as any).city;
+      // Include ads targeting all countries (null) + ads matching selected country
+      if (analyticsCountryFilter !== 'all' && adCountry !== null && adCountry !== analyticsCountryFilter) return false;
+      // Include ads targeting all cities (null) + ads matching selected city
+      if (analyticsCityFilter !== 'all' && adCity !== null && adCity !== analyticsCityFilter) return false;
       return true;
     });
   }, [ads, analyticsCountryFilter, analyticsCityFilter]);
@@ -248,7 +258,7 @@ export default function AdminSubFlowAdsPage() {
             <SubFlowAdForm
               shops={shops}
               editingAd={editingAd}
-              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to); }}
+              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter); }}
               onCancel={() => setEditingAd(null)}
             />
           )}
@@ -264,8 +274,10 @@ export default function AdminSubFlowAdsPage() {
 
           <SubFlowAdsList
             ads={ads.filter(ad => {
-              if (listCountryFilter !== 'all' && (ad as any).country !== listCountryFilter) return false;
-              if (listCityFilter !== 'all' && (ad as any).city !== listCityFilter) return false;
+              const adCountry = (ad as any).country;
+              const adCity = (ad as any).city;
+              if (listCountryFilter !== 'all' && adCountry !== null && adCountry !== listCountryFilter) return false;
+              if (listCityFilter !== 'all' && adCity !== null && adCity !== listCityFilter) return false;
               return true;
             })}
             analytics={analytics}
