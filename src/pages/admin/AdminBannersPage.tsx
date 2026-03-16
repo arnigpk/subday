@@ -108,7 +108,7 @@ export default function AdminBannersPage() {
   }), [analyticsDateRange]);
 
   const { data: bannerStats = [], isLoading: bannerStatsLoading } = useQuery({
-    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to],
+    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to, listCountryFilter, listCityFilter],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
         _shop_id: null,
