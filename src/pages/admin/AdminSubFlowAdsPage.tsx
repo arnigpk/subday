@@ -183,7 +183,7 @@ export default function AdminSubFlowAdsPage() {
     const { error } = await supabase.from('subflow_ads').delete().eq('id', id);
     if (error) { toast.error('Ошибка удаления'); return; }
     toast.success('Реклама удалена');
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const handleToggleActive = async (ad: SubFlowAd) => {
