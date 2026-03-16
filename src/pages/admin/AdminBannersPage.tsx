@@ -102,13 +102,18 @@ export default function AdminBannersPage() {
     },
   });
 
+  const analyticsRange = useMemo(() => ({
+    from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
+    to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
+  }), [analyticsDateRange]);
+
   const { data: bannerStats = [], isLoading: bannerStatsLoading } = useQuery({
-    queryKey: ['admin-banner-stats'],
+    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
         _shop_id: null,
-        _from: null,
-        _to: null,
+        _from: analyticsRange.from,
+        _to: analyticsRange.to,
       });
 
       if (error) throw error;
