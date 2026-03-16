@@ -196,7 +196,7 @@ export default function AdminSubFlowAdsPage() {
     const { error } = await supabase.from('ad_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) { toast.error('Ошибка'); return; }
     toast.success(`Статус обновлен: ${status === 'approved' ? 'Одобрено' : status === 'rejected' ? 'Отклонено' : 'В ожидании'}`);
-    fetchData(analyticsRange.from, analyticsRange.to);
+    fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
   };
 
   const formatDate = (d: string) => {
