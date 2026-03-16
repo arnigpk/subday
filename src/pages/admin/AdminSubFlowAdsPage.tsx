@@ -88,7 +88,7 @@ export default function AdminSubFlowAdsPage() {
     to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
   }), [analyticsDateRange]);
 
-  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null) => {
+  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null, country?: string, city?: string) => {
     setIsLoading(true);
 
     try {
@@ -96,7 +96,13 @@ export default function AdminSubFlowAdsPage() {
         supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
         supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
-        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: fromDate, _to: toDate }),
+        supabase.rpc('get_subflow_ad_analytics' as any, {
+          _shop_id: null,
+          _from: fromDate,
+          _to: toDate,
+          _country: country && country !== 'all' ? country : null,
+          _city: city && city !== 'all' ? city : null,
+        }),
       ]);
 
       if (adsRes.error) throw adsRes.error;
