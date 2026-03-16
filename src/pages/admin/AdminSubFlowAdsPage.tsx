@@ -243,8 +243,21 @@ export default function AdminSubFlowAdsPage() {
             />
           )}
 
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <CountryCityFilter
+              countryFilter={listCountryFilter}
+              cityFilter={listCityFilter}
+              onCountryChange={setListCountryFilter}
+              onCityChange={setListCityFilter}
+            />
+          </div>
+
           <SubFlowAdsList
-            ads={ads}
+            ads={ads.filter(ad => {
+              if (listCountryFilter !== 'all' && (ad as any).country !== listCountryFilter) return false;
+              if (listCityFilter !== 'all' && (ad as any).city !== listCityFilter) return false;
+              return true;
+            })}
             analytics={analytics}
             isLoading={isLoading}
             onEdit={canManage ? handleEdit : undefined}
