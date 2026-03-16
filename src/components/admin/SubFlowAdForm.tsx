@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
 
 interface SubFlowAd {
   id: string;
@@ -88,6 +89,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   const [startsAt, setStartsAt] = useState<Date | undefined>(undefined);
   const [endsAt, setEndsAt] = useState<Date | undefined>(undefined);
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
 
   useEffect(() => {
     if (editingAd) {
@@ -101,6 +104,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       setStartsAt(editingAd.starts_at ? new Date(editingAd.starts_at) : undefined);
       setEndsAt(editingAd.ends_at ? new Date(editingAd.ends_at) : undefined);
       setAudienceTypes((editingAd as any).audience_types?.length > 0 ? (editingAd as any).audience_types : ['all']);
+      setCountry((editingAd as any).country || '');
+      setCity((editingAd as any).city || '');
 
       const presetFreq = FREQUENCY_OPTIONS.find(f => f.value === editingAd.frequency && f.value !== 0);
       if (presetFreq) {
@@ -140,6 +145,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
     setStartsAt(undefined);
     setEndsAt(undefined);
     setAudienceTypes(['all']);
+    setCountry('');
+    setCity('');
   };
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
@@ -205,6 +212,8 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         starts_at: startsAt ? startsAt.toISOString() : null,
         ends_at: endsAt ? endsAt.toISOString() : null,
         audience_types: audienceTypes,
+        country: country || null,
+        city: city || null,
       };
 
       if (editingAd) {
@@ -414,6 +423,30 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         <p className="text-xs text-muted-foreground">
           Если задать даты, реклама автоматически включится в дату начала и выключится по окончании.
         </p>
+
+        {/* Country/City targeting */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Страна</Label>
+            <Select value={country || 'all'} onValueChange={(v) => { setCountry(v === 'all' ? '' : v); setCity(''); }}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Все страны" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все страны</SelectItem>
+                {COUNTRY_OPTIONS.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Город</Label>
+            <Select value={city || 'all'} onValueChange={(v) => setCity(v === 'all' ? '' : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Все города" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все города</SelectItem>
+                {country && getCitiesForCountry(country).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {/* Audience types */}
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />

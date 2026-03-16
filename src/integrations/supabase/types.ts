@@ -815,7 +815,9 @@ export type Database = {
       subflow_ads: {
         Row: {
           audience_types: string[]
+          city: string | null
           content: string
+          country: string | null
           created_at: string
           daily_limit: number
           ends_at: string | null
@@ -833,7 +835,9 @@ export type Database = {
         }
         Insert: {
           audience_types?: string[]
+          city?: string | null
           content: string
+          country?: string | null
           created_at?: string
           daily_limit?: number
           ends_at?: string | null
@@ -851,7 +855,9 @@ export type Database = {
         }
         Update: {
           audience_types?: string[]
+          city?: string | null
           content?: string
+          country?: string | null
           created_at?: string
           daily_limit?: number
           ends_at?: string | null

@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
 import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { getCountryFlag } from '@/utils/countries';
 
 interface SubFlowAd {
   id: string;
@@ -76,6 +78,8 @@ export default function AdminSubFlowAdsPage() {
   const [editingAd, setEditingAd] = useState<SubFlowAd | null>(null);
   const [analyticsDateRange, setAnalyticsDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
+  const [listCountryFilter, setListCountryFilter] = useState('all');
+  const [listCityFilter, setListCityFilter] = useState('all');
 
   const analyticsRange = useMemo(() => ({
     from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
@@ -239,8 +243,21 @@ export default function AdminSubFlowAdsPage() {
             />
           )}
 
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <CountryCityFilter
+              countryFilter={listCountryFilter}
+              cityFilter={listCityFilter}
+              onCountryChange={setListCountryFilter}
+              onCityChange={setListCityFilter}
+            />
+          </div>
+
           <SubFlowAdsList
-            ads={ads}
+            ads={ads.filter(ad => {
+              if (listCountryFilter !== 'all' && (ad as any).country !== listCountryFilter) return false;
+              if (listCityFilter !== 'all' && (ad as any).city !== listCityFilter) return false;
+              return true;
+            })}
             analytics={analytics}
             isLoading={isLoading}
             onEdit={canManage ? handleEdit : undefined}

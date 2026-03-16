@@ -1,0 +1,2 @@
+ALTER TABLE public.subflow_ads ADD COLUMN IF NOT EXISTS country text DEFAULT NULL;
+ALTER TABLE public.subflow_ads ADD COLUMN IF NOT EXISTS city text DEFAULT NULL;

@@ -6,6 +6,7 @@ import { SubFlowPostSkeleton } from './SubFlowPostSkeleton';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
+import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -38,6 +39,8 @@ interface RawSubFlowAd {
   audience_types: string[];
   starts_at: string | null;
   ends_at: string | null;
+  country: string | null;
+  city: string | null;
 }
 
 interface SubFlowAd {
@@ -73,6 +76,9 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
@@ -182,17 +188,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const fetchAds = useCallback(async () => {
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types')
+      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types, country, city')
       .eq('is_active', true);
     
-    // Client-side filter by date range only
-    const dateFiltered = ((data as RawSubFlowAd[]) || []).filter(ad => {
+    // Client-side filter by date range and country/city
+    const filtered = ((data as RawSubFlowAd[]) || []).filter(ad => {
       if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
       if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
+      if (ad.country && ad.country !== userCountry) return false;
+      if (ad.city && userCity && ad.city !== userCity) return false;
       return true;
     });
-    setRawAds(dateFiltered);
-  }, []);
+    setRawAds(filtered);
+  }, [userCountry, userCity]);
 
   // Reactively filter by audience when matchesAudience updates
   const audienceFilteredAds = useMemo(() => {
