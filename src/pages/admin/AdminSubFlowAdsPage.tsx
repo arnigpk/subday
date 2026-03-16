@@ -228,8 +228,12 @@ export default function AdminSubFlowAdsPage() {
 
   const filteredAnalyticsAds = useMemo(() => {
     return ads.filter(ad => {
-      if (analyticsCountryFilter !== 'all' && (ad as any).country !== analyticsCountryFilter) return false;
-      if (analyticsCityFilter !== 'all' && (ad as any).city !== analyticsCityFilter) return false;
+      const adCountry = (ad as any).country;
+      const adCity = (ad as any).city;
+      // Include ads targeting all countries (null) + ads matching selected country
+      if (analyticsCountryFilter !== 'all' && adCountry !== null && adCountry !== analyticsCountryFilter) return false;
+      // Include ads targeting all cities (null) + ads matching selected city
+      if (analyticsCityFilter !== 'all' && adCity !== null && adCity !== analyticsCityFilter) return false;
       return true;
     });
   }, [ads, analyticsCountryFilter, analyticsCityFilter]);
