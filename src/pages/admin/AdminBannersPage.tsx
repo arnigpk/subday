@@ -715,8 +715,10 @@ export default function AdminBannersPage() {
           <div className="space-y-4">
             {banners
               .filter(b => {
-                if (listCountryFilter !== 'all' && (b as any).country !== listCountryFilter) return false;
-                if (listCityFilter !== 'all' && (b as any).city !== listCityFilter) return false;
+                const bCountry = (b as any).country;
+                const bCity = (b as any).city;
+                if (listCountryFilter !== 'all' && bCountry !== null && bCountry !== listCountryFilter) return false;
+                if (listCityFilter !== 'all' && bCity !== null && bCity !== listCityFilter) return false;
                 return true;
               })
               .map((banner) => (

@@ -274,8 +274,10 @@ export default function AdminSubFlowAdsPage() {
 
           <SubFlowAdsList
             ads={ads.filter(ad => {
-              if (listCountryFilter !== 'all' && (ad as any).country !== listCountryFilter) return false;
-              if (listCityFilter !== 'all' && (ad as any).city !== listCityFilter) return false;
+              const adCountry = (ad as any).country;
+              const adCity = (ad as any).city;
+              if (listCountryFilter !== 'all' && adCountry !== null && adCountry !== listCountryFilter) return false;
+              if (listCityFilter !== 'all' && adCity !== null && adCity !== listCityFilter) return false;
               return true;
             })}
             analytics={analytics}
