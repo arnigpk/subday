@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -72,55 +72,84 @@ export default function AdminSubFlowAdsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingAd, setEditingAd] = useState<SubFlowAd | null>(null);
 
-  useEffect(() => {
-    fetchData();
-    const channel = supabase
-      .channel('subflow_ads_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => fetchData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
-    const [adsRes, requestsRes, shopsRes] = await Promise.all([
-      supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
-      supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
-      supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
-    ]);
-    const adsData = (adsRes.data as any[]) || [];
-    setAds(adsData);
-    setRequests((requestsRes.data as any[]) || []);
-    setShops(shopsRes.data || []);
 
-    // Fetch analytics for all ads
-    if (adsData.length > 0) {
-      const adIds = adsData.map((a: any) => a.id);
-      const [{ data: events }, { data: reactionsData }, { data: commentsData }] = await Promise.all([
-        supabase.from('subflow_ad_events').select('ad_id, event_type').in('ad_id', adIds),
-        supabase.from('subflow_ad_reactions' as any).select('ad_id').in('ad_id', adIds),
-        supabase.from('subflow_ad_comments' as any).select('ad_id').in('ad_id', adIds),
+    try {
+      const [adsRes, requestsRes, shopsRes, analyticsRes] = await Promise.all([
+        supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
+        supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
+        supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
+        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: null, _to: null }),
       ]);
 
-      const analyticsMap: AdAnalytics = {};
-      adIds.forEach((id: string) => { analyticsMap[id] = { views: 0, clicks: 0, reactions: 0, comments: 0 }; });
-      (events || []).forEach((e: any) => {
-        if (analyticsMap[e.ad_id]) {
-          if (e.event_type === 'view') analyticsMap[e.ad_id].views++;
-          else if (e.event_type === 'click') analyticsMap[e.ad_id].clicks++;
-        }
-      });
-      ((reactionsData as any[]) || []).forEach((r: any) => {
-        if (analyticsMap[r.ad_id]) analyticsMap[r.ad_id].reactions++;
-      });
-      ((commentsData as any[]) || []).forEach((c: any) => {
-        if (analyticsMap[c.ad_id]) analyticsMap[c.ad_id].comments++;
-      });
-      setAnalytics(analyticsMap);
-    }
+      if (adsRes.error) throw adsRes.error;
+      if (requestsRes.error) throw requestsRes.error;
+      if (shopsRes.error) throw shopsRes.error;
+      if (analyticsRes.error) throw analyticsRes.error;
 
-    setIsLoading(false);
-  };
+      const adsData = (adsRes.data as SubFlowAd[]) || [];
+      setAds(adsData);
+      setRequests((requestsRes.data as AdRequest[]) || []);
+      setShops((shopsRes.data as Shop[]) || []);
+
+      const analyticsMap: AdAnalytics = {};
+      adsData.forEach((ad) => {
+        analyticsMap[ad.id] = { views: 0, clicks: 0, reactions: 0, comments: 0 };
+      });
+
+      ((analyticsRes.data as any[]) || []).forEach((item) => {
+        if (!analyticsMap[item.ad_id]) {
+          analyticsMap[item.ad_id] = { views: 0, clicks: 0, reactions: 0, comments: 0 };
+        }
+
+        analyticsMap[item.ad_id] = {
+          views: Number(item.views ?? 0),
+          clicks: Number(item.clicks ?? 0),
+          reactions: Number(item.reactions ?? 0),
+          comments: Number(item.comments ?? 0),
+        };
+      });
+
+      setAnalytics(analyticsMap);
+    } catch (error) {
+      console.error('Error fetching subflow ads admin data:', error);
+      toast.error('Не удалось загрузить аналитику рекламы');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchData();
+
+    const refresh = () => {
+      void fetchData();
+    };
+
+    const channels = [
+      supabase
+        .channel('admin-subflow-ads-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, refresh)
+        .subscribe(),
+      supabase
+        .channel('admin-subflow-ad-analytics-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, refresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_reactions' }, refresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_comments' }, refresh)
+        .subscribe(),
+      supabase
+        .channel('admin-ad-requests-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_requests' }, refresh)
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
+    };
+  }, [fetchData]);
 
   const handleEdit = (ad: SubFlowAd) => {
     setEditingAd(ad);
