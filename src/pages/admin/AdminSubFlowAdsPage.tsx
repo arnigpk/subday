@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle, CalendarIcon, TrendingUp } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { SubFlowAdForm } from '@/components/admin/SubFlowAdForm';
 import { SubFlowAdsList } from '@/components/admin/SubFlowAdsList';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -71,8 +74,15 @@ export default function AdminSubFlowAdsPage() {
   const [analytics, setAnalytics] = useState<AdAnalytics>({});
   const [isLoading, setIsLoading] = useState(true);
   const [editingAd, setEditingAd] = useState<SubFlowAd | null>(null);
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const analyticsRange = useMemo(() => ({
+    from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
+    to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
+  }), [analyticsDateRange]);
+
+  const fetchData = useCallback(async (fromDate: string | null, toDate: string | null) => {
     setIsLoading(true);
 
     try {
@@ -80,7 +90,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.from('subflow_ads').select('*').order('created_at', { ascending: false }),
         supabase.from('ad_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('shops').select('id, name').eq('is_active', true).order('name'),
-        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: null, _to: null }),
+        supabase.rpc('get_subflow_ad_analytics' as any, { _shop_id: null, _from: fromDate, _to: toDate }),
       ]);
 
       if (adsRes.error) throw adsRes.error;
@@ -121,10 +131,10 @@ export default function AdminSubFlowAdsPage() {
   }, []);
 
   useEffect(() => {
-    void fetchData();
+    void fetchData(analyticsRange.from, analyticsRange.to);
 
     const refresh = () => {
-      void fetchData();
+      void fetchData(analyticsRange.from, analyticsRange.to);
     };
 
     const channels = [
@@ -149,7 +159,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.removeChannel(channel);
       });
     };
-  }, [fetchData]);
+  }, [fetchData, analyticsRange.from, analyticsRange.to]);
 
   const handleEdit = (ad: SubFlowAd) => {
     setEditingAd(ad);
@@ -161,20 +171,20 @@ export default function AdminSubFlowAdsPage() {
     const { error } = await supabase.from('subflow_ads').delete().eq('id', id);
     if (error) { toast.error('Ошибка удаления'); return; }
     toast.success('Реклама удалена');
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const handleToggleActive = async (ad: SubFlowAd) => {
     const { error } = await supabase.from('subflow_ads').update({ is_active: !ad.is_active }).eq('id', ad.id);
     if (error) { toast.error('Ошибка'); return; }
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const handleUpdateRequestStatus = async (id: string, status: string) => {
     const { error } = await supabase.from('ad_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) { toast.error('Ошибка'); return; }
     toast.success(`Статус обновлен: ${status === 'approved' ? 'Одобрено' : status === 'rejected' ? 'Отклонено' : 'В ожидании'}`);
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const formatDate = (d: string) => {
@@ -194,6 +204,26 @@ export default function AdminSubFlowAdsPage() {
     return ((clicks / views) * 100).toFixed(1) + '%';
   };
 
+  const analyticsDateLabel = useMemo(() => {
+    if (analyticsDateRange.from && analyticsDateRange.to) {
+      return `${format(analyticsDateRange.from, 'd MMM', { locale: ru })} — ${format(analyticsDateRange.to, 'd MMM', { locale: ru })}`;
+    }
+    if (analyticsDateRange.from) {
+      return `с ${format(analyticsDateRange.from, 'd MMM', { locale: ru })}`;
+    }
+    return 'За всё время';
+  }, [analyticsDateRange]);
+
+  const totalStats = useMemo(() => {
+    const vals = Object.values(analytics);
+    const totalViews = vals.reduce((s, v) => s + v.views, 0);
+    const totalClicks = vals.reduce((s, v) => s + v.clicks, 0);
+    const totalReactions = vals.reduce((s, v) => s + v.reactions, 0);
+    const totalComments = vals.reduce((s, v) => s + v.comments, 0);
+    const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
+    return { totalViews, totalClicks, totalReactions, totalComments, avgCtr };
+  }, [analytics]);
+
   return (
     <AdminLayout title="Реклама subFlow">
       <TabSwitcher tabs={TABS} activeTab={activeTab} onChange={setActiveTab} className="mb-6" />
@@ -204,7 +234,7 @@ export default function AdminSubFlowAdsPage() {
             <SubFlowAdForm
               shops={shops}
               editingAd={editingAd}
-              onSaved={() => { setEditingAd(null); fetchData(); }}
+              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to); }}
               onCancel={() => setEditingAd(null)}
             />
           )}
@@ -222,19 +252,58 @@ export default function AdminSubFlowAdsPage() {
       )}
 
       {activeTab === 'analytics' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 size={18} />
-              Аналитика рекламы
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
-            ) : ads.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
-            ) : (
+        <div className="space-y-4">
+          {/* Date filter + KPI summary */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
+                  <CalendarIcon size={14} />
+                  {analyticsDateLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={analyticsDateRange.from ? { from: analyticsDateRange.from, to: analyticsDateRange.to } : undefined}
+                  onSelect={(range) => setAnalyticsDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={1}
+                  locale={ru}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {analyticsDateRange.from && (
+              <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setAnalyticsDateRange({ from: undefined, to: undefined }); setAnalyticsCalendarOpen(false); }}>
+                Сбросить
+              </Button>
+            )}
+          </div>
+
+          {/* Summary KPIs */}
+          {!isLoading && ads.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalStats.totalViews.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalStats.totalClicks.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний CTR</p><p className="text-xl font-bold text-foreground">{totalStats.avgCtr}%</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Реакции</p><p className="text-xl font-bold text-foreground">{totalStats.totalReactions.toLocaleString()}</p></CardContent></Card>
+              <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Комменты</p><p className="text-xl font-bold text-foreground">{totalStats.totalComments.toLocaleString()}</p></CardContent></Card>
+            </div>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 size={18} />
+                Аналитика рекламы
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              ) : ads.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -299,7 +368,8 @@ export default function AdminSubFlowAdsPage() {
               </Table>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {activeTab === 'requests' && (

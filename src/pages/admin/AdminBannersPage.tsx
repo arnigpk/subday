@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer, CalendarIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer, CalendarIcon, TrendingUp, BarChart3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { endOfDay, startOfDay } from 'date-fns';
 import { compressImage } from '@/utils/imageCompression';
 import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -56,6 +59,8 @@ export default function AdminBannersPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [listCountryFilter, setListCountryFilter] = useState('all');
   const [listCityFilter, setListCityFilter] = useState('all');
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
   const [formData, setFormData] = useState({
     image_url: '',
     caption: '',
@@ -97,13 +102,18 @@ export default function AdminBannersPage() {
     },
   });
 
+  const analyticsRange = useMemo(() => ({
+    from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
+    to: analyticsDateRange.to ? endOfDay(analyticsDateRange.to).toISOString() : null,
+  }), [analyticsDateRange]);
+
   const { data: bannerStats = [], isLoading: bannerStatsLoading } = useQuery({
-    queryKey: ['admin-banner-stats'],
+    queryKey: ['admin-banner-stats', analyticsRange.from, analyticsRange.to],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
         _shop_id: null,
-        _from: null,
-        _to: null,
+        _from: analyticsRange.from,
+        _to: analyticsRange.to,
       });
 
       if (error) throw error;
@@ -363,7 +373,56 @@ export default function AdminBannersPage() {
               onCountryChange={setListCountryFilter}
               onCityChange={setListCityFilter}
             />
+
+            {/* Analytics date filter */}
+            <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
+                  <BarChart3 size={14} />
+                  {analyticsDateRange.from && analyticsDateRange.to
+                    ? `${format(analyticsDateRange.from, 'd MMM', { locale: ru })} — ${format(analyticsDateRange.to, 'd MMM', { locale: ru })}`
+                    : analyticsDateRange.from
+                    ? `с ${format(analyticsDateRange.from, 'd MMM', { locale: ru })}`
+                    : 'Аналитика: всё время'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={analyticsDateRange.from ? { from: analyticsDateRange.from, to: analyticsDateRange.to } : undefined}
+                  onSelect={(range) => setAnalyticsDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={1}
+                  locale={ru}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {analyticsDateRange.from && (
+              <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setAnalyticsDateRange({ from: undefined, to: undefined }); setAnalyticsCalendarOpen(false); }}>
+                Сбросить
+              </Button>
+            )}
           </div>
+
+          {/* Summary KPIs */}
+          {!bannersLoading && !bannerStatsLoading && banners.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(() => {
+                const totalViews = bannerStats.reduce((sum, s) => sum + s.views, 0);
+                const totalClicks = bannerStats.reduce((sum, s) => sum + s.clicks, 0);
+                const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
+                const activeBanners = banners.filter(b => b.is_active).length;
+                return (
+                  <>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalViews.toLocaleString()}</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalClicks.toLocaleString()}</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний CTR</p><p className="text-xl font-bold text-foreground">{avgCtr}%</p></CardContent></Card>
+                    <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Активных</p><p className="text-xl font-bold text-foreground">{activeBanners}/{banners.length}</p></CardContent></Card>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -688,6 +747,9 @@ export default function AdminBannersPage() {
                           <MousePointer size={12} />
                           {getStats(banner.id).clicks}
                         </span>
+                        <Badge variant="outline" className="text-[10px] font-semibold px-1.5 py-0 h-4">
+                          CTR: {(() => { const s = getStats(banner.id); return s.views > 0 ? ((s.clicks / s.views) * 100).toFixed(1) : '0'; })()}%
+                        </Badge>
                         <span>{banner.autoplay_delay} сек</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
