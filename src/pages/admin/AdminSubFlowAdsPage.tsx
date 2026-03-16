@@ -368,7 +368,8 @@ export default function AdminSubFlowAdsPage() {
               </Table>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {activeTab === 'requests' && (
