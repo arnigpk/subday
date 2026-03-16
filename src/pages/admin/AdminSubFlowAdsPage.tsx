@@ -143,10 +143,10 @@ export default function AdminSubFlowAdsPage() {
   }, []);
 
   useEffect(() => {
-    void fetchData(analyticsRange.from, analyticsRange.to);
+    void fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
 
     const refresh = () => {
-      void fetchData(analyticsRange.from, analyticsRange.to);
+      void fetchData(analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter);
     };
 
     const channels = [
@@ -171,7 +171,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.removeChannel(channel);
       });
     };
-  }, [fetchData, analyticsRange.from, analyticsRange.to]);
+  }, [fetchData, analyticsRange.from, analyticsRange.to, analyticsCountryFilter, analyticsCityFilter]);
 
   const handleEdit = (ad: SubFlowAd) => {
     setEditingAd(ad);
