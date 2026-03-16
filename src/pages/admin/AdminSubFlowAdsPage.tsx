@@ -314,7 +314,7 @@ export default function AdminSubFlowAdsPage() {
           </div>
 
           {/* Summary KPIs */}
-          {!isLoading && ads.length > 0 && (
+          {!isLoading && filteredAnalyticsAds.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalStats.totalViews.toLocaleString()}</p></CardContent></Card>
               <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalStats.totalClicks.toLocaleString()}</p></CardContent></Card>
