@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Trash2, Pencil, Loader2, Eye, EyeOff, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
+import { getCountryFlag } from '@/utils/countries';
 
 const LINK_TYPES = [
   { value: 'shop', label: 'Кофейня' },
