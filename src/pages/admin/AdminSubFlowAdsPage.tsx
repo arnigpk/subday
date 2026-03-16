@@ -80,6 +80,8 @@ export default function AdminSubFlowAdsPage() {
   const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
   const [listCountryFilter, setListCountryFilter] = useState('all');
   const [listCityFilter, setListCityFilter] = useState('all');
+  const [analyticsCountryFilter, setAnalyticsCountryFilter] = useState('all');
+  const [analyticsCityFilter, setAnalyticsCityFilter] = useState('all');
 
   const analyticsRange = useMemo(() => ({
     from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
