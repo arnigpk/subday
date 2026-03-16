@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
+import { COUNTRY_OPTIONS, getCitiesForCountry } from '@/utils/countries';
 
 interface SubFlowAd {
   id: string;
