@@ -97,43 +97,45 @@ export default function AdminBannersPage() {
     },
   });
 
-  const { data: bannerStats = [] } = useQuery({
+  const { data: bannerStats = [], isLoading: bannerStatsLoading } = useQuery({
     queryKey: ['admin-banner-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ad_banner_events')
-        .select('banner_id, event_type');
-      
-      if (error) throw error;
-      
-      // Aggregate stats
-      const statsMap = new Map<string, { views: number; clicks: number }>();
-      
-      data?.forEach((event: { banner_id: string; event_type: string }) => {
-        const current = statsMap.get(event.banner_id) || { views: 0, clicks: 0 };
-        if (event.event_type === 'view') {
-          current.views++;
-        } else if (event.event_type === 'click') {
-          current.clicks++;
-        }
-        statsMap.set(event.banner_id, current);
+      const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
+        _shop_id: null,
+        _from: null,
+        _to: null,
       });
-      
-      return Array.from(statsMap.entries()).map(([banner_id, stats]) => ({
-        banner_id,
-        ...stats,
+
+      if (error) throw error;
+
+      return ((data as any[]) || []).map((item) => ({
+        banner_id: item.banner_id,
+        views: Number(item.views ?? 0),
+        clicks: Number(item.clicks ?? 0),
       })) as BannerStats[];
     },
   });
 
   useEffect(() => {
-    const channel = supabase
+    const bannersChannel = supabase
       .channel('ad_banners_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-banner-stats'] });
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    const eventsChannel = supabase
+      .channel('ad_banner_events_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-banner-stats'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(bannersChannel);
+      supabase.removeChannel(eventsChannel);
+    };
   }, [queryClient]);
 
   const getStats = (bannerId: string) => {
