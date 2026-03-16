@@ -1,37 +1,39 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Eye, MousePointerClick, TrendingUp, Image, FileText, CalendarIcon } from 'lucide-react';
+import { BarChart3, Eye, MousePointerClick, TrendingUp, Image, FileText, CalendarIcon, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface PartnerActiveAdsProps {
   shopId: string | null;
 }
 
 export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
+  const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  // Fetch active banners for this shop
+  // Fetch ALL banners for this shop (active + inactive)
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
-    queryKey: ['partner-active-banners', shopId],
+    queryKey: ['partner-all-banners', shopId],
     queryFn: async () => {
       if (!shopId) return [];
       const { data, error } = await supabase
         .from('ad_banners')
         .select('*')
         .eq('shop_id', shopId)
-        .eq('is_active', true)
+        .order('is_active', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -39,16 +41,16 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     enabled: !!shopId,
   });
 
-  // Fetch active subflow ads for this shop
+  // Fetch ALL subflow ads for this shop (active + inactive)
   const { data: subflowAds = [], isLoading: adsLoading } = useQuery({
-    queryKey: ['partner-active-subflow-ads', shopId],
+    queryKey: ['partner-all-subflow-ads', shopId],
     queryFn: async () => {
       if (!shopId) return [];
       const { data, error } = await supabase
         .from('subflow_ads')
         .select('*')
         .eq('shop_id', shopId)
-        .eq('is_active', true)
+        .order('is_active', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -106,6 +108,46 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     },
     enabled: adIds.length > 0,
   });
+
+  // Realtime subscriptions
+  useEffect(() => {
+    if (!shopId) return;
+
+    const bannerEventsChannel = supabase
+      .channel('partner-banner-events-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-banner-events'] });
+      })
+      .subscribe();
+
+    const adEventsChannel = supabase
+      .channel('partner-ad-events-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-ad-events'] });
+      })
+      .subscribe();
+
+    const bannersChannel = supabase
+      .channel('partner-banners-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-all-banners'] });
+      })
+      .subscribe();
+
+    const adsChannel = supabase
+      .channel('partner-subflow-ads-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-all-subflow-ads'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(bannerEventsChannel);
+      supabase.removeChannel(adEventsChannel);
+      supabase.removeChannel(bannersChannel);
+      supabase.removeChannel(adsChannel);
+    };
+  }, [shopId, queryClient]);
 
   const isLoading = bannersLoading || adsLoading;
   const hasAds = banners.length > 0 || subflowAds.length > 0;
@@ -165,7 +207,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
       <Card className="border-dashed border-muted-foreground/30">
         <CardContent className="py-8 text-center">
           <BarChart3 size={32} className="mx-auto text-muted-foreground/40 mb-2" />
-          <p className="text-sm text-muted-foreground">У вашей кофейни пока нет активной рекламы</p>
+          <p className="text-sm text-muted-foreground">У вашей кофейни пока нет рекламных кампаний</p>
           <p className="text-xs text-muted-foreground/70 mt-1">Оставьте заявку выше, чтобы начать продвижение</p>
         </CardContent>
       </Card>
@@ -177,7 +219,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
           <BarChart3 size={18} className="text-primary" />
-          Активная реклама
+          Рекламные кампании
         </h3>
       </div>
 
@@ -210,14 +252,21 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
 
       {/* Banner ads */}
       {bannerAnalytics.map(banner => (
-        <Card key={banner.id} className="border-accent/20 overflow-hidden">
+        <Card key={banner.id} className={cn("overflow-hidden", banner.is_active ? "border-accent/20" : "border-muted-foreground/20 opacity-75")}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Image size={14} className="text-accent flex-shrink-0" />
               <span className="truncate">{banner.caption || 'Баннер'}</span>
-              <span className="text-[10px] font-normal text-muted-foreground ml-auto flex-shrink-0">
-                {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Везде'}
-              </span>
+              <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                {banner.is_active ? (
+                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4 bg-green-600">Активна</Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">Завершена</Badge>
+                )}
+                <span className="text-[10px] font-normal text-muted-foreground">
+                  {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Везде'}
+                </span>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 space-y-2">
@@ -229,25 +278,32 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
               <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={banner.clicks} loading={bannerEventsLoading} />
               <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${banner.ctr}%`} loading={bannerEventsLoading} />
             </div>
-            {banner.starts_at || banner.ends_at ? (
+            {(banner.starts_at || banner.ends_at) && (
               <p className="text-[10px] text-muted-foreground">
                 {banner.starts_at && `С ${format(new Date(banner.starts_at), 'd MMM yyyy', { locale: ru })}`}
                 {banner.starts_at && banner.ends_at && ' — '}
                 {banner.ends_at && `До ${format(new Date(banner.ends_at), 'd MMM yyyy', { locale: ru })}`}
               </p>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       ))}
 
       {/* SubFlow ads */}
       {adAnalytics.map(ad => (
-        <Card key={ad.id} className="border-primary/20 overflow-hidden">
+        <Card key={ad.id} className={cn("overflow-hidden", ad.is_active ? "border-primary/20" : "border-muted-foreground/20 opacity-75")}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <FileText size={14} className="text-primary flex-shrink-0" />
               <span className="truncate">{ad.title || 'Реклама #subFlow'}</span>
-              <span className="text-[10px] font-normal text-muted-foreground ml-auto flex-shrink-0">#subFlow</span>
+              <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                {ad.is_active ? (
+                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4 bg-green-600">Активна</Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">Завершена</Badge>
+                )}
+                <span className="text-[10px] font-normal text-muted-foreground">#subFlow</span>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3 space-y-2">
@@ -264,13 +320,13 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
               <span>Частота: каждый {ad.frequency}-й пост</span>
               {ad.daily_limit > 0 && <span>• Лимит: {ad.daily_limit}/день</span>}
             </div>
-            {ad.starts_at || ad.ends_at ? (
+            {(ad.starts_at || ad.ends_at) && (
               <p className="text-[10px] text-muted-foreground">
                 {ad.starts_at && `С ${format(new Date(ad.starts_at), 'd MMM yyyy', { locale: ru })}`}
                 {ad.starts_at && ad.ends_at && ' — '}
                 {ad.ends_at && `До ${format(new Date(ad.ends_at), 'd MMM yyyy', { locale: ru })}`}
               </p>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       ))}
