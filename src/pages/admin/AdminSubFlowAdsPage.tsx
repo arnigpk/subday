@@ -282,6 +282,12 @@ export default function AdminSubFlowAdsPage() {
         <div className="space-y-4">
           {/* Date filter + KPI summary */}
           <div className="flex items-center gap-2 flex-wrap">
+            <CountryCityFilter
+              countryFilter={analyticsCountryFilter}
+              cityFilter={analyticsCityFilter}
+              onCountryChange={setAnalyticsCountryFilter}
+              onCityChange={setAnalyticsCityFilter}
+            />
             <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
