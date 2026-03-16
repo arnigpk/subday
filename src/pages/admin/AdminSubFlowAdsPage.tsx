@@ -350,7 +350,7 @@ export default function AdminSubFlowAdsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ads.map(ad => {
+                  {filteredAnalyticsAds.map(ad => {
                     const stats = analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 };
                     return (
                       <TableRow key={ad.id}>
