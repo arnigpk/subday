@@ -76,6 +76,9 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
+  const { profile } = useUserStatsContext();
+  const userCountry = profile?.country || 'KZ';
+  const userCity = profile?.city || null;
 
   const fetchPosts = useCallback(async (isInitial = true) => {
     try {
