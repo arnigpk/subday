@@ -131,10 +131,10 @@ export default function AdminSubFlowAdsPage() {
   }, []);
 
   useEffect(() => {
-    void fetchData();
+    void fetchData(analyticsRange.from, analyticsRange.to);
 
     const refresh = () => {
-      void fetchData();
+      void fetchData(analyticsRange.from, analyticsRange.to);
     };
 
     const channels = [
@@ -159,7 +159,7 @@ export default function AdminSubFlowAdsPage() {
         supabase.removeChannel(channel);
       });
     };
-  }, [fetchData]);
+  }, [fetchData, analyticsRange.from, analyticsRange.to]);
 
   const handleEdit = (ad: SubFlowAd) => {
     setEditingAd(ad);
@@ -171,20 +171,20 @@ export default function AdminSubFlowAdsPage() {
     const { error } = await supabase.from('subflow_ads').delete().eq('id', id);
     if (error) { toast.error('Ошибка удаления'); return; }
     toast.success('Реклама удалена');
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const handleToggleActive = async (ad: SubFlowAd) => {
     const { error } = await supabase.from('subflow_ads').update({ is_active: !ad.is_active }).eq('id', ad.id);
     if (error) { toast.error('Ошибка'); return; }
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const handleUpdateRequestStatus = async (id: string, status: string) => {
     const { error } = await supabase.from('ad_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) { toast.error('Ошибка'); return; }
     toast.success(`Статус обновлен: ${status === 'approved' ? 'Одобрено' : status === 'rejected' ? 'Отклонено' : 'В ожидании'}`);
-    fetchData();
+    fetchData(analyticsRange.from, analyticsRange.to);
   };
 
   const formatDate = (d: string) => {
@@ -204,6 +204,26 @@ export default function AdminSubFlowAdsPage() {
     return ((clicks / views) * 100).toFixed(1) + '%';
   };
 
+  const analyticsDateLabel = useMemo(() => {
+    if (analyticsDateRange.from && analyticsDateRange.to) {
+      return `${format(analyticsDateRange.from, 'd MMM', { locale: ru })} — ${format(analyticsDateRange.to, 'd MMM', { locale: ru })}`;
+    }
+    if (analyticsDateRange.from) {
+      return `с ${format(analyticsDateRange.from, 'd MMM', { locale: ru })}`;
+    }
+    return 'За всё время';
+  }, [analyticsDateRange]);
+
+  const totalStats = useMemo(() => {
+    const vals = Object.values(analytics);
+    const totalViews = vals.reduce((s, v) => s + v.views, 0);
+    const totalClicks = vals.reduce((s, v) => s + v.clicks, 0);
+    const totalReactions = vals.reduce((s, v) => s + v.reactions, 0);
+    const totalComments = vals.reduce((s, v) => s + v.comments, 0);
+    const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
+    return { totalViews, totalClicks, totalReactions, totalComments, avgCtr };
+  }, [analytics]);
+
   return (
     <AdminLayout title="Реклама subFlow">
       <TabSwitcher tabs={TABS} activeTab={activeTab} onChange={setActiveTab} className="mb-6" />
@@ -214,7 +234,7 @@ export default function AdminSubFlowAdsPage() {
             <SubFlowAdForm
               shops={shops}
               editingAd={editingAd}
-              onSaved={() => { setEditingAd(null); fetchData(); }}
+              onSaved={() => { setEditingAd(null); fetchData(analyticsRange.from, analyticsRange.to); }}
               onCancel={() => setEditingAd(null)}
             />
           )}
