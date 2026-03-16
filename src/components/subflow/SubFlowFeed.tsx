@@ -188,17 +188,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const fetchAds = useCallback(async () => {
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types')
+      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types, country, city')
       .eq('is_active', true);
     
-    // Client-side filter by date range only
-    const dateFiltered = ((data as RawSubFlowAd[]) || []).filter(ad => {
+    // Client-side filter by date range and country/city
+    const filtered = ((data as RawSubFlowAd[]) || []).filter(ad => {
       if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
       if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
+      if (ad.country && ad.country !== userCountry) return false;
+      if (ad.city && userCity && ad.city !== userCity) return false;
       return true;
     });
-    setRawAds(dateFiltered);
-  }, []);
+    setRawAds(filtered);
+  }, [userCountry, userCity]);
 
   // Reactively filter by audience when matchesAudience updates
   const audienceFilteredAds = useMemo(() => {
