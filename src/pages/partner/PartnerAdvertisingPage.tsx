@@ -165,6 +165,9 @@ export default function PartnerAdvertisingPage() {
             В ближайшее время с вами свяжется менеджер subday
           </p>
         )}
+
+        {/* Active Ads Section */}
+        <PartnerActiveAds shopId={shopId} />
       </div>
     </PartnerLayout>
   );
