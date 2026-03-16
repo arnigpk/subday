@@ -747,6 +747,9 @@ export default function AdminBannersPage() {
                           <MousePointer size={12} />
                           {getStats(banner.id).clicks}
                         </span>
+                        <Badge variant="outline" className="text-[10px] font-semibold px-1.5 py-0 h-4">
+                          CTR: {(() => { const s = getStats(banner.id); return s.views > 0 ? ((s.clicks / s.views) * 100).toFixed(1) : '0'; })()}%
+                        </Badge>
                         <span>{banner.autoplay_delay} сек</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
