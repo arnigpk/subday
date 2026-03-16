@@ -39,6 +39,8 @@ interface RawSubFlowAd {
   audience_types: string[];
   starts_at: string | null;
   ends_at: string | null;
+  country: string | null;
+  city: string | null;
 }
 
 interface SubFlowAd {
