@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Eye, MousePointerClick, TrendingUp, Image, FileText, CalendarIcon, CheckCircle2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { BarChart3, Eye, MousePointerClick, TrendingUp, Image, FileText, CalendarIcon, Heart, MessageCircle } from 'lucide-react';
+import { endOfDay, format, startOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,6 +16,20 @@ interface PartnerActiveAdsProps {
   shopId: string | null;
 }
 
+interface BannerAnalyticsRow {
+  banner_id: string;
+  views: number;
+  clicks: number;
+}
+
+interface SubflowAnalyticsRow {
+  ad_id: string;
+  views: number;
+  clicks: number;
+  reactions: number;
+  comments: number;
+}
+
 export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
@@ -24,7 +38,11 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  // Fetch ALL banners for this shop (active + inactive)
+  const analyticsRange = useMemo(() => ({
+    from: dateRange.from ? startOfDay(dateRange.from).toISOString() : null,
+    to: dateRange.to ? endOfDay(dateRange.to).toISOString() : null,
+  }), [dateRange.from, dateRange.to]);
+
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ['partner-all-banners', shopId],
     queryFn: async () => {
@@ -41,7 +59,6 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     enabled: !!shopId,
   });
 
-  // Fetch ALL subflow ads for this shop (active + inactive)
   const { data: subflowAds = [], isLoading: adsLoading } = useQuery({
     queryKey: ['partner-all-subflow-ads', shopId],
     queryFn: async () => {
@@ -58,121 +75,121 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     enabled: !!shopId,
   });
 
-  const bannerIds = useMemo(() => banners.map(b => b.id), [banners]);
-  const adIds = useMemo(() => subflowAds.map(a => a.id), [subflowAds]);
-
-  // Fetch banner events
-  const { data: bannerEvents = [], isLoading: bannerEventsLoading } = useQuery({
-    queryKey: ['partner-banner-events', bannerIds, dateRange.from?.toISOString(), dateRange.to?.toISOString()],
+  const { data: bannerAnalyticsRows = [], isLoading: bannerAnalyticsLoading } = useQuery({
+    queryKey: ['partner-banner-analytics', shopId, analyticsRange.from, analyticsRange.to],
     queryFn: async () => {
-      if (bannerIds.length === 0) return [];
-      let query = supabase
-        .from('ad_banner_events')
-        .select('*')
-        .in('banner_id', bannerIds);
-      if (dateRange.from) {
-        query = query.gte('created_at', dateRange.from.toISOString());
-      }
-      if (dateRange.to) {
-        const endOfDay = new Date(dateRange.to);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endOfDay.toISOString());
-      }
-      const { data, error } = await query;
+      if (!shopId) return [];
+      const { data, error } = await supabase.rpc('get_banner_analytics' as any, {
+        _shop_id: shopId,
+        _from: analyticsRange.from,
+        _to: analyticsRange.to,
+      });
       if (error) throw error;
-      return data || [];
+      return ((data as any[]) || []).map((item) => ({
+        banner_id: item.banner_id,
+        views: Number(item.views ?? 0),
+        clicks: Number(item.clicks ?? 0),
+      })) as BannerAnalyticsRow[];
     },
-    enabled: bannerIds.length > 0,
+    enabled: !!shopId,
   });
 
-  // Fetch subflow ad events
-  const { data: adEvents = [], isLoading: adEventsLoading } = useQuery({
-    queryKey: ['partner-ad-events', adIds, dateRange.from?.toISOString(), dateRange.to?.toISOString()],
+  const { data: adAnalyticsRows = [], isLoading: adAnalyticsLoading } = useQuery({
+    queryKey: ['partner-subflow-ad-analytics', shopId, analyticsRange.from, analyticsRange.to],
     queryFn: async () => {
-      if (adIds.length === 0) return [];
-      let query = supabase
-        .from('subflow_ad_events')
-        .select('*')
-        .in('ad_id', adIds);
-      if (dateRange.from) {
-        query = query.gte('created_at', dateRange.from.toISOString());
-      }
-      if (dateRange.to) {
-        const endOfDay = new Date(dateRange.to);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endOfDay.toISOString());
-      }
-      const { data, error } = await query;
+      if (!shopId) return [];
+      const { data, error } = await supabase.rpc('get_subflow_ad_analytics' as any, {
+        _shop_id: shopId,
+        _from: analyticsRange.from,
+        _to: analyticsRange.to,
+      });
       if (error) throw error;
-      return data || [];
+      return ((data as any[]) || []).map((item) => ({
+        ad_id: item.ad_id,
+        views: Number(item.views ?? 0),
+        clicks: Number(item.clicks ?? 0),
+        reactions: Number(item.reactions ?? 0),
+        comments: Number(item.comments ?? 0),
+      })) as SubflowAnalyticsRow[];
     },
-    enabled: adIds.length > 0,
+    enabled: !!shopId,
   });
 
-  // Realtime subscriptions
   useEffect(() => {
     if (!shopId) return;
 
-    const bannerEventsChannel = supabase
-      .channel('partner-banner-events-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['partner-banner-events'] });
-      })
-      .subscribe();
+    const invalidateBannerAnalytics = () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-banner-analytics'] });
+    };
 
-    const adEventsChannel = supabase
-      .channel('partner-ad-events-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['partner-ad-events'] });
-      })
-      .subscribe();
+    const invalidateSubflowAnalytics = () => {
+      queryClient.invalidateQueries({ queryKey: ['partner-subflow-ad-analytics'] });
+    };
 
-    const bannersChannel = supabase
-      .channel('partner-banners-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['partner-all-banners'] });
-      })
-      .subscribe();
-
-    const adsChannel = supabase
-      .channel('partner-subflow-ads-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['partner-all-subflow-ads'] });
-      })
-      .subscribe();
+    const channels = [
+      supabase
+        .channel('partner-banner-events-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, invalidateBannerAnalytics)
+        .subscribe(),
+      supabase
+        .channel('partner-banners-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['partner-all-banners'] });
+          invalidateBannerAnalytics();
+        })
+        .subscribe(),
+      supabase
+        .channel('partner-subflow-events-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, invalidateSubflowAnalytics)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_reactions' }, invalidateSubflowAnalytics)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_comments' }, invalidateSubflowAnalytics)
+        .subscribe(),
+      supabase
+        .channel('partner-subflow-ads-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['partner-all-subflow-ads'] });
+          invalidateSubflowAnalytics();
+        })
+        .subscribe(),
+    ];
 
     return () => {
-      supabase.removeChannel(bannerEventsChannel);
-      supabase.removeChannel(adEventsChannel);
-      supabase.removeChannel(bannersChannel);
-      supabase.removeChannel(adsChannel);
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
     };
   }, [shopId, queryClient]);
 
   const isLoading = bannersLoading || adsLoading;
   const hasAds = banners.length > 0 || subflowAds.length > 0;
 
-  // Compute analytics per banner
   const bannerAnalytics = useMemo(() => {
-    return banners.map(banner => {
-      const events = bannerEvents.filter(e => e.banner_id === banner.id);
-      const views = events.filter(e => e.event_type === 'view').length;
-      const clicks = events.filter(e => e.event_type === 'click').length;
+    const statsMap = new Map(bannerAnalyticsRows.map((row) => [row.banner_id, row]));
+
+    return banners.map((banner) => {
+      const stats = statsMap.get(banner.id);
+      const views = Number(stats?.views ?? 0);
+      const clicks = Number(stats?.clicks ?? 0);
       const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0';
+
       return { ...banner, views, clicks, ctr, adType: 'banner' as const };
     });
-  }, [banners, bannerEvents]);
+  }, [banners, bannerAnalyticsRows]);
 
-  // Compute analytics per subflow ad
   const adAnalytics = useMemo(() => {
-    return subflowAds.map(ad => {
-      const events = adEvents.filter(e => e.ad_id === ad.id);
-      const views = events.filter(e => e.event_type === 'view').length;
-      const clicks = events.filter(e => e.event_type === 'click').length;
+    const statsMap = new Map(adAnalyticsRows.map((row) => [row.ad_id, row]));
+
+    return subflowAds.map((ad) => {
+      const stats = statsMap.get(ad.id);
+      const views = Number(stats?.views ?? 0);
+      const clicks = Number(stats?.clicks ?? 0);
+      const reactions = Number(stats?.reactions ?? 0);
+      const comments = Number(stats?.comments ?? 0);
       const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0';
-      return { ...ad, views, clicks, ctr, adType: 'subflow' as const };
+
+      return { ...ad, views, clicks, reactions, comments, ctr, adType: 'subflow' as const };
     });
-  }, [subflowAds, adEvents]);
+  }, [subflowAds, adAnalyticsRows]);
 
   const handleDateSelect = (range: { from?: Date; to?: Date } | undefined) => {
     setDateRange({ from: range?.from, to: range?.to });
@@ -223,11 +240,10 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         </h3>
       </div>
 
-      {/* Date filter */}
       <div className="flex items-center gap-2 flex-wrap">
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", dateRange.from && "border-primary text-primary")}>
+            <Button variant="outline" size="sm" className={cn('text-xs gap-1.5', dateRange.from && 'border-primary text-primary')}>
               <CalendarIcon size={14} />
               {dateLabel}
             </Button>
@@ -250,19 +266,16 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         )}
       </div>
 
-      {/* Banner ads */}
-      {bannerAnalytics.map(banner => (
-        <Card key={banner.id} className={cn("overflow-hidden", banner.is_active ? "border-accent/20" : "border-muted-foreground/20 opacity-75")}>
+      {bannerAnalytics.map((banner) => (
+        <Card key={banner.id} className={cn('overflow-hidden', banner.is_active ? 'border-accent/20' : 'border-muted-foreground/20 opacity-75')}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Image size={14} className="text-accent flex-shrink-0" />
               <span className="truncate">{banner.caption || 'Баннер'}</span>
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-                {banner.is_active ? (
-                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4 bg-green-600">Активна</Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">Завершена</Badge>
-                )}
+                <Badge variant={banner.is_active ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0 h-4">
+                  {banner.is_active ? 'Активна' : 'Завершена'}
+                </Badge>
                 <span className="text-[10px] font-normal text-muted-foreground">
                   {banner.display_location === 'home' ? 'Главная' : banner.display_location === 'shops' ? 'Кофейни' : 'Везде'}
                 </span>
@@ -274,9 +287,9 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
               <img src={banner.image_url} alt={banner.caption || 'Баннер'} className="w-full h-24 object-cover rounded-lg" />
             )}
             <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={<Eye size={14} />} label="Просмотры" value={banner.views} loading={bannerEventsLoading} />
-              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={banner.clicks} loading={bannerEventsLoading} />
-              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${banner.ctr}%`} loading={bannerEventsLoading} />
+              <StatCard icon={<Eye size={14} />} label="Просмотры" value={banner.views} loading={bannerAnalyticsLoading} />
+              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={banner.clicks} loading={bannerAnalyticsLoading} />
+              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${banner.ctr}%`} loading={bannerAnalyticsLoading} />
             </div>
             {(banner.starts_at || banner.ends_at) && (
               <p className="text-[10px] text-muted-foreground">
@@ -289,19 +302,16 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         </Card>
       ))}
 
-      {/* SubFlow ads */}
-      {adAnalytics.map(ad => (
-        <Card key={ad.id} className={cn("overflow-hidden", ad.is_active ? "border-primary/20" : "border-muted-foreground/20 opacity-75")}>
+      {adAnalytics.map((ad) => (
+        <Card key={ad.id} className={cn('overflow-hidden', ad.is_active ? 'border-primary/20' : 'border-muted-foreground/20 opacity-75')}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <FileText size={14} className="text-primary flex-shrink-0" />
               <span className="truncate">{ad.title || 'Реклама #subFlow'}</span>
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-                {ad.is_active ? (
-                  <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4 bg-green-600">Активна</Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">Завершена</Badge>
-                )}
+                <Badge variant={ad.is_active ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0 h-4">
+                  {ad.is_active ? 'Активна' : 'Завершена'}
+                </Badge>
                 <span className="text-[10px] font-normal text-muted-foreground">#subFlow</span>
               </div>
             </CardTitle>
@@ -311,12 +321,14 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
               <img src={ad.image_url} alt={ad.title || 'Реклама'} className="w-full h-24 object-cover rounded-lg" />
             )}
             <p className="text-xs text-muted-foreground line-clamp-2">{ad.content}</p>
-            <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={<Eye size={14} />} label="Просмотры" value={ad.views} loading={adEventsLoading} />
-              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={ad.clicks} loading={adEventsLoading} />
-              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${ad.ctr}%`} loading={adEventsLoading} />
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <StatCard icon={<Eye size={14} />} label="Просмотры" value={ad.views} loading={adAnalyticsLoading} />
+              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={ad.clicks} loading={adAnalyticsLoading} />
+              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${ad.ctr}%`} loading={adAnalyticsLoading} />
+              <StatCard icon={<Heart size={14} />} label="Реакции" value={ad.reactions} loading={adAnalyticsLoading} />
+              <StatCard icon={<MessageCircle size={14} />} label="Комменты" value={ad.comments} loading={adAnalyticsLoading} />
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
               <span>Частота: каждый {ad.frequency}-й пост</span>
               {ad.daily_limit > 0 && <span>• Лимит: {ad.daily_limit}/день</span>}
             </div>
@@ -334,7 +346,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
   );
 }
 
-function StatCard({ icon, label, value, loading }: { icon: React.ReactNode; label: string; value: number | string; loading: boolean }) {
+function StatCard({ icon, label, value, loading }: { icon: ReactNode; label: string; value: number | string; loading: boolean }) {
   return (
     <div className="p-2 rounded-lg bg-secondary/50 text-center">
       <div className="flex items-center justify-center text-primary mb-0.5">{icon}</div>

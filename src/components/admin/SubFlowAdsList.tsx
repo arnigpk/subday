@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Trash2, Pencil, Loader2, Eye, EyeOff, MousePointerClick } from 'lucide-react';
+import { Trash2, Pencil, Loader2, Eye, EyeOff, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
 
 const LINK_TYPES = [
   { value: 'shop', label: 'Кофейня' },
@@ -29,7 +29,7 @@ interface SubFlowAd {
 }
 
 interface AdAnalytics {
-  [adId: string]: { views: number; clicks: number };
+  [adId: string]: { views: number; clicks: number; reactions: number; comments: number };
 }
 
 interface SubFlowAdsListProps {
@@ -56,7 +56,7 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
         ) : (
           <div className="space-y-3">
             {ads.map(ad => {
-              const stats = analytics[ad.id] || { views: 0, clicks: 0 };
+              const stats = analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 };
               return (
                 <div key={ad.id} className="flex items-start gap-3 p-3 rounded-xl border border-border bg-secondary/30">
                   {ad.image_url && (
@@ -77,12 +77,18 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                         {ad.is_active ? 'Активна' : 'Выкл'}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Eye size={12} /> {stats.views}
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <MousePointerClick size={12} /> {stats.clicks}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Heart size={12} /> {stats.reactions}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MessageCircle size={12} /> {stats.comments}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         CTR: {stats.views > 0 ? ((stats.clicks / stats.views) * 100).toFixed(1) : '0'}%

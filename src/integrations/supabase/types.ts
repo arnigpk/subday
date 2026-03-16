@@ -1375,6 +1375,14 @@ export type Database = {
       }
       expire_subscriptions: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
+      get_banner_analytics: {
+        Args: { _from?: string; _shop_id?: string; _to?: string }
+        Returns: {
+          banner_id: string
+          clicks: number
+          views: number
+        }[]
+      }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
       get_shop_visit_counts: {
         Args: never
@@ -1384,6 +1392,16 @@ export type Database = {
         }[]
       }
       get_staff_shop_id: { Args: { _user_id: string }; Returns: string }
+      get_subflow_ad_analytics: {
+        Args: { _from?: string; _shop_id?: string; _to?: string }
+        Returns: {
+          ad_id: string
+          clicks: number
+          comments: number
+          reactions: number
+          views: number
+        }[]
+      }
       grant_guest_access: {
         Args: {
           _expires_at: string
