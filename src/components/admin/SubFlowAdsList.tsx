@@ -77,6 +77,11 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                       <Badge className={ad.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                         {ad.is_active ? 'Активна' : 'Выкл'}
                       </Badge>
+                      {(ad as any).country && (
+                        <Badge variant="outline" className="text-xs">
+                          {getCountryFlag((ad as any).country)} {(ad as any).city || 'Все города'}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
