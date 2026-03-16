@@ -80,6 +80,8 @@ export default function AdminSubFlowAdsPage() {
   const [analyticsCalendarOpen, setAnalyticsCalendarOpen] = useState(false);
   const [listCountryFilter, setListCountryFilter] = useState('all');
   const [listCityFilter, setListCityFilter] = useState('all');
+  const [analyticsCountryFilter, setAnalyticsCountryFilter] = useState('all');
+  const [analyticsCityFilter, setAnalyticsCityFilter] = useState('all');
 
   const analyticsRange = useMemo(() => ({
     from: analyticsDateRange.from ? startOfDay(analyticsDateRange.from).toISOString() : null,
@@ -218,15 +220,23 @@ export default function AdminSubFlowAdsPage() {
     return 'За всё время';
   }, [analyticsDateRange]);
 
+  const filteredAnalyticsAds = useMemo(() => {
+    return ads.filter(ad => {
+      if (analyticsCountryFilter !== 'all' && (ad as any).country !== analyticsCountryFilter) return false;
+      if (analyticsCityFilter !== 'all' && (ad as any).city !== analyticsCityFilter) return false;
+      return true;
+    });
+  }, [ads, analyticsCountryFilter, analyticsCityFilter]);
+
   const totalStats = useMemo(() => {
-    const vals = Object.values(analytics);
+    const vals = filteredAnalyticsAds.map(ad => analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 });
     const totalViews = vals.reduce((s, v) => s + v.views, 0);
     const totalClicks = vals.reduce((s, v) => s + v.clicks, 0);
     const totalReactions = vals.reduce((s, v) => s + v.reactions, 0);
     const totalComments = vals.reduce((s, v) => s + v.comments, 0);
     const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
     return { totalViews, totalClicks, totalReactions, totalComments, avgCtr };
-  }, [analytics]);
+  }, [analytics, filteredAnalyticsAds]);
 
   return (
     <AdminLayout title="Реклама subFlow">
@@ -272,6 +282,12 @@ export default function AdminSubFlowAdsPage() {
         <div className="space-y-4">
           {/* Date filter + KPI summary */}
           <div className="flex items-center gap-2 flex-wrap">
+            <CountryCityFilter
+              countryFilter={analyticsCountryFilter}
+              cityFilter={analyticsCityFilter}
+              onCountryChange={setAnalyticsCountryFilter}
+              onCityChange={setAnalyticsCityFilter}
+            />
             <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
@@ -298,7 +314,7 @@ export default function AdminSubFlowAdsPage() {
           </div>
 
           {/* Summary KPIs */}
-          {!isLoading && ads.length > 0 && (
+          {!isLoading && filteredAnalyticsAds.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Просмотры</p><p className="text-xl font-bold text-foreground">{totalStats.totalViews.toLocaleString()}</p></CardContent></Card>
               <Card><CardContent className="py-3 px-4 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Клики</p><p className="text-xl font-bold text-foreground">{totalStats.totalClicks.toLocaleString()}</p></CardContent></Card>
@@ -318,7 +334,7 @@ export default function AdminSubFlowAdsPage() {
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
-              ) : ads.length === 0 ? (
+              ) : filteredAnalyticsAds.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Нет рекламных постов</p>
               ) : (
               <Table>
@@ -334,7 +350,7 @@ export default function AdminSubFlowAdsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ads.map(ad => {
+                  {filteredAnalyticsAds.map(ad => {
                     const stats = analytics[ad.id] || { views: 0, clicks: 0, reactions: 0, comments: 0 };
                     return (
                       <TableRow key={ad.id}>
