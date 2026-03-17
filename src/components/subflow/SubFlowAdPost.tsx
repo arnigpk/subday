@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Megaphone, ExternalLink, MessageCircle } from 'lucide-react';
+import { Megaphone, ExternalLink, MessageCircle, Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { supabase } from '@/integrations/supabase/client';
 import { SubFlowAdComments } from './SubFlowAdComments';
