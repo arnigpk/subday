@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
+import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
@@ -15,7 +15,6 @@ interface TextOverlay {
   text: string;
   color: string;
   fontSize: number;
-  /** Position as fraction 0..1 of image height */
   posY: number;
 }
 
@@ -32,9 +31,12 @@ const FILTERS: { name: string; label: string; css: string }[] = [
   { name: 'slumber', label: 'Сон', css: 'saturate(0.66) brightness(1.05) sepia(0.15)' },
 ];
 
+const MAX_VIDEO_DURATION = 20;
+
 export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryCreateDialogProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [uploading, setUploading] = useState(false);
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [editingText, setEditingText] = useState(false);
@@ -43,9 +45,9 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const [selectedFilter, setSelectedFilter] = useState('normal');
   const [showFilters, setShowFilters] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag state for text overlay
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef(0);
   const dragStartPosY = useRef(0.5);
@@ -54,17 +56,41 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    if (f.type.startsWith('video/')) {
+      // Validate video duration
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src);
+        if (video.duration > MAX_VIDEO_DURATION) {
+          toast.error(`Максимальная длительность видео — ${MAX_VIDEO_DURATION} секунд. Ваше видео: ${Math.ceil(video.duration)} сек.`);
+          return;
+        }
+        setFile(f);
+        setPreview(URL.createObjectURL(f));
+        setMediaType('video');
+        setTextOverlay(null);
+        setSelectedFilter('normal');
+        setShowFilters(false);
+      };
+      video.src = URL.createObjectURL(f);
+      return;
+    }
+
     if (!f.type.startsWith('image/')) {
-      toast.error('Выберите изображение');
+      toast.error('Выберите изображение или видео');
       return;
     }
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    setMediaType('image');
     setTextOverlay(null);
     setSelectedFilter('normal');
   };
 
   const handleAddText = () => {
+    if (mediaType === 'video') return; // no text overlay on video
     setEditingText(true);
     setTextDraft(textOverlay?.text || '');
     setSelectedColor(textOverlay?.color || '#ffffff');
@@ -80,7 +106,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setEditingText(false);
   };
 
-  // Touch drag handlers for text overlay
   const handleTextTouchStart = (e: React.TouchEvent) => {
     if (!textOverlay || !imageContainerRef.current) return;
     e.stopPropagation();
@@ -173,13 +198,22 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const finalBlob = await renderFinalImage();
-      const ext = getFileExtension(finalBlob);
+      let uploadBlob: Blob;
+      let ext: string;
+
+      if (mediaType === 'video') {
+        uploadBlob = file;
+        ext = file.name.split('.').pop() || 'mp4';
+      } else {
+        uploadBlob = await renderFinalImage();
+        ext = getFileExtension(uploadBlob);
+      }
+
       const path = `stories/${user.id}/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('subflow-images')
-        .upload(path, finalBlob, { contentType: finalBlob.type });
+        .upload(path, uploadBlob, { contentType: uploadBlob.type });
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
@@ -188,7 +222,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
 
       const { error: insertError } = await supabase
         .from('stories')
-        .insert({ user_id: user.id, image_url: publicUrl });
+        .insert({ user_id: user.id, image_url: publicUrl, media_type: mediaType } as any);
       if (insertError) throw insertError;
 
       toast.success('Сториз опубликован!');
@@ -205,6 +239,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const resetAndClose = () => {
     setPreview(null);
     setFile(null);
+    setMediaType('image');
     setTextOverlay(null);
     setEditingText(false);
     setTextDraft('');
@@ -224,15 +259,22 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
         className="hidden"
         onChange={handleFileChange}
       />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       {!preview ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
           <div className="text-center">
             <h2 className="text-white text-xl font-bold mb-2">Новая история</h2>
-            <p className="text-white/60 text-sm">Сделайте фото или выберите из галереи</p>
+            <p className="text-white/60 text-sm">Сделайте фото, выберите из галереи или запишите видео</p>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3 flex-wrap justify-center">
             <button
               onClick={() => {
                 if (inputRef.current) {
@@ -240,15 +282,15 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                   inputRef.current.click();
                 }
               }}
-              className="flex flex-col items-center gap-2 px-8 py-6 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
             >
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
                   <circle cx="12" cy="13" r="3"/>
                 </svg>
               </div>
-              <span className="text-white text-sm font-medium">Камера</span>
+              <span className="text-white text-xs font-medium">Камера</span>
             </button>
 
             <button
@@ -258,16 +300,48 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                   inputRef.current.click();
                 }
               }}
-              className="flex flex-col items-center gap-2 px-8 py-6 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
             >
-              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                <ImageIcon size={28} className="text-white" />
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <ImageIcon size={24} className="text-white" />
               </div>
-              <span className="text-white text-sm font-medium">Галерея</span>
+              <span className="text-white text-xs font-medium">Галерея</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (videoInputRef.current) {
+                  videoInputRef.current.removeAttribute('capture');
+                  videoInputRef.current.click();
+                }
+              }}
+              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <Video size={24} className="text-white" />
+              </div>
+              <span className="text-white text-xs font-medium">Видео</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (videoInputRef.current) {
+                  videoInputRef.current.setAttribute('capture', 'environment');
+                  videoInputRef.current.click();
+                }
+              }}
+              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-4 h-4 rounded-full bg-red-500" />
+              </div>
+              <span className="text-white text-xs font-medium">Запись</span>
             </button>
           </div>
 
-          <button onClick={resetAndClose} className="mt-4 text-white/50 text-sm">
+          <p className="text-white/40 text-xs">Видео до {MAX_VIDEO_DURATION} секунд</p>
+
+          <button onClick={resetAndClose} className="mt-2 text-white/50 text-sm">
             Отмена
           </button>
         </div>
@@ -279,32 +353,47 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
               <X size={24} />
             </button>
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleAddText}
-                className={`p-2.5 rounded-full transition-all active:scale-90 ${textOverlay ? 'bg-white/30' : 'bg-white/10'}`}
-              >
-                <Type size={20} className="text-white" />
-              </button>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`p-2.5 rounded-full transition-all active:scale-90 ${showFilters ? 'bg-white/30' : 'bg-white/10'}`}
-              >
-                <Sparkles size={20} className="text-white" />
-              </button>
+              {mediaType === 'image' && (
+                <>
+                  <button
+                    onClick={handleAddText}
+                    className={`p-2.5 rounded-full transition-all active:scale-90 ${textOverlay ? 'bg-white/30' : 'bg-white/10'}`}
+                  >
+                    <Type size={20} className="text-white" />
+                  </button>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`p-2.5 rounded-full transition-all active:scale-90 ${showFilters ? 'bg-white/30' : 'bg-white/10'}`}
+                  >
+                    <Sparkles size={20} className="text-white" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Image preview */}
+          {/* Media preview */}
           <div ref={imageContainerRef} className="flex-1 relative flex items-center justify-center overflow-hidden">
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-full object-contain"
-              style={{ filter: getFilterCss() }}
-            />
+            {mediaType === 'video' ? (
+              <video
+                src={preview}
+                className="w-full h-full object-contain"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-full h-full object-contain"
+                style={{ filter: getFilterCss() }}
+              />
+            )}
 
-            {/* Draggable text overlay */}
-            {textOverlay && !editingText && (
+            {/* Draggable text overlay (image only) */}
+            {textOverlay && !editingText && mediaType === 'image' && (
               <div
                 className="absolute left-0 right-0 flex justify-center px-6 cursor-grab active:cursor-grabbing"
                 style={{ top: `${textOverlay.posY * 100}%`, transform: 'translateY(-50%)' }}
@@ -364,8 +453,8 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
             )}
           </div>
 
-          {/* Filter strip */}
-          {showFilters && (
+          {/* Filter strip (image only) */}
+          {showFilters && mediaType === 'image' && (
             <div className="px-2 py-3 overflow-x-auto scrollbar-hide">
               <div className="flex gap-2 min-w-max px-2">
                 {FILTERS.map(f => (
@@ -393,7 +482,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
             </div>
           )}
 
-          {/* Bottom bar — styled like "Сделать пост" button */}
+          {/* Bottom bar */}
           <div className="px-4 pb-4 pt-2 safe-area-bottom flex items-center gap-3">
             <button
               onClick={() => {

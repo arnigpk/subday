@@ -17,6 +17,7 @@ interface LegacyStory {
   expires_at: string;
   author_name: string;
   author_avatar: string | null;
+  media_type?: string;
 }
 
 interface LegacyProps {
@@ -60,14 +61,24 @@ export function StoryViewer(props: StoryViewerProps) {
         stories: props.stories.map(s => ({
           id: s.id, user_id: s.user_id, image_url: s.image_url,
           created_at: s.created_at, expires_at: s.expires_at,
+          media_type: s.media_type,
         })),
+        latestStoryAt: props.stories[props.stories.length - 1]?.created_at || '',
       }];
 
   const startUserIdx = isCrossUser(props) ? props.startUserIndex : 0;
-  const startStoryIdx = isCrossUser(props) ? 0 : props.initialIndex;
+  
+  // Determine start story index: open from the last story (most recent)
+  const getStartStoryIndex = () => {
+    if (!isCrossUser(props)) return props.initialIndex;
+    const user = storyUsers[startUserIdx];
+    if (!user) return 0;
+    // Start from the last (newest) story
+    return user.stories.length - 1;
+  };
 
   const [userIndex, setUserIndex] = useState(startUserIdx);
-  const [storyIndex, setStoryIndex] = useState(startStoryIdx);
+  const [storyIndex, setStoryIndex] = useState(getStartStoryIndex());
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'entering' | 'open' | 'closing'>('entering');
 
@@ -78,11 +89,10 @@ export function StoryViewer(props: StoryViewerProps) {
   const [showViewers, setShowViewers] = useState(false);
   const [viewers, setViewers] = useState<ViewerInfo[]>([]);
 
-  // Preloaded image refs
   const preloadedImages = useRef<Map<string, HTMLImageElement>>(new Map());
-
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const pausedRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Swipe-down state
   const swipeStartY = useRef(0);
@@ -93,14 +103,15 @@ export function StoryViewer(props: StoryViewerProps) {
   const currentUser = storyUsers[userIndex];
   const story = currentUser?.stories[storyIndex];
   const isOwner = currentUserId === story?.user_id;
+  const isVideo = story?.media_type === 'video';
 
-  // Preload adjacent story images
+  // Preload adjacent story media
   useEffect(() => {
     const toPreload: string[] = [];
     const cu = storyUsers[userIndex];
     if (cu) {
       if (storyIndex + 1 < cu.stories.length) toPreload.push(cu.stories[storyIndex + 1].image_url);
-      if (userIndex + 1 < storyUsers.length) toPreload.push(storyUsers[userIndex + 1].stories[0].image_url);
+      if (userIndex + 1 < storyUsers.length) toPreload.push(storyUsers[userIndex + 1].stories[storyUsers[userIndex + 1].stories.length - 1].image_url);
     }
     toPreload.forEach(url => {
       if (!preloadedImages.current.has(url)) {
@@ -123,10 +134,16 @@ export function StoryViewer(props: StoryViewerProps) {
     setTimeout(onClose, 300);
   }, [onClose]);
 
-  // Timer
+  // Timer — for video, use video duration; for image, 10s
   useEffect(() => {
     if (!story || phase !== 'open') return;
     setProgress(0);
+
+    if (isVideo) {
+      // For video, we track progress via timeupdate event
+      return;
+    }
+
     const duration = 10000;
     const interval = 50;
     let elapsed = 0;
@@ -139,7 +156,28 @@ export function StoryViewer(props: StoryViewerProps) {
     }, interval);
 
     return () => clearInterval(timerRef.current);
-  }, [userIndex, storyIndex, story?.id, phase]);
+  }, [userIndex, storyIndex, story?.id, phase, isVideo]);
+
+  // Video progress tracking
+  useEffect(() => {
+    if (!isVideo || !videoRef.current) return;
+    const video = videoRef.current;
+    
+    const onTimeUpdate = () => {
+      if (video.duration) {
+        setProgress((video.currentTime / video.duration) * 100);
+      }
+    };
+    const onEnded = () => { goNext(); };
+    
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('ended', onEnded);
+    
+    return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('ended', onEnded);
+    };
+  }, [isVideo, story?.id, userIndex, storyIndex]);
 
   // Record view + fetch stats
   useEffect(() => {
@@ -208,8 +246,10 @@ export function StoryViewer(props: StoryViewerProps) {
     if (!showViewers) {
       fetchViewers();
       pausedRef.current = true;
+      if (isVideo && videoRef.current) videoRef.current.pause();
     } else {
       pausedRef.current = false;
+      if (isVideo && videoRef.current) videoRef.current.play();
     }
     setShowViewers(!showViewers);
   };
@@ -221,7 +261,9 @@ export function StoryViewer(props: StoryViewerProps) {
       setStoryIndex(prev => prev + 1);
     } else if (userIndex < storyUsers.length - 1) {
       setUserIndex(prev => prev + 1);
-      setStoryIndex(0);
+      // Open from the last (newest) story of next user
+      const nextUser = storyUsers[userIndex + 1];
+      setStoryIndex(nextUser ? nextUser.stories.length - 1 : 0);
     } else {
       doClose();
     }
@@ -248,7 +290,6 @@ export function StoryViewer(props: StoryViewerProps) {
       await supabase.from('story_likes').insert({ story_id: story.id, user_id: currentUserId });
       setHasLiked(true);
       setLikesCount(prev => prev + 1);
-      // Send notification to story owner
       try {
         await supabase.from('subflow_notifications').insert({
           user_id: story.user_id,
@@ -285,9 +326,16 @@ export function StoryViewer(props: StoryViewerProps) {
     }
   };
 
-  // Touch handling — swipe down to close, tap left/right for navigation
-  const handlePointerDown = () => { pausedRef.current = true; };
-  const handlePointerUp = () => { if (!showViewers) pausedRef.current = false; };
+  const handlePointerDown = () => {
+    pausedRef.current = true;
+    if (isVideo && videoRef.current) videoRef.current.pause();
+  };
+  const handlePointerUp = () => {
+    if (!showViewers) {
+      pausedRef.current = false;
+      if (isVideo && videoRef.current) videoRef.current.play();
+    }
+  };
 
   const handleSwipeTouchStart = (e: React.TouchEvent) => {
     swipeStartY.current = e.touches[0].clientY;
@@ -331,10 +379,12 @@ export function StoryViewer(props: StoryViewerProps) {
     >
       <div ref={containerRef} className="absolute inset-0">
         {/* Blurred bg */}
-        <div
-          className="absolute inset-0 bg-cover bg-center scale-110"
-          style={{ backgroundImage: `url(${story.image_url})`, filter: 'blur(40px) brightness(0.4)' }}
-        />
+        {!isVideo && (
+          <div
+            className="absolute inset-0 bg-cover bg-center scale-110"
+            style={{ backgroundImage: `url(${story.image_url})`, filter: 'blur(40px) brightness(0.4)' }}
+          />
+        )}
         <div className="absolute inset-0 bg-black/30" />
 
         {/* Progress bars */}
@@ -376,16 +426,27 @@ export function StoryViewer(props: StoryViewerProps) {
           <ChevronDown size={18} className="text-white/40 animate-bounce" />
         </div>
 
-        {/* Image */}
-        <img src={story.image_url} alt="Story" className="relative z-10 w-full h-full object-contain" />
+        {/* Media */}
+        {isVideo ? (
+          <video
+            ref={videoRef}
+            src={story.image_url}
+            className="relative z-10 w-full h-full object-contain"
+            autoPlay
+            playsInline
+            muted={false}
+          />
+        ) : (
+          <img src={story.image_url} alt="Story" className="relative z-10 w-full h-full object-contain" />
+        )}
 
         {/* Touch navigation zones */}
         <div className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
-          onClick={(e) => { if (!isSwiping.current) goPrev(); }}
+          onClick={() => { if (!isSwiping.current) goPrev(); }}
           onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}
         />
         <div className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
-          onClick={(e) => { if (!isSwiping.current) goNext(); }}
+          onClick={() => { if (!isSwiping.current) goNext(); }}
           onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}
         />
         <div className="absolute left-1/3 right-1/3 top-0 bottom-0 z-10"
@@ -394,7 +455,6 @@ export function StoryViewer(props: StoryViewerProps) {
 
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 z-20 safe-area-bottom">
-          {/* Viewers panel (owner only) */}
           {isOwner && showViewers && (
             <div className="mx-4 mb-2 bg-black/70 backdrop-blur-xl rounded-2xl max-h-60 overflow-y-auto">
               <div className="px-4 py-3 border-b border-white/10">
