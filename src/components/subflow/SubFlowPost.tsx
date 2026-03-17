@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2 } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
