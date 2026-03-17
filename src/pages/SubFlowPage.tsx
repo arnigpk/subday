@@ -159,6 +159,17 @@ export default function SubFlowPage() {
               </div>
             </div>
           </LiquidGlassHeader>
+
+          {/* Stories Bar */}
+          {hasActiveSubscription && (
+            <StoriesBar
+              currentUserId={userId}
+              currentUserName={userName}
+              currentUserAvatar={userAvatar}
+              refreshTrigger={refreshTrigger}
+            />
+          )}
+
           <div className="px-4 pt-2">
 
             <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
