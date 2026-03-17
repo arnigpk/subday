@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotifyRequest {
-  type: 'reaction' | 'new_post' | 'comment' | 'follow';
+  type: 'reaction' | 'reaction_removed' | 'new_post' | 'comment' | 'follow';
   postId?: string;
   actorId: string;
   reaction?: string;

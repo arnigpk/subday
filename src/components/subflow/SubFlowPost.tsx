@@ -280,12 +280,18 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
     try {
       if (hasReaction) {
-        await supabase
+        const { error } = await supabase
           .from('subflow_reactions')
           .delete()
           .eq('post_id', post.id)
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
+
+        if (error) throw error;
+
+        supabase.functions.invoke('subflow-notify', {
+          body: { type: 'reaction_removed', postId: post.id, actorId: currentUserId, reaction }
+        }).catch(() => {});
       } else {
         const { error } = await supabase
           .from('subflow_reactions')
