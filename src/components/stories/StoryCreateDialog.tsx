@@ -1,7 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Camera, Loader2, X, Type, Palette } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Loader2, Type, Image as ImageIcon, Send, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
@@ -14,25 +13,42 @@ interface StoryCreateDialogProps {
 
 interface TextOverlay {
   text: string;
-  x: number; // percent
-  y: number; // percent
   color: string;
   fontSize: number;
 }
 
-const TEXT_COLORS = ['#ffffff', '#000000', '#ff3b30', '#ff9500', '#34c759', '#007aff', '#af52de', '#ff2d55'];
+const TEXT_COLORS = ['#ffffff', '#000000', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de', '#ff2d55'];
+
+const FILTERS: { name: string; label: string; css: string }[] = [
+  { name: 'normal', label: 'Обычный', css: 'none' },
+  { name: 'clarendon', label: 'Яркий', css: 'contrast(1.2) saturate(1.35)' },
+  { name: 'gingham', label: 'Мягкий', css: 'brightness(1.05) hue-rotate(-10deg)' },
+  { name: 'moon', label: 'Ч/Б', css: 'grayscale(1) contrast(1.1) brightness(1.1)' },
+  { name: 'lark', label: 'Тёплый', css: 'contrast(0.9) saturate(1.1) sepia(0.1) brightness(1.1)' },
+  { name: 'reyes', label: 'Винтаж', css: 'sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)' },
+  { name: 'juno', label: 'Насыщ.', css: 'contrast(1.15) saturate(1.8) brightness(1.05) sepia(0.05)' },
+  { name: 'slumber', label: 'Сон', css: 'saturate(0.66) brightness(1.05) sepia(0.15)' },
+];
 
 export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryCreateDialogProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
-  const [showTextInput, setShowTextInput] = useState(false);
+  const [editingText, setEditingText] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [selectedColor, setSelectedColor] = useState('#ffffff');
+  const [selectedFilter, setSelectedFilter] = useState('normal');
+  const [showFilters, setShowFilters] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-open file picker when dialog opens without a preview
+  useEffect(() => {
+    if (open && !preview) {
+      setTimeout(() => inputRef.current?.click(), 300);
+    }
+  }, [open]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -44,38 +60,33 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setTextOverlay(null);
+    setSelectedFilter('normal');
   };
 
   const handleAddText = () => {
-    setShowTextInput(true);
+    setEditingText(true);
     setTextDraft(textOverlay?.text || '');
     setSelectedColor(textOverlay?.color || '#ffffff');
-    setTimeout(() => textInputRef.current?.focus(), 100);
+    setTimeout(() => textInputRef.current?.focus(), 50);
   };
 
   const handleTextConfirm = () => {
     if (textDraft.trim()) {
-      setTextOverlay({
-        text: textDraft.trim(),
-        x: 50,
-        y: 50,
-        color: selectedColor,
-        fontSize: 28,
-      });
+      setTextOverlay({ text: textDraft.trim(), color: selectedColor, fontSize: 28 });
     } else {
       setTextOverlay(null);
     }
-    setShowTextInput(false);
+    setEditingText(false);
   };
 
-  const renderImageWithText = useCallback(async (): Promise<Blob> => {
-    if (!file) throw new Error('No file');
+  const getFilterCss = useCallback(() => {
+    return FILTERS.find(f => f.name === selectedFilter)?.css || 'none';
+  }, [selectedFilter]);
 
+  const renderFinalImage = useCallback(async (): Promise<Blob> => {
+    if (!file) throw new Error('No file');
     const compressed = await compressImage(file, { maxWidth: 1080, quality: 0.85 });
 
-    if (!textOverlay) return compressed.blob;
-
-    // Draw text on canvas
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
@@ -87,67 +98,68 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     canvas.width = img.width;
     canvas.height = img.height;
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, 0, 0);
 
-    // Draw text with shadow
-    const fontSize = Math.round((textOverlay.fontSize / 100) * canvas.width * 0.08);
-    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const tx = (textOverlay.x / 100) * canvas.width;
-    const ty = (textOverlay.y / 100) * canvas.height;
-
-    // Shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = fontSize * 0.3;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = textOverlay.color;
-
-    // Word wrap
-    const maxWidth = canvas.width * 0.85;
-    const words = textOverlay.text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
+    // Apply filter
+    const filterCss = getFilterCss();
+    if (filterCss !== 'none') {
+      ctx.filter = filterCss;
     }
-    if (currentLine) lines.push(currentLine);
+    ctx.drawImage(img, 0, 0);
+    ctx.filter = 'none';
 
-    const lineHeight = fontSize * 1.3;
-    const startY = ty - ((lines.length - 1) * lineHeight) / 2;
-    lines.forEach((line, i) => {
-      ctx.fillText(line, tx, startY + i * lineHeight);
-    });
+    // Draw text
+    if (textOverlay) {
+      const fontSize = Math.round(canvas.width * 0.065);
+      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = fontSize * 0.4;
+      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = textOverlay.color;
 
+      const maxWidth = canvas.width * 0.85;
+      const words = textOverlay.text.split(' ');
+      const lines: string[] = [];
+      let currentLine = '';
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const lineHeight = fontSize * 1.35;
+      const startY = canvas.height * 0.5 - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, i) => {
+        ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
+      });
+    }
+
+    URL.revokeObjectURL(img.src);
     return new Promise((resolve, reject) => {
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas failed')), 'image/jpeg', 0.85);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas failed')), 'image/jpeg', 0.88);
     });
-  }, [file, textOverlay]);
+  }, [file, textOverlay, getFilterCss]);
 
   const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const finalBlob = await renderImageWithText();
+      const finalBlob = await renderFinalImage();
       const ext = getFileExtension(finalBlob);
       const path = `stories/${user.id}/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('subflow-images')
         .upload(path, finalBlob, { contentType: finalBlob.type });
-
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
@@ -157,7 +169,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       const { error: insertError } = await supabase
         .from('stories')
         .insert({ user_id: user.id, image_url: publicUrl });
-
       if (insertError) throw insertError;
 
       toast.success('Сториз опубликован!');
@@ -175,124 +186,225 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setPreview(null);
     setFile(null);
     setTextOverlay(null);
-    setShowTextInput(false);
+    setEditingText(false);
     setTextDraft('');
+    setSelectedFilter('normal');
+    setShowFilters(false);
     onOpenChange(false);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) resetAndClose(); else onOpenChange(v); }}>
-      <DialogContent className="max-w-sm mx-auto">
-        <DialogHeader>
-          <DialogTitle>Новая история</DialogTitle>
-        </DialogHeader>
+  if (!open) return null;
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <canvas ref={canvasRef} className="hidden" />
+  const content = (
+    <div className="fixed inset-0 z-[99998] flex flex-col" style={{ backgroundColor: '#000' }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
-        {preview ? (
-          <div className="space-y-3">
-            {/* Preview with text overlay */}
-            <div className="relative overflow-hidden rounded-xl">
-              <img src={preview} alt="Preview" className="w-full aspect-[9/16] object-cover" />
+      {!preview ? (
+        /* No image selected — prompt */
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
+          <div className="text-center">
+            <h2 className="text-white text-xl font-bold mb-2">Новая история</h2>
+            <p className="text-white/60 text-sm">Сделайте фото или выберите из галереи</p>
+          </div>
 
-              {/* Text overlay preview */}
-              {textOverlay && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ padding: '8%' }}
-                >
-                  <p
-                    className="text-center font-bold leading-tight"
-                    style={{
-                      color: textOverlay.color,
-                      fontSize: `${textOverlay.fontSize * 0.6}px`,
-                      textShadow: '0 2px 8px rgba(0,0,0,0.6)',
-                      wordBreak: 'break-word',
-                      top: `${textOverlay.y}%`,
-                      position: 'absolute',
-                      transform: 'translateY(-50%)',
-                      maxWidth: '85%',
-                    }}
-                  >
-                    {textOverlay.text}
-                  </p>
-                </div>
-              )}
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.capture = 'environment';
+                  inputRef.current.click();
+                }
+              }}
+              className="flex flex-col items-center gap-2 px-8 py-6 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <span className="text-white text-sm font-medium">Камера</span>
+            </button>
 
-              {/* Remove image button */}
+            <button
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.removeAttribute('capture');
+                  inputRef.current.click();
+                }
+              }}
+              className="flex flex-col items-center gap-2 px-8 py-6 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                <ImageIcon size={28} className="text-white" />
+              </div>
+              <span className="text-white text-sm font-medium">Галерея</span>
+            </button>
+          </div>
+
+          <button onClick={resetAndClose} className="mt-4 text-white/50 text-sm">
+            Отмена
+          </button>
+        </div>
+      ) : (
+        /* Image selected — editor */
+        <>
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 safe-area-top z-20">
+            <button onClick={resetAndClose} className="p-2 text-white active:scale-90 transition-transform">
+              <X size={24} />
+            </button>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => { setPreview(null); setFile(null); setTextOverlay(null); }}
-                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white"
+                onClick={handleAddText}
+                className={`p-2.5 rounded-full transition-all active:scale-90 ${textOverlay ? 'bg-white/30' : 'bg-white/10'}`}
               >
-                <X size={16} />
+                <Type size={20} className="text-white" />
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-full transition-all active:scale-90 ${showFilters ? 'bg-white/30' : 'bg-white/10'}`}
+              >
+                <Sparkles size={20} className="text-white" />
               </button>
             </div>
+          </div>
 
-            {/* Text input panel */}
-            {showTextInput ? (
-              <div className="space-y-3 p-3 rounded-xl bg-muted/50">
+          {/* Image preview */}
+          <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+            <img
+              src={preview}
+              alt="Preview"
+              className="w-full h-full object-contain"
+              style={{ filter: getFilterCss() }}
+            />
+
+            {/* Text overlay */}
+            {textOverlay && !editingText && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-6">
+                <p
+                  className="text-center font-bold leading-tight"
+                  style={{
+                    color: textOverlay.color,
+                    fontSize: '22px',
+                    textShadow: '0 2px 12px rgba(0,0,0,0.7), 0 0 4px rgba(0,0,0,0.3)',
+                    wordBreak: 'break-word',
+                    maxWidth: '85%',
+                  }}
+                >
+                  {textOverlay.text}
+                </p>
+              </div>
+            )}
+
+            {/* Text editing overlay */}
+            {editingText && (
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10 px-6"
+                onClick={(e) => { if (e.target === e.currentTarget) handleTextConfirm(); }}
+              >
                 <input
                   ref={textInputRef}
                   value={textDraft}
                   onChange={e => setTextDraft(e.target.value)}
                   placeholder="Введите текст..."
-                  className="w-full bg-transparent text-foreground text-center font-bold text-lg outline-none placeholder:text-muted-foreground"
-                  onKeyDown={e => e.key === 'Enter' && handleTextConfirm()}
                   maxLength={120}
+                  className="w-full bg-transparent text-white text-center font-bold text-2xl outline-none placeholder:text-white/40"
+                  style={{ textShadow: '0 2px 12px rgba(0,0,0,0.7)' }}
+                  onKeyDown={e => e.key === 'Enter' && handleTextConfirm()}
                 />
                 {/* Color picker */}
-                <div className="flex items-center justify-center gap-2">
-                  <Palette size={14} className="text-muted-foreground" />
+                <div className="flex items-center gap-2.5 mt-6">
                   {TEXT_COLORS.map(color => (
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`w-6 h-6 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-2 ring-primary' : ''}`}
-                      style={{ backgroundColor: color, border: '2px solid hsl(var(--border))' }}
+                      className={`w-7 h-7 rounded-full transition-all ${selectedColor === color ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-black/50' : ''}`}
+                      style={{ backgroundColor: color }}
                     />
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowTextInput(false)} className="flex-1">
-                    Отмена
-                  </Button>
-                  <Button size="sm" onClick={handleTextConfirm} className="flex-1">
-                    Готово
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleAddText} className="flex-1 gap-1.5">
-                  <Type size={14} />
-                  {textOverlay ? 'Изменить текст' : 'Добавить текст'}
-                </Button>
+                <button
+                  onClick={handleTextConfirm}
+                  className="mt-6 px-6 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-medium active:scale-95 transition-transform"
+                >
+                  Готово
+                </button>
               </div>
             )}
-
-            {/* Upload button */}
-            <Button onClick={handleUpload} disabled={uploading} className="w-full">
-              {uploading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-              {uploading ? 'Загрузка...' : 'Опубликовать'}
-            </Button>
           </div>
-        ) : (
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="w-full aspect-[9/16] rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-3 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
-          >
-            <Camera size={40} />
-            <span className="text-sm font-medium">Выбрать фото</span>
-          </button>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          {/* Filter strip */}
+          {showFilters && (
+            <div className="px-2 py-3 overflow-x-auto scrollbar-hide">
+              <div className="flex gap-2 min-w-max px-2">
+                {FILTERS.map(f => (
+                  <button
+                    key={f.name}
+                    onClick={() => setSelectedFilter(f.name)}
+                    className="flex flex-col items-center gap-1 shrink-0"
+                  >
+                    <div
+                      className={`w-16 h-16 rounded-xl overflow-hidden ring-2 transition-all ${selectedFilter === f.name ? 'ring-white' : 'ring-transparent'}`}
+                    >
+                      <img
+                        src={preview}
+                        alt={f.label}
+                        className="w-full h-full object-cover"
+                        style={{ filter: f.css }}
+                      />
+                    </div>
+                    <span className={`text-[10px] ${selectedFilter === f.name ? 'text-white font-bold' : 'text-white/60'}`}>
+                      {f.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom bar */}
+          <div className="px-4 pb-4 pt-2 safe-area-bottom flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.removeAttribute('capture');
+                  inputRef.current.click();
+                }
+              }}
+              className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <ImageIcon size={20} className="text-white" />
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="flex-1 h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+              style={{
+                background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+              }}
+            >
+              {uploading ? (
+                <Loader2 size={18} className="animate-spin text-white" />
+              ) : (
+                <>
+                  <Send size={16} className="text-white" />
+                  <span className="text-white">Опубликовать</span>
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
+
+  return createPortal(content, document.body);
 }
