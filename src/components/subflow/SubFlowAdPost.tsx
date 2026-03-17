@@ -40,6 +40,8 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
   const [showComments, setShowComments] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
   const [adEmojiPickerOpen, setAdEmojiPickerOpen] = useState(false);
+  const [burstEmoji, setBurstEmoji] = useState<string | null>(null);
+  const [newlyAddedReactions, setNewlyAddedReactions] = useState<Set<string>>(() => new Set());
   const [processedReactionIds] = useState(() => new Set<string>());
   const [pendingReactions] = useState(() => new Set<string>());
 
