@@ -271,6 +271,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
         return '💬 прокомментировал(а) пост';
       case 'follow':
         return '👥 подписался на вас';
+      case 'story_like':
+        return '❤️ понравилась ваша история';
       default:
         return 'уведомление';
     }
