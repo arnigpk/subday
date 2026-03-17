@@ -41,8 +41,7 @@ interface SubFlowPostProps {
 }
 
 const PRIMARY_REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
-const EXTRA_REACTIONS = ['😂', '😍', '🥳', '🤔', '😢', '👏', '💯', '🎉', '❤️', '😎'];
-const ALL_REACTIONS = [...PRIMARY_REACTIONS, ...EXTRA_REACTIONS];
+const EXTRA_REACTIONS = ['🤣', '😍', '🥶', '🤩', '😮', '🙌', '🙏', '☕', '🎯', '🤝'];
 const MAX_REACTIONS_PER_USER = 2;
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription, isHighlighted, onHighlightDone }: SubFlowPostProps) {
@@ -281,12 +280,18 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
     try {
       if (hasReaction) {
-        await supabase
+        const { error } = await supabase
           .from('subflow_reactions')
           .delete()
           .eq('post_id', post.id)
           .eq('user_id', currentUserId)
           .eq('reaction', reaction);
+
+        if (error) throw error;
+
+        supabase.functions.invoke('subflow-notify', {
+          body: { type: 'reaction_removed', postId: post.id, actorId: currentUserId, reaction }
+        }).catch(() => {});
       } else {
         const { error } = await supabase
           .from('subflow_reactions')
@@ -605,6 +610,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       {(() => {
         const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0 || localUserReactions.includes(r));
         const visibleReactions = [...PRIMARY_REACTIONS, ...activeExtraReactions.filter(r => !PRIMARY_REACTIONS.includes(r))];
+        const pickerReactions = EXTRA_REACTIONS.filter(r => !visibleReactions.includes(r));
         
         return (
           <div className="flex flex-wrap gap-1 mb-3 justify-center">
@@ -629,38 +635,37 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                 </button>
               );
             })}
-            {/* Plus button with emoji picker */}
-            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95"
-                >
-                  <Plus size={16} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-2" side="top" align="center">
-                <div className="grid grid-cols-5 gap-1">
-                  {EXTRA_REACTIONS.map(reaction => (
-                    <button
-                      key={reaction}
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleReaction(reaction);
-                        setEmojiPickerOpen(false);
-                      }}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-colors active:scale-90 ${
-                        localUserReactions.includes(reaction) ? 'bg-primary/15' : 'hover:bg-secondary'
-                      }`}
-                    >
-                      {reaction}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            {pickerReactions.length > 0 && (
+              <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2" side="top" align="center">
+                  <div className="grid grid-cols-5 gap-1">
+                    {pickerReactions.map(reaction => (
+                      <button
+                        key={reaction}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void handleReaction(reaction);
+                          setEmojiPickerOpen(false);
+                        }}
+                        className="w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-colors active:scale-90 hover:bg-secondary"
+                      >
+                        {reaction}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         );
       })()}

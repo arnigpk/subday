@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotifyRequest {
-  type: 'reaction' | 'new_post' | 'comment' | 'follow';
+  type: 'reaction' | 'reaction_removed' | 'new_post' | 'comment' | 'follow';
   postId?: string;
   actorId: string;
   reaction?: string;
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const { type, postId, actorId, reaction, targetUserId } = body;
 
     const triggerType = TRIGGER_TYPE_MAP[type];
-    const template = await getTemplate(supabase, triggerType);
+    const template = triggerType ? await getTemplate(supabase, triggerType) : null;
 
     if (template && !template.is_active) {
       return jsonResponse({ ok: true, skipped: true, reason: 'template_disabled' });
@@ -73,7 +73,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // ALWAYS insert in-app notification
       await supabase.from('subflow_notifications').insert({
         user_id: post.user_id,
         actor_id: actorId,
@@ -82,7 +81,6 @@ Deno.serve(async (req) => {
         reaction: reaction || null,
       });
 
-      // Telegram/push: global count across ALL user's posts
       const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', null, cooldownMinutes);
       if (cooldownCheck.shouldSend) {
         const totalCount = await countGlobalReactions(supabase, post.user_id);
@@ -96,6 +94,30 @@ Deno.serve(async (req) => {
           await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
         }
       }
+
+    } else if (type === 'reaction_removed') {
+      if (!postId) return jsonResponse({ ok: true, skipped: true });
+
+      const { data: post } = await supabase
+        .from('subflow_posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+
+      if (!post || post.user_id === actorId) {
+        return jsonResponse({ ok: true, skipped: true });
+      }
+
+      await supabase
+        .from('subflow_notifications')
+        .delete()
+        .eq('user_id', post.user_id)
+        .eq('actor_id', actorId)
+        .eq('type', 'reaction')
+        .eq('post_id', postId)
+        .eq('reaction', reaction || null);
+
+      return jsonResponse({ ok: true, removed: true });
 
     } else if (type === 'new_post') {
       if (!postId) return jsonResponse({ ok: true, skipped: true });
