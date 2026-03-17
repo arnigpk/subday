@@ -219,7 +219,7 @@ export async function generateShareCard(options: ShareCardOptions): Promise<Blob
 
   ctx.font = '22px system-ui, sans-serif';
   ctx.fillStyle = BRAND_COLOR;
-  ctx.fillText('vhod.lovable.app/subflow/post/' + postId.slice(0, 8), CARD_W / 2, bottomY + 40);
+  ctx.fillText('i.subday.app/subflow/post/' + postId.slice(0, 8), CARD_W / 2, bottomY + 40);
 
   // Bottom branding
   ctx.font = '20px system-ui, sans-serif';
@@ -241,7 +241,7 @@ export async function shareSubFlowPost(options: ShareCardOptions): Promise<boole
   try {
     const blob = await generateShareCard(options);
     const file = new File([blob], 'subflow-post.png', { type: 'image/png' });
-    const shareUrl = `https://vhod.lovable.app/subflow/post/${options.postId}`;
+    const shareUrl = `https://i.subday.app/subflow/post/${options.postId}`;
 
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
@@ -262,7 +262,7 @@ export async function shareSubFlowPost(options: ShareCardOptions): Promise<boole
     }
     // Last resort: copy link
     try {
-      await navigator.clipboard.writeText(`https://vhod.lovable.app/subflow/post/${options.postId}`);
+      await navigator.clipboard.writeText(`https://i.subday.app/subflow/post/${options.postId}`);
     } catch {}
     return false;
   }

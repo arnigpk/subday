@@ -424,15 +424,17 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
-          {/* Share button */}
-          <button
-            onClick={handleShare}
-            disabled={isSharing}
-            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
-            title="Поделиться"
-          >
-            <Share2 size={16} className={isSharing ? 'animate-pulse' : ''} />
-          </button>
+          {/* Share button — only own posts */}
+          {isOwner && (
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+              title="Поделиться"
+            >
+              <Share2 size={16} className={isSharing ? 'animate-pulse' : ''} />
+            </button>
+          )}
           {isOwner && canEdit && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}
