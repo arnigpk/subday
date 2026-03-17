@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const { type, postId, actorId, reaction, targetUserId } = body;
 
     const triggerType = TRIGGER_TYPE_MAP[type];
-    const template = await getTemplate(supabase, triggerType);
+    const template = triggerType ? await getTemplate(supabase, triggerType) : null;
 
     if (template && !template.is_active) {
       return jsonResponse({ ok: true, skipped: true, reason: 'template_disabled' });
