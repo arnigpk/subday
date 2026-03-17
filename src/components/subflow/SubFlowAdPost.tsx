@@ -258,7 +258,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
 
       {/* Reactions */}
       {(() => {
-        const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0);
+        const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0 || localUserReactions.includes(r));
         const visibleReactions = [...PRIMARY_REACTIONS, ...activeExtraReactions.filter(r => !PRIMARY_REACTIONS.includes(r))];
 
         return (
@@ -271,7 +271,8 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
               return (
                 <button
                   key={reaction}
-                  onClick={() => handleReaction(reaction)}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleReaction(reaction); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
                     hasReacted
                       ? 'bg-primary/15 text-primary shadow-sm'
@@ -283,19 +284,27 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
                 </button>
               );
             })}
-            <Popover>
+            <Popover open={adEmojiPickerOpen} onOpenChange={setAdEmojiPickerOpen}>
               <PopoverTrigger asChild>
-                <button className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95">
+                <button type="button" className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95">
                   <Plus size={16} />
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2" side="top" align="center">
                 <div className="grid grid-cols-5 gap-1">
-                  {ALL_REACTIONS.filter(r => !localUserReactions.includes(r)).map(reaction => (
+                  {EXTRA_REACTIONS.map(reaction => (
                     <button
                       key={reaction}
-                      onClick={() => handleReaction(reaction)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg text-xl hover:bg-secondary transition-colors active:scale-90"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleReaction(reaction);
+                        setAdEmojiPickerOpen(false);
+                      }}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-colors active:scale-90 ${
+                        localUserReactions.includes(reaction) ? 'bg-primary/15' : 'hover:bg-secondary'
+                      }`}
                     >
                       {reaction}
                     </button>
