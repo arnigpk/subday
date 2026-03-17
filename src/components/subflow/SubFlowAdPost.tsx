@@ -26,8 +26,7 @@ interface SubFlowAdPostProps {
 }
 
 const PRIMARY_REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
-const EXTRA_REACTIONS = ['😂', '😍', '🥳', '🤔', '😢', '👏', '💯', '🎉', '❤️', '😎'];
-const ALL_REACTIONS = [...PRIMARY_REACTIONS, ...EXTRA_REACTIONS];
+const EXTRA_REACTIONS = ['🤣', '😍', '🥶', '🤩', '😮', '🙌', '🙏', '☕', '🎯', '🤝'];
 const MAX_REACTIONS_PER_USER = 2;
 
 export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(function SubFlowAdPost({ ad, currentUserId }, ref) {

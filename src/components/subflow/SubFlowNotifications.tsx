@@ -207,6 +207,22 @@ export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotifi
         }
         fetchNotifications();
       })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'subflow_notifications',
+        filter: `user_id=eq.${userId}`,
+      }, () => {
+        fetchNotifications();
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'subflow_notifications',
+        filter: `user_id=eq.${userId}`,
+      }, () => {
+        fetchNotifications();
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

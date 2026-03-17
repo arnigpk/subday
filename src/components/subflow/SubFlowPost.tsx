@@ -41,8 +41,7 @@ interface SubFlowPostProps {
 }
 
 const PRIMARY_REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
-const EXTRA_REACTIONS = ['😂', '😍', '🥳', '🤔', '😢', '👏', '💯', '🎉', '❤️', '😎'];
-const ALL_REACTIONS = [...PRIMARY_REACTIONS, ...EXTRA_REACTIONS];
+const EXTRA_REACTIONS = ['🤣', '😍', '🥶', '🤩', '😮', '🙌', '🙏', '☕', '🎯', '🤝'];
 const MAX_REACTIONS_PER_USER = 2;
 
 export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, hasActiveSubscription, isHighlighted, onHighlightDone }: SubFlowPostProps) {
