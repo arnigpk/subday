@@ -367,6 +367,26 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     setIsEditing(false);
   };
 
+  const handleShare = async () => {
+    setIsSharing(true);
+    vibrateShort();
+    try {
+      const usedNativeShare = await shareSubFlowPost({
+        authorName: post.author_name,
+        content: post.content,
+        imageUrl: images[0] || null,
+        postId: post.id,
+      });
+      if (!usedNativeShare) {
+        toast.success('Ссылка скопирована');
+      }
+    } catch {
+      toast.error('Не удалось поделиться');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div 
       ref={postRef}
