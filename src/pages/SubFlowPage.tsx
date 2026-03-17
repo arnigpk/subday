@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
+import { StoriesBar } from '@/components/stories/StoriesBar';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
@@ -22,6 +23,8 @@ export default function SubFlowPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | undefined>();
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const { t } = useLanguage();
@@ -32,7 +35,19 @@ export default function SubFlowPage() {
   const entryAlertFired = useRef(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id || null));
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      setUserId(user.id);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, avatar_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (profile) {
+        setUserName(profile.name || undefined);
+        setUserAvatar(profile.avatar_url);
+      }
+    });
   }, []);
 
   // Play sound + vibration on page entry if there are unread notifications
@@ -144,6 +159,17 @@ export default function SubFlowPage() {
               </div>
             </div>
           </LiquidGlassHeader>
+
+          {/* Stories Bar */}
+          {hasActiveSubscription && (
+            <StoriesBar
+              currentUserId={userId}
+              currentUserName={userName}
+              currentUserAvatar={userAvatar}
+              refreshTrigger={refreshTrigger}
+            />
+          )}
+
           <div className="px-4 pt-2">
 
             <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />

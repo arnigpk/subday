@@ -1,77 +1,57 @@
 
 
-## Plan: Instagram-style Stories Bar in #subFlow
+## Анализ текущих узких мест
 
-### What exists today
-- Database tables: `stories`, `story_views`, `story_likes` (all with RLS)
-- Storage bucket: `subflow-images` (public)
-- Components: `StoryAvatar` (shows ring on avatar if user has story), `StoryViewer` (fullscreen viewer with progress bars, likes, delete)
-- Hook: `useStoriesCache` with batch prefetch
-- Stories auto-expire at 24h via `expires_at` column
+Сейчас процесс сканирования тормозится в нескольких местах:
 
-### What needs to be built
+**Клиент (QRScanner.tsx):**
+1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
+2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
+3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
+4. Дубликат-защита 3 секунды -- можно сократить
 
-**1. New component: `StoriesBar`** (`src/components/stories/StoriesBar.tsx`)
-- Horizontal scrollable row at top of SubFlow feed (like Instagram screenshot 1)
-- First item = current user's avatar with "+" button to add a story
-- Remaining items = other users who have active stories, fetched in one query
-- Each circle: avatar with gradient ring (like Instagram), truncated name below (max ~10 chars)
-- Tapping opens the `StoryViewer` but enhanced to chain across users
+**Клиент (PartnerScanPage.tsx):**
+5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
+6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
 
-**2. New component: `StoryCreateDialog`** (`src/components/stories/StoryCreateDialog.tsx`)
-- Triggered by tapping the "+" on current user's story circle
-- Image picker, compress, upload to `subflow-images` bucket
-- Insert row into `stories` table with `expires_at = now() + 24h`
+**Сервер (partner-scan-qr):**
+7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
 
-**3. Enhance `StoryViewer`** 
-- Accept all stories grouped by user (not just one user's stories)
-- Progress bars show segments per current user's stories
-- When one user's stories end, auto-advance to next user's stories
-- 10 seconds per story (currently 5s)
-- Smooth morph-in animation (reuse pattern from `SubFlowImageViewer`)
-- Owner sees delete button (bottom-right)
-- Non-owner sees like button and close button (top-right X)
-- Left/right tap navigation within user, then cross-user
+## План ускорения
 
-**4. New hook: `useAllActiveStories`** (`src/hooks/useAllActiveStories.ts`)
-- Single query: fetch all active stories joined with profiles for name/avatar
-- Group by user_id, ordered by created_at
-- Returns `{ users: [{userId, name, avatar, stories[]}], refresh }`
+### 1. Убрать искусственную задержку в 1 секунду
+Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
 
-**5. Integrate into `SubFlowPage.tsx`**
-- Add `<StoriesBar>` between the header and the feed
-- Pass current userId and refresh trigger
+### 2. Автозапуск камеры
+Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
 
-### Data flow
-```text
-stories table (existing)
-  + profiles join (name, avatar)
-       |
-  useAllActiveStories hook
-       |
-  StoriesBar (horizontal scroll)
-       |
-  tap -> StoryViewer (enhanced, cross-user chaining)
-       |
-  "+" -> StoryCreateDialog -> upload -> insert story row
-```
+### 3. Не останавливать камеру при обработке
+Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
 
-### Technical details
+### 4. Увеличить область сканирования
+`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
 
-- **Timer**: Change from 5000ms to 10000ms in StoryViewer
-- **Cross-user chaining**: StoryViewer receives a flat array of all stories (ordered by user groups). Progress bars reset per user group. When last story of user N ends, advance to user N+1's first story.
-- **Morph animation**: Use `createPortal` + transform animation from source rect (same pattern as SubFlowImageViewer)
-- **Name truncation**: CSS `max-w-[60px] truncate text-center text-[10px]`
-- **Gradient ring**: CSS gradient border mimicking Instagram's orange-pink-purple ring for users with unseen stories
-- **Storage**: Reuse `subflow-images` bucket for story uploads
-- **No new DB tables needed** -- all tables exist
+### 5. Сократить защиту от дубликатов
+С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
 
-### Files to create/modify
-| File | Action |
-|------|--------|
-| `src/components/stories/StoriesBar.tsx` | Create |
-| `src/components/stories/StoryCreateDialog.tsx` | Create |
-| `src/components/stories/StoryViewer.tsx` | Modify (10s timer, cross-user, morph animation) |
-| `src/hooks/useAllActiveStories.ts` | Create |
-| `src/pages/SubFlowPage.tsx` | Add StoriesBar between header and feed |
+### 6. Запрос высокого разрешения камеры
+Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
+
+### 7. Автовозврат к сканеру после результата
+После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
+
+### 8. Не прятать сканер при статусах scanning/success/error
+Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
+
+### Затрагиваемые файлы
+- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
+- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
+
+### Итого выигрыш по скорости
+- Убрана 1с задержка
+- Убрано время запуска камеры (~1-2с)
+- Убрано время перезапуска камеры между сканами (~1-2с)  
+- Увеличена область захвата и разрешение -- быстрее распознавание
+
+Общий выигрыш: **3-5 секунд** на каждое сканирование.
 
