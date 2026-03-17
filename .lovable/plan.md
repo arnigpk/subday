@@ -1,74 +1,57 @@
-## Plan: SubFlow Post Sharing with Content Lock Growth Hack
 
-### Concept
 
-Add a "Share" button to each SubFlow post that generates a visually appealing share card (image) with blurred/locked content and the subday logo. The card is generated client-side using HTML Canvas, then shared via the Web Share API (which covers Instagram Stories, WhatsApp Status, Telegram, etc. on mobile).
+## Анализ текущих узких мест
 
-Each post already has a unique `id` (UUID). We need a public route `/subflow/post/:id` that shows the post (or a locked preview for non-subscribers).
+Сейчас процесс сканирования тормозится в нескольких местах:
 
-### Technical Steps
+**Клиент (QRScanner.tsx):**
+1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
+2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
+3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
+4. Дубликат-защита 3 секунды -- можно сократить
 
-#### 1. Add public route `/subflow/post/:id`
+**Клиент (PartnerScanPage.tsx):**
+5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
+6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
 
-- Create `src/pages/SubFlowPostPage.tsx` — a public landing page
-- If user is authenticated + has subscription → show full post
-- If not → show blurred preview with CTA "Download subday app" + link to app stores / main page
-- Update `App.tsx` to add the route
-- Update `apple-app-site-association` and `assetlinks.json` to include `/subflow/post/*`
+**Сервер (partner-scan-qr):**
+7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
 
-#### 2. Create share card generator
+## План ускорения
 
-- New component `src/components/subflow/SubFlowShareCard.tsx`
-- Uses HTML Canvas to render a share-ready image (1080x1920 story format):
-  - Post text (truncated, partially visible)
-  - If media exists: show blurred version with a lock icon overlay
-  - subday logo prominently placed
-  - "#subFlow" branding
-  - QR code or short link at bottom
-  - "Скачай subday чтобы увидеть" CTA text
-- Export as PNG blob for sharing
+### 1. Убрать искусственную задержку в 1 секунду
+Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
 
-#### 3. Add Share button to SubFlowPost
+### 2. Автозапуск камеры
+Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
 
-- Add a `Share` (or `Forward`) icon button in the post header/footer area
-- On click:
-  - Generate the share card image via canvas
-  - Use `navigator.share({ files: [imageFile], text, url })` (Web Share API)
-  - Fallback: copy link to clipboard if Web Share not available
-- The shared URL will be `https://vhod.lovable.app/subflow/post/{postId}`
+### 3. Не останавливать камеру при обработке
+Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
 
-#### 4. Share card visual design
+### 4. Увеличить область сканирования
+`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
 
-```text
-┌──────────────────────┐
-│     subday logo       │
-│                       │
-│   ┌─────────────┐    │
-│   │  BLURRED     │    │
-│   │  IMAGE/VIDEO │    │
-│   │   🔒         │    │
-│   └─────────────┘    │
-│                       │
-│  "Пост от @username"  │
-│  "Текст поста час..." │
-│                       │
-│  ┌────────────────┐  │
-│  │ Открой в subday │  │
-│  └────────────────┘  │
-│                       │
-│  Скачать приложение     │
-└──────────────────────┘
-```
+### 5. Сократить защиту от дубликатов
+С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
 
-#### 5. Files to create/modify
+### 6. Запрос высокого разрешения камеры
+Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
 
-- **Create**: `src/pages/SubFlowPostPage.tsx` — public post landing page
-- **Create**: `src/components/subflow/SubFlowShareCard.ts` — canvas-based image generator utility
-- **Modify**: `src/components/subflow/SubFlowPost.tsx` — add Share button
-- **Modify**: `src/App.tsx` — add `/subflow/post/:id` route
-- **Modify**: `public/.well-known/apple-app-site-association` — add path pattern
-- **Modify**: `public/.well-known/assetlinks.json` — already covers all paths
+### 7. Автовозврат к сканеру после результата
+После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
 
-#### 6. No database changes needed
+### 8. Не прятать сканер при статусах scanning/success/error
+Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
 
-Posts already have unique UUIDs. The `subflow_posts` table has public SELECT RLS policy (`true`), so the landing page can fetch any post.
+### Затрагиваемые файлы
+- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
+- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
+
+### Итого выигрыш по скорости
+- Убрана 1с задержка
+- Убрано время запуска камеры (~1-2с)
+- Убрано время перезапуска камеры между сканами (~1-2с)  
+- Увеличена область захвата и разрешение -- быстрее распознавание
+
+Общий выигрыш: **3-5 секунд** на каждое сканирование.
+

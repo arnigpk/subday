@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2 } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Share2 } from 'lucide-react';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubFlowFollow } from '@/hooks/useSubFlowFollow';
+import { shareSubFlowPost } from './SubFlowShareCard';
 
 interface Post {
   id: string;
@@ -55,6 +56,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxRect, setLightboxRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
   const postImgRef = useRef<HTMLImageElement>(null);
     const [showImageHint, setShowImageHint] = useState(false);
     const MAX_HINT_SHOWS = 3;
@@ -365,6 +367,26 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     setIsEditing(false);
   };
 
+  const handleShare = async () => {
+    setIsSharing(true);
+    vibrateShort();
+    try {
+      const usedNativeShare = await shareSubFlowPost({
+        authorName: post.author_name,
+        content: post.content,
+        imageUrl: images[0] || null,
+        postId: post.id,
+      });
+      if (!usedNativeShare) {
+        toast.success('Ссылка скопирована');
+      }
+    } catch {
+      toast.error('Не удалось поделиться');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div 
       ref={postRef}
@@ -402,6 +424,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
         </div>
         <div className="flex items-center gap-1">
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            disabled={isSharing}
+            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+            title="Поделиться"
+          >
+            <Share2 size={16} className={isSharing ? 'animate-pulse' : ''} />
+          </button>
           {isOwner && canEdit && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}
