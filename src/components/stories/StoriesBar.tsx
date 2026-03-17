@@ -70,33 +70,38 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* Current user - always show */}
-        <button
-          onClick={currentUserHasStory ? () => handleUserTap(0) : handleAddStory}
-          className="flex flex-col items-center gap-1 shrink-0"
-        >
+        <div className="flex flex-col items-center gap-1 shrink-0">
           <div className="relative">
-            <div
-              className="w-16 h-16 rounded-full p-[3px]"
-              style={currentUserHasStory ? getRingStyle(users.find(u => u.userId === currentUserId)!) : { background: 'transparent' }}
+            <button
+              onClick={currentUserHasStory ? () => handleUserTap(0) : handleAddStory}
+              className="block"
             >
-              <Avatar className={`w-full h-full ${currentUserHasStory ? 'ring-2 ring-background' : 'ring-2 ring-border'}`}>
-                {currentUserAvatar ? (
-                  <AvatarImage src={currentUserAvatar} alt="You" className="object-cover" />
-                ) : null}
-                <AvatarFallback className="bg-muted">
-                  <User size={24} className="text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
-            </div>
-            {/* Always show "+" on current user */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background">
+              <div
+                className="w-16 h-16 rounded-full p-[3px]"
+                style={currentUserHasStory ? getRingStyle(users.find(u => u.userId === currentUserId)!) : { background: 'transparent' }}
+              >
+                <Avatar className={`w-full h-full ${currentUserHasStory ? 'ring-2 ring-background' : 'ring-2 ring-border'}`}>
+                  {currentUserAvatar ? (
+                    <AvatarImage src={currentUserAvatar} alt="You" className="object-cover" />
+                  ) : null}
+                  <AvatarFallback className="bg-muted">
+                    <User size={24} className="text-muted-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </button>
+            {/* "+" button always opens create dialog */}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleAddStory(); }}
+              className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
+            >
               <Plus size={12} className="text-primary-foreground" />
-            </div>
+            </button>
           </div>
           <span className="text-[10px] text-muted-foreground max-w-[60px] truncate text-center">
             {currentUserHasStory ? truncateName(currentUserName || 'Вы') : 'Ваша история'}
           </span>
-        </button>
+        </div>
 
         {/* Other users with stories */}
         {users.map((user, idx) => {
