@@ -344,6 +344,7 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/gift-coffee" element={<GiftCoffeePage />} />
             <Route path="/subflow" element={<SubFlowPage />} />
+            <Route path="/subflow/post/:id" element={<SubFlowPostPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             
             {/* Admin Routes */}
