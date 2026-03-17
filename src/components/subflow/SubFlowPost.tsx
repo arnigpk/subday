@@ -56,6 +56,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxRect, setLightboxRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
   const postImgRef = useRef<HTMLImageElement>(null);
     const [showImageHint, setShowImageHint] = useState(false);
     const MAX_HINT_SHOWS = 3;
