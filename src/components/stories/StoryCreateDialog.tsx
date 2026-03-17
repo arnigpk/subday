@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Type, Image as ImageIcon, Send, Sparkles } from 'lucide-react';
+import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ interface TextOverlay {
   text: string;
   color: string;
   fontSize: number;
+  /** Position as fraction 0..1 of image height */
+  posY: number;
 }
 
 const TEXT_COLORS = ['#ffffff', '#000000', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de', '#ff2d55'];
@@ -43,12 +45,11 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const inputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-open file picker when dialog opens without a preview
-  useEffect(() => {
-    if (open && !preview) {
-      setTimeout(() => inputRef.current?.click(), 300);
-    }
-  }, [open]);
+  // Drag state for text overlay
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef(0);
+  const dragStartPosY = useRef(0.5);
+  const isDraggingText = useRef(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -72,11 +73,33 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
 
   const handleTextConfirm = () => {
     if (textDraft.trim()) {
-      setTextOverlay({ text: textDraft.trim(), color: selectedColor, fontSize: 28 });
+      setTextOverlay({ text: textDraft.trim(), color: selectedColor, fontSize: 28, posY: textOverlay?.posY ?? 0.5 });
     } else {
       setTextOverlay(null);
     }
     setEditingText(false);
+  };
+
+  // Touch drag handlers for text overlay
+  const handleTextTouchStart = (e: React.TouchEvent) => {
+    if (!textOverlay || !imageContainerRef.current) return;
+    e.stopPropagation();
+    isDraggingText.current = true;
+    dragStartY.current = e.touches[0].clientY;
+    dragStartPosY.current = textOverlay.posY;
+  };
+
+  const handleTextTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingText.current || !textOverlay || !imageContainerRef.current) return;
+    e.stopPropagation();
+    const containerHeight = imageContainerRef.current.getBoundingClientRect().height;
+    const deltaY = e.touches[0].clientY - dragStartY.current;
+    const newPosY = Math.max(0.1, Math.min(0.9, dragStartPosY.current + deltaY / containerHeight));
+    setTextOverlay(prev => prev ? { ...prev, posY: newPosY } : null);
+  };
+
+  const handleTextTouchEnd = () => {
+    isDraggingText.current = false;
   };
 
   const getFilterCss = useCallback(() => {
@@ -99,15 +122,11 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     canvas.height = img.height;
     const ctx = canvas.getContext('2d')!;
 
-    // Apply filter
     const filterCss = getFilterCss();
-    if (filterCss !== 'none') {
-      ctx.filter = filterCss;
-    }
+    if (filterCss !== 'none') ctx.filter = filterCss;
     ctx.drawImage(img, 0, 0);
     ctx.filter = 'none';
 
-    // Draw text
     if (textOverlay) {
       const fontSize = Math.round(canvas.width * 0.065);
       ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
@@ -134,7 +153,8 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       if (currentLine) lines.push(currentLine);
 
       const lineHeight = fontSize * 1.35;
-      const startY = canvas.height * 0.5 - ((lines.length - 1) * lineHeight) / 2;
+      const centerY = canvas.height * textOverlay.posY;
+      const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
       lines.forEach((line, i) => {
         ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
       });
@@ -201,13 +221,11 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
 
       {!preview ? (
-        /* No image selected — prompt */
         <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
           <div className="text-center">
             <h2 className="text-white text-xl font-bold mb-2">Новая история</h2>
@@ -218,7 +236,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
             <button
               onClick={() => {
                 if (inputRef.current) {
-                  inputRef.current.capture = 'environment';
+                  inputRef.current.setAttribute('capture', 'environment');
                   inputRef.current.click();
                 }
               }}
@@ -254,7 +272,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
           </button>
         </div>
       ) : (
-        /* Image selected — editor */
         <>
           {/* Top bar */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2 safe-area-top z-20">
@@ -278,7 +295,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
           </div>
 
           {/* Image preview */}
-          <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+          <div ref={imageContainerRef} className="flex-1 relative flex items-center justify-center overflow-hidden">
             <img
               src={preview}
               alt="Preview"
@@ -286,11 +303,18 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
               style={{ filter: getFilterCss() }}
             />
 
-            {/* Text overlay */}
+            {/* Draggable text overlay */}
             {textOverlay && !editingText && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-6">
+              <div
+                className="absolute left-0 right-0 flex justify-center px-6 cursor-grab active:cursor-grabbing"
+                style={{ top: `${textOverlay.posY * 100}%`, transform: 'translateY(-50%)' }}
+                onTouchStart={handleTextTouchStart}
+                onTouchMove={handleTextTouchMove}
+                onTouchEnd={handleTextTouchEnd}
+                onDoubleClick={handleAddText}
+              >
                 <p
-                  className="text-center font-bold leading-tight"
+                  className="text-center font-bold leading-tight select-none"
                   style={{
                     color: textOverlay.color,
                     fontSize: '22px',
@@ -320,7 +344,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                   style={{ textShadow: '0 2px 12px rgba(0,0,0,0.7)' }}
                   onKeyDown={e => e.key === 'Enter' && handleTextConfirm()}
                 />
-                {/* Color picker */}
                 <div className="flex items-center gap-2.5 mt-6">
                   {TEXT_COLORS.map(color => (
                     <button
@@ -370,7 +393,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
             </div>
           )}
 
-          {/* Bottom bar */}
+          {/* Bottom bar — styled like "Сделать пост" button */}
           <div className="px-4 pb-4 pt-2 safe-area-bottom flex items-center gap-3">
             <button
               onClick={() => {
@@ -386,17 +409,18 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="flex-1 h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+              className="flex-1 h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all backdrop-blur-xl border border-border/40 text-white"
               style={{
-                background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                background: 'hsl(var(--background) / 0.65)',
+                boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
               }}
             >
               {uploading ? (
-                <Loader2 size={18} className="animate-spin text-white" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
                 <>
-                  <Send size={16} className="text-white" />
-                  <span className="text-white">Опубликовать</span>
+                  <Pencil size={16} />
+                  <span>Опубликовать</span>
                 </>
               )}
             </button>
