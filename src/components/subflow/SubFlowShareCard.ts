@@ -262,7 +262,7 @@ export async function shareSubFlowPost(options: ShareCardOptions): Promise<boole
     }
     // Last resort: copy link
     try {
-      await navigator.clipboard.writeText(`https://vhod.lovable.app/subflow/post/${options.postId}`);
+      await navigator.clipboard.writeText(`https://i.subday.app/subflow/post/${options.postId}`);
     } catch {}
     return false;
   }

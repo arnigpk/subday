@@ -240,7 +240,7 @@ export default function SubFlowPostPage() {
         {/* CTA section */}
         <div className="flex flex-col items-center gap-4">
           <a
-            href="https://vhod.lovable.app"
+            href="https://i.subday.app"
             className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-lg shadow-lg"
           >
             <Download size={20} />
