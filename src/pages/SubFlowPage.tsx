@@ -35,7 +35,19 @@ export default function SubFlowPage() {
   const entryAlertFired = useRef(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id || null));
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      setUserId(user.id);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, avatar_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (profile) {
+        setUserName(profile.name || undefined);
+        setUserAvatar(profile.avatar_url);
+      }
+    });
   }, []);
 
   // Play sound + vibration on page entry if there are unread notifications
