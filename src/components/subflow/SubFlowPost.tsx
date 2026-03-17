@@ -601,27 +601,63 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       )}
 
       {/* Reactions */}
-      <div className="flex flex-wrap gap-1 mb-3 justify-center">
-        {REACTIONS.map(reaction => {
-          const count = localReactions[reaction] || 0;
-          const hasReacted = localUserReactions.includes(reaction);
-          
-          return (
-            <button
-              key={reaction}
-              onClick={() => handleReaction(reaction)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
-                hasReacted 
-                  ? 'bg-primary/15 text-primary shadow-sm' 
-                  : 'bg-secondary text-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <span className="text-base">{reaction}</span>
-              {count > 0 && <span className="text-xs">{count}</span>}
-            </button>
-          );
-        })}
-      </div>
+      {(() => {
+        // Collect all reactions that have counts or are primary
+        const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0);
+        const visibleReactions = [...PRIMARY_REACTIONS, ...activeExtraReactions.filter(r => !PRIMARY_REACTIONS.includes(r))];
+        const availableExtras = EXTRA_REACTIONS.filter(r => !visibleReactions.includes(r) || (localReactions[r] || 0) === 0);
+        
+        return (
+          <div className="flex flex-wrap gap-1 mb-3 justify-center">
+            {visibleReactions.map(reaction => {
+              const count = localReactions[reaction] || 0;
+              const hasReacted = localUserReactions.includes(reaction);
+              // Hide extra reactions with 0 count unless user reacted
+              if (!PRIMARY_REACTIONS.includes(reaction) && count === 0 && !hasReacted) return null;
+              
+              return (
+                <button
+                  key={reaction}
+                  onClick={() => handleReaction(reaction)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
+                    hasReacted 
+                      ? 'bg-primary/15 text-primary shadow-sm' 
+                      : 'bg-secondary text-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  <span className="text-base">{reaction}</span>
+                  {count > 0 && <span className="text-xs">{count}</span>}
+                </button>
+              );
+            })}
+            {/* Plus button with emoji picker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95"
+                >
+                  <Plus size={16} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" side="top" align="center">
+                <div className="grid grid-cols-5 gap-1">
+                  {ALL_REACTIONS.filter(r => !localUserReactions.includes(r)).map(reaction => (
+                    <button
+                      key={reaction}
+                      onClick={() => {
+                        handleReaction(reaction);
+                      }}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-xl hover:bg-secondary transition-colors active:scale-90"
+                    >
+                      {reaction}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        );
+      })()}
 
       {/* Comments toggle */}
       <button
