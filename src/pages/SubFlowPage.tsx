@@ -23,6 +23,8 @@ export default function SubFlowPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | undefined>();
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const { t } = useLanguage();
