@@ -82,6 +82,20 @@ export function useAllActiveStories(currentUserId: string | null) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Realtime: auto-refresh when any story is inserted or deleted
+  useEffect(() => {
+    const channel = supabase
+      .channel('stories-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stories' },
+        () => { fetchData(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchData]);
+
   const isUserFullyViewed = useCallback((user: StoryUser) => {
     return user.stories.every(s => viewedStoryIds.has(s.id));
   }, [viewedStoryIds]);
