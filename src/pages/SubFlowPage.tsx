@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
@@ -23,8 +23,16 @@ export default function SubFlowPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(() => searchParams.get('post'));
   const { t } = useLanguage();
+
+  // Clear ?post= param after reading it
+  useEffect(() => {
+    if (searchParams.has('post')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const playNotificationSound = useNotificationSound();
   const { vibrate } = useVibration();
