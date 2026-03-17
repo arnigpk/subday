@@ -241,7 +241,7 @@ export async function shareSubFlowPost(options: ShareCardOptions): Promise<boole
   try {
     const blob = await generateShareCard(options);
     const file = new File([blob], 'subflow-post.png', { type: 'image/png' });
-    const shareUrl = `https://vhod.lovable.app/subflow/post/${options.postId}`;
+    const shareUrl = `https://i.subday.app/subflow/post/${options.postId}`;
 
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
