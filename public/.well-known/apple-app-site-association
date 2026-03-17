@@ -8,7 +8,6 @@
           "/shops/*",
           "/packages/*",
           "/subflow",
-          "/subflow/post/*",
           "/profile",
           "/redeem",
           "/history",

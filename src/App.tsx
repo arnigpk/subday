@@ -26,7 +26,6 @@ import RedeemPage from "./pages/RedeemPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import SubFlowPage from "./pages/SubFlowPage";
-const SubFlowPostPage = lazy(() => import("./pages/SubFlowPostPage"));
 
 // Lazy-loaded secondary pages
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
@@ -344,7 +343,6 @@ const AppContent = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/gift-coffee" element={<GiftCoffeePage />} />
             <Route path="/subflow" element={<SubFlowPage />} />
-            <Route path="/subflow/post/:id" element={<SubFlowPostPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             
             {/* Admin Routes */}
