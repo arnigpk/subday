@@ -640,6 +640,7 @@ export type Database = {
           expires_at: string
           id: string
           image_url: string
+          media_type: string
           user_id: string
         }
         Insert: {
@@ -647,6 +648,7 @@ export type Database = {
           expires_at?: string
           id?: string
           image_url: string
+          media_type?: string
           user_id: string
         }
         Update: {
@@ -654,6 +656,7 @@ export type Database = {
           expires_at?: string
           id?: string
           image_url?: string
+          media_type?: string
           user_id?: string
         }
         Relationships: []
