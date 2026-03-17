@@ -26,6 +26,7 @@ import RedeemPage from "./pages/RedeemPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import SubFlowPage from "./pages/SubFlowPage";
+const SubFlowPostPage = lazy(() => import("./pages/SubFlowPostPage"));
 
 // Lazy-loaded secondary pages
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
