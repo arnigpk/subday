@@ -622,11 +622,13 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         const pickerReactions = EXTRA_REACTIONS.filter(r => !visibleReactions.includes(r));
         
         return (
-          <div className="flex flex-wrap gap-1 mb-3 justify-center">
+          <div className="flex flex-wrap gap-1 mb-3 justify-center relative">
+            <ReactionBurst emoji={burstEmoji} onDone={() => setBurstEmoji(null)} />
             {visibleReactions.map(reaction => {
               const count = localReactions[reaction] || 0;
               const hasReacted = localUserReactions.includes(reaction);
               if (!PRIMARY_REACTIONS.includes(reaction) && count === 0 && !hasReacted) return null;
+              const isNew = newlyAddedReactions.has(reaction) && !PRIMARY_REACTIONS.includes(reaction);
               
               return (
                 <button
@@ -634,6 +636,8 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleReaction(reaction); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
+                    isNew ? 'animate-reaction-pop' : ''
+                  } ${
                     hasReacted 
                       ? 'bg-primary/15 text-primary shadow-sm' 
                       : 'bg-secondary text-foreground hover:bg-secondary/80'
