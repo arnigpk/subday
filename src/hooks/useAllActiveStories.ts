@@ -7,6 +7,7 @@ export interface StoryItem {
   image_url: string;
   created_at: string;
   expires_at: string;
+  media_type?: string;
 }
 
 export interface StoryUser {
@@ -14,6 +15,8 @@ export interface StoryUser {
   name: string;
   avatar: string | null;
   stories: StoryItem[];
+  /** Timestamp of the latest story — used for sorting */
+  latestStoryAt: string;
 }
 
 export function useAllActiveStories(currentUserId: string | null) {
@@ -24,7 +27,7 @@ export function useAllActiveStories(currentUserId: string | null) {
   const fetchData = useCallback(async () => {
     const { data, error } = await supabase
       .from('stories')
-      .select('id, user_id, image_url, created_at, expires_at')
+      .select('id, user_id, image_url, created_at, expires_at, media_type')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: true });
 
@@ -34,10 +37,8 @@ export function useAllActiveStories(currentUserId: string | null) {
       return;
     }
 
-    // Get unique user ids
     const userIds = [...new Set(data.map(s => s.user_id))];
 
-    // Fetch profiles and viewed stories in parallel
     const [profilesRes, viewedRes] = await Promise.all([
       supabase.from('profiles').select('user_id, name, avatar_url').in('user_id', userIds),
       currentUserId
@@ -52,7 +53,7 @@ export function useAllActiveStories(currentUserId: string | null) {
     const viewed = new Set((viewedRes.data || []).map(v => v.story_id));
     setViewedStoryIds(viewed);
 
-    // Group by user, current user first
+    // Group by user
     const grouped = new Map<string, StoryUser>();
     for (const s of data) {
       if (!grouped.has(s.user_id)) {
@@ -62,19 +63,31 @@ export function useAllActiveStories(currentUserId: string | null) {
           name: profile?.name || 'Пользователь',
           avatar: profile?.avatar || null,
           stories: [],
+          latestStoryAt: s.created_at,
         });
       }
-      grouped.get(s.user_id)!.stories.push(s);
-    }
-
-    const result = Array.from(grouped.values());
-    if (currentUserId) {
-      const idx = result.findIndex(u => u.userId === currentUserId);
-      if (idx > 0) {
-        const [me] = result.splice(idx, 1);
-        result.unshift(me);
+      const user = grouped.get(s.user_id)!;
+      user.stories.push({
+        ...s,
+        media_type: (s as any).media_type || 'image',
+      });
+      // Track the latest story timestamp
+      if (s.created_at > user.latestStoryAt) {
+        user.latestStoryAt = s.created_at;
       }
     }
+
+    // Sort: current user first, then by latest story time (newest first)
+    const result = Array.from(grouped.values());
+    result.sort((a, b) => {
+      // Current user always first
+      if (currentUserId) {
+        if (a.userId === currentUserId) return -1;
+        if (b.userId === currentUserId) return 1;
+      }
+      // Then sort by latest story descending (most recent first)
+      return new Date(b.latestStoryAt).getTime() - new Date(a.latestStoryAt).getTime();
+    });
 
     setUsers(result);
     setLoading(false);
@@ -82,7 +95,7 @@ export function useAllActiveStories(currentUserId: string | null) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime: auto-refresh when any story is inserted or deleted
+  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel('stories-realtime')
