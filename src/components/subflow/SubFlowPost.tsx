@@ -57,6 +57,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [imageLoaded, setImageLoaded] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [lightboxRect, setLightboxRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const postImgRef = useRef<HTMLImageElement>(null);
     const [showImageHint, setShowImageHint] = useState(false);
@@ -602,23 +603,21 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
       {/* Reactions */}
       {(() => {
-        // Collect all reactions that have counts or are primary
-        const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0);
+        const activeExtraReactions = EXTRA_REACTIONS.filter(r => (localReactions[r] || 0) > 0 || localUserReactions.includes(r));
         const visibleReactions = [...PRIMARY_REACTIONS, ...activeExtraReactions.filter(r => !PRIMARY_REACTIONS.includes(r))];
-        const availableExtras = EXTRA_REACTIONS.filter(r => !visibleReactions.includes(r) || (localReactions[r] || 0) === 0);
         
         return (
           <div className="flex flex-wrap gap-1 mb-3 justify-center">
             {visibleReactions.map(reaction => {
               const count = localReactions[reaction] || 0;
               const hasReacted = localUserReactions.includes(reaction);
-              // Hide extra reactions with 0 count unless user reacted
               if (!PRIMARY_REACTIONS.includes(reaction) && count === 0 && !hasReacted) return null;
               
               return (
                 <button
                   key={reaction}
-                  onClick={() => handleReaction(reaction)}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleReaction(reaction); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
                     hasReacted 
                       ? 'bg-primary/15 text-primary shadow-sm' 
@@ -631,9 +630,10 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               );
             })}
             {/* Plus button with emoji picker */}
-            <Popover>
+            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
               <PopoverTrigger asChild>
                 <button
+                  type="button"
                   className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95"
                 >
                   <Plus size={16} />
@@ -641,13 +641,19 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2" side="top" align="center">
                 <div className="grid grid-cols-5 gap-1">
-                  {ALL_REACTIONS.filter(r => !localUserReactions.includes(r)).map(reaction => (
+                  {EXTRA_REACTIONS.map(reaction => (
                     <button
                       key={reaction}
-                      onClick={() => {
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         handleReaction(reaction);
+                        setEmojiPickerOpen(false);
                       }}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg text-xl hover:bg-secondary transition-colors active:scale-90"
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-colors active:scale-90 ${
+                        localUserReactions.includes(reaction) ? 'bg-primary/15' : 'hover:bg-secondary'
+                      }`}
                     >
                       {reaction}
                     </button>
