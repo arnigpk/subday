@@ -219,7 +219,7 @@ export async function generateShareCard(options: ShareCardOptions): Promise<Blob
 
   ctx.font = '22px system-ui, sans-serif';
   ctx.fillStyle = BRAND_COLOR;
-  ctx.fillText('vhod.lovable.app/subflow/post/' + postId.slice(0, 8), CARD_W / 2, bottomY + 40);
+  ctx.fillText('i.subday.app/subflow/post/' + postId.slice(0, 8), CARD_W / 2, bottomY + 40);
 
   // Bottom branding
   ctx.font = '20px system-ui, sans-serif';
