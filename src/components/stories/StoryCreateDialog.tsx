@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil, Video } from 'lucide-react';
+import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil, Scissors } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
@@ -44,8 +44,19 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const [selectedColor, setSelectedColor] = useState('#ffffff');
   const [selectedFilter, setSelectedFilter] = useState('normal');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Video trimming state
+  const [showTrimmer, setShowTrimmer] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(MAX_VIDEO_DURATION);
+  const [trimDragging, setTrimDragging] = useState<'start' | 'end' | null>(null);
+  const trimBarRef = useRef<HTMLDivElement>(null);
+  const trimVideoRef = useRef<HTMLVideoElement>(null);
+  const [rawVideoFile, setRawVideoFile] = useState<File | null>(null);
+  const [rawVideoUrl, setRawVideoUrl] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -53,20 +64,36 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const dragStartPosY = useRef(0.5);
   const isDraggingText = useRef(false);
 
+  // Update video preview position when trim handles move
+  useEffect(() => {
+    if (trimVideoRef.current && showTrimmer) {
+      trimVideoRef.current.currentTime = trimStart;
+    }
+  }, [trimStart, showTrimmer]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
 
     if (f.type.startsWith('video/')) {
-      // Validate video duration
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
-        if (video.duration > MAX_VIDEO_DURATION) {
-          toast.error(`Максимальная длительность видео — ${MAX_VIDEO_DURATION} секунд. Ваше видео: ${Math.ceil(video.duration)} сек.`);
+        const duration = video.duration;
+        
+        if (duration > MAX_VIDEO_DURATION) {
+          // Show trimmer instead of rejecting
+          const url = URL.createObjectURL(f);
+          setRawVideoFile(f);
+          setRawVideoUrl(url);
+          setVideoDuration(duration);
+          setTrimStart(0);
+          setTrimEnd(Math.min(MAX_VIDEO_DURATION, duration));
+          setShowTrimmer(true);
           return;
         }
+        
         setFile(f);
         setPreview(URL.createObjectURL(f));
         setMediaType('video');
@@ -89,8 +116,149 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setSelectedFilter('normal');
   };
 
+  const handleTrimConfirm = async () => {
+    if (!rawVideoFile || !rawVideoUrl) return;
+    
+    const start = trimStart;
+    const end = trimEnd;
+    const duration = end - start;
+    
+    if (duration < 1) {
+      toast.error('Минимальная длительность — 1 секунда');
+      return;
+    }
+    if (duration > MAX_VIDEO_DURATION) {
+      toast.error(`Максимум ${MAX_VIDEO_DURATION} секунд`);
+      return;
+    }
+
+    // Use MediaRecorder to trim the video
+    toast.info('Обрезка видео...');
+    
+    try {
+      const trimmedBlob = await trimVideo(rawVideoUrl, start, end);
+      const trimmedFile = new File([trimmedBlob], rawVideoFile.name, { type: 'video/webm' });
+      
+      setFile(trimmedFile);
+      setPreview(URL.createObjectURL(trimmedFile));
+      setMediaType('video');
+      setTextOverlay(null);
+      setSelectedFilter('normal');
+      setShowFilters(false);
+      setShowTrimmer(false);
+      if (rawVideoUrl) URL.revokeObjectURL(rawVideoUrl);
+      setRawVideoFile(null);
+      setRawVideoUrl(null);
+      toast.success('Видео обрезано ✂️');
+    } catch (err) {
+      console.error('Trim error:', err);
+      toast.error('Ошибка обрезки видео');
+    }
+  };
+
+  const trimVideo = (videoUrl: string, startTime: number, endTime: number): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.src = videoUrl;
+      video.muted = true;
+      video.playsInline = true;
+      
+      video.onloadedmetadata = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d')!;
+        
+        const stream = canvas.captureStream(30);
+        
+        // Try to capture audio too
+        try {
+          const audioCtx = new AudioContext();
+          const source = audioCtx.createMediaElementSource(video);
+          const dest = audioCtx.createMediaStreamDestination();
+          source.connect(dest);
+          source.connect(audioCtx.destination);
+          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        } catch { /* no audio is fine */ }
+        
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks: Blob[] = [];
+        
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+        
+        recorder.onstop = () => {
+          resolve(new Blob(chunks, { type: 'video/webm' }));
+        };
+        
+        video.currentTime = startTime;
+        
+        video.onseeked = () => {
+          video.muted = false;
+          video.play();
+          recorder.start();
+          
+          const drawFrame = () => {
+            if (video.currentTime >= endTime || video.ended) {
+              recorder.stop();
+              video.pause();
+              return;
+            }
+            ctx.drawImage(video, 0, 0);
+            requestAnimationFrame(drawFrame);
+          };
+          drawFrame();
+        };
+      };
+      
+      video.onerror = reject;
+    });
+  };
+
+  const handleTrimTouch = (e: React.TouchEvent | React.MouseEvent, handle: 'start' | 'end') => {
+    e.stopPropagation();
+    setTrimDragging(handle);
+  };
+
+  const handleTrimMove = useCallback((clientX: number) => {
+    if (!trimDragging || !trimBarRef.current) return;
+    const rect = trimBarRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const time = ratio * videoDuration;
+    
+    if (trimDragging === 'start') {
+      const newStart = Math.max(0, Math.min(time, trimEnd - 1));
+      const clampedStart = trimEnd - newStart > MAX_VIDEO_DURATION ? trimEnd - MAX_VIDEO_DURATION : newStart;
+      setTrimStart(Math.max(0, clampedStart));
+    } else {
+      const newEnd = Math.min(videoDuration, Math.max(time, trimStart + 1));
+      const clampedEnd = newEnd - trimStart > MAX_VIDEO_DURATION ? trimStart + MAX_VIDEO_DURATION : newEnd;
+      setTrimEnd(Math.min(videoDuration, clampedEnd));
+    }
+  }, [trimDragging, videoDuration, trimStart, trimEnd]);
+
+  useEffect(() => {
+    if (!trimDragging) return;
+    const onMove = (e: TouchEvent | MouseEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      handleTrimMove(clientX);
+    };
+    const onEnd = () => setTrimDragging(null);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchend', onEnd);
+    window.addEventListener('mouseup', onEnd);
+    return () => {
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('mousemove', onMove as any);
+      window.removeEventListener('touchend', onEnd);
+      window.removeEventListener('mouseup', onEnd);
+    };
+  }, [trimDragging, handleTrimMove]);
+
   const handleAddText = () => {
-    if (mediaType === 'video') return; // no text overlay on video
+    if (mediaType === 'video') return;
     setEditingText(true);
     setTextDraft(textOverlay?.text || '');
     setSelectedColor(textOverlay?.color || '#ffffff');
@@ -245,7 +413,18 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setTextDraft('');
     setSelectedFilter('normal');
     setShowFilters(false);
+    setShowTrimmer(false);
+    if (rawVideoUrl) URL.revokeObjectURL(rawVideoUrl);
+    setRawVideoFile(null);
+    setRawVideoUrl(null);
+    setVideoDuration(0);
     onOpenChange(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   if (!open) return null;
@@ -255,26 +434,103 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-      <input
-        ref={videoInputRef}
-        type="file"
-        accept="video/*"
+        accept="image/*,video/*"
         className="hidden"
         onChange={handleFileChange}
       />
 
-      {!preview ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
-          <div className="text-center">
-            <h2 className="text-white text-xl font-bold mb-2">Новая история</h2>
-            <p className="text-white/60 text-sm">Сделайте фото, выберите из галереи или запишите видео</p>
+      {/* Video Trimmer Screen */}
+      {showTrimmer && rawVideoUrl ? (
+        <div className="flex-1 flex flex-col">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 safe-area-top z-20">
+            <button onClick={() => { setShowTrimmer(false); if (rawVideoUrl) URL.revokeObjectURL(rawVideoUrl); setRawVideoFile(null); setRawVideoUrl(null); }} className="p-2 text-white active:scale-90 transition-transform">
+              <X size={24} />
+            </button>
+            <div className="flex items-center gap-1.5">
+              <Scissors size={16} className="text-white/70" />
+              <span className="text-white text-sm font-medium">Обрезка видео</span>
+            </div>
+            <div className="w-10" />
           </div>
 
-          <div className="flex gap-3 flex-wrap justify-center">
+          <div className="flex-1 flex items-center justify-center px-4">
+            <video
+              ref={trimVideoRef}
+              src={rawVideoUrl}
+              className="max-w-full max-h-[50vh] rounded-xl"
+              muted
+              playsInline
+            />
+          </div>
+
+          <div className="px-6 pb-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/60 text-xs">{formatTime(trimStart)}</span>
+              <span className="text-white text-xs font-medium">
+                {Math.round(trimEnd - trimStart)} сек / {MAX_VIDEO_DURATION} макс
+              </span>
+              <span className="text-white/60 text-xs">{formatTime(trimEnd)}</span>
+            </div>
+            
+            <div ref={trimBarRef} className="relative h-12 bg-white/10 rounded-xl overflow-hidden">
+              {/* Selected range */}
+              <div
+                className="absolute top-0 bottom-0 bg-accent/30 border-x-2 border-accent"
+                style={{
+                  left: `${(trimStart / videoDuration) * 100}%`,
+                  width: `${((trimEnd - trimStart) / videoDuration) * 100}%`,
+                }}
+              />
+              
+              {/* Start handle */}
+              <div
+                className="absolute top-0 bottom-0 w-5 flex items-center justify-center cursor-ew-resize z-10 touch-none"
+                style={{ left: `calc(${(trimStart / videoDuration) * 100}% - 10px)` }}
+                onTouchStart={(e) => handleTrimTouch(e, 'start')}
+                onMouseDown={(e) => handleTrimTouch(e as any, 'start')}
+              >
+                <div className="w-1 h-8 bg-accent rounded-full" />
+              </div>
+              
+              {/* End handle */}
+              <div
+                className="absolute top-0 bottom-0 w-5 flex items-center justify-center cursor-ew-resize z-10 touch-none"
+                style={{ left: `calc(${(trimEnd / videoDuration) * 100}% - 10px)` }}
+                onTouchStart={(e) => handleTrimTouch(e, 'end')}
+                onMouseDown={(e) => handleTrimTouch(e as any, 'end')}
+              >
+                <div className="w-1 h-8 bg-accent rounded-full" />
+              </div>
+            </div>
+            
+            <p className="text-white/40 text-[11px] text-center mt-2">
+              Перетащите ползунки для выбора фрагмента до {MAX_VIDEO_DURATION} сек
+            </p>
+          </div>
+
+          <div className="px-4 pb-4 pt-2 safe-area-bottom">
+            <button
+              onClick={handleTrimConfirm}
+              className="w-full h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all backdrop-blur-xl border border-border/40 text-white"
+              style={{
+                background: 'hsl(var(--background) / 0.65)',
+                boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
+              }}
+            >
+              <Scissors size={16} />
+              <span>Обрезать и продолжить</span>
+            </button>
+          </div>
+        </div>
+      ) : !preview ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
+          <div className="text-center">
+            <h2 className="text-white text-xl font-bold mb-2">НОВЫЙ STORIES</h2>
+            <p className="text-white/60 text-sm">Сделайте Фото/Видео или Выберите из Галереи</p>
+          </div>
+
+          <div className="flex gap-3 justify-center">
+            {/* Camera button — opens native camera for photo or video */}
             <button
               onClick={() => {
                 if (inputRef.current) {
@@ -293,6 +549,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
               <span className="text-white text-xs font-medium">Камера</span>
             </button>
 
+            {/* Gallery button — opens file picker for image or video */}
             <button
               onClick={() => {
                 if (inputRef.current) {
@@ -306,36 +563,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                 <ImageIcon size={24} className="text-white" />
               </div>
               <span className="text-white text-xs font-medium">Галерея</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (videoInputRef.current) {
-                  videoInputRef.current.removeAttribute('capture');
-                  videoInputRef.current.click();
-                }
-              }}
-              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
-            >
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <Video size={24} className="text-white" />
-              </div>
-              <span className="text-white text-xs font-medium">Видео</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (videoInputRef.current) {
-                  videoInputRef.current.setAttribute('capture', 'environment');
-                  videoInputRef.current.click();
-                }
-              }}
-              className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
-            >
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-red-500" />
-              </div>
-              <span className="text-white text-xs font-medium">Запись</span>
             </button>
           </div>
 
