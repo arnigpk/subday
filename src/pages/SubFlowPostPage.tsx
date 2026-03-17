@@ -156,7 +156,7 @@ export default function SubFlowPostPage() {
     }
   };
 
-  if (loading) {
+  if (redirecting || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
