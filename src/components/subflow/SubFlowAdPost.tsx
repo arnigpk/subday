@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SubFlowAdComments } from './SubFlowAdComments';
 import { toast } from 'sonner';
 import { useVibration } from '@/hooks/useVibration';
+import { ReactionBurst } from './ReactionBurst';
 
 interface SubFlowAd {
   id: string;

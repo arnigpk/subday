@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubFlowFollow } from '@/hooks/useSubFlowFollow';
+import { ReactionBurst } from './ReactionBurst';
 
 interface Post {
   id: string;
