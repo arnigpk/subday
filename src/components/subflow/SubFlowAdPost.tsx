@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SubFlowAdComments } from './SubFlowAdComments';
 import { toast } from 'sonner';
 import { useVibration } from '@/hooks/useVibration';
+import { ReactionBurst } from './ReactionBurst';
 
 interface SubFlowAd {
   id: string;
@@ -39,6 +40,8 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
   const [showComments, setShowComments] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
   const [adEmojiPickerOpen, setAdEmojiPickerOpen] = useState(false);
+  const [burstEmoji, setBurstEmoji] = useState<string | null>(null);
+  const [newlyAddedReactions, setNewlyAddedReactions] = useState<Set<string>>(() => new Set());
   const [processedReactionIds] = useState(() => new Set<string>());
   const [pendingReactions] = useState(() => new Set<string>());
 
@@ -165,6 +168,12 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
     const hasReaction = localUserReactions.includes(reaction);
     const reactionKey = `${currentUserId}-${reaction}`;
 
+    // Trigger burst animation when adding
+    if (!hasReaction) {
+      setBurstEmoji(reaction);
+      setNewlyAddedReactions(prev => new Set(prev).add(reaction));
+    }
+
     if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
       toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
       return;
@@ -263,11 +272,13 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
         const pickerReactions = EXTRA_REACTIONS.filter(r => !visibleReactions.includes(r));
 
         return (
-          <div className="flex flex-wrap gap-1 mb-3 justify-center">
+          <div className="flex flex-wrap gap-1 mb-3 justify-center relative">
+            <ReactionBurst emoji={burstEmoji} onDone={() => setBurstEmoji(null)} />
             {visibleReactions.map(reaction => {
               const count = localReactions[reaction] || 0;
               const hasReacted = localUserReactions.includes(reaction);
               if (!PRIMARY_REACTIONS.includes(reaction) && count === 0 && !hasReacted) return null;
+              const isNew = newlyAddedReactions.has(reaction) && !PRIMARY_REACTIONS.includes(reaction);
 
               return (
                 <button
@@ -275,6 +286,8 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleReaction(reaction); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 ${
+                    isNew ? 'animate-reaction-pop' : ''
+                  } ${
                     hasReacted
                       ? 'bg-primary/15 text-primary shadow-sm'
                       : 'bg-secondary text-foreground hover:bg-secondary/80'
