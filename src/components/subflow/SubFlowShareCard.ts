@@ -237,17 +237,35 @@ export async function generateShareCard(options: ShareCardOptions): Promise<Blob
   });
 }
 
+function detectShareSource(): string {
+  // Telegram MiniApp
+  if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initData) {
+    return 'miniapp';
+  }
+  // Capacitor native app
+  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+    return 'app';
+  }
+  return '';
+}
+
+function buildShareUrl(postId: string): string {
+  const base = `https://i.subday.app/subflow/post/${postId}`;
+  const source = detectShareSource();
+  return source ? `${base}?from=${source}` : base;
+}
+
 export async function shareSubFlowPost(options: ShareCardOptions): Promise<boolean> {
   try {
     const blob = await generateShareCard(options);
     const file = new File([blob], 'subflow-post.png', { type: 'image/png' });
-    const shareUrl = `https://i.subday.app/subflow/post/${options.postId}`;
+    const shareUrl = buildShareUrl(options.postId);
 
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         files: [file],
         title: `Пост от @${options.authorName} в #subFlow`,
-        text: `Смотри пост в subday #subFlow`,
+        text: `Смотри пост в subday #subFlow\n${shareUrl}`,
         url: shareUrl,
       });
       return true;
@@ -255,14 +273,13 @@ export async function shareSubFlowPost(options: ShareCardOptions): Promise<boole
 
     // Fallback: copy link
     await navigator.clipboard.writeText(shareUrl);
-    return false; // indicates fallback was used
+    return false;
   } catch (error) {
     if ((error as Error).name === 'AbortError') {
-      return false; // user cancelled share
+      return false;
     }
-    // Last resort: copy link
     try {
-      await navigator.clipboard.writeText(`https://i.subday.app/subflow/post/${options.postId}`);
+      await navigator.clipboard.writeText(buildShareUrl(options.postId));
     } catch {}
     return false;
   }

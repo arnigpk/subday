@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { User, MapPin, Lock, Download } from 'lucide-react';
@@ -28,12 +28,49 @@ interface ProfileData {
 export default function SubFlowPostPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [post, setPost] = useState<PostData | null>(null);
   const [author, setAuthor] = useState<ProfileData | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Smart redirect based on ?from= parameter
+  useEffect(() => {
+    if (!id) return;
+    const from = searchParams.get('from');
+
+    if (from === 'miniapp') {
+      setRedirecting(true);
+      window.location.href = `https://t.me/subday_lgbot/app?startapp=post_${id}`;
+      return;
+    }
+
+    if (from === 'app') {
+      setRedirecting(true);
+      const ua = navigator.userAgent;
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+      const isAndroid = /Android/i.test(ua);
+
+      if (isAndroid) {
+        // Try intent URL, fallback to Play Store
+        const intentUrl = `intent://subflow/post/${id}#Intent;scheme=https;package=app.lovable.1f0fb7ffd23642dc84de6a2e07064142;S.browser_fallback_url=https://play.google.com/store/apps/details?id=app.lovable.1f0fb7ffd23642dc84de6a2e07064142;end`;
+        window.location.href = intentUrl;
+      } else if (isIOS) {
+        // Universal Links should auto-open the app if installed
+        // Fallback: show the landing page after a timeout
+        const timeout = setTimeout(() => {
+          setRedirecting(false);
+        }, 1500);
+        return () => clearTimeout(timeout);
+      } else {
+        setRedirecting(false);
+      }
+      return;
+    }
+  }, [id, searchParams]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -119,7 +156,7 @@ export default function SubFlowPostPage() {
     }
   };
 
-  if (loading) {
+  if (redirecting || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
