@@ -168,6 +168,12 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
     const hasReaction = localUserReactions.includes(reaction);
     const reactionKey = `${currentUserId}-${reaction}`;
 
+    // Trigger burst animation when adding
+    if (!hasReaction) {
+      setBurstEmoji(reaction);
+      setNewlyAddedReactions(prev => new Set(prev).add(reaction));
+    }
+
     if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
       toast.error(`Максимум ${MAX_REACTIONS_PER_USER} реакции на пост`);
       return;

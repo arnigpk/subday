@@ -252,6 +252,12 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
     const hasReaction = localUserReactions.includes(reaction);
     const reactionKey = `${currentUserId}-${reaction}`;
+
+    // Trigger burst animation when adding
+    if (!hasReaction) {
+      setBurstEmoji(reaction);
+      setNewlyAddedReactions(prev => new Set(prev).add(reaction));
+    }
     
     // Check if user already has max reactions and trying to add new one
     if (!hasReaction && localUserReactions.length >= MAX_REACTIONS_PER_USER) {
