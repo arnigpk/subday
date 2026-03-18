@@ -372,9 +372,9 @@ export function StoryViewer(props: StoryViewerProps) {
   const viewer = (
     <div
       className="fixed inset-0 flex items-center justify-center overflow-hidden select-none"
-      style={{ zIndex: 99999, opacity, transition: 'opacity 0.3s ease', backgroundColor: '#000' }}
+      style={{ zIndex: 99999, opacity, transition: 'opacity 0.3s ease', backgroundColor: '#000', touchAction: 'none' }}
       onTouchStart={handleSwipeTouchStart}
-      onTouchMove={handleSwipeTouchMove}
+      onTouchMove={(e) => { e.preventDefault(); handleSwipeTouchMove(e); }}
       onTouchEnd={handleSwipeTouchEnd}
     >
       <div ref={containerRef} className="absolute inset-0">
@@ -406,7 +406,7 @@ export function StoryViewer(props: StoryViewerProps) {
         <div className="absolute top-6 left-0 right-0 flex items-center justify-between px-4 z-20 safe-area-top">
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10 ring-2 ring-white/50">
-              {currentUser.avatar ? <AvatarImage src={currentUser.avatar} alt={currentUser.name} /> : null}
+              {currentUser.avatar ? <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" /> : null}
               <AvatarFallback className="bg-white/20"><User size={16} className="text-white" /></AvatarFallback>
             </Avatar>
             <div>

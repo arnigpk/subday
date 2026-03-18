@@ -328,7 +328,11 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-1rem)] rounded-2xl p-0 gap-0 border-border/50 max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="sm:max-w-md w-[calc(100%-1rem)] rounded-2xl p-0 gap-0 border-border/50 max-h-[85vh] overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/30 shrink-0">
           <DialogTitle className="text-lg font-bold text-foreground text-center">
             {t('subflow.newPost')}
