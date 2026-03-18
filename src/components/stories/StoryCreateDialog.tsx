@@ -54,13 +54,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const dragStartPosY = useRef(0.5);
   const isDraggingText = useRef(false);
 
-  // Update video preview position when trim handles move
-  useEffect(() => {
-    if (trimVideoRef.current && showTrimmer) {
-      trimVideoRef.current.currentTime = trimStart;
-    }
-  }, [trimStart, showTrimmer]);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -73,14 +66,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
         const duration = video.duration;
         
         if (duration > MAX_VIDEO_DURATION) {
-          // Show trimmer instead of rejecting
-          const url = URL.createObjectURL(f);
-          setRawVideoFile(f);
-          setRawVideoUrl(url);
-          setVideoDuration(duration);
-          setTrimStart(0);
-          setTrimEnd(Math.min(MAX_VIDEO_DURATION, duration));
-          setShowTrimmer(true);
+          toast.error(`Видео должно быть до ${MAX_VIDEO_DURATION} секунд. Выберите более короткое видео.`);
           return;
         }
         
@@ -105,147 +91,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setTextOverlay(null);
     setSelectedFilter('normal');
   };
-
-  const handleTrimConfirm = async () => {
-    if (!rawVideoFile || !rawVideoUrl) return;
-    
-    const start = trimStart;
-    const end = trimEnd;
-    const duration = end - start;
-    
-    if (duration < 1) {
-      toast.error('Минимальная длительность — 1 секунда');
-      return;
-    }
-    if (duration > MAX_VIDEO_DURATION) {
-      toast.error(`Максимум ${MAX_VIDEO_DURATION} секунд`);
-      return;
-    }
-
-    // Use MediaRecorder to trim the video
-    toast.info('Обрезка видео...');
-    
-    try {
-      const trimmedBlob = await trimVideo(rawVideoUrl, start, end);
-      const trimmedFile = new File([trimmedBlob], rawVideoFile.name, { type: 'video/webm' });
-      
-      setFile(trimmedFile);
-      setPreview(URL.createObjectURL(trimmedFile));
-      setMediaType('video');
-      setTextOverlay(null);
-      setSelectedFilter('normal');
-      setShowFilters(false);
-      setShowTrimmer(false);
-      if (rawVideoUrl) URL.revokeObjectURL(rawVideoUrl);
-      setRawVideoFile(null);
-      setRawVideoUrl(null);
-      toast.success('Видео обрезано ✂️');
-    } catch (err) {
-      console.error('Trim error:', err);
-      toast.error('Ошибка обрезки видео');
-    }
-  };
-
-  const trimVideo = (videoUrl: string, startTime: number, endTime: number): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement('video');
-      video.src = videoUrl;
-      video.muted = true;
-      video.playsInline = true;
-      
-      video.onloadedmetadata = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d')!;
-        
-        const stream = canvas.captureStream(30);
-        
-        // Try to capture audio too
-        try {
-          const audioCtx = new AudioContext();
-          const source = audioCtx.createMediaElementSource(video);
-          const dest = audioCtx.createMediaStreamDestination();
-          source.connect(dest);
-          source.connect(audioCtx.destination);
-          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-        } catch { /* no audio is fine */ }
-        
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const chunks: Blob[] = [];
-        
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
-        };
-        
-        recorder.onstop = () => {
-          resolve(new Blob(chunks, { type: 'video/webm' }));
-        };
-        
-        video.currentTime = startTime;
-        
-        video.onseeked = () => {
-          video.muted = false;
-          video.play();
-          recorder.start();
-          
-          const drawFrame = () => {
-            if (video.currentTime >= endTime || video.ended) {
-              recorder.stop();
-              video.pause();
-              return;
-            }
-            ctx.drawImage(video, 0, 0);
-            requestAnimationFrame(drawFrame);
-          };
-          drawFrame();
-        };
-      };
-      
-      video.onerror = reject;
-    });
-  };
-
-  const handleTrimTouch = (e: React.TouchEvent | React.MouseEvent, handle: 'start' | 'end') => {
-    e.stopPropagation();
-    setTrimDragging(handle);
-  };
-
-  const handleTrimMove = useCallback((clientX: number) => {
-    if (!trimDragging || !trimBarRef.current) return;
-    const rect = trimBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const time = ratio * videoDuration;
-    
-    if (trimDragging === 'start') {
-      const newStart = Math.max(0, Math.min(time, trimEnd - 1));
-      const clampedStart = trimEnd - newStart > MAX_VIDEO_DURATION ? trimEnd - MAX_VIDEO_DURATION : newStart;
-      setTrimStart(Math.max(0, clampedStart));
-    } else {
-      const newEnd = Math.min(videoDuration, Math.max(time, trimStart + 1));
-      const clampedEnd = newEnd - trimStart > MAX_VIDEO_DURATION ? trimStart + MAX_VIDEO_DURATION : newEnd;
-      setTrimEnd(Math.min(videoDuration, clampedEnd));
-    }
-  }, [trimDragging, videoDuration, trimStart, trimEnd]);
-
-  useEffect(() => {
-    if (!trimDragging) return;
-    const onMove = (e: TouchEvent | MouseEvent) => {
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      handleTrimMove(clientX);
-    };
-    const onEnd = () => setTrimDragging(null);
-    window.addEventListener('touchmove', onMove, { passive: true });
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('touchend', onEnd);
-    window.addEventListener('mouseup', onEnd);
-    return () => {
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('mousemove', onMove as any);
-      window.removeEventListener('touchend', onEnd);
-      window.removeEventListener('mouseup', onEnd);
-    };
-  }, [trimDragging, handleTrimMove]);
 
   const handleAddText = () => {
     if (mediaType === 'video') return;
