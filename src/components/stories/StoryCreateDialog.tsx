@@ -45,16 +45,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const [selectedFilter, setSelectedFilter] = useState('normal');
   const [showFilters, setShowFilters] = useState(false);
   
-  // Video trimming state
-  const [showTrimmer, setShowTrimmer] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(0);
-  const [trimStart, setTrimStart] = useState(0);
-  const [trimEnd, setTrimEnd] = useState(MAX_VIDEO_DURATION);
-  const [trimDragging, setTrimDragging] = useState<'start' | 'end' | null>(null);
-  const trimBarRef = useRef<HTMLDivElement>(null);
-  const trimVideoRef = useRef<HTMLVideoElement>(null);
-  const [rawVideoFile, setRawVideoFile] = useState<File | null>(null);
-  const [rawVideoUrl, setRawVideoUrl] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
