@@ -6,6 +6,8 @@ interface UsePullToRefreshOptions {
   disabled?: boolean;
 }
 
+const isPullToRefreshLocked = () => document.body.dataset.pullToRefreshDisabled === 'true';
+
 export function usePullToRefresh({
   onRefresh,
   threshold = 80,
@@ -20,13 +22,19 @@ export function usePullToRefresh({
   const currentY = useRef(0);
   const isAtTop = useRef(true);
 
+  const resetPullState = useCallback(() => {
+    setIsPulling(false);
+    setPullDistance(0);
+    startY.current = 0;
+    currentY.current = 0;
+  }, []);
+
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (disabled || isRefreshing) return;
+    if (disabled || isRefreshing || isPullToRefreshLocked()) return;
     
     const container = containerRef.current;
     if (!container) return;
     
-    // Check if we're at the top of the scroll container
     isAtTop.current = window.scrollY <= 0;
     
     if (isAtTop.current) {
@@ -36,18 +44,16 @@ export function usePullToRefresh({
   }, [disabled, isRefreshing]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (disabled || isRefreshing || !isPulling) return;
+    if (disabled || isRefreshing || !isPulling || isPullToRefreshLocked()) return;
     if (!isAtTop.current) return;
     
     currentY.current = e.touches[0].clientY;
     const distance = currentY.current - startY.current;
     
     if (distance > 0 && window.scrollY <= 0) {
-      // Apply resistance to make it feel natural
       const resistedDistance = Math.min(distance * 0.5, threshold * 1.5);
       setPullDistance(resistedDistance);
       
-      // Prevent default scrolling when pulling
       if (distance > 10) {
         e.preventDefault();
       }
@@ -55,6 +61,11 @@ export function usePullToRefresh({
   }, [disabled, isRefreshing, isPulling, threshold]);
 
   const handleTouchEnd = useCallback(async () => {
+    if (isPullToRefreshLocked()) {
+      resetPullState();
+      return;
+    }
+
     if (disabled || isRefreshing) return;
     
     setIsPulling(false);
@@ -75,13 +86,12 @@ export function usePullToRefresh({
     
     startY.current = 0;
     currentY.current = 0;
-  }, [disabled, isRefreshing, pullDistance, threshold, onRefresh]);
+  }, [disabled, isRefreshing, pullDistance, threshold, onRefresh, resetPullState]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     
-    // Add listeners to document to capture all touch events
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
