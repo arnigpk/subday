@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil, Scissors } from 'lucide-react';
+import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
