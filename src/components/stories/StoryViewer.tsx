@@ -124,9 +124,29 @@ export function StoryViewer(props: StoryViewerProps) {
 
   // Phase animation
   useEffect(() => {
+    const orig = document.body.style.overflow;
+    const origTouchAction = document.body.style.touchAction;
+    const origPosition = document.body.style.position;
+    const origTop = document.body.style.top;
+    const origWidth = document.body.style.width;
+    const scrollY = window.scrollY;
+
     document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
     requestAnimationFrame(() => requestAnimationFrame(() => setPhase('open')));
-    return () => { document.body.style.overflow = ''; };
+
+    return () => {
+      document.body.style.overflow = orig;
+      document.body.style.touchAction = origTouchAction;
+      document.body.style.position = origPosition;
+      document.body.style.top = origTop;
+      document.body.style.width = origWidth;
+      window.scrollTo(0, scrollY);
+    };
   }, []);
 
   const doClose = useCallback(() => {
