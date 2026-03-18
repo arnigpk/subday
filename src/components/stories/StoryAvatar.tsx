@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { StoryViewer } from './StoryViewer';
 import { useStoriesCache } from '@/hooks/useStoriesCache';
 import { useVibration } from '@/hooks/useVibration';
@@ -36,13 +37,30 @@ export const StoryAvatar = memo(function StoryAvatar({
 }: StoryAvatarProps) {
   const { hasStory, stories, invalidateCache } = useStoriesCache(userId);
   const [showViewer, setShowViewer] = useState(false);
+  const [startIndex, setStartIndex] = useState(0);
   const { vibrateShort } = useVibration();
 
-  const handleClick = () => {
-    if (hasStory && stories.length > 0) {
-      vibrateShort();
-      setShowViewer(true);
+  const handleClick = async () => {
+    if (!hasStory || stories.length === 0) return;
+
+    vibrateShort();
+
+    let initialIndex = 0;
+    if (currentUserId) {
+      const storyIds = stories.map((story) => story.id);
+      const { data: viewedStories } = await supabase
+        .from('story_views')
+        .select('story_id')
+        .eq('user_id', currentUserId)
+        .in('story_id', storyIds);
+
+      const viewedStoryIds = new Set((viewedStories || []).map((story) => story.story_id));
+      const firstUnviewedIndex = stories.findIndex((story) => !viewedStoryIds.has(story.id));
+      initialIndex = firstUnviewedIndex === -1 ? 0 : firstUnviewedIndex;
     }
+
+    setStartIndex(initialIndex);
+    setShowViewer(true);
   };
 
   const enrichedStories = stories.map(s => ({
@@ -72,7 +90,6 @@ export const StoryAvatar = memo(function StoryAvatar({
           </AvatarFallback>
         </Avatar>
         
-        {/* Story indicator dot */}
         {hasStory && (
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-background" />
         )}
@@ -81,7 +98,7 @@ export const StoryAvatar = memo(function StoryAvatar({
       {showViewer && enrichedStories.length > 0 && (
         <StoryViewer
           stories={enrichedStories}
-          initialIndex={0}
+          initialIndex={startIndex}
           currentUserId={currentUserId}
           onClose={() => setShowViewer(false)}
           onStoryDeleted={invalidateCache}

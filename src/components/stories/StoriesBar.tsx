@@ -17,13 +17,12 @@ const INSTAGRAM_GRADIENT = 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #
 const VIEWED_RING = 'hsl(var(--border))';
 
 export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, refreshTrigger }: StoriesBarProps) {
-  const { users, refresh, isUserFullyViewed } = useAllActiveStories(currentUserId);
+  const { users, refresh, viewedStoryIds, isUserFullyViewed } = useAllActiveStories(currentUserId);
   const [showCreate, setShowCreate] = useState(false);
-  const [viewerData, setViewerData] = useState<{ users: StoryUser[]; startUserIndex: number } | null>(null);
+  const [viewerData, setViewerData] = useState<{ users: StoryUser[]; startUserIndex: number; startStoryIndex: number } | null>(null);
   const { vibrateShort } = useVibration();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Refresh when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger) refresh();
   }, [refreshTrigger]);
@@ -31,8 +30,14 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
   const currentUserHasStory = users.some(u => u.userId === currentUserId);
 
   const handleUserTap = (userIndex: number) => {
+    const user = users[userIndex];
+    if (!user) return;
+
+    const firstUnviewedIndex = user.stories.findIndex((story) => !viewedStoryIds.has(story.id));
+    const startStoryIndex = firstUnviewedIndex === -1 ? 0 : firstUnviewedIndex;
+
     vibrateShort();
-    setViewerData({ users, startUserIndex: userIndex });
+    setViewerData({ users, startUserIndex: userIndex, startStoryIndex });
   };
 
   const handleAddStory = () => {
@@ -47,7 +52,7 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
 
   const handleViewerClose = () => {
     setViewerData(null);
-    refresh(); // Refresh to update viewed status
+    refresh();
   };
 
   const truncateName = (name: string) => {
@@ -69,7 +74,6 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
         className="flex gap-3 overflow-x-auto scrollbar-hide px-4 py-3"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Current user - always show */}
         <div className="flex flex-col items-center gap-1 shrink-0">
           <div className="relative">
             <button
@@ -90,7 +94,6 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
                 </Avatar>
               </div>
             </button>
-            {/* "+" button always opens create dialog */}
             <button
               onClick={(e) => { e.stopPropagation(); handleAddStory(); }}
               className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
@@ -103,7 +106,6 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
           </span>
         </div>
 
-        {/* Other users with stories */}
         {users.map((user, idx) => {
           if (user.userId === currentUserId) return null;
           return (
@@ -133,18 +135,17 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
         })}
       </div>
 
-      {/* Create dialog */}
       <StoryCreateDialog
         open={showCreate}
         onOpenChange={setShowCreate}
         onStoryCreated={handleStoryCreated}
       />
 
-      {/* Viewer */}
       {viewerData && (
         <StoryViewer
           storyUsers={viewerData.users}
           startUserIndex={viewerData.startUserIndex}
+          startStoryIndex={viewerData.startStoryIndex}
           currentUserId={currentUserId}
           onClose={handleViewerClose}
           onStoryDeleted={refresh}
