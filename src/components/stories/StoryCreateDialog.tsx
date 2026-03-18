@@ -248,11 +248,6 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setTextDraft('');
     setSelectedFilter('normal');
     setShowFilters(false);
-    setShowTrimmer(false);
-    if (rawVideoUrl) URL.revokeObjectURL(rawVideoUrl);
-    setRawVideoFile(null);
-    setRawVideoUrl(null);
-    setVideoDuration(0);
     onOpenChange(false);
   };
 

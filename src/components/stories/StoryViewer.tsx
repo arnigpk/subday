@@ -372,9 +372,9 @@ export function StoryViewer(props: StoryViewerProps) {
   const viewer = (
     <div
       className="fixed inset-0 flex items-center justify-center overflow-hidden select-none"
-      style={{ zIndex: 99999, opacity, transition: 'opacity 0.3s ease', backgroundColor: '#000' }}
+      style={{ zIndex: 99999, opacity, transition: 'opacity 0.3s ease', backgroundColor: '#000', touchAction: 'none' }}
       onTouchStart={handleSwipeTouchStart}
-      onTouchMove={handleSwipeTouchMove}
+      onTouchMove={(e) => { e.preventDefault(); handleSwipeTouchMove(e); }}
       onTouchEnd={handleSwipeTouchEnd}
     >
       <div ref={containerRef} className="absolute inset-0">
