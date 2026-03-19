@@ -272,45 +272,8 @@ Deno.serve(async (req) => {
         });
     }
 
-    // Fire-and-forget: low balance & expiry notifications via send-subscription-notification
-    // This respects channel settings (telegram, push, or both) from auto_notification_templates
-    {
-      const subName = subscriptionName || (drinkType === 'coffee' ? 'Кофе' : 'Ланч');
-
-      // Low balance notification (only at exactly 5 or 2 remaining)
-      if (newRemaining === 5 || newRemaining === 2) {
-        fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-          body: JSON.stringify({
-            type: 'low_balance',
-            userId,
-            cupsCount: newRemaining,
-            subscriptionName: subName,
-            drinkType,
-          }),
-        }).catch(err => console.error('Low balance notification error:', err));
-      }
-
-      // Expiry notification (only at exactly 5 or 2 days left)
-      if (matchingSub?.expires_at) {
-        const expiresAt = new Date(matchingSub.expires_at);
-        const now = new Date();
-        const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        if (daysLeft === 5 || daysLeft === 2) {
-          fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-            body: JSON.stringify({
-              type: 'expiring_soon',
-              userId,
-              daysCount: daysLeft,
-              subscriptionName: subName,
-            }),
-          }).catch(err => console.error('Expiry notification error:', err));
-        }
-      }
-    }
+    // Low balance & expiry notifications are now handled by check-subscription-alerts periodic function
+    // No longer triggered on QR scan
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',
