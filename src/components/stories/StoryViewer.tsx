@@ -47,6 +47,7 @@ interface ViewerInfo {
   name: string;
   avatar_url: string | null;
   viewed_at: string;
+  has_liked: boolean;
 }
 
 export function StoryViewer(props: StoryViewerProps) {
