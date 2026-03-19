@@ -242,6 +242,7 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_comment': return <MessageCircle className="w-4 h-4 text-blue-500" />;
       case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
+      case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
       case 'admin_login_sms':
       case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
