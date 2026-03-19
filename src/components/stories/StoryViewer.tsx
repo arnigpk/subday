@@ -544,11 +544,11 @@ export function StoryViewer(props: StoryViewerProps) {
               <div className="flex justify-center">
                 <button
                   onClick={handleLike}
-                  className={`p-4 rounded-full transition-all ${
+                  className={`p-3 rounded-full transition-all ${
                     hasLiked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
-                  <Heart size={28} className={hasLiked ? 'fill-red-500' : ''} />
+                  <Heart size={22} className={hasLiked ? 'fill-red-500' : ''} />
                 </button>
               </div>
             )}
