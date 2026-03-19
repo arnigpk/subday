@@ -38,6 +38,7 @@ export default function SubFlowPage() {
   const { vibrate } = useVibration();
   const { settings: notifSettings } = useNotificationSettings();
   const entryAlertFired = useRef(false);
+  const { users: storyUsers, refresh: refreshStories, viewedStoryIds } = useAllActiveStories(userId);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
