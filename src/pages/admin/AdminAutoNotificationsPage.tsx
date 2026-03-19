@@ -88,6 +88,7 @@ const defaultMessages: Record<string, string> = {
   subflow_comment: '💬 У вас уже {{count}} комментариев на ваших постах!',
   subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
   subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
+  subflow_story_like: '❤️ {{actor_name}} понравилась ваша история',
   admin_login_sms: '🔑 Вход через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
   admin_register_sms: '🆕 Новая регистрация через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
   admin_login_whatsapp: '🔑 Вход через WhatsApp\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
