@@ -160,7 +160,22 @@ export default function SubFlowPage() {
               </div>
               <div className="flex items-center gap-1">
                 <SubFlowFollowerCount userId={userId} />
-                <SubFlowNotifications userId={userId} onNavigateToPost={(postId) => setHighlightPostId(postId)} />
+                <SubFlowNotifications
+                  userId={userId}
+                  onNavigateToPost={(postId) => setHighlightPostId(postId)}
+                  onOpenStory={(storyId) => {
+                    // Find which user and story index this story belongs to
+                    for (let ui = 0; ui < storyUsers.length; ui++) {
+                      const si = storyUsers[ui].stories.findIndex(s => s.id === storyId);
+                      if (si !== -1) {
+                        setStoryViewerStartUser(ui);
+                        setStoryViewerStartStory(si);
+                        setStoryViewerOpen(true);
+                        return;
+                      }
+                    }
+                  }}
+                />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
               </div>
             </div>
