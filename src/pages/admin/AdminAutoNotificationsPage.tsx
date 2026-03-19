@@ -434,6 +434,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
                   <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
                   <SelectItem value="subflow_new_post">#subFlow — Новый пост</SelectItem>
+                  <SelectItem value="subflow_story_like">❤️ #subFlow — Лайк на сториз</SelectItem>
                   <SelectItem value="admin_login_sms">🔑 Вход через SMS</SelectItem>
                   <SelectItem value="admin_register_sms">🆕 Регистрация через SMS</SelectItem>
                   <SelectItem value="admin_login_whatsapp">🔑 Вход через WhatsApp</SelectItem>
