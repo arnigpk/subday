@@ -233,6 +233,18 @@ export default function SubFlowPage() {
         onOpenChange={setShowCreateDialog}
         onPostCreated={handlePostCreated}
       />
+
+      {/* Story Viewer from notification */}
+      {storyViewerOpen && storyUsers.length > 0 && (
+        <StoryViewer
+          storyUsers={storyUsers}
+          startUserIndex={storyViewerStartUser}
+          startStoryIndex={storyViewerStartStory}
+          currentUserId={userId}
+          onClose={() => setStoryViewerOpen(false)}
+          onStoryDeleted={() => refreshStories()}
+        />
+      )}
     </AppLayout>
   );
 }
