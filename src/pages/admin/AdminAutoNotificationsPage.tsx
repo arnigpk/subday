@@ -48,6 +48,7 @@ const triggerLabels: Record<string, string> = {
   subflow_comment: '#subFlow — Комментарии',
   subflow_follow: '#subFlow — Подписчики',
   subflow_new_post: '#subFlow — Новый пост',
+  subflow_story_like: '#subFlow — Лайк на сториз',
   admin_login_sms: 'Вход через SMS',
   admin_register_sms: 'Регистрация через SMS',
   admin_login_whatsapp: 'Вход через WhatsApp',
