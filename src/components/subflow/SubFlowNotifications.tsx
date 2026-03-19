@@ -127,7 +127,7 @@ function SwipeableSubFlowNotification({
   );
 }
 
-export function SubFlowNotifications({ userId, onNavigateToPost }: SubFlowNotificationsProps) {
+export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: SubFlowNotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
