@@ -68,7 +68,7 @@ const channelLabels: Record<string, string> = {
   both: 'Telegram + Push',
 };
 
-const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post'];
+const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post', 'subflow_story_like'];
 const ADMIN_TRIGGERS = [
   'admin_login_sms', 'admin_register_sms',
   'admin_login_whatsapp', 'admin_register_whatsapp',
