@@ -47,6 +47,7 @@ interface ViewerInfo {
   name: string;
   avatar_url: string | null;
   viewed_at: string;
+  has_liked: boolean;
 }
 
 export function StoryViewer(props: StoryViewerProps) {
@@ -247,14 +248,21 @@ export function StoryViewer(props: StoryViewerProps) {
 
   const fetchViewers = async () => {
     if (!story) return;
-    const { data: viewsData } = await supabase
-      .from('story_views')
-      .select('user_id, created_at')
-      .eq('story_id', story.id)
-      .order('created_at', { ascending: false })
-      .limit(100);
+    const [{ data: viewsData }, { data: likesData }] = await Promise.all([
+      supabase
+        .from('story_views')
+        .select('user_id, created_at')
+        .eq('story_id', story.id)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase
+        .from('story_likes')
+        .select('user_id')
+        .eq('story_id', story.id),
+    ]);
     if (!viewsData || viewsData.length === 0) { setViewers([]); return; }
 
+    const likerSet = new Set((likesData || []).map(l => l.user_id));
     const userIds = viewsData.map(v => v.user_id);
     const { data: profiles } = await supabase
       .from('profiles')
@@ -269,6 +277,7 @@ export function StoryViewer(props: StoryViewerProps) {
         name: p?.subflow_nickname || p?.name || 'Пользователь',
         avatar_url: p?.avatar_url || null,
         viewed_at: v.created_at,
+        has_liked: likerSet.has(v.user_id),
       };
     }));
   };
@@ -324,7 +333,7 @@ export function StoryViewer(props: StoryViewerProps) {
           user_id: story.user_id,
           actor_id: currentUserId,
           type: 'story_like',
-          post_id: null,
+          post_id: story.id,
           reaction: '❤️',
         });
       } catch {}
@@ -489,12 +498,15 @@ export function StoryViewer(props: StoryViewerProps) {
                   {viewers.map(v => (
                     <div key={v.user_id} className="flex items-center gap-3 px-4 py-2.5">
                       <Avatar className="w-8 h-8">
-                        {v.avatar_url ? <AvatarImage src={v.avatar_url} /> : null}
+                        {v.avatar_url ? <AvatarImage src={v.avatar_url} className="object-cover" /> : null}
                         <AvatarFallback className="bg-white/10 text-white text-xs">
                           <User size={14} />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-white text-sm flex-1 truncate">{v.name}</span>
+                      <span className="text-white text-sm flex-1 truncate flex items-center gap-1.5">
+                        {v.has_liked && <Heart size={12} className="fill-red-500 text-red-500 shrink-0" />}
+                        {v.name}
+                      </span>
                       <span className="text-white/40 text-xs">
                         {formatDistanceToNow(new Date(v.viewed_at), { addSuffix: true, locale: ru })}
                       </span>
@@ -532,11 +544,11 @@ export function StoryViewer(props: StoryViewerProps) {
               <div className="flex justify-center">
                 <button
                   onClick={handleLike}
-                  className={`p-4 rounded-full transition-all ${
+                  className={`p-3 rounded-full transition-all ${
                     hasLiked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
-                  <Heart size={28} className={hasLiked ? 'fill-red-500' : ''} />
+                  <Heart size={22} className={hasLiked ? 'fill-red-500' : ''} />
                 </button>
               </div>
             )}

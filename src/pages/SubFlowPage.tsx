@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { StoriesBar } from '@/components/stories/StoriesBar';
+import { StoryViewer } from '@/components/stories/StoryViewer';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
@@ -12,6 +13,7 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { useAllActiveStories } from '@/hooks/useAllActiveStories';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,12 +29,16 @@ export default function SubFlowPage() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerStartUser, setStoryViewerStartUser] = useState(0);
+  const [storyViewerStartStory, setStoryViewerStartStory] = useState(0);
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const playNotificationSound = useNotificationSound();
   const { vibrate } = useVibration();
   const { settings: notifSettings } = useNotificationSettings();
   const entryAlertFired = useRef(false);
+  const { users: storyUsers, refresh: refreshStories, viewedStoryIds } = useAllActiveStories(userId);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -154,7 +160,22 @@ export default function SubFlowPage() {
               </div>
               <div className="flex items-center gap-1">
                 <SubFlowFollowerCount userId={userId} />
-                <SubFlowNotifications userId={userId} onNavigateToPost={(postId) => setHighlightPostId(postId)} />
+                <SubFlowNotifications
+                  userId={userId}
+                  onNavigateToPost={(postId) => setHighlightPostId(postId)}
+                  onOpenStory={(storyId) => {
+                    // Find which user and story index this story belongs to
+                    for (let ui = 0; ui < storyUsers.length; ui++) {
+                      const si = storyUsers[ui].stories.findIndex(s => s.id === storyId);
+                      if (si !== -1) {
+                        setStoryViewerStartUser(ui);
+                        setStoryViewerStartStory(si);
+                        setStoryViewerOpen(true);
+                        return;
+                      }
+                    }
+                  }}
+                />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
               </div>
             </div>
@@ -212,6 +233,18 @@ export default function SubFlowPage() {
         onOpenChange={setShowCreateDialog}
         onPostCreated={handlePostCreated}
       />
+
+      {/* Story Viewer from notification */}
+      {storyViewerOpen && storyUsers.length > 0 && (
+        <StoryViewer
+          storyUsers={storyUsers}
+          startUserIndex={storyViewerStartUser}
+          startStoryIndex={storyViewerStartStory}
+          currentUserId={userId}
+          onClose={() => setStoryViewerOpen(false)}
+          onStoryDeleted={() => refreshStories()}
+        />
+      )}
     </AppLayout>
   );
 }

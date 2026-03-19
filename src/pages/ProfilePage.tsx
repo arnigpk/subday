@@ -449,7 +449,7 @@ export default function ProfilePage() {
           <p className="text-center text-[10px] sm:text-xs text-muted-foreground mt-8 px-4 leading-relaxed">
             ТОО &ldquo;Subday Group&rdquo;
             <br className="sm:hidden" />
-            Все права защищены
+            {' - '}Все права защищены
           </p>
         </div>
       </div>

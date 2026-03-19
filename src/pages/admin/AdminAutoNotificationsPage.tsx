@@ -48,6 +48,7 @@ const triggerLabels: Record<string, string> = {
   subflow_comment: '#subFlow — Комментарии',
   subflow_follow: '#subFlow — Подписчики',
   subflow_new_post: '#subFlow — Новый пост',
+  subflow_story_like: '#subFlow — Лайк на сториз',
   admin_login_sms: 'Вход через SMS',
   admin_register_sms: 'Регистрация через SMS',
   admin_login_whatsapp: 'Вход через WhatsApp',
@@ -67,7 +68,7 @@ const channelLabels: Record<string, string> = {
   both: 'Telegram + Push',
 };
 
-const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post'];
+const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post', 'subflow_story_like'];
 const ADMIN_TRIGGERS = [
   'admin_login_sms', 'admin_register_sms',
   'admin_login_whatsapp', 'admin_register_whatsapp',
@@ -87,6 +88,7 @@ const defaultMessages: Record<string, string> = {
   subflow_comment: '💬 У вас уже {{count}} комментариев на ваших постах!',
   subflow_follow: '👥 У вас уже {{count}} подписчиков! {{actor_name}} подписался на вас.',
   subflow_new_post: '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»',
+  subflow_story_like: '❤️ {{actor_name}} понравилась ваша история',
   admin_login_sms: '🔑 Вход через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
   admin_register_sms: '🆕 Новая регистрация через SMS\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
   admin_login_whatsapp: '🔑 Вход через WhatsApp\n\n👤 Имя: {{name}}\n📞 Телефон: {{phone}}\n🕐 {{time}}',
@@ -240,6 +242,7 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_comment': return <MessageCircle className="w-4 h-4 text-blue-500" />;
       case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
+      case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
       case 'admin_login_sms':
       case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
@@ -431,6 +434,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
                   <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
                   <SelectItem value="subflow_new_post">#subFlow — Новый пост</SelectItem>
+                  <SelectItem value="subflow_story_like">❤️ #subFlow — Лайк на сториз</SelectItem>
                   <SelectItem value="admin_login_sms">🔑 Вход через SMS</SelectItem>
                   <SelectItem value="admin_register_sms">🆕 Регистрация через SMS</SelectItem>
                   <SelectItem value="admin_login_whatsapp">🔑 Вход через WhatsApp</SelectItem>
