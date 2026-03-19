@@ -327,7 +327,10 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
           ) : (
             <div className="divide-y divide-border">
               {notifications.map(n => {
-                const isClickable = !!n.post_id && !!onNavigateToPost;
+                const isStoryLike = n.type === 'story_like';
+                const isClickable = isStoryLike
+                  ? !!n.post_id && !!onOpenStory
+                  : !!n.post_id && !!onNavigateToPost;
                 return (
                   <SwipeableSubFlowNotification
                     key={n.id}
@@ -335,9 +338,12 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
                     isClickable={isClickable}
                     onDismiss={handleDismissOne}
                     onClick={() => {
-                      if (isClickable) {
+                      if (isStoryLike && n.post_id && onOpenStory) {
                         setOpen(false);
-                        setTimeout(() => onNavigateToPost!(n.post_id!), 300);
+                        setTimeout(() => onOpenStory(n.post_id!), 300);
+                      } else if (n.post_id && onNavigateToPost) {
+                        setOpen(false);
+                        setTimeout(() => onNavigateToPost(n.post_id!), 300);
                       }
                     }}
                     getNotificationText={getNotificationText}
