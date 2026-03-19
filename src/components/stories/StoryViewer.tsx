@@ -498,12 +498,15 @@ export function StoryViewer(props: StoryViewerProps) {
                   {viewers.map(v => (
                     <div key={v.user_id} className="flex items-center gap-3 px-4 py-2.5">
                       <Avatar className="w-8 h-8">
-                        {v.avatar_url ? <AvatarImage src={v.avatar_url} /> : null}
+                        {v.avatar_url ? <AvatarImage src={v.avatar_url} className="object-cover" /> : null}
                         <AvatarFallback className="bg-white/10 text-white text-xs">
                           <User size={14} />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-white text-sm flex-1 truncate">{v.name}</span>
+                      <span className="text-white text-sm flex-1 truncate flex items-center gap-1.5">
+                        {v.has_liked && <Heart size={12} className="fill-red-500 text-red-500 shrink-0" />}
+                        {v.name}
+                      </span>
                       <span className="text-white/40 text-xs">
                         {formatDistanceToNow(new Date(v.viewed_at), { addSuffix: true, locale: ru })}
                       </span>
