@@ -333,7 +333,7 @@ export function StoryViewer(props: StoryViewerProps) {
           user_id: story.user_id,
           actor_id: currentUserId,
           type: 'story_like',
-          post_id: null,
+          post_id: story.id,
           reaction: '❤️',
         });
       } catch {}
