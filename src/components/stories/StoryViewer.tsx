@@ -248,14 +248,21 @@ export function StoryViewer(props: StoryViewerProps) {
 
   const fetchViewers = async () => {
     if (!story) return;
-    const { data: viewsData } = await supabase
-      .from('story_views')
-      .select('user_id, created_at')
-      .eq('story_id', story.id)
-      .order('created_at', { ascending: false })
-      .limit(100);
+    const [{ data: viewsData }, { data: likesData }] = await Promise.all([
+      supabase
+        .from('story_views')
+        .select('user_id, created_at')
+        .eq('story_id', story.id)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase
+        .from('story_likes')
+        .select('user_id')
+        .eq('story_id', story.id),
+    ]);
     if (!viewsData || viewsData.length === 0) { setViewers([]); return; }
 
+    const likerSet = new Set((likesData || []).map(l => l.user_id));
     const userIds = viewsData.map(v => v.user_id);
     const { data: profiles } = await supabase
       .from('profiles')
@@ -270,6 +277,7 @@ export function StoryViewer(props: StoryViewerProps) {
         name: p?.subflow_nickname || p?.name || 'Пользователь',
         avatar_url: p?.avatar_url || null,
         viewed_at: v.created_at,
+        has_liked: likerSet.has(v.user_id),
       };
     }));
   };
