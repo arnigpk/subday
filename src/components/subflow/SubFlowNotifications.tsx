@@ -32,6 +32,7 @@ interface Notification {
 interface SubFlowNotificationsProps {
   userId: string | null;
   onNavigateToPost?: (postId: string) => void;
+  onOpenStory?: (storyId: string) => void;
 }
 
 function SwipeableSubFlowNotification({
