@@ -82,7 +82,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }
   );
 }
 
-export function SortableFeaturesEditor({ features, onChange }: SortableFeaturesEditorProps) {
+export function SortableFeaturesEditor({ features, onChange, label = 'Что входит (функции)', placeholder = 'Функция', variant = 'feature' }: SortableFeaturesEditorProps) {
   // Generate stable IDs for features
   const [featureIds] = useState(() => 
     features.map((_, i) => `feature-${i}-${Date.now()}`)
