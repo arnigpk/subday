@@ -216,6 +216,7 @@ export default function AdminShopsPage() {
       address: addr,
       lat: coords[i]?.lat ?? null,
       lng: coords[i]?.lng ?? null,
+      working_hours: coords[i]?.working_hours || '',
     }));
     
     setFormData({
