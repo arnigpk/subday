@@ -210,6 +210,7 @@ export default function AdminSubscriptionsPage() {
       badge: sub.badge,
       badge_color: sub.badge_color,
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
+      exclusions: (sub as any).exclusions && (sub as any).exclusions.length > 0 ? (sub as any).exclusions : [],
       benefit: sub.benefit || 0,
       daily_limit: sub.daily_limit,
       country: sub.country || 'KZ',
