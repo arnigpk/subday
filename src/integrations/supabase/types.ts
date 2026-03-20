@@ -1065,6 +1065,7 @@ export type Database = {
           is_special_offer: boolean | null
           payment_method: string | null
           payment_order_id: string | null
+          receipt_data: Json | null
           subscription_name: string
           subscription_type_id: string | null
           transaction_type: string
@@ -1078,6 +1079,7 @@ export type Database = {
           is_special_offer?: boolean | null
           payment_method?: string | null
           payment_order_id?: string | null
+          receipt_data?: Json | null
           subscription_name: string
           subscription_type_id?: string | null
           transaction_type: string
@@ -1091,6 +1093,7 @@ export type Database = {
           is_special_offer?: boolean | null
           payment_method?: string | null
           payment_order_id?: string | null
+          receipt_data?: Json | null
           subscription_name?: string
           subscription_type_id?: string | null
           transaction_type?: string
