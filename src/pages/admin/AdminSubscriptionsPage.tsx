@@ -590,6 +590,13 @@ export default function AdminSubscriptionsPage() {
               features={formData.features}
               onChange={(features) => setFormData({ ...formData, features })}
             />
+            <SortableFeaturesEditor
+              features={formData.exclusions}
+              onChange={(exclusions) => setFormData({ ...formData, exclusions })}
+              label="Что не входит"
+              placeholder="Исключение"
+              variant="exclusion"
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена
