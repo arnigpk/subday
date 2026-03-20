@@ -1,10 +1,7 @@
-import { MapPin, Package, Gift, Flame } from 'lucide-react';
+import { MapPin, Package } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 export function QuickActions() {
-  const { stats } = useUserStatsContext();
-  
   const actions = [
     {
       icon: MapPin,
@@ -35,9 +32,6 @@ export function QuickActions() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{action.label}</p>
-              {action.badge && (
-                <span className="text-xs font-bold text-accent">{action.badge}</span>
-              )}
             </div>
           </Link>
         );
