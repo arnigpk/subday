@@ -165,7 +165,8 @@ export function SortableFeaturesEditor({ features, onChange, label = 'Что в�
                 value={feature}
                 onChange={handleFeatureChange}
                 onRemove={handleRemoveFeature}
-                canRemove={features.length > 1}
+                canRemove={variant === 'exclusion' || features.length > 1}
+                placeholder={placeholder}
               />
             ))}
           </div>
