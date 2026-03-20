@@ -240,11 +240,12 @@ export default function AdminSubscriptionsPage() {
             badge: formData.badge || null,
             badge_color: formData.badge_color || null,
             features: formData.features.filter(f => f.trim() !== ''),
+            exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
-          })
+          } as any)
           .eq('id', editingSub.id);
 
         if (error) throw error;
