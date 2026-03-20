@@ -911,7 +911,7 @@ export default function AdminUsersPage() {
                 <Select 
                   value={formData.role} 
                   onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
-                  disabled={editingUser?.role === 'superadmin'}
+                  disabled={editingUser?.role === 'superadmin' && editingUser?.public_id === '773158'}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue />
