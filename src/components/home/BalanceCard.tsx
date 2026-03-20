@@ -7,7 +7,8 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
 import { Button } from '../ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getKzSuffix, formatDateKzWithYear } from '@/utils/kazakh';
+import { getKzSuffix } from '@/utils/kazakh';
+import { formatSubscriptionExpiry, calcDaysRemaining } from '@/utils/formatSubscriptionDays';
 
 interface BalanceCardProps {
   activeTab: 'coffee' | 'drinks';
@@ -55,32 +56,8 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const currentTypeSub = activeSubscriptions.find(s => s.subscription_type === activeTab);
   const hasSubscription = !!currentTypeSub && total > 0 && remaining > 0;
   
-  const typeDaysRemaining = (() => {
-    if (!currentTypeSub?.expires_at) return null;
-    const expiryDate = new Date(currentTypeSub.expires_at);
-    const now = new Date();
-    const diffTime = expiryDate.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  })();
+  const typeDaysRemaining = currentTypeSub?.expires_at ? calcDaysRemaining(currentTypeSub.expires_at) : null;
   const typeIsExpiringSoon = typeDaysRemaining !== null && typeDaysRemaining <= 7 && typeDaysRemaining > 0;
-  
-  const formatDaysRemaining = (days: number | null) => {
-    if (days === null) return null;
-    if (days <= 0) return t('balance.expired');
-    if (days === 1) {
-      if (language === 'kz' || language === 'kg') return '~1 күн';
-      if (language === 'en') return '~1 day';
-      if (language === 'uz') return '~1 kun';
-      return '~1 день';
-    }
-    if (language === 'kz' || language === 'kg') return `~${days} күн`;
-    if (language === 'en') return `~${days} days`;
-    if (language === 'uz') return `~${days} kun`;
-    if (days >= 2 && days <= 4) return `~${days} дня`;
-    if (days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20)) return `~${days} дня`;
-    if (days % 10 === 1 && days % 100 !== 11) return `~${days} день`;
-    return `~${days} дней`;
-  };
 
   const formatRemainingText = () => {
     if (language === 'kz') {
@@ -100,23 +77,6 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const formatGuestCoffee = () => {
     const dateStr = new Date(stats.guestExpiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
     return `${t('balance.guestCoffee')} ${stats.guestCoffees} (${t('balance.until')} ${dateStr})`;
-  };
-
-  const formatExpiryDate = () => {
-    if (!currentTypeSub?.expires_at || typeDaysRemaining === null) return '';
-    if (language === 'kz') {
-      return `(${formatDateKzWithYear(new Date(currentTypeSub.expires_at), typeDaysRemaining > 30)} дейін)`;
-    }
-    if (language === 'en') {
-      return `(until ${new Date(currentTypeSub.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`;
-    }
-    if (language === 'uz') {
-      return `(${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })} gacha)`;
-    }
-    if (language === 'kg') {
-      return `(${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })} чейин)`;
-    }
-    return `(до ${new Date(currentTypeSub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: typeDaysRemaining > 30 ? 'numeric' : undefined })})`;
   };
   
   if (isLoading) {
@@ -205,10 +165,8 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
             <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${typeIsExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'}`}>
               <Clock size={14} className={typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
               <span className={`text-xs font-medium ${typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {t('balance.subscription')} {formatDaysRemaining(typeDaysRemaining)}
-                <span className="ml-1">
-                  {formatExpiryDate()}
-                </span>
+                {t('balance.subscription')}{' '}
+                {formatSubscriptionExpiry(typeDaysRemaining, currentTypeSub.expires_at, language, t('balance.expired'))}
               </span>
             </div>
           )}

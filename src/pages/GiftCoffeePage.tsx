@@ -64,10 +64,14 @@ export default function GiftCoffeePage() {
 
       if (data?.status === 'active') {
         const expiresDate = data.expires_at
-          ? new Date(data.expires_at).toLocaleDateString('ru-RU')
+          ? (() => {
+              const days = Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              const d = new Date(data.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+              return `~${days} дней (до ${d})`;
+            })()
           : '';
         toast.success(
-          `${t('guest.successMessage')}${expiresDate ? `\nДействует до: ${expiresDate}` : ''}`,
+          `${t('guest.successMessage')}${expiresDate ? `\nДействует ${expiresDate}` : ''}`,
           { duration: 6000 }
         );
         vibrateSuccess();

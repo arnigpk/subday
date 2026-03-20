@@ -107,8 +107,12 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            до {sub.expires_at 
-              ? new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+            {sub.expires_at 
+              ? (() => {
+                  const days = Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  if (days <= 0) return 'Истёк';
+                  return `~${days} ${days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20) ? 'дня' : 'дней'} (до ${new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+                })()
               : '—'}
           </span>
           {canManage && (

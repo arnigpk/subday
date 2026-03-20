@@ -7,6 +7,7 @@ import { Sparkles, Coffee, Check, UtensilsCrossed, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -165,7 +166,10 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
   const isActive = activeSubscriptionTypeIds.includes(sub.id);
   const isLunch = sub.type === 'drinks';
 
-  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const formatOfferDate = (d: Date) => {
+    const days = calcDaysRemaining(d);
+    return formatSubscriptionExpiry(days, d, language, 'Истёк');
+  };
 
   return (
     <Link
@@ -231,7 +235,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
             {hasOffer && (
               <p className="text-xs text-accent font-medium pl-5 mt-1">
                 {eligibleUntil
-                  ? `⏰ Спецпредложение действует до ${formatDate(eligibleUntil)}`
+                  ? `⏰ Спецпредложение действует ${formatOfferDate(eligibleUntil)}`
                   : '⏰ Спецпредложение активно'}
               </p>
             )}

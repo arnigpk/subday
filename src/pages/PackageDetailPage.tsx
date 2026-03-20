@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
@@ -138,7 +139,10 @@ export default function PackageDetailPage() {
   const isActive = activeSubscriptionTypeIds.includes(subscription.id);
 
   const formatBenefit = (benefit: number) => new Intl.NumberFormat('ru-RU').format(benefit);
-  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const formatOfferDate = (d: Date) => {
+    const days = calcDaysRemaining(d);
+    return formatSubscriptionExpiry(days, d, language, 'Истёк');
+  };
   const formatPrice = (price: number) => formatPriceNum(price) + ' ' + currencySymbol;
 
   return (
@@ -200,7 +204,7 @@ export default function PackageDetailPage() {
             {hasOffer && (
               <p className="text-xs text-accent font-medium mb-4">
                 {eligibleUntil
-                  ? `⏰ Спецпредложение действует до ${formatDate(eligibleUntil)}`
+                  ? `⏰ Спецпредложение действует ${formatOfferDate(eligibleUntil)}`
                   : '⏰ Спецпредложение активно'}
               </p>
             )}
