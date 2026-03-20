@@ -654,6 +654,27 @@ export default function AdminUsersPage() {
                 </div>
               )}
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CreditCard className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Подписка:</span>
+              {[
+                { value: 'all', label: 'Все' },
+                { value: 'has_subscription', label: 'Есть подписка' },
+                { value: 'no_subscription', label: 'Нет подписки' },
+              ].map((filter) => (
+                <Button
+                  key={filter.value}
+                  variant={subscriptionFilter === filter.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setSubscriptionFilter(filter.value);
+                    setPage(0);
+                  }}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
