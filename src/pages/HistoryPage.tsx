@@ -111,6 +111,7 @@ export default function HistoryPage() {
   }
   
   return (
+    <>
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
