@@ -217,6 +217,7 @@ export default function AdminSubscriptionsPage() {
       daily_limit: sub.daily_limit,
       country: sub.country || 'KZ',
       currency: sub.currency || '₸',
+      how_it_works: (sub as any).how_it_works || '',
     });
     setIsDialogOpen(true);
   };
