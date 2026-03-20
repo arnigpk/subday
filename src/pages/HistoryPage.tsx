@@ -194,12 +194,23 @@ export default function HistoryPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      {tx.amount && (
-                        <p className="text-sm font-semibold text-foreground">{formatAmount(tx.amount)}</p>
+                    <div className="text-right flex items-start gap-1.5">
+                      <div>
+                        {tx.amount && (
+                          <p className="text-sm font-semibold text-foreground">{formatAmount(tx.amount)}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
+                        <p className="text-xs text-muted-foreground">{formatTime(tx.created_at)}</p>
+                      </div>
+                      {tx.receipt_data && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedReceipt({ data: tx.receipt_data, name: tx.subscription_name }); }}
+                          className="mt-0.5 p-1.5 rounded-lg hover:bg-primary/10 transition-colors active:scale-95"
+                          title="Чек"
+                        >
+                          <FileText size={16} className="text-primary" />
+                        </button>
                       )}
-                      <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
-                      <p className="text-xs text-muted-foreground">{formatTime(tx.created_at)}</p>
                     </div>
                   </div>
                 ))}
