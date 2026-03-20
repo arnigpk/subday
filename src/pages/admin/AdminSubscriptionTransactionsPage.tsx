@@ -16,13 +16,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { ReceiptPopup } from '@/components/history/ReceiptPopup';
 
 interface TransactionWithUser {
   id: string;
