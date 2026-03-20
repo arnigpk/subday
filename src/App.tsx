@@ -29,8 +29,6 @@ import SubFlowPage from "./pages/SubFlowPage";
 
 // Lazy-loaded secondary pages
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
-const StreaksPage = lazy(() => import("./pages/StreaksPage"));
-const BonusesPage = lazy(() => import("./pages/BonusesPage"));
 const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 
