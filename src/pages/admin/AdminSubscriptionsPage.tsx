@@ -69,6 +69,7 @@ interface SubscriptionType {
   sort_order: number;
   created_at: string;
   features: string[] | null;
+  exclusions: string[] | null;
   benefit: number | null;
   daily_limit: number | null;
   country: string | null;
