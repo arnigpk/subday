@@ -145,7 +145,7 @@ export function SortableFeaturesEditor({ features, onChange, label = 'Что в�
 
   return (
     <div>
-      <Label className="mb-2 block">Что входит (функции)</Label>
+      <Label className="mb-2 block">{label}</Label>
       <p className="text-xs text-muted-foreground mb-2">
         Перетащите для изменения порядка
       </p>
