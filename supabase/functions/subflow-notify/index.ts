@@ -225,6 +225,19 @@ Deno.serve(async (req) => {
           await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
         }
       }
+    } else if (type === 'story_like') {
+      if (!targetUserId || targetUserId === actorId) {
+        return jsonResponse({ ok: true, skipped: true });
+      }
+
+      // In-app notification is already inserted from the client
+      // Send external (Telegram/Push) notification
+      const message = renderTemplate(messageTemplate || '❤️ {{actor_name}} понравилась ваша история!', {
+        count: '1',
+        actor_name: actorName,
+        preview: '',
+      });
+      await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
     }
 
     return jsonResponse({ ok: true });
