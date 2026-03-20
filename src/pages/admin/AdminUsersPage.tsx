@@ -925,8 +925,8 @@ export default function AdminUsersPage() {
                     <SelectItem value="barista">Бариста</SelectItem>
                   </SelectContent>
                 </Select>
-              {editingUser?.role === 'superadmin' && (
-                <p className="text-xs text-muted-foreground mt-1">🔒 Роль СуперАдмина защищена от изменений</p>
+              {editingUser?.role === 'superadmin' && editingUser?.public_id === '773158' && (
+                <p className="text-xs text-muted-foreground mt-1">🔒 Роль главного СуперАдмина защищена от изменений</p>
               )}
               
               {formData.role === 'partner' && (
