@@ -113,6 +113,17 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
                   Найти координаты: Google Maps → правый клик на точке → Что здесь?
                 </p>
               )}
+              
+              {/* Working hours row */}
+              <div className="flex items-center gap-2 pl-6">
+                <Clock size={14} className="text-primary shrink-0" />
+                <Input
+                  value={item.working_hours || ''}
+                  onChange={(e) => handleHoursChange(index, e.target.value)}
+                  placeholder="09:00-21:00"
+                  className="flex-1 text-sm h-8"
+                />
+              </div>
             </div>
           ))}
         </div>
