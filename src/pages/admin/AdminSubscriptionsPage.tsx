@@ -449,6 +449,14 @@ export default function AdminSubscriptionsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  onClick={() => handleDuplicate(sub)}
+                                  title="Дублировать"
+                                >
+                                  <Copy className="w-4 h-4 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => openEditDialog(sub)}
                                 >
                                   <Pencil className="w-4 h-4" />
