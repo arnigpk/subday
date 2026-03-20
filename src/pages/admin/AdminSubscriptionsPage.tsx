@@ -188,6 +188,7 @@ export default function AdminSubscriptionsPage() {
       badge: null,
       badge_color: null,
       features: DEFAULT_FEATURES,
+      exclusions: [],
       benefit: 0,
       daily_limit: null,
       country: 'KZ',
