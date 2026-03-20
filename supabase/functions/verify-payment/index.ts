@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     if (paymentUid) {
       try {
-        const statusUrl = `https://s-core.paylink.kz/api/v1/invoices/${paymentUid}`;
+        const statusUrl = `https://core.paylink.kz/api/v1/invoices/${paymentUid}`;
         const statusResponse = await fetch(statusUrl, {
           method: 'GET',
           headers: { 'X-API-KEY': paylinkApiKey, 'Accept': 'application/json' },
