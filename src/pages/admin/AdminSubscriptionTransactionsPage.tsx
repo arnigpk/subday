@@ -439,6 +439,7 @@ export default function AdminSubscriptionTransactionsPage() {
   );
 
   return (
+    <>
     <AdminLayout title="Транзакции подписок">
       <Card>
         <CardHeader>
