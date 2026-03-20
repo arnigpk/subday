@@ -17,7 +17,8 @@ import {
   Gift,
   Zap,
   Loader,
-  Megaphone
+  Megaphone,
+  QrCode
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
