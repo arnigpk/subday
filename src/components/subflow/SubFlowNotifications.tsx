@@ -319,12 +319,23 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
           <div className="flex items-center relative">
             {notifications.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="absolute left-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 size={18} />
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="absolute left-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                    <Trash2 size={18} />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
+                    <AlertDialogDescription>Все уведомления #subFlow будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <SheetTitle className="text-lg font-bold w-full text-center">Уведомления #subFlow</SheetTitle>
           </div>
