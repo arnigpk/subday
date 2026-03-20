@@ -44,6 +44,7 @@ const navItems = [
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
   { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
   { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
+  { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['superadmin'] },
 ];
 

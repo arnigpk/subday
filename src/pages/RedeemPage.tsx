@@ -473,11 +473,33 @@ export default function RedeemPage() {
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
-              <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
-              <p className="text-xs text-muted-foreground mb-1">QR действителен {qrSecondsLeft} сек</p>
-              <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
+              <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
+              {/* Current plan name */}
+              {(() => {
+                const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
+                return activeSub?.subscription_name ? (
+                  <p className="text-sm font-semibold text-accent mb-1">{activeSub.subscription_name}</p>
+                ) : null;
+              })()}
+              <p className="text-xs text-muted-foreground mb-1">
+                {qrSettings.qr_validity_text.replace('{seconds}', String(qrSecondsLeft))}
+              </p>
+              <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
+              {/* Volume */}
+              {(() => {
+                const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
+                const subVolume = activeSub?.subscription_type_id
+                  ? subTypeVolumes.find(sv => sv.id === activeSub.subscription_type_id)?.max_volume
+                  : null;
+                return subVolume ? (
+                  <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {subVolume}</p>
+                ) : null;
+              })()}
               <p className="text-sm text-muted-foreground mb-4">
-                {t('redeem.remaining')} <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')}
+                {qrSettings.qr_remaining_text
+                  .replace('{count}', String(remaining))
+                  .replace('{type}', drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks'))
+                }
               </p>
               
               {selectedShop && !selectedShop.isCurrentlyOpen && (
