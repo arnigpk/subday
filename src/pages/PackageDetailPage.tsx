@@ -26,6 +26,7 @@ interface SubscriptionType {
   badge: string | null;
   badge_color: string | null;
   features: string[] | null;
+  exclusions: string[] | null;
   benefit: number | null;
 }
 
