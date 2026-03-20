@@ -659,6 +659,13 @@ export default function AdminSubscriptionTransactionsPage() {
                           </TableCell>
                           <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                           <TableCell>
+                            {t.receipt_data && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedReceipt({ data: t.receipt_data, name: t.subscription_name })}>
+                                <FileText className="w-4 h-4 text-primary" />
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {canManage && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
