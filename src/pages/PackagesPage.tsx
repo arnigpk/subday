@@ -7,6 +7,7 @@ import { Sparkles, Coffee, Check, UtensilsCrossed, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
