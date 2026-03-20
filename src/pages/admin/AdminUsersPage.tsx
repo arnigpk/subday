@@ -367,6 +367,21 @@ export default function AdminUsersPage() {
     if (!editingUser) return;
 
     try {
+      // Guard: prevent changing superadmin role to anything else
+      const previousRole = editingUser.role || 'user';
+      const newRole = formData.role;
+
+      if (previousRole === 'superadmin' && newRole !== 'superadmin') {
+        toast({ title: '⚠️ Нельзя изменить роль СуперАдмина', description: 'Роль СуперАдмина защищена от изменений', variant: 'destructive' });
+        return;
+      }
+
+      // Admin cannot assign superadmin role
+      if (!isSuperAdmin && newRole === 'superadmin') {
+        toast({ title: 'Нельзя назначить роль СуперАдмина', variant: 'destructive' });
+        return;
+      }
+
       // SuperAdmin can update everything, admin can only update roles
       if (canManage) {
         // Update profile
@@ -396,23 +411,8 @@ export default function AdminUsersPage() {
         if (statsError) throw statsError;
       }
 
-      // Handle role update (both admin and superadmin can do this)
-      const previousRole = editingUser.role || 'user';
-      const newRole = formData.role;
-
-      // Admin cannot assign superadmin role
-      if (!isSuperAdmin && newRole === 'superadmin') {
-        toast({ title: 'Нельзя назначить роль СуперАдмина', variant: 'destructive' });
-        return;
-      }
-
       if (previousRole !== newRole) {
         if (previousRole !== 'user' && editingUser.role_id) {
-          // Don't allow deleting superadmin role
-          if (previousRole === 'superadmin' && !isSuperAdmin) {
-            toast({ title: 'Нельзя изменить роль СуперАдмина', variant: 'destructive' });
-            return;
-          }
           await supabase
             .from('user_roles')
             .delete()
