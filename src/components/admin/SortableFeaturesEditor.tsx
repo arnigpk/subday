@@ -24,6 +24,9 @@ import { Label } from '@/components/ui/label';
 interface SortableFeaturesEditorProps {
   features: string[];
   onChange: (features: string[]) => void;
+  label?: string;
+  placeholder?: string;
+  variant?: 'feature' | 'exclusion';
 }
 
 interface SortableFeatureItemProps {
