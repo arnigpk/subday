@@ -12,6 +12,20 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
+
+interface QRSettings {
+  qr_title: string;
+  qr_barista_text: string;
+  qr_validity_text: string;
+  qr_remaining_text: string;
+}
+
+interface SubTypeVolume {
+  id: string;
+  name: string;
+  type: string;
+  max_volume: string | null;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
