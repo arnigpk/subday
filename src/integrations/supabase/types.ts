@@ -1152,6 +1152,7 @@ export type Database = {
           daily_limit: number | null
           description: string | null
           duration_days: number | null
+          exclusions: string[] | null
           features: string[] | null
           id: string
           is_active: boolean | null
@@ -1173,6 +1174,7 @@ export type Database = {
           daily_limit?: number | null
           description?: string | null
           duration_days?: number | null
+          exclusions?: string[] | null
           features?: string[] | null
           id?: string
           is_active?: boolean | null
@@ -1194,6 +1196,7 @@ export type Database = {
           daily_limit?: number | null
           description?: string | null
           duration_days?: number | null
+          exclusions?: string[] | null
           features?: string[] | null
           id?: string
           is_active?: boolean | null
