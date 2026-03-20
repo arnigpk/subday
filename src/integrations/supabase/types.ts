@@ -467,6 +467,30 @@ export type Database = {
         }
         Relationships: []
       }
+      qr_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       redemptions: {
         Row: {
           created_at: string
@@ -1131,6 +1155,7 @@ export type Database = {
           features: string[] | null
           id: string
           is_active: boolean | null
+          max_volume: string | null
           name: string
           price: number
           sort_order: number | null
@@ -1151,6 +1176,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean | null
+          max_volume?: string | null
           name: string
           price: number
           sort_order?: number | null
@@ -1171,6 +1197,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean | null
+          max_volume?: string | null
           name?: string
           price?: number
           sort_order?: number | null

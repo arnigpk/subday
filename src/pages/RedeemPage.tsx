@@ -12,6 +12,20 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
+
+interface QRSettings {
+  qr_title: string;
+  qr_barista_text: string;
+  qr_validity_text: string;
+  qr_remaining_text: string;
+}
+
+interface SubTypeVolume {
+  id: string;
+  name: string;
+  type: string;
+  max_volume: string | null;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +69,15 @@ export default function RedeemPage() {
   const { vibrateSuccess } = useVibration();
   const { activeSubscriptions } = useSubscriptionStatus();
   const { t } = useLanguage();
+  
+  // QR settings and subscription volumes
+  const [qrSettings, setQrSettings] = useState<QRSettings>({
+    qr_title: 'Ваш QR',
+    qr_barista_text: 'Покажите бариста для сканирования',
+    qr_validity_text: 'QR действителен {seconds} сек',
+    qr_remaining_text: 'Осталось {count} {type}',
+  });
+  const [subTypeVolumes, setSubTypeVolumes] = useState<SubTypeVolume[]>([]);
   
   // Distance-based sorting
   const shopsForDistance = useMemo(() => shops.map(s => ({ id: s.id, coordinates: s.coordinates })), [shops]);
@@ -230,6 +253,25 @@ export default function RedeemPage() {
     };
     fetchShops();
   }, [initialShop]);
+
+  // Fetch QR settings and subscription type volumes
+  useEffect(() => {
+    const fetchQRData = async () => {
+      const [settingsRes, subsRes] = await Promise.all([
+        supabase.from('qr_settings').select('setting_key, setting_value'),
+        supabase.from('subscription_types').select('id, name, type, max_volume').eq('is_active', true),
+      ]);
+      if (settingsRes.data) {
+        const map: Record<string, string> = {};
+        (settingsRes.data as any[]).forEach((s: any) => { map[s.setting_key] = s.setting_value; });
+        setQrSettings(prev => ({ ...prev, ...map }));
+      }
+      if (subsRes.data) {
+        setSubTypeVolumes(subsRes.data as any);
+      }
+    };
+    fetchQRData();
+  }, []);
 
   // QR countdown timer - refresh every 60 seconds
   useEffect(() => {
@@ -431,11 +473,33 @@ export default function RedeemPage() {
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
-              <p className="text-lg font-bold text-foreground mb-1">{t('redeem.yourQR')}</p>
-              <p className="text-xs text-muted-foreground mb-1">QR действителен {qrSecondsLeft} сек</p>
-              <p className="text-muted-foreground mb-2">{t('redeem.showBarista')}</p>
+              <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
+              {/* Current plan name */}
+              {(() => {
+                const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
+                return activeSub?.subscription_name ? (
+                  <p className="text-sm font-semibold text-accent mb-1">{activeSub.subscription_name}</p>
+                ) : null;
+              })()}
+              <p className="text-xs text-muted-foreground mb-1">
+                {qrSettings.qr_validity_text.replace('{seconds}', String(qrSecondsLeft))}
+              </p>
+              <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
+              {/* Volume */}
+              {(() => {
+                const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
+                const subVolume = activeSub?.subscription_type_id
+                  ? subTypeVolumes.find(sv => sv.id === activeSub.subscription_type_id)?.max_volume
+                  : null;
+                return subVolume ? (
+                  <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {subVolume}</p>
+                ) : null;
+              })()}
               <p className="text-sm text-muted-foreground mb-4">
-                {t('redeem.remaining')} <span className="font-bold text-foreground">{remaining}</span> {drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')}
+                {qrSettings.qr_remaining_text
+                  .replace('{count}', String(remaining))
+                  .replace('{type}', drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks'))
+                }
               </p>
               
               {selectedShop && !selectedShop.isCurrentlyOpen && (

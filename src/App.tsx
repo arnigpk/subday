@@ -57,6 +57,7 @@ const AdminSpecialOffersPage = lazy(() => import("./pages/admin/AdminSpecialOffe
 const AdminAutoNotificationsPage = lazy(() => import("./pages/admin/AdminAutoNotificationsPage"));
 const AdminPreloaderPage = lazy(() => import("./pages/admin/AdminPreloaderPage"));
 const AdminSubFlowAdsPage = lazy(() => import("./pages/admin/AdminSubFlowAdsPage"));
+const AdminQRSettingsPage = lazy(() => import("./pages/admin/AdminQRSettingsPage"));
 
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
@@ -359,6 +360,7 @@ const AppContent = () => {
             <Route path="/admin/auto-notifications" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminAutoNotificationsPage /></AdminProtectedRoute>} />
             <Route path="/admin/preloader" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPreloaderPage /></AdminProtectedRoute>} />
             <Route path="/admin/subflow-ads" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubFlowAdsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/qr-settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminQRSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
             
             {/* Partner Routes */}
