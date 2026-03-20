@@ -237,11 +237,13 @@ Deno.serve(async (req) => {
         console.error('Failed to send user notification:', notifError);
       }
 
-      // Fetch receipt data from Paylink API
-      let receiptData = null;
+      // Build receipt data from webhook payload + Paylink API
+      let receiptData: Record<string, unknown> | null = null;
       try {
         const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY');
-        const invoiceUid = payload.uid || paymentId;
+        const invoiceUid = payload.invoiceUid || payload.invoice_uid;
+        
+        // Try fetching full invoice details from Paylink API
         if (paylinkApiKey && invoiceUid) {
           const invoiceRes = await fetch(`https://core.paylink.kz/api/v1/invoices/${invoiceUid}`, {
             headers: { 'Authorization': `Bearer ${paylinkApiKey}` },
@@ -249,25 +251,53 @@ Deno.serve(async (req) => {
           if (invoiceRes.ok) {
             const invoice = await invoiceRes.json();
             receiptData = {
-              payment_id: String(invoiceUid),
+              payment_id: String(payload.uid || paymentId),
               rrn: invoice.transaction?.rrn || invoice.rrn || null,
               amount: invoice.amount || paymentOrder.amount,
               currency: invoice.currency || 'KZT',
-              card_last4: invoice.cardInfo?.last4 || invoice.card_last4 || null,
-              card_brand: invoice.cardInfo?.brand || invoice.card_brand || null,
+              card_last4: invoice.cardInfo?.last4 || invoice.last4 || payload.last4 || null,
+              card_brand: invoice.cardInfo?.brand || null,
               issuer_bank: invoice.cardInfo?.issuerBank || null,
-              description: invoice.description || null,
+              description: invoice.description || payload.description || null,
               tracking_id: String(orderId),
-              paid_at: new Date().toISOString(),
-              status: invoice.transactionStatus || invoice.status || 'successful',
+              paid_at: String(payload.paidAt || new Date().toISOString()),
+              status: 'successful',
             };
-            console.log('Receipt data fetched:', JSON.stringify(receiptData));
+            console.log('Receipt data from API:', JSON.stringify(receiptData));
           } else {
-            console.log('Failed to fetch invoice details:', invoiceRes.status);
+            console.log('Invoice API returned:', invoiceRes.status, '- using webhook payload');
           }
+        }
+
+        // Fallback: build receipt from webhook payload directly
+        if (!receiptData) {
+          receiptData = {
+            payment_id: String(payload.uid || paymentId),
+            rrn: null,
+            amount: Number(payload.amount) || paymentOrder.amount,
+            currency: String(payload.currency || 'KZT'),
+            card_last4: payload.last4 ? String(payload.last4) : null,
+            card_brand: null,
+            issuer_bank: null,
+            description: payload.description ? String(payload.description) : null,
+            tracking_id: String(orderId),
+            paid_at: String(payload.paidAt || new Date().toISOString()),
+            status: 'successful',
+          };
+          console.log('Receipt data from webhook payload:', JSON.stringify(receiptData));
         }
       } catch (receiptError) {
         console.error('Receipt fetch error (non-fatal):', receiptError);
+        // Last resort fallback
+        receiptData = {
+          payment_id: String(payload.uid || paymentId),
+          amount: paymentOrder.amount,
+          currency: 'KZT',
+          card_last4: payload.last4 ? String(payload.last4) : null,
+          tracking_id: String(orderId),
+          paid_at: new Date().toISOString(),
+          status: 'successful',
+        };
       }
 
       // Log transaction
