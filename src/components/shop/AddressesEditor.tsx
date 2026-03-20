@@ -8,6 +8,7 @@ export interface AddressWithCoords {
   address: string;
   lat: number | null;
   lng: number | null;
+  working_hours?: string;
 }
 
 interface AddressesEditorProps {
