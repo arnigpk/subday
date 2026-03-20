@@ -69,6 +69,7 @@ interface SubscriptionType {
   sort_order: number;
   created_at: string;
   features: string[] | null;
+  exclusions: string[] | null;
   benefit: number | null;
   daily_limit: number | null;
   country: string | null;
@@ -101,6 +102,7 @@ export default function AdminSubscriptionsPage() {
     badge: '' as string | null,
     badge_color: null as string | null,
     features: DEFAULT_FEATURES,
+    exclusions: [] as string[],
     benefit: 0,
     daily_limit: null as number | null,
     country: 'KZ',
@@ -186,6 +188,7 @@ export default function AdminSubscriptionsPage() {
       badge: null,
       badge_color: null,
       features: DEFAULT_FEATURES,
+      exclusions: [],
       benefit: 0,
       daily_limit: null,
       country: 'KZ',
@@ -207,6 +210,7 @@ export default function AdminSubscriptionsPage() {
       badge: sub.badge,
       badge_color: sub.badge_color,
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
+      exclusions: (sub as any).exclusions && (sub as any).exclusions.length > 0 ? (sub as any).exclusions : [],
       benefit: sub.benefit || 0,
       daily_limit: sub.daily_limit,
       country: sub.country || 'KZ',
@@ -236,11 +240,12 @@ export default function AdminSubscriptionsPage() {
             badge: formData.badge || null,
             badge_color: formData.badge_color || null,
             features: formData.features.filter(f => f.trim() !== ''),
+            exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
-          })
+          } as any)
           .eq('id', editingSub.id);
 
         if (error) throw error;
@@ -264,11 +269,12 @@ export default function AdminSubscriptionsPage() {
             badge_color: formData.badge_color || null,
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
+            exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
-          });
+          } as any);
 
         if (error) throw error;
         toast({ title: 'Подписка добавлена' });
@@ -583,6 +589,13 @@ export default function AdminSubscriptionsPage() {
             <SortableFeaturesEditor
               features={formData.features}
               onChange={(features) => setFormData({ ...formData, features })}
+            />
+            <SortableFeaturesEditor
+              features={formData.exclusions}
+              onChange={(exclusions) => setFormData({ ...formData, exclusions })}
+              label="Что не входит"
+              placeholder="Исключение"
+              variant="exclusion"
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>

@@ -1,0 +1,1 @@
+ALTER TABLE subscription_types ADD COLUMN exclusions text[] DEFAULT NULL;

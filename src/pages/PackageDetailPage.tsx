@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift } from 'lucide-react';
+import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { usePayment } from '@/hooks/usePayment';
@@ -26,6 +26,7 @@ interface SubscriptionType {
   badge: string | null;
   badge_color: string | null;
   features: string[] | null;
+  exclusions: string[] | null;
   benefit: number | null;
 }
 
@@ -88,6 +89,7 @@ export default function PackageDetailPage() {
     : ['Выбранная категория ланчей', 'Стандартный размер', '1 ланч за визит', 'Во всех партнёрских кофейнях'];
 
   const rawFeatures = subscription?.features && subscription.features.length > 0 ? subscription.features : defaultFeatures;
+  const rawExclusions: string[] = (subscription as any)?.exclusions && (subscription as any).exclusions.length > 0 ? (subscription as any).exclusions : [];
   
   const adjustedFeatures = rawFeatures.map(f => {
     if (hasOffer) {
@@ -103,6 +105,7 @@ export default function PackageDetailPage() {
   const translatedDescription = useAutoTranslate(subscription?.description);
   const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
+  const translatedExclusions = useAutoTranslateArray(rawExclusions);
 
   if (isLoading) {
     return (
@@ -220,6 +223,18 @@ export default function PackageDetailPage() {
                 </div>
               ))}
             </div>
+            {translatedExclusions.length > 0 && (
+              <div className="space-y-2 mt-3">
+                {translatedExclusions.map((item, index) => (
+                  <div key={`excl-${index}`} className="flex items-center gap-3 p-3 bg-destructive/5 rounded-xl">
+                    <div className="w-6 h-6 rounded-full bg-destructive/15 flex items-center justify-center">
+                      <X size={14} className="text-destructive" />
+                    </div>
+                    <span className="text-sm font-medium text-destructive/80">{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>

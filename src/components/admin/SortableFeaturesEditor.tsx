@@ -24,6 +24,9 @@ import { Label } from '@/components/ui/label';
 interface SortableFeaturesEditorProps {
   features: string[];
   onChange: (features: string[]) => void;
+  label?: string;
+  placeholder?: string;
+  variant?: 'feature' | 'exclusion';
 }
 
 interface SortableFeatureItemProps {
@@ -33,9 +36,10 @@ interface SortableFeatureItemProps {
   onChange: (index: number, value: string) => void;
   onRemove: (index: number) => void;
   canRemove: boolean;
+  placeholder?: string;
 }
 
-function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }: SortableFeatureItemProps) {
+function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove, placeholder = 'Функция' }: SortableFeatureItemProps) {
   const {
     attributes,
     listeners,
@@ -63,7 +67,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }
       <Input
         value={value}
         onChange={(e) => onChange(index, e.target.value)}
-        placeholder={`Функция ${index + 1}`}
+        placeholder={`${placeholder} ${index + 1}`}
         className="flex-1"
       />
       <Button
@@ -79,7 +83,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }
   );
 }
 
-export function SortableFeaturesEditor({ features, onChange }: SortableFeaturesEditorProps) {
+export function SortableFeaturesEditor({ features, onChange, label = 'Что входит (функции)', placeholder = 'Функция', variant = 'feature' }: SortableFeaturesEditorProps) {
   // Generate stable IDs for features
   const [featureIds] = useState(() => 
     features.map((_, i) => `feature-${i}-${Date.now()}`)
@@ -142,7 +146,7 @@ export function SortableFeaturesEditor({ features, onChange }: SortableFeaturesE
 
   return (
     <div>
-      <Label className="mb-2 block">Что входит (функции)</Label>
+      <Label className="mb-2 block">{label}</Label>
       <p className="text-xs text-muted-foreground mb-2">
         Перетащите для изменения порядка
       </p>
@@ -161,7 +165,8 @@ export function SortableFeaturesEditor({ features, onChange }: SortableFeaturesE
                 value={feature}
                 onChange={handleFeatureChange}
                 onRemove={handleRemoveFeature}
-                canRemove={features.length > 1}
+                canRemove={variant === 'exclusion' || features.length > 1}
+                placeholder={placeholder}
               />
             ))}
           </div>
@@ -175,7 +180,7 @@ export function SortableFeaturesEditor({ features, onChange }: SortableFeaturesE
         onClick={handleAddFeature}
       >
         <Plus className="w-4 h-4 mr-1" />
-        Добавить функцию
+        {variant === 'exclusion' ? 'Добавить исключение' : 'Добавить функцию'}
       </Button>
     </div>
   );
