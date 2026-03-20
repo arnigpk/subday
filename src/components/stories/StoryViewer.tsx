@@ -336,6 +336,15 @@ export function StoryViewer(props: StoryViewerProps) {
           post_id: story.id,
           reaction: '❤️',
         });
+        // Send push/telegram notification via edge function
+        supabase.functions.invoke('subflow-notify', {
+          body: {
+            type: 'story_like',
+            actorId: currentUserId,
+            targetUserId: story.user_id,
+            postId: story.id,
+          },
+        }).catch(() => {});
       } catch {}
     }
   };
