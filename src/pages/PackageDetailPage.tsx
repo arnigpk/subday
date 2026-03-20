@@ -28,6 +28,7 @@ interface SubscriptionType {
   features: string[] | null;
   exclusions: string[] | null;
   benefit: number | null;
+  how_it_works: string | null;
 }
 
 const formatPriceNum = (price: number) => {
