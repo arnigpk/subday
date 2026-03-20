@@ -28,6 +28,7 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState('redemptions');
   const [transactions, setTransactions] = useState<SubscriptionTransaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
   
   const tabs = [
     { id: 'redemptions', label: t('history.tabRedemptions') },
