@@ -83,6 +83,7 @@ export default function AdminSubscriptionTransactionsPage() {
   const [pmPage, setPmPage] = useState(0);
   const [pmTotal, setPmTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
+  const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
 
   // Shared filters
   const [periodType, setPeriodType] = useState<PeriodType>('all');
