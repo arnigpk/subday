@@ -41,6 +41,7 @@ interface TransactionWithUser {
   user_country: string | null;
   payment_id: string | null;
   order_id: string | null;
+  receipt_data: any | null;
 }
 
 interface PaymentOrderWithUser {
