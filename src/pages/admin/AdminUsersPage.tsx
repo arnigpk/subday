@@ -375,8 +375,8 @@ export default function AdminUsersPage() {
       const previousRole = editingUser.role || 'user';
       const newRole = formData.role;
 
-      if (previousRole === 'superadmin' && newRole !== 'superadmin') {
-        toast({ title: '⚠️ Нельзя изменить роль СуперАдмина', description: 'Роль СуперАдмина защищена от изменений', variant: 'destructive' });
+      if (previousRole === 'superadmin' && newRole !== 'superadmin' && editingUser.public_id === '773158') {
+        toast({ title: '⚠️ Нельзя изменить роль СуперАдмина', description: 'Роль главного СуперАдмина защищена от изменений', variant: 'destructive' });
         return;
       }
 
@@ -911,7 +911,7 @@ export default function AdminUsersPage() {
                 <Select 
                   value={formData.role} 
                   onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
-                  disabled={editingUser?.role === 'superadmin'}
+                  disabled={editingUser?.role === 'superadmin' && editingUser?.public_id === '773158'}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue />
@@ -925,8 +925,8 @@ export default function AdminUsersPage() {
                     <SelectItem value="barista">Бариста</SelectItem>
                   </SelectContent>
                 </Select>
-              {editingUser?.role === 'superadmin' && (
-                <p className="text-xs text-muted-foreground mt-1">🔒 Роль СуперАдмина защищена от изменений</p>
+              {editingUser?.role === 'superadmin' && editingUser?.public_id === '773158' && (
+                <p className="text-xs text-muted-foreground mt-1">🔒 Роль главного СуперАдмина защищена от изменений</p>
               )}
               
               {formData.role === 'partner' && (
