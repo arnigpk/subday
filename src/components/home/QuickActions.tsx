@@ -18,20 +18,6 @@ export function QuickActions() {
       path: '/packages',
       color: 'bg-accent/10 text-accent',
     },
-    {
-      icon: Gift,
-      label: 'Бонусы',
-      path: '/bonuses',
-      badge: `${stats.bonusPoints}`,
-      color: 'bg-yellow-500/10 text-yellow-600',
-    },
-    {
-      icon: Flame,
-      label: 'Выпито',
-      path: '/streaks',
-      badge: `${stats.totalCups}`,
-      color: 'bg-orange-500/10 text-orange-500',
-    },
   ];
 
   return (

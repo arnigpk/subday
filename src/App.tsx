@@ -337,8 +337,6 @@ const AppContent = () => {
             <Route path="/shops/:id" element={<ShopDetailPage />} />
             <Route path="/redeem" element={<RedeemPage />} />
             <Route path="/history" element={<HistoryPage />} />
-            <Route path="/streaks" element={<StreaksPage />} />
-            <Route path="/bonuses" element={<BonusesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/gift-coffee" element={<GiftCoffeePage />} />
             <Route path="/subflow" element={<SubFlowPage />} />
