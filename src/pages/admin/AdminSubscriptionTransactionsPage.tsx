@@ -440,7 +440,7 @@ export default function AdminSubscriptionTransactionsPage() {
 
   return (
     <>
-    <AdminLayout title="Транзакции подписок">
+      <AdminLayout title="Транзакции подписок">
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
