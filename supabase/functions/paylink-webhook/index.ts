@@ -91,6 +91,15 @@ Deno.serve(async (req) => {
 
     console.log('Paylink webhook received:', JSON.stringify(payload, null, 2));
 
+    // Log webhook event
+    await supabase.from('webhook_logs').insert({
+      source: 'paylink',
+      event_type: String(payload.status || payload.transactionStatus || 'unknown'),
+      payload: payload as any,
+      order_id: String(payload.trackingId || payload.tracking_id || payload.order_id || ''),
+      status: String(payload.status || payload.transactionStatus || ''),
+    }).then(() => {}).catch(e => console.error('Webhook log error:', e));
+
     const orderId = payload.trackingId || 
                     payload.tracking_id || 
                     payload.order_id || 
