@@ -107,6 +107,7 @@ export default function AdminSubscriptionsPage() {
     daily_limit: null as number | null,
     country: 'KZ',
     currency: '₸',
+    how_it_works: '',
   });
 
   const sensors = useSensors(
@@ -193,6 +194,7 @@ export default function AdminSubscriptionsPage() {
       daily_limit: null,
       country: 'KZ',
       currency: '₸',
+      how_it_works: '',
     });
     setIsDialogOpen(true);
   };
@@ -215,6 +217,7 @@ export default function AdminSubscriptionsPage() {
       daily_limit: sub.daily_limit,
       country: sub.country || 'KZ',
       currency: sub.currency || '₸',
+      how_it_works: (sub as any).how_it_works || '',
     });
     setIsDialogOpen(true);
   };
@@ -245,6 +248,7 @@ export default function AdminSubscriptionsPage() {
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
+            how_it_works: formData.how_it_works.trim() || null,
           } as any)
           .eq('id', editingSub.id);
 
@@ -274,6 +278,7 @@ export default function AdminSubscriptionsPage() {
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
+            how_it_works: formData.how_it_works.trim() || null,
           } as any);
 
         if (error) throw error;
@@ -597,6 +602,19 @@ export default function AdminSubscriptionsPage() {
               placeholder="Исключение"
               variant="exclusion"
             />
+            <div>
+              <Label htmlFor="how_it_works">Как это работает</Label>
+              <Textarea
+                id="how_it_works"
+                value={formData.how_it_works}
+                onChange={(e) => setFormData({ ...formData, how_it_works: e.target.value })}
+                placeholder="После оформления подписки вы получите 30 напитков на 30 дней. Зайдите в любую партнёрскую кофейню, покажите QR — и получите свой напиток."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Если пусто — используется текст по умолчанию
+              </p>
+            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена

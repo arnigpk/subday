@@ -28,6 +28,7 @@ interface SubscriptionType {
   features: string[] | null;
   exclusions: string[] | null;
   benefit: number | null;
+  how_it_works: string | null;
 }
 
 const formatPriceNum = (price: number) => {
@@ -106,6 +107,8 @@ export default function PackageDetailPage() {
   const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
   const translatedExclusions = useAutoTranslateArray(rawExclusions);
+  const customHowItWorks = (subscription as any)?.how_it_works || null;
+  const translatedHowItWorks = useAutoTranslate(customHowItWorks);
 
   if (isLoading) {
     return (
@@ -244,7 +247,9 @@ export default function PackageDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {(language === 'kz' || language === 'kg')
+                    {translatedHowItWorks
+                      ? translatedHowItWorks
+                      : (language === 'kz' || language === 'kg')
                       ? `Рәсімдегеннен кейін ${period}ге ${displayCups} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
                       : language === 'en'
                       ? `After subscribing you get ${displayCups} drinks for ${period}. Visit any partner café, show your QR — and grab your drink. Simple.`
