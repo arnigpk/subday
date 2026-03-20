@@ -89,6 +89,7 @@ export default function PackageDetailPage() {
     : ['Выбранная категория ланчей', 'Стандартный размер', '1 ланч за визит', 'Во всех партнёрских кофейнях'];
 
   const rawFeatures = subscription?.features && subscription.features.length > 0 ? subscription.features : defaultFeatures;
+  const rawExclusions: string[] = (subscription as any)?.exclusions && (subscription as any).exclusions.length > 0 ? (subscription as any).exclusions : [];
   
   const adjustedFeatures = rawFeatures.map(f => {
     if (hasOffer) {
@@ -104,6 +105,7 @@ export default function PackageDetailPage() {
   const translatedDescription = useAutoTranslate(subscription?.description);
   const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
+  const translatedExclusions = useAutoTranslateArray(rawExclusions);
 
   if (isLoading) {
     return (
