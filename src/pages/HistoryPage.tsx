@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -9,6 +9,7 @@ import { formatDateKz } from '@/utils/kazakh';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ReceiptPopup } from '@/components/history/ReceiptPopup';
 
 interface SubscriptionTransaction {
   id: string;
@@ -18,6 +19,7 @@ interface SubscriptionTransaction {
   is_special_offer: boolean | null;
   payment_method: string | null;
   created_at: string;
+  receipt_data: any | null;
 }
 
 export default function HistoryPage() {
