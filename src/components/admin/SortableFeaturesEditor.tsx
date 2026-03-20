@@ -36,6 +36,7 @@ interface SortableFeatureItemProps {
   onChange: (index: number, value: string) => void;
   onRemove: (index: number) => void;
   canRemove: boolean;
+  placeholder?: string;
 }
 
 function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }: SortableFeatureItemProps) {
