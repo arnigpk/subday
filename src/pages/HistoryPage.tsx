@@ -226,5 +226,12 @@ export default function HistoryPage() {
         </div>
       </div>
     </AppLayout>
+    <ReceiptPopup
+      open={!!selectedReceipt}
+      onOpenChange={(open) => !open && setSelectedReceipt(null)}
+      receipt={selectedReceipt?.data || null}
+      subscriptionName={selectedReceipt?.name || ''}
+    />
+    </>
   );
 }
