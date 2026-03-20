@@ -18,6 +18,7 @@ const TRIGGER_TYPE_MAP: Record<string, string> = {
   comment: 'subflow_comment',
   follow: 'subflow_follow',
   new_post: 'subflow_new_post',
+  story_like: 'subflow_story_like',
 };
 
 const DEFAULT_COOLDOWN_MINUTES = 60;
