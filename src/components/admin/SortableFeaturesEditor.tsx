@@ -66,7 +66,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }
       <Input
         value={value}
         onChange={(e) => onChange(index, e.target.value)}
-        placeholder={`Функция ${index + 1}`}
+        placeholder={`${placeholder} ${index + 1}`}
         className="flex-1"
       />
       <Button
