@@ -269,11 +269,12 @@ export default function AdminSubscriptionsPage() {
             badge_color: formData.badge_color || null,
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
+            exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
-          });
+          } as any);
 
         if (error) throw error;
         toast({ title: 'Подписка добавлена' });
