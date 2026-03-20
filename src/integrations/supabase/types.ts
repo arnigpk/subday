@@ -1154,6 +1154,7 @@ export type Database = {
           duration_days: number | null
           exclusions: string[] | null
           features: string[] | null
+          how_it_works: string | null
           id: string
           is_active: boolean | null
           max_volume: string | null
@@ -1176,6 +1177,7 @@ export type Database = {
           duration_days?: number | null
           exclusions?: string[] | null
           features?: string[] | null
+          how_it_works?: string | null
           id?: string
           is_active?: boolean | null
           max_volume?: string | null
@@ -1198,6 +1200,7 @@ export type Database = {
           duration_days?: number | null
           exclusions?: string[] | null
           features?: string[] | null
+          how_it_works?: string | null
           id?: string
           is_active?: boolean | null
           max_volume?: string | null

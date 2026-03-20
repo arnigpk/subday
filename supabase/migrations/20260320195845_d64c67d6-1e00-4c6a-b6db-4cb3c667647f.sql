@@ -1,0 +1,1 @@
+ALTER TABLE subscription_types ADD COLUMN how_it_works text DEFAULT NULL;
