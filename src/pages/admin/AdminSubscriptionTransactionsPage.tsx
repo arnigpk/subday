@@ -227,6 +227,7 @@ export default function AdminSubscriptionTransactionsPage() {
           user_country: profile?.country || null,
           payment_id: payment?.payment_id || null,
           order_id: payment?.order_id || null,
+          receipt_data: (t as any).receipt_data || null,
         };
       });
 
