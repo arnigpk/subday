@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed, Copy } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
