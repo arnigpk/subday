@@ -194,6 +194,7 @@ export default function AdminSubscriptionsPage() {
       daily_limit: null,
       country: 'KZ',
       currency: '₸',
+      how_it_works: '',
     });
     setIsDialogOpen(true);
   };
