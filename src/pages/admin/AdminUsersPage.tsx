@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
