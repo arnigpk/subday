@@ -45,6 +45,12 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
     onChange(updated);
   };
 
+  const handleHoursChange = (index: number, value: string) => {
+    const updated = [...addresses];
+    updated[index] = { ...updated[index], working_hours: value };
+    onChange(updated);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
