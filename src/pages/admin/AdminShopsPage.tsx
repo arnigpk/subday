@@ -80,6 +80,7 @@ interface Shop {
 interface Coordinate {
   lat: number | null;
   lng: number | null;
+  working_hours?: string;
 }
 
 function parseCoordinates(coords: unknown): Coordinate[] {
@@ -87,6 +88,7 @@ function parseCoordinates(coords: unknown): Coordinate[] {
   return coords.map(c => ({
     lat: typeof c?.lat === 'number' ? c.lat : null,
     lng: typeof c?.lng === 'number' ? c.lng : null,
+    working_hours: typeof c?.working_hours === 'string' ? c.working_hours : '',
   }));
 }
 
@@ -216,6 +218,7 @@ export default function AdminShopsPage() {
       address: addr,
       lat: coords[i]?.lat ?? null,
       lng: coords[i]?.lng ?? null,
+      working_hours: coords[i]?.working_hours || '',
     }));
     
     setFormData({
@@ -246,6 +249,7 @@ export default function AdminShopsPage() {
       const coordinates = formData.addressesWithCoords.map(a => ({
         lat: a.lat,
         lng: a.lng,
+        working_hours: a.working_hours || '',
       }));
       
       if (editingShop) {

@@ -10,6 +10,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 
 interface PushNotification {
@@ -230,13 +241,26 @@ export function PushNotificationsBell() {
         <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
           <div className="flex items-center justify-between">
             {visibleNotifications.length > 0 ? (
-              <button
-                onClick={handleClearAll}
-                className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors"
-                title="Очистить все"
-              >
-                <Trash2 size={18} className="text-destructive" />
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors"
+                    title="Очистить все"
+                  >
+                    <Trash2 size={18} className="text-destructive" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
+                    <AlertDialogDescription>Все уведомления будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             ) : (
               <div className="w-[30px]" />
             )}

@@ -16,13 +16,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { toast } from '@/components/ui/sonner';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { ReceiptPopup } from '@/components/history/ReceiptPopup';
 
 interface TransactionWithUser {
   id: string;
@@ -40,6 +41,7 @@ interface TransactionWithUser {
   user_country: string | null;
   payment_id: string | null;
   order_id: string | null;
+  receipt_data: any | null;
 }
 
 interface PaymentOrderWithUser {
@@ -81,6 +83,7 @@ export default function AdminSubscriptionTransactionsPage() {
   const [pmPage, setPmPage] = useState(0);
   const [pmTotal, setPmTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
+  const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
 
   // Shared filters
   const [periodType, setPeriodType] = useState<PeriodType>('all');
@@ -224,6 +227,7 @@ export default function AdminSubscriptionTransactionsPage() {
           user_country: profile?.country || null,
           payment_id: payment?.payment_id || null,
           order_id: payment?.order_id || null,
+          receipt_data: (t as any).receipt_data || null,
         };
       });
 
@@ -607,6 +611,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Оплата</TableHead>
                         <TableHead>RRN / Payment ID</TableHead>
                         <TableHead>Дата</TableHead>
+                        <TableHead className="w-10">Чек</TableHead>
                         <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -655,6 +660,13 @@ export default function AdminSubscriptionTransactionsPage() {
                           </TableCell>
                           <TableCell>{format(new Date(t.created_at), 'd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
                           <TableCell>
+                            {t.receipt_data && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedReceipt({ data: t.receipt_data, name: t.subscription_name })}>
+                                <FileText className="w-4 h-4 text-primary" />
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {canManage && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -687,5 +699,12 @@ export default function AdminSubscriptionTransactionsPage() {
         </CardContent>
       </Card>
     </AdminLayout>
+    <ReceiptPopup
+      open={!!selectedReceipt}
+      onOpenChange={(open) => !open && setSelectedReceipt(null)}
+      receipt={selectedReceipt?.data || null}
+      subscriptionName={selectedReceipt?.name || ''}
+    />
+    </>
   );
 }

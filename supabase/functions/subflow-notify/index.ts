@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface NotifyRequest {
-  type: 'reaction' | 'reaction_removed' | 'new_post' | 'comment' | 'follow';
+  type: 'reaction' | 'reaction_removed' | 'new_post' | 'comment' | 'follow' | 'story_like';
   postId?: string;
   actorId: string;
   reaction?: string;
@@ -18,6 +18,7 @@ const TRIGGER_TYPE_MAP: Record<string, string> = {
   comment: 'subflow_comment',
   follow: 'subflow_follow',
   new_post: 'subflow_new_post',
+  story_like: 'subflow_story_like',
 };
 
 const DEFAULT_COOLDOWN_MINUTES = 60;
@@ -224,6 +225,19 @@ Deno.serve(async (req) => {
           await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
         }
       }
+    } else if (type === 'story_like') {
+      if (!targetUserId || targetUserId === actorId) {
+        return jsonResponse({ ok: true, skipped: true });
+      }
+
+      // In-app notification is already inserted from the client
+      // Send external (Telegram/Push) notification
+      const message = renderTemplate(messageTemplate || '❤️ {{actor_name}} понравилась ваша история!', {
+        count: '1',
+        actor_name: actorName,
+        preview: '',
+      });
+      await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
     }
 
     return jsonResponse({ ok: true });

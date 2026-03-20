@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, MapPin, Navigation } from 'lucide-react';
+import { Plus, X, MapPin, Navigation, Clock } from 'lucide-react';
 
 export interface AddressWithCoords {
   address: string;
   lat: number | null;
   lng: number | null;
+  working_hours?: string;
 }
 
 interface AddressesEditorProps {
@@ -22,7 +23,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
   const handleAdd = () => {
     const trimmed = newAddress.trim();
     if (trimmed && !addresses.some(a => a.address === trimmed)) {
-      onChange([...addresses, { address: trimmed, lat: null, lng: null }]);
+      onChange([...addresses, { address: trimmed, lat: null, lng: null, working_hours: '' }]);
       setNewAddress('');
     }
   };
@@ -41,6 +42,12 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
     const updated = [...addresses];
     const numValue = value === '' ? null : parseFloat(value);
     updated[index] = { ...updated[index], [field]: isNaN(numValue as number) ? null : numValue };
+    onChange(updated);
+  };
+
+  const handleHoursChange = (index: number, value: string) => {
+    const updated = [...addresses];
+    updated[index] = { ...updated[index], working_hours: value };
     onChange(updated);
   };
 
@@ -106,6 +113,17 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
                   Найти координаты: Google Maps → правый клик на точке → Что здесь?
                 </p>
               )}
+              
+              {/* Working hours row */}
+              <div className="flex items-center gap-2 pl-6">
+                <Clock size={14} className="text-primary shrink-0" />
+                <Input
+                  value={item.working_hours || ''}
+                  onChange={(e) => handleHoursChange(index, e.target.value)}
+                  placeholder="09:00-21:00"
+                  className="flex-1 text-sm h-8"
+                />
+              </div>
             </div>
           ))}
         </div>

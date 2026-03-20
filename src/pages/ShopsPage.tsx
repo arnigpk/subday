@@ -188,7 +188,7 @@ export default function ShopsPage() {
                               </span>
                             </div>
                             <div onClick={(e) => e.preventDefault()}>
-                              <AddressesList addresses={addresses} variant="compact" className="mt-2" closestIndex={addresses.length > 1 ? closestIndex : undefined} />
+                              <AddressesList addresses={addresses} variant="compact" className="mt-2" closestIndex={addresses.length > 1 ? closestIndex : undefined} coordinates={Array.isArray(shop.coordinates) ? shop.coordinates as any : undefined} shopWorkingHours={shop.working_hours || undefined} />
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {shop.city && (
