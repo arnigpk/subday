@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, MapPin, Navigation } from 'lucide-react';
+import { Plus, X, MapPin, Navigation, Clock } from 'lucide-react';
 
 export interface AddressWithCoords {
   address: string;
