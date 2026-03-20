@@ -146,6 +146,7 @@ export default function AdminQRSettingsPage() {
                   onChange={(e) => setEditedVolumes(prev => ({ ...prev, [sub.id]: e.target.value }))}
                   placeholder="напр. 300 мл"
                   className="w-40"
+                  disabled={!canManage}
                 />
               </div>
             ))}
