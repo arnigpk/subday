@@ -25,12 +25,14 @@ interface SpecialOfferPopupProps {
 
 export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offerDays, eligibleUntil, offerName, description }: SpecialOfferPopupProps) {
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
   const formatPrice = (price: number) => new Intl.NumberFormat('ru-RU').format(price);
   
-  const formatDate = (date: Date | null) => {
+  const formatEligibleUntil = (date: Date | null) => {
     if (!date) return '';
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    const days = calcDaysRemaining(date);
+    return formatSubscriptionExpiry(days, date, language, 'Истёк');
   };
 
   const handleActivate = async () => {
