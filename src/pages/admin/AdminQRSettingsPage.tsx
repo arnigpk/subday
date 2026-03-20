@@ -28,6 +28,7 @@ const SETTING_LABELS: Record<string, string> = {
 };
 
 export default function AdminQRSettingsPage() {
+  const { canManage } = useAdminAuth();
   const [settings, setSettings] = useState<QRSetting[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
