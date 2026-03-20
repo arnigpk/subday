@@ -121,6 +121,7 @@ export default function AdminQRSettingsPage() {
                 <Input
                   value={editedSettings[key] || ''}
                   onChange={(e) => setEditedSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                  disabled={!canManage}
                 />
               </div>
             ))}
