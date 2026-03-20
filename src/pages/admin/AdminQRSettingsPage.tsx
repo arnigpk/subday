@@ -153,10 +153,12 @@ export default function AdminQRSettingsPage() {
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={isSaving} className="w-full">
-          {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Сохранить настройки
-        </Button>
+        {canManage && (
+          <Button onClick={handleSave} disabled={isSaving} className="w-full">
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Сохранить настройки
+          </Button>
+        )}
       </div>
     </AdminLayout>
   );
