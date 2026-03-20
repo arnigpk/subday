@@ -246,18 +246,29 @@ export default function PackageDetailPage() {
                 <Info size={20} className="text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {translatedHowItWorks
-                      ? translatedHowItWorks
-                      : (language === 'kz' || language === 'kg')
-                      ? `Рәсімдегеннен кейін ${period}ге ${displayCups} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
-                      : language === 'en'
-                      ? `After subscribing you get ${displayCups} drinks for ${period}. Visit any partner café, show your QR — and grab your drink. Simple.`
-                      : language === 'uz'
-                      ? `Obuna bo'lganingizdan so'ng ${period}ga ${displayCups} ichimlik olasiz. Istalgan hamkor qahvaxonaga kiring, QR ko'rsating — ichimligingizni oling. Hammasi oddiy.`
-                      : `${t('packageDetail.howItWorksText')} ${displayCups} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`
+                  {(() => {
+                    const fullText = translatedHowItWorks
+                      || ((language === 'kz' || language === 'kg')
+                        ? `Рәсімдегеннен кейін ${period}ге ${displayCups} сусын аласыз. Кез келген серіктес кофеханаға кіріп, QR көрсетіп — сусынды аласыз. Бәрі оңай.`
+                        : language === 'en'
+                        ? `After subscribing you get ${displayCups} drinks for ${period}. Visit any partner café, show your QR — and grab your drink. Simple.`
+                        : language === 'uz'
+                        ? `Obuna bo'lganingizdan so'ng ${period}ga ${displayCups} ichimlik olasiz. Istalgan hamkor qahvaxonaga kiring, QR ko'rsating — ichimligingizni oling. Hammasi oddiy.`
+                        : `${t('packageDetail.howItWorksText')} ${displayCups} ${t('packageDetail.drinksFor')} ${period}. ${t('packageDetail.howItWorksText2')}`);
+                    
+                    const starIndex = fullText.indexOf('*');
+                    if (starIndex === -1) {
+                      return <p className="text-xs text-muted-foreground">{fullText}</p>;
                     }
-                  </p>
+                    const mainText = fullText.substring(0, starIndex).trim();
+                    const footnote = fullText.substring(starIndex).trim();
+                    return (
+                      <>
+                        <p className="text-xs text-muted-foreground">{mainText}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-2 italic">{footnote}</p>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
