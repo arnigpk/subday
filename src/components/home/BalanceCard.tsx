@@ -67,14 +67,19 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const formatDaysRemaining = (days: number | null) => {
     if (days === null) return null;
     if (days <= 0) return t('balance.expired');
-    if (days >= 365) return t('balance.year');
-    if (days >= 30) {
-      const months = Math.floor(days / 30);
-      return months === 1 ? `~1 ${t('balance.month1').replace('~1 ', '')}` : `~${months} ${t('balance.months')}`;
+    if (days === 1) {
+      if (language === 'kz' || language === 'kg') return '~1 күн';
+      if (language === 'en') return '~1 day';
+      if (language === 'uz') return '~1 kun';
+      return '~1 день';
     }
-    if (days === 1) return t('balance.day1');
-    if (days >= 2 && days <= 4) return `${days} ${t('balance.days234')}`;
-    return `${days} ${t('balance.days')}`;
+    if (language === 'kz' || language === 'kg') return `~${days} күн`;
+    if (language === 'en') return `~${days} days`;
+    if (language === 'uz') return `~${days} kun`;
+    if (days >= 2 && days <= 4) return `~${days} дня`;
+    if (days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20)) return `~${days} дня`;
+    if (days % 10 === 1 && days % 100 !== 11) return `~${days} день`;
+    return `~${days} дней`;
   };
 
   const formatRemainingText = () => {
