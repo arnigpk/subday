@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
       'X-API-KEY': paylinkApiKey,
     };
 
-    const paylinkEndpoint = 'https://s-core.paylink.kz/api/v1/invoices';
+    const paylinkEndpoint = 'https://core.paylink.kz/api/v1/invoices';
 
     // Generate unique requestId (UUID format)
     const requestId = crypto.randomUUID();
