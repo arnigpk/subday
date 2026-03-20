@@ -1,57 +1,64 @@
 
 
-## Анализ текущих узких мест
+## Plan: Receipt/Check for Transactions
 
-Сейчас процесс сканирования тормозится в нескольких местах:
+### Summary
+Save payment receipt data from the Paylink webhook callback and display a receipt icon next to each transaction in the History page. Tapping the icon opens a popup with the receipt details.
 
-**Клиент (QRScanner.tsx):**
-1. Камера запускается только по кнопке -- потеря 1-2 секунды на старт
-2. `qrbox` = 70% контейнера -- библиотека анализирует только эту область, но для QR это нормально
-3. `fps: 30` -- уже максимум, но можно попробовать выше (ограничение библиотеки)
-4. Дубликат-защита 3 секунды -- можно сократить
+### 1. Database: Add `receipt_data` column to `subscription_transactions`
 
-**Клиент (PartnerScanPage.tsx):**
-5. **`await new Promise(resolve => setTimeout(resolve, 1000))`** -- искусственная задержка 1 секунда! Это чистая потеря времени
-6. При `isProcessing` сканер останавливается и при `resetScanner` надо заново нажимать кнопку
+Migration to add a JSONB column `receipt_data` to `subscription_transactions` table. This will store the full receipt info (amount, card last4, brand, RRN, description, paid_at, payment_id, etc.).
 
-**Сервер (partner-scan-qr):**
-7. Уже оптимизирован параллельными запросами, notifications fire-and-forget -- тут мало что можно выжать
+### 2. Webhook: Save receipt data in `paylink-webhook`
 
-## План ускорения
+In `supabase/functions/paylink-webhook/index.ts`, after successful payment, fetch the full invoice details from Paylink API (`GET /api/v1/invoices/{uid}`) using the payment UID. Extract receipt-relevant fields:
+- `amount`, `commissionAmount`, `currency`
+- `cardInfo.last4`, `cardInfo.brand`, `cardInfo.issuerBank`
+- `transaction.rrn`, `transaction.status`
+- `description`, `trackingId`
+- `paid_at` timestamp
 
-### 1. Убрать искусственную задержку в 1 секунду
-Строка 90 в PartnerScanPage.tsx: `await new Promise(resolve => setTimeout(resolve, 1000))` -- удалить полностью. Это мгновенно сэкономит 1 секунду.
+Store this as JSONB in the `receipt_data` column when inserting the `subscription_transactions` record.
 
-### 2. Автозапуск камеры
-Камера должна стартовать автоматически при монтировании компонента, без необходимости нажимать кнопку. Убрать кнопку "Начать сканирование" -- сканер запускается сразу.
+### 3. Frontend: HistoryPage — receipt icon and popup
 
-### 3. Не останавливать камеру при обработке
-Сейчас камера останавливается при `isProcessing=true`, а потом надо перезапускать. Вместо этого -- показывать оверлей поверх работающей камеры, чтобы после результата сканер уже готов к следующему коду.
+**HistoryPage.tsx changes:**
+- Fetch `receipt_data` along with other transaction fields
+- For transactions that have `receipt_data`, show a small receipt icon (FileText from lucide) next to the date/amount area
+- On icon click, open a Dialog/Sheet popup displaying formatted receipt:
+  - Transaction ID / RRN
+  - Date & time
+  - Subscription name
+  - Amount with currency
+  - Card info (brand + last 4 digits)
+  - Payment status
+  - Clean receipt-like layout
 
-### 4. Увеличить область сканирования
-`qrbox` с 70% до 85% контейнера -- больше пространства для захвата QR, меньше нужно целиться.
+### Technical Details
 
-### 5. Сократить защиту от дубликатов
-С 3 секунд до 1.5 секунды -- достаточно для предотвращения двойного срабатывания, но быстрее готов к следующему скану.
+**Migration SQL:**
+```sql
+ALTER TABLE subscription_transactions 
+ADD COLUMN receipt_data jsonb DEFAULT NULL;
+```
 
-### 6. Запрос высокого разрешения камеры
-Добавить `advanced: [{ width: 1280, height: 720 }]` в конфиг камеры -- более четкая картинка = быстрее распознавание.
+**Webhook receipt data structure (stored in JSONB):**
+```json
+{
+  "payment_id": "...",
+  "rrn": 123456789012,
+  "amount": 5000,
+  "currency": "KZT",
+  "card_last4": "1234",
+  "card_brand": "VISA",
+  "issuer_bank": "Halyk Bank",
+  "description": "Подписка: ...",
+  "tracking_id": "...",
+  "paid_at": "2026-03-20T..."
+}
+```
 
-### 7. Автовозврат к сканеру после результата
-После показа результата (успех/ошибка) через 2 секунды автоматически возвращаться к сканеру вместо ожидания нажатия кнопки.
-
-### 8. Не прятать сканер при статусах scanning/success/error
-Вместо условного рендеринга по статусу -- держать QRScanner всегда смонтированным, показывая результат как оверлей. Это устраняет переинициализацию камеры.
-
-### Затрагиваемые файлы
-- `src/components/partner/QRScanner.tsx` -- автозапуск, область, разрешение, не останавливать при обработке
-- `src/pages/partner/PartnerScanPage.tsx` -- убрать задержку, оверлейный результат, автовозврат
-
-### Итого выигрыш по скорости
-- Убрана 1с задержка
-- Убрано время запуска камеры (~1-2с)
-- Убрано время перезапуска камеры между сканами (~1-2с)  
-- Увеличена область захвата и разрешение -- быстрее распознавание
-
-Общий выигрыш: **3-5 секунд** на каждое сканирование.
+**Files to modify:**
+- `supabase/functions/paylink-webhook/index.ts` — fetch invoice details from Paylink API after successful payment, save receipt_data
+- `src/pages/HistoryPage.tsx` — add receipt icon + popup component
 
