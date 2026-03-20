@@ -312,6 +312,44 @@ export default function AdminSubscriptionsPage() {
     }
   };
 
+  const handleDuplicate = async (sub: SubscriptionType) => {
+    try {
+      const maxOrder = subscriptions.length > 0 
+        ? Math.max(...subscriptions.map(s => s.sort_order)) 
+        : 0;
+
+      const { error } = await supabase
+        .from('subscription_types')
+        .insert({
+          name: sub.name + ' (копия)',
+          description: sub.description || null,
+          type: sub.type,
+          cups_count: sub.cups_count,
+          price: sub.price,
+          duration_days: sub.duration_days,
+          is_active: false,
+          badge: sub.badge || null,
+          badge_color: sub.badge_color || null,
+          sort_order: maxOrder + 1,
+          features: sub.features || [],
+          exclusions: (sub as any).exclusions || [],
+          benefit: sub.benefit || null,
+          daily_limit: sub.daily_limit,
+          country: sub.country || 'KZ',
+          currency: sub.currency || '₸',
+          how_it_works: (sub as any).how_it_works || null,
+          max_volume: (sub as any).max_volume || null,
+        } as any);
+
+      if (error) throw error;
+      toast({ title: 'Подписка дублирована' });
+      fetchSubscriptions();
+    } catch (error) {
+      console.error('Error duplicating subscription:', error);
+      toast({ title: 'Ошибка дублирования', variant: 'destructive' });
+    }
+  };
+
   const formatPrice = (price: number, currency?: string | null) => {
     return new Intl.NumberFormat('ru-RU').format(price) + ' ' + (currency || '₸');
   };
