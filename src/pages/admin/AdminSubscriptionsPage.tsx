@@ -602,6 +602,19 @@ export default function AdminSubscriptionsPage() {
               placeholder="Исключение"
               variant="exclusion"
             />
+            <div>
+              <Label htmlFor="how_it_works">Как это работает</Label>
+              <Textarea
+                id="how_it_works"
+                value={formData.how_it_works}
+                onChange={(e) => setFormData({ ...formData, how_it_works: e.target.value })}
+                placeholder="После оформления подписки вы получите 30 напитков на 30 дней. Зайдите в любую партнёрскую кофейню, покажите QR — и получите свой напиток."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Если пусто — используется текст по умолчанию
+              </p>
+            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена
