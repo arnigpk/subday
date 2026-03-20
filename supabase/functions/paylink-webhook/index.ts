@@ -228,12 +228,46 @@ Deno.serve(async (req) => {
         console.error('Failed to send user notification:', notifError);
       }
 
+      // Fetch receipt data from Paylink API
+      let receiptData = null;
+      try {
+        const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY');
+        const invoiceUid = payload.uid || paymentId;
+        if (paylinkApiKey && invoiceUid) {
+          const invoiceRes = await fetch(`https://core.paylink.kz/api/v1/invoices/${invoiceUid}`, {
+            headers: { 'Authorization': `Bearer ${paylinkApiKey}` },
+          });
+          if (invoiceRes.ok) {
+            const invoice = await invoiceRes.json();
+            receiptData = {
+              payment_id: String(invoiceUid),
+              rrn: invoice.transaction?.rrn || invoice.rrn || null,
+              amount: invoice.amount || paymentOrder.amount,
+              currency: invoice.currency || 'KZT',
+              card_last4: invoice.cardInfo?.last4 || invoice.card_last4 || null,
+              card_brand: invoice.cardInfo?.brand || invoice.card_brand || null,
+              issuer_bank: invoice.cardInfo?.issuerBank || null,
+              description: invoice.description || null,
+              tracking_id: String(orderId),
+              paid_at: new Date().toISOString(),
+              status: invoice.transactionStatus || invoice.status || 'successful',
+            };
+            console.log('Receipt data fetched:', JSON.stringify(receiptData));
+          } else {
+            console.log('Failed to fetch invoice details:', invoiceRes.status);
+          }
+        }
+      } catch (receiptError) {
+        console.error('Receipt fetch error (non-fatal):', receiptError);
+      }
+
       // Log transaction
       await supabase.from('subscription_transactions').insert({
         user_id: paymentOrder.user_id, subscription_type_id: paymentOrder.subscription_type_id,
         subscription_name: subType?.name || metadata.subscription_name || 'Unknown',
         transaction_type: 'purchase', payment_method: 'paylink',
         amount: paymentOrder.amount, payment_order_id: paymentOrder.id, is_special_offer: isSpecialOffer,
+        receipt_data: receiptData,
       });
 
       // Get buyer name for admin notification

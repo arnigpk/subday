@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -9,6 +9,7 @@ import { formatDateKz } from '@/utils/kazakh';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ReceiptPopup } from '@/components/history/ReceiptPopup';
 
 interface SubscriptionTransaction {
   id: string;
@@ -18,6 +19,7 @@ interface SubscriptionTransaction {
   is_special_offer: boolean | null;
   payment_method: string | null;
   created_at: string;
+  receipt_data: any | null;
 }
 
 export default function HistoryPage() {
@@ -26,6 +28,7 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState('redemptions');
   const [transactions, setTransactions] = useState<SubscriptionTransaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
   
   const tabs = [
     { id: 'redemptions', label: t('history.tabRedemptions') },
@@ -46,7 +49,7 @@ export default function HistoryPage() {
 
       const { data, error } = await supabase
         .from('subscription_transactions')
-        .select('id, subscription_name, transaction_type, amount, is_special_offer, payment_method, created_at')
+        .select('id, subscription_name, transaction_type, amount, is_special_offer, payment_method, created_at, receipt_data')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -108,6 +111,7 @@ export default function HistoryPage() {
   }
   
   return (
+    <>
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4">
@@ -191,12 +195,23 @@ export default function HistoryPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      {tx.amount && (
-                        <p className="text-sm font-semibold text-foreground">{formatAmount(tx.amount)}</p>
+                    <div className="text-right flex items-start gap-1.5">
+                      <div>
+                        {tx.amount && (
+                          <p className="text-sm font-semibold text-foreground">{formatAmount(tx.amount)}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
+                        <p className="text-xs text-muted-foreground">{formatTime(tx.created_at)}</p>
+                      </div>
+                      {tx.receipt_data && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedReceipt({ data: tx.receipt_data, name: tx.subscription_name }); }}
+                          className="mt-0.5 p-1.5 rounded-lg hover:bg-primary/10 transition-colors active:scale-95"
+                          title="Чек"
+                        >
+                          <FileText size={16} className="text-primary" />
+                        </button>
                       )}
-                      <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
-                      <p className="text-xs text-muted-foreground">{formatTime(tx.created_at)}</p>
                     </div>
                   </div>
                 ))}
@@ -212,5 +227,12 @@ export default function HistoryPage() {
         </div>
       </div>
     </AppLayout>
+    <ReceiptPopup
+      open={!!selectedReceipt}
+      onOpenChange={(open) => !open && setSelectedReceipt(null)}
+      receipt={selectedReceipt?.data || null}
+      subscriptionName={selectedReceipt?.name || ''}
+    />
+    </>
   );
 }
