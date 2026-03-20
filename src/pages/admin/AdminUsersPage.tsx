@@ -157,6 +157,7 @@ export default function AdminUsersPage() {
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [registrationFilter, setRegistrationFilter] = useState<string>('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
