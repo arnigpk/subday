@@ -241,20 +241,7 @@ export default function ProfilePage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
-            <Link to="/streaks" className="card-interactive text-center py-4">
-              <p className="text-2xl font-black text-foreground">{stats.totalCups}</p>
-              <p className="text-xs text-muted-foreground">{t('profile.drunk')}</p>
-            </Link>
-            <div className="card-static text-center py-4">
-              <p className="text-2xl font-black text-foreground">{stats.currentStreak}</p>
-              <p className="text-xs text-muted-foreground">{t('profile.daysInRow')}</p>
-            </div>
-            <Link to="/bonuses" className="card-interactive text-center py-4">
-              <p className="text-2xl font-black text-foreground">{stats.bonusPoints}</p>
-              <p className="text-xs text-muted-foreground">{t('profile.bonuses')}</p>
-            </Link>
-          </div>
+          
           
           <div style={{ animationDelay: '0.1s' }}><PurchaseHistorySection /></div>
 
