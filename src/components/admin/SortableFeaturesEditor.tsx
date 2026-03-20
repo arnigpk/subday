@@ -180,7 +180,7 @@ export function SortableFeaturesEditor({ features, onChange, label = 'Что в�
         onClick={handleAddFeature}
       >
         <Plus className="w-4 h-4 mr-1" />
-        Добавить функцию
+        {variant === 'exclusion' ? 'Добавить исключение' : 'Добавить функцию'}
       </Button>
     </div>
   );
