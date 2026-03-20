@@ -254,6 +254,25 @@ export default function RedeemPage() {
     fetchShops();
   }, [initialShop]);
 
+  // Fetch QR settings and subscription type volumes
+  useEffect(() => {
+    const fetchQRData = async () => {
+      const [settingsRes, subsRes] = await Promise.all([
+        supabase.from('qr_settings').select('setting_key, setting_value'),
+        supabase.from('subscription_types').select('id, name, type, max_volume').eq('is_active', true),
+      ]);
+      if (settingsRes.data) {
+        const map: Record<string, string> = {};
+        (settingsRes.data as any[]).forEach((s: any) => { map[s.setting_key] = s.setting_value; });
+        setQrSettings(prev => ({ ...prev, ...map }));
+      }
+      if (subsRes.data) {
+        setSubTypeVolumes(subsRes.data as any);
+      }
+    };
+    fetchQRData();
+  }, []);
+
   // QR countdown timer - refresh every 60 seconds
   useEffect(() => {
     const interval = setInterval(() => {
