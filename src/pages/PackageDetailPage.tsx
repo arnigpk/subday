@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
+import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
