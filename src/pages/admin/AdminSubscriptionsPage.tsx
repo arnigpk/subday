@@ -248,6 +248,7 @@ export default function AdminSubscriptionsPage() {
             daily_limit: formData.daily_limit,
             country: formData.country,
             currency: formData.currency,
+            how_it_works: formData.how_it_works.trim() || null,
           } as any)
           .eq('id', editingSub.id);
 
