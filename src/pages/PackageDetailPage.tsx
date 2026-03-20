@@ -223,6 +223,18 @@ export default function PackageDetailPage() {
                 </div>
               ))}
             </div>
+            {translatedExclusions.length > 0 && (
+              <div className="space-y-2 mt-3">
+                {translatedExclusions.map((item, index) => (
+                  <div key={`excl-${index}`} className="flex items-center gap-3 p-3 bg-destructive/5 rounded-xl">
+                    <div className="w-6 h-6 rounded-full bg-destructive/15 flex items-center justify-center">
+                      <X size={14} className="text-destructive" />
+                    </div>
+                    <span className="text-sm font-medium text-destructive/80">{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
