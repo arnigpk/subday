@@ -375,8 +375,8 @@ export default function AdminUsersPage() {
       const previousRole = editingUser.role || 'user';
       const newRole = formData.role;
 
-      if (previousRole === 'superadmin' && newRole !== 'superadmin') {
-        toast({ title: '⚠️ Нельзя изменить роль СуперАдмина', description: 'Роль СуперАдмина защищена от изменений', variant: 'destructive' });
+      if (previousRole === 'superadmin' && newRole !== 'superadmin' && editingUser.public_id === '773158') {
+        toast({ title: '⚠️ Нельзя изменить роль СуперАдмина', description: 'Роль главного СуперАдмина защищена от изменений', variant: 'destructive' });
         return;
       }
 
