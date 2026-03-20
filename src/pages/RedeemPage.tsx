@@ -70,6 +70,15 @@ export default function RedeemPage() {
   const { activeSubscriptions } = useSubscriptionStatus();
   const { t } = useLanguage();
   
+  // QR settings and subscription volumes
+  const [qrSettings, setQrSettings] = useState<QRSettings>({
+    qr_title: 'Ваш QR',
+    qr_barista_text: 'Покажите бариста для сканирования',
+    qr_validity_text: 'QR действителен {seconds} сек',
+    qr_remaining_text: 'Осталось {count} {type}',
+  });
+  const [subTypeVolumes, setSubTypeVolumes] = useState<SubTypeVolume[]>([]);
+  
   // Distance-based sorting
   const shopsForDistance = useMemo(() => shops.map(s => ({ id: s.id, coordinates: s.coordinates })), [shops]);
   const { distances } = useShopDistances(shopsForDistance);
