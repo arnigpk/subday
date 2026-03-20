@@ -166,7 +166,10 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
   const isActive = activeSubscriptionTypeIds.includes(sub.id);
   const isLunch = sub.type === 'drinks';
 
-  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const formatOfferDate = (d: Date) => {
+    const days = calcDaysRemaining(d);
+    return formatSubscriptionExpiry(days, d, language, 'Истёк');
+  };
 
   return (
     <Link
