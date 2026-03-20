@@ -107,6 +107,7 @@ export default function AdminSubscriptionsPage() {
     daily_limit: null as number | null,
     country: 'KZ',
     currency: '₸',
+    how_it_works: '',
   });
 
   const sensors = useSensors(
