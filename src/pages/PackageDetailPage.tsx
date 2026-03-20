@@ -107,6 +107,8 @@ export default function PackageDetailPage() {
   const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
   const translatedExclusions = useAutoTranslateArray(rawExclusions);
+  const customHowItWorks = (subscription as any)?.how_it_works || null;
+  const translatedHowItWorks = useAutoTranslate(customHowItWorks);
 
   if (isLoading) {
     return (
