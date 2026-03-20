@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -157,6 +157,7 @@ export default function AdminUsersPage() {
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [registrationFilter, setRegistrationFilter] = useState<string>('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -180,7 +181,7 @@ export default function AdminUsersPage() {
     fetchUsers();
     fetchSubscriptionTypes();
     fetchShops();
-  }, [page, search, registrationFilter, countryFilter, cityFilter, customDateFrom, customDateTo]);
+  }, [page, search, registrationFilter, subscriptionFilter, countryFilter, cityFilter, customDateFrom, customDateTo]);
 
   const fetchSubscriptionTypes = async () => {
     const { data } = await supabase
@@ -202,6 +203,16 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
+      // If subscription filter is active, first get relevant user_ids
+      let subscribedUserIds: string[] | null = null;
+      if (subscriptionFilter !== 'all') {
+        const { data: subUsers } = await supabase
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('is_active', true);
+        subscribedUserIds = [...new Set((subUsers || []).map(s => s.user_id))];
+      }
+
       let query = supabase
         .from('profiles')
         .select('user_id, name, phone, public_id, city, country, created_at, is_blocked, subflow_access, ai_access', { count: 'exact' });
@@ -214,6 +225,24 @@ export default function AdminUsersPage() {
       }
       if (cityFilter !== 'all') {
         query = query.eq('city', cityFilter);
+      }
+
+      // Subscription filter
+      if (subscriptionFilter === 'has_subscription' && subscribedUserIds) {
+        if (subscribedUserIds.length === 0) {
+          setUsers([]);
+          setTotalCount(0);
+          setIsLoading(false);
+          return;
+        }
+        query = query.in('user_id', subscribedUserIds);
+      } else if (subscriptionFilter === 'no_subscription' && subscribedUserIds) {
+        if (subscribedUserIds.length > 0) {
+          // Supabase doesn't have "not in" easily, so we use a workaround
+          // We'll filter client-side after fetching all, but for large datasets
+          // we need a different approach. Let's use .not().in() 
+          query = query.not('user_id', 'in', `(${subscribedUserIds.join(',')})`);
+        }
       }
 
       // Registration date filter
@@ -624,6 +653,27 @@ export default function AdminUsersPage() {
                   />
                 </div>
               )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CreditCard className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Подписка:</span>
+              {[
+                { value: 'all', label: 'Все' },
+                { value: 'has_subscription', label: 'Есть подписка' },
+                { value: 'no_subscription', label: 'Нет подписки' },
+              ].map((filter) => (
+                <Button
+                  key={filter.value}
+                  variant={subscriptionFilter === filter.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setSubscriptionFilter(filter.value);
+                    setPage(0);
+                  }}
+                >
+                  {filter.label}
+                </Button>
+              ))}
             </div>
           </div>
         </CardHeader>
