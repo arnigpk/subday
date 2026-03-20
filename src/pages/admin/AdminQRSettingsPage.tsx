@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
@@ -27,6 +28,7 @@ const SETTING_LABELS: Record<string, string> = {
 };
 
 export default function AdminQRSettingsPage() {
+  const { canManage } = useAdminAuth();
   const [settings, setSettings] = useState<QRSetting[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,6 +121,7 @@ export default function AdminQRSettingsPage() {
                 <Input
                   value={editedSettings[key] || ''}
                   onChange={(e) => setEditedSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                  disabled={!canManage}
                 />
               </div>
             ))}
@@ -143,16 +146,19 @@ export default function AdminQRSettingsPage() {
                   onChange={(e) => setEditedVolumes(prev => ({ ...prev, [sub.id]: e.target.value }))}
                   placeholder="напр. 300 мл"
                   className="w-40"
+                  disabled={!canManage}
                 />
               </div>
             ))}
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={isSaving} className="w-full">
-          {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Сохранить настройки
-        </Button>
+        {canManage && (
+          <Button onClick={handleSave} disabled={isSaving} className="w-full">
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Сохранить настройки
+          </Button>
+        )}
       </div>
     </AdminLayout>
   );
