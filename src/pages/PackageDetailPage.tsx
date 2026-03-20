@@ -139,7 +139,10 @@ export default function PackageDetailPage() {
   const isActive = activeSubscriptionTypeIds.includes(subscription.id);
 
   const formatBenefit = (benefit: number) => new Intl.NumberFormat('ru-RU').format(benefit);
-  const formatDate = (d: Date) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const formatOfferDate = (d: Date) => {
+    const days = calcDaysRemaining(d);
+    return formatSubscriptionExpiry(days, d, language, 'Истёк');
+  };
   const formatPrice = (price: number) => formatPriceNum(price) + ' ' + currencySymbol;
 
   return (
