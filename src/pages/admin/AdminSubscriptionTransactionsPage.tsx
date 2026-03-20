@@ -699,5 +699,12 @@ export default function AdminSubscriptionTransactionsPage() {
         </CardContent>
       </Card>
     </AdminLayout>
+    <ReceiptPopup
+      open={!!selectedReceipt}
+      onOpenChange={(open) => !open && setSelectedReceipt(null)}
+      receipt={selectedReceipt?.data || null}
+      subscriptionName={selectedReceipt?.name || ''}
+    />
+    </>
   );
 }
