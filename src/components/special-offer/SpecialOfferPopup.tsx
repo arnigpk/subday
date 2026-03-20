@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Gift } from 'lucide-react';
+import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Dialog,
   DialogContent,
