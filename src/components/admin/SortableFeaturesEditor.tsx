@@ -39,7 +39,7 @@ interface SortableFeatureItemProps {
   placeholder?: string;
 }
 
-function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove }: SortableFeatureItemProps) {
+function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove, placeholder = 'Функция' }: SortableFeatureItemProps) {
   const {
     attributes,
     listeners,
