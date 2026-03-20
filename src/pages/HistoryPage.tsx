@@ -49,7 +49,7 @@ export default function HistoryPage() {
 
       const { data, error } = await supabase
         .from('subscription_transactions')
-        .select('id, subscription_name, transaction_type, amount, is_special_offer, payment_method, created_at')
+        .select('id, subscription_name, transaction_type, amount, is_special_offer, payment_method, created_at, receipt_data')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
