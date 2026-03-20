@@ -247,6 +247,7 @@ export default function AdminShopsPage() {
       const coordinates = formData.addressesWithCoords.map(a => ({
         lat: a.lat,
         lng: a.lng,
+        working_hours: a.working_hours || '',
       }));
       
       if (editingShop) {
