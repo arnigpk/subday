@@ -56,7 +56,7 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offe
             {displayText}
             {eligibleUntil && (
               <span className="block mt-2 text-xs sm:text-sm text-muted-foreground">
-                Предложение действует до {formatDate(eligibleUntil)}
+                Предложение действует {formatEligibleUntil(eligibleUntil)}
               </span>
             )}
           </DialogDescription>

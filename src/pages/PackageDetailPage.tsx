@@ -204,7 +204,7 @@ export default function PackageDetailPage() {
             {hasOffer && (
               <p className="text-xs text-accent font-medium mb-4">
                 {eligibleUntil
-                  ? `⏰ Спецпредложение действует до ${formatDate(eligibleUntil)}`
+                  ? `⏰ Спецпредложение действует ${formatOfferDate(eligibleUntil)}`
                   : '⏰ Спецпредложение активно'}
               </p>
             )}

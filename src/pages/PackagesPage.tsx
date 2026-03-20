@@ -235,7 +235,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
             {hasOffer && (
               <p className="text-xs text-accent font-medium pl-5 mt-1">
                 {eligibleUntil
-                  ? `⏰ Спецпредложение действует до ${formatDate(eligibleUntil)}`
+                  ? `⏰ Спецпредложение действует ${formatOfferDate(eligibleUntil)}`
                   : '⏰ Спецпредложение активно'}
               </p>
             )}
