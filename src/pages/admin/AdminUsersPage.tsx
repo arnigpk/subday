@@ -203,6 +203,16 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
+      // If subscription filter is active, first get relevant user_ids
+      let subscribedUserIds: string[] | null = null;
+      if (subscriptionFilter !== 'all') {
+        const { data: subUsers } = await supabase
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('is_active', true);
+        subscribedUserIds = [...new Set((subUsers || []).map(s => s.user_id))];
+      }
+
       let query = supabase
         .from('profiles')
         .select('user_id, name, phone, public_id, city, country, created_at, is_blocked, subflow_access, ai_access', { count: 'exact' });
@@ -215,6 +225,24 @@ export default function AdminUsersPage() {
       }
       if (cityFilter !== 'all') {
         query = query.eq('city', cityFilter);
+      }
+
+      // Subscription filter
+      if (subscriptionFilter === 'has_subscription' && subscribedUserIds) {
+        if (subscribedUserIds.length === 0) {
+          setUsers([]);
+          setTotalCount(0);
+          setIsLoading(false);
+          return;
+        }
+        query = query.in('user_id', subscribedUserIds);
+      } else if (subscriptionFilter === 'no_subscription' && subscribedUserIds) {
+        if (subscribedUserIds.length > 0) {
+          // Supabase doesn't have "not in" easily, so we use a workaround
+          // We'll filter client-side after fetching all, but for large datasets
+          // we need a different approach. Let's use .not().in() 
+          query = query.not('user_id', 'in', `(${subscribedUserIds.join(',')})`);
+        }
       }
 
       // Registration date filter
