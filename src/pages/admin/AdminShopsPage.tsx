@@ -290,7 +290,7 @@ export default function AdminShopsPage() {
             coordinates,
             country: formData.country,
             city: formData.city,
-            working_hours: formData.working_hours,
+            working_hours: formData.working_hours.trim() || null,
             is_active: formData.is_active,
             logo_url: formData.gallery_urls[0] || formData.logo_url,
             gallery_urls: formData.gallery_urls,
