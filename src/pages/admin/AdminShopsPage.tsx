@@ -226,7 +226,7 @@ export default function AdminShopsPage() {
       addressesWithCoords,
       country: (shop as any).country || 'KZ',
       city: shop.city || 'Атырау',
-      working_hours: shop.working_hours || '09:00-21:00',
+      working_hours: shop.working_hours || '',
       is_active: shop.is_active,
       logo_url: shop.logo_url,
       gallery_urls: shop.gallery_urls || [],
