@@ -315,7 +315,7 @@ export default function ProfilePage() {
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
             style={{ animationDelay: '0.25s' }}
           >
-            <LogOut size={20} />
+            <IconLogout size={20} />
             <span className="font-medium">{isLoggingOut ? t('profile.loggingOut') : t('profile.logout')}</span>
           </button>
           
