@@ -31,8 +31,7 @@ interface Shop {
   coordinates: unknown;
 }
 
-function ShopStatusBadge({ openHours, t }: { openHours: string; t: (key: string) => string }) {
-  const isOpen = isShopOpen(openHours);
+function ShopStatusBadge({ isOpen, t }: { isOpen: boolean; t: (key: string) => string }) {
   return (
     <div className="flex items-center gap-1">
       <Clock size={12} className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
