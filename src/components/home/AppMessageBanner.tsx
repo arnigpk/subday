@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { X } from 'lucide-react';
@@ -19,6 +19,7 @@ export function AppMessageBanner() {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   const { matchesAudience, isLoading: audienceLoading } = useUserAudienceMatch();
+  const trackedViewsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     loadMessages();
@@ -39,15 +40,12 @@ export function AppMessageBanner() {
     const allMessages = (msgsRes.data || []) as AppMessage[];
     const dismissals = dismissRes.data || [];
 
-    // Build dismissed set
     const dismissed = new Set<string>();
     for (const msg of allMessages) {
       const msgDismissals = dismissals.filter(d => d.message_id === msg.id);
       if (msg.frequency_type === 'once') {
-        // If dismissed at all, hide forever
         if (msgDismissals.length > 0) dismissed.add(msg.id);
       } else {
-        // Daily: count today's dismissals
         const todayDismissals = msgDismissals.filter(d => d.dismiss_date === today).length;
         if (todayDismissals >= msg.daily_frequency) dismissed.add(msg.id);
       }
@@ -55,7 +53,6 @@ export function AppMessageBanner() {
 
     setDismissedIds(dismissed);
 
-    // Filter by schedule
     const now = new Date();
     const visible = allMessages.filter(msg => {
       if (msg.scheduled_at && new Date(msg.scheduled_at) > now) return false;
@@ -63,6 +60,24 @@ export function AppMessageBanner() {
     });
 
     setMessages(visible);
+  };
+
+  // Track view when message becomes visible
+  const trackView = async (messageId: string) => {
+    if (!userId || trackedViewsRef.current.has(messageId)) return;
+    trackedViewsRef.current.add(messageId);
+
+    // Always log a general view
+    supabase.from('app_message_views').insert({
+      message_id: messageId,
+      user_id: userId,
+    }).then(() => {});
+
+    // Try to log unique view (will fail silently on duplicate due to unique constraint)
+    supabase.from('app_message_unique_views').insert({
+      message_id: messageId,
+      user_id: userId,
+    }).then(() => {});
   };
 
   const handleDismiss = async (messageId: string) => {
@@ -85,8 +100,10 @@ export function AppMessageBanner() {
 
   if (visibleMessages.length === 0) return null;
 
-  // Show only the first matching message
   const msg = visibleMessages[0];
+
+  // Track view for visible message
+  trackView(msg.id);
 
   return (
     <AnimatePresence>

@@ -12,7 +12,7 @@ import { AudienceTypeSelector, type AudienceType } from '@/components/admin/Audi
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, MessageSquare, Clock, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, Clock, Eye, EyeOff, BarChart3, Users, MousePointerClick } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { audienceOptions } from '@/components/admin/AudienceTypeSelector';
@@ -29,17 +29,24 @@ interface AppMessage {
   created_at: string;
 }
 
+interface MessageAnalytics {
+  totalViews: number;
+  uniqueViews: number;
+  dismissals: number;
+}
+
 export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [analytics, setAnalytics] = useState<Record<string, MessageAnalytics>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const { canManage, session } = useAdminAuth();
+  const { canManage, isSuperAdmin, session } = useAdminAuth();
   const { toast } = useToast();
 
   // Form state
   const [content, setContent] = useState('');
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
-  const [frequencyType, setFrequencyType] = useState('once'); // once | daily
+  const [frequencyType, setFrequencyType] = useState('once');
   const [dailyFrequency, setDailyFrequency] = useState(1);
   const [useSchedule, setUseSchedule] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
@@ -59,8 +66,32 @@ export default function AdminMessagesPage() {
       .from('app_messages')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setMessages(data as AppMessage[]);
+    if (!error && data) {
+      const msgs = data as AppMessage[];
+      setMessages(msgs);
+      if (msgs.length > 0) {
+        fetchAnalytics(msgs.map(m => m.id));
+      }
+    }
     setIsLoading(false);
+  };
+
+  const fetchAnalytics = async (messageIds: string[]) => {
+    const [viewsRes, uniqueRes, dismissRes] = await Promise.all([
+      supabase.from('app_message_views').select('message_id').in('message_id', messageIds),
+      supabase.from('app_message_unique_views').select('message_id').in('message_id', messageIds),
+      supabase.from('app_message_dismissals').select('message_id').in('message_id', messageIds),
+    ]);
+
+    const result: Record<string, MessageAnalytics> = {};
+    for (const id of messageIds) {
+      result[id] = {
+        totalViews: (viewsRes.data || []).filter(v => v.message_id === id).length,
+        uniqueViews: (uniqueRes.data || []).filter(v => v.message_id === id).length,
+        dismissals: (dismissRes.data || []).filter(d => d.message_id === id).length,
+      };
+    }
+    setAnalytics(result);
   };
 
   const handleCreate = async () => {
@@ -124,14 +155,15 @@ export default function AdminMessagesPage() {
   return (
     <AdminLayout title="Сообщения">
       <div className="space-y-6">
-        {canManage && (
+        {/* Only superadmin can create messages */}
+        {isSuperAdmin && (
           <Button onClick={() => setShowForm(!showForm)} className="gap-2">
             <Plus className="w-4 h-4" />
             Новое сообщение
           </Button>
         )}
 
-        {showForm && (
+        {showForm && isSuperAdmin && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Создать сообщение</CardTitle>
@@ -210,58 +242,80 @@ export default function AdminMessagesPage() {
           ) : messages.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Нет сообщений</p>
           ) : (
-            messages.map((msg) => (
-              <Card key={msg.id} className={!msg.is_active ? 'opacity-60' : ''}>
-                <CardContent className="pt-4 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <MessageSquare className="w-4 h-4 text-primary shrink-0" />
-                        <Badge variant={msg.is_active ? 'default' : 'secondary'}>
-                          {msg.is_active ? 'Активно' : 'Неактивно'}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {getFrequencyLabel(msg)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>👥 {getAudienceLabel(msg.audience_types)}</span>
-                        {msg.scheduled_at && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {format(new Date(msg.scheduled_at), 'dd MMM yyyy HH:mm', { locale: ru })}
-                          </span>
+            messages.map((msg) => {
+              const stats = analytics[msg.id];
+              return (
+                <Card key={msg.id} className={!msg.is_active ? 'opacity-60' : ''}>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                          <Badge variant={msg.is_active ? 'default' : 'secondary'}>
+                            {msg.is_active ? 'Активно' : 'Неактивно'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {getFrequencyLabel(msg)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                        
+                        {/* Analytics row */}
+                        {stats && (
+                          <div className="flex flex-wrap gap-3 text-xs">
+                            <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                              <Eye className="w-3.5 h-3.5" />
+                              {stats.totalViews} просм.
+                            </span>
+                            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                              <Users className="w-3.5 h-3.5" />
+                              {stats.uniqueViews} уник.
+                            </span>
+                            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                              <MousePointerClick className="w-3.5 h-3.5" />
+                              {stats.dismissals} закр.
+                            </span>
+                          </div>
                         )}
-                        <span>
-                          Создано: {format(new Date(msg.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
-                        </span>
+
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>👥 {getAudienceLabel(msg.audience_types)}</span>
+                          {msg.scheduled_at && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {format(new Date(msg.scheduled_at), 'dd MMM yyyy HH:mm', { locale: ru })}
+                            </span>
+                          )}
+                          <span>
+                            Создано: {format(new Date(msg.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                          </span>
+                        </div>
                       </div>
+                      {isSuperAdmin && (
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleActive(msg)}
+                            title={msg.is_active ? 'Деактивировать' : 'Активировать'}
+                          >
+                            {msg.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMessage(msg.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    {canManage && (
-                      <div className="flex gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleActive(msg)}
-                          title={msg.is_active ? 'Деактивировать' : 'Активировать'}
-                        >
-                          {msg.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMessage(msg.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </div>
