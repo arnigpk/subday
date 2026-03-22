@@ -23,6 +23,28 @@ export function AppMessageBanner() {
 
   useEffect(() => {
     loadMessages();
+
+    // Realtime: remove deleted/deactivated messages instantly
+    const channel = supabase
+      .channel('app_messages_user')
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'app_messages' }, (payload) => {
+        const deletedId = (payload.old as any)?.id;
+        if (deletedId) {
+          setMessages(prev => prev.filter(m => m.id !== deletedId));
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_messages' }, (payload) => {
+        const updated = payload.new as any;
+        if (updated && !updated.is_active) {
+          setMessages(prev => prev.filter(m => m.id !== updated.id));
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'app_messages' }, () => {
+        loadMessages();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadMessages = async () => {
