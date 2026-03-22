@@ -3,9 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink } from 'lucide-react';
-import { isAnyAddressOpen } from '@/utils/shopHours';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
-import { useShopStatus } from '@/utils/shopHours';
+import { useAddressAwareShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, formatDuration } from '@/utils/distance';
@@ -55,15 +54,19 @@ export default function ShopDetailPage() {
   const { stats } = useUserStatsContext();
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const shopStatus = useShopStatus(shop?.working_hours || '');
-  const isCurrentlyOpen = shop ? isAnyAddressOpen(shop.working_hours, parseCoordinates(shop.coordinates)) : false;
   const { t } = useLanguage();
   const translatedDescription = useAutoTranslate(shop?.description);
 
-  const shopCoordinates = useMemo(() => 
+  const statusCoordinates = useMemo(
+    () => Array.isArray(shop?.coordinates) ? shop.coordinates as Array<{ working_hours?: string | null }> : [],
+    [shop?.coordinates]
+  );
+  const shopCoordinates = useMemo(() =>
     shop ? [{ id: shop.id, coordinates: parseCoordinates(shop.coordinates) }] : [], [shop?.id, shop?.coordinates]);
-  const { distances, userLocation } = useShopDistances(shopCoordinates);
+  const { distances } = useShopDistances(shopCoordinates);
   const shopDistance = shop ? distances.get(shop.id) : undefined;
+  const shopStatus = useAddressAwareShopStatus(shop?.working_hours, statusCoordinates, shopDistance?.closestAddressIndex);
+  const isCurrentlyOpen = shopStatus.isOpen;
 
   useEffect(() => { if (id) fetchShop(id); }, [id]);
 
@@ -111,7 +114,7 @@ export default function ShopDetailPage() {
              <div className={`flex items-center gap-1 ${isCurrentlyOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
               <Clock size={12} />
               <span className="text-xs font-medium">
-                {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt}`}
+                {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt ?? '—'}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt ?? '—'}`}
               </span>
             </div>
             {getShopBadges(shop).length > 0 && <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />}
