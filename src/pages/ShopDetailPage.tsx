@@ -160,7 +160,7 @@ export default function ShopDetailPage() {
                   });
                 })()}
               </div> : shop.address ? <p className="text-xs font-medium text-foreground">{shop.address}</p> : <p className="text-xs font-medium text-foreground">{t('shops.addressNotSet')}</p>}
-              <p className="text-xs mt-1">{shop.working_hours || '—'}</p>
+              <p className="text-xs mt-1">{shopStatus.hours || '—'}</p>
               {shop.city && <p className="text-xs">{shop.city}</p>}
             </div>
           </div>
