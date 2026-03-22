@@ -43,6 +43,7 @@ const navItems = [
   { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['superadmin', 'admin'] },
   { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['superadmin', 'admin'] },
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
+  { icon: MessageSquareText, label: 'Сообщения', path: '/admin/messages', roles: ['superadmin', 'admin'] },
   { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
   { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
   { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },

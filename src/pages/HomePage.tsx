@@ -104,6 +104,8 @@ export default function HomePage() {
           </div>
         </div>
         
+        <AppMessageBanner />
+        
         {popupOffer && (
           <SpecialOfferPopup
             open={showPopup}
