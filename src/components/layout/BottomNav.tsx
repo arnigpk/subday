@@ -1,4 +1,4 @@
-import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
+import { IconHome, IconCoffee, IconMapPin, IconBolt, IconUser } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
