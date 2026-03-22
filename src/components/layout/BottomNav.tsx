@@ -1,4 +1,4 @@
-import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
+import { IconHome, IconCoffee, IconMapPin, IconBolt, IconUser } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
@@ -13,11 +13,11 @@ export function BottomNav() {
   const { vibrateShort } = useVibration();
   
   const navItems = [
-    { icon: Home, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
-    { icon: Coffee, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
-    { icon: MapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
-    { icon: Zap, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
-    { icon: User, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
+    { icon: IconHome, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
+    { icon: IconCoffee, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
+    { icon: IconMapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
+    { icon: IconBolt, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
+    { icon: IconUser, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
   ];
 
   const handleMouseEnter = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {
@@ -71,7 +71,7 @@ export function BottomNav() {
                   >
                     <Icon 
                       size={20} 
-                      strokeWidth={isActive ? 2.5 : 1.8}
+                      stroke={isActive ? 2.5 : 1.8}
                       className="shrink-0 transition-colors duration-200"
                     />
                   </motion.div>

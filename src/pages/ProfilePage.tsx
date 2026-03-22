@@ -4,7 +4,8 @@ import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2, Volume2, Vibrate, Smartphone } from 'lucide-react';
+import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircle, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceWatch } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -146,10 +147,10 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
-    { icon: Bell, label: t('profile.notifications'), type: 'notification' as const },
-    { icon: MessageCircle, label: t('profile.support'), type: 'support' as const },
-    { icon: FileText, label: t('profile.rules'), type: 'rules' as const },
+    { icon: IconMapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
+    { icon: IconBell, label: t('profile.notifications'), type: 'notification' as const },
+    { icon: IconMessageCircle, label: t('profile.support'), type: 'support' as const },
+    { icon: IconFileText, label: t('profile.rules'), type: 'rules' as const },
   ];
   
   return (
@@ -172,7 +173,7 @@ export default function ProfilePage() {
               <button onClick={handleAvatarClick} className="block">
                 <Avatar className="w-16 h-16 rounded-full cursor-pointer hover:ring-2 hover:ring-accent transition-all">
                   {profile?.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" /> : null}
-                  <AvatarFallback className="bg-primary/10"><User size={32} className="text-primary" /></AvatarFallback>
+                  <AvatarFallback className="bg-primary/10"><IconUser size={32} className="text-primary" /></AvatarFallback>
                 </Avatar>
               </button>
               <div className="relative">
@@ -249,7 +250,7 @@ export default function ProfilePage() {
 
           <div className="card-interactive flex items-center justify-between mb-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-3">
-              {isDark ? <Moon size={20} className="text-muted-foreground" /> : <Sun size={20} className="text-muted-foreground" />}
+              {isDark ? <IconMoon size={20} className="text-muted-foreground" /> : <IconSun size={20} className="text-muted-foreground" />}
               <span className="font-medium text-foreground">{t('profile.theme')} {isDark ? t('profile.espresso') : t('profile.latte')}</span>
             </div>
             <button onClick={toggleTheme} className="w-12 h-7 rounded-full backdrop-blur-lg border border-border/40 flex items-center p-1 transition-all" style={{ background: 'hsl(var(--background) / 0.5)', boxShadow: 'inset 0 1px 2px hsl(var(--foreground) / 0.06)' }}>
@@ -265,7 +266,7 @@ export default function ProfilePage() {
                   <button key={item.label} onClick={() => setShowNotificationSettings(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -274,7 +275,7 @@ export default function ProfilePage() {
                   <button key={item.label} onClick={handleSupportClick} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -284,7 +285,7 @@ export default function ProfilePage() {
                     <button type="button" className="w-full card-interactive flex items-center gap-3 text-left">
                       <Icon size={20} className="text-muted-foreground" />
                       <span className="flex-1 font-medium text-foreground">{item.label}</span>
-                      <ChevronRight size={18} className="text-muted-foreground" />
+                      <IconChevronRight size={18} className="text-muted-foreground" />
                     </button>
                   </ServiceRulesDialog>
                 );
@@ -295,7 +296,7 @@ export default function ProfilePage() {
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     {item.value && <span className="text-sm text-muted-foreground">{item.value}</span>}
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -314,7 +315,7 @@ export default function ProfilePage() {
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
             style={{ animationDelay: '0.25s' }}
           >
-            <LogOut size={20} />
+            <IconLogout size={20} />
             <span className="font-medium">{isLoggingOut ? t('profile.loggingOut') : t('profile.logout')}</span>
           </button>
           
@@ -374,7 +375,7 @@ export default function ProfilePage() {
             <DialogContent className="max-w-sm rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <Bell size={20} className="text-primary" />
+                  <IconBell size={20} className="text-primary" />
                   {t('profile.notifications')}
                 </DialogTitle>
               </DialogHeader>
@@ -383,7 +384,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Smartphone size={18} className="text-primary" />
+                      <IconDeviceMobile size={18} className="text-primary" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Push-уведомления</p>
@@ -400,7 +401,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center">
-                      <Volume2 size={18} className="text-accent" />
+                      <IconVolume size={18} className="text-accent" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Звук #subFlow</p>
@@ -417,7 +418,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
-                      <Vibrate size={18} className="text-destructive" />
+                      <IconDeviceWatch size={18} className="text-destructive" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Вибрация</p>
