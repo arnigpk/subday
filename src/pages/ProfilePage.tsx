@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
-import { IconUser, IconMapPin, IconBell, IconMessageCircle, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration } from '@tabler/icons-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -149,7 +149,7 @@ export default function ProfilePage() {
   const menuItems = [
     { icon: IconMapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
     { icon: IconBell, label: t('profile.notifications'), type: 'notification' as const },
-    { icon: IconMessageCircle, label: t('profile.support'), type: 'support' as const },
+    { icon: IconMessageCircleUser, label: t('profile.support'), type: 'support' as const },
     { icon: IconFileText, label: t('profile.rules'), type: 'rules' as const },
   ];
   
