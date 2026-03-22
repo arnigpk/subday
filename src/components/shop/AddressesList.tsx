@@ -21,9 +21,18 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
     return null;
   };
 
+  // Check if all addresses share the same working hours
+  const getUnifiedHours = (): string | null => {
+    if (addresses.length <= 1) return null;
+    const hoursList = addresses.map((_, i) => getHoursForIndex(i) || shopWorkingHours || null);
+    const unique = new Set(hoursList.filter(Boolean));
+    if (unique.size === 1) return [...unique][0]!;
+    return null; // different hours per address
+  };
+
   if (addresses.length === 0) {
     return (
-      <div className={cn('flex items-center gap-1 text-muted-foreground', className)}>
+      <div className={cn('flex items-center gap-1.5 text-muted-foreground', className)}>
         <MapPin size={variant === 'compact' ? 12 : 16} className="shrink-0" />
         <span className={variant === 'compact' ? 'text-xs' : 'text-sm'}>Адрес не указан</span>
       </div>
@@ -33,9 +42,9 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
   if (addresses.length === 1) {
     const hours = getHoursForIndex(0) || shopWorkingHours;
     return (
-      <div className={cn('flex flex-col gap-0.5', className)}>
-        <div className="flex items-center gap-1">
-          <MapPin size={variant === 'compact' ? 12 : 16} className="text-muted-foreground shrink-0" />
+      <div className={cn('space-y-1', className)}>
+        <div className="flex items-center gap-1.5">
+          <MapPin size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
           <span className={cn(
             'truncate',
             variant === 'compact' ? 'text-xs text-muted-foreground' : 'text-sm font-medium text-foreground'
@@ -44,8 +53,8 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
           </span>
         </div>
         {hours && (
-          <div className="flex items-center gap-1 pl-5">
-            <Clock size={10} className="text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-1.5">
+            <Clock size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
             <span className={cn('text-xs', isShopOpen(hours) ? 'text-emerald-600' : 'text-muted-foreground')}>
               {hours}
             </span>
@@ -61,14 +70,17 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
     setIsOpen(!isOpen);
   };
 
+  const unifiedHours = getUnifiedHours();
+  const hasUnifiedHours = unifiedHours !== null;
+
   return (
     <div className={className}>
       <button
         type="button"
         onClick={handleTriggerClick}
-        className="flex items-center gap-1 group cursor-pointer w-full text-left"
+        className="flex items-center gap-1.5 group cursor-pointer w-full text-left"
       >
-        <MapPin size={variant === 'compact' ? 12 : 16} className="text-muted-foreground shrink-0" />
+        <MapPin size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
         <span className={cn(
           'text-primary hover:underline',
           variant === 'compact' ? 'text-xs' : 'text-sm font-medium'
@@ -82,7 +94,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
         )}
       </button>
       {isOpen && (
-        <div className="mt-2 space-y-2 pl-5 border-l-2 border-primary/20 ml-2">
+        <div className="mt-1.5 space-y-1 pl-[22px]">
           {(() => {
             const indices = addresses.map((_, i) => i);
             if (closestIndex != null) {
@@ -90,11 +102,11 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
             }
             return indices.map((index) => {
               const isClosest = closestIndex != null && index === closestIndex;
-              const hours = getHoursForIndex(index) || shopWorkingHours;
+              const hours = !hasUnifiedHours ? (getHoursForIndex(index) || shopWorkingHours) : null;
               return (
                 <div key={index} className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <div className={cn("w-1.5 h-1.5 rounded-full", isClosest ? "bg-green-600" : "bg-primary/50")} />
+                    <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isClosest ? "bg-green-600" : "bg-primary/50")} />
                     <span className={cn(
                       isClosest ? 'text-green-700 dark:text-green-500 font-medium' : 'text-foreground',
                       variant === 'compact' ? 'text-xs' : 'text-sm'
@@ -103,7 +115,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
                     </span>
                   </div>
                   {hours && (
-                    <div className="flex items-center gap-1 pl-3">
+                    <div className="flex items-center gap-1.5 pl-3">
                       <Clock size={10} className="text-muted-foreground shrink-0" />
                       <span className={cn('text-xs', isShopOpen(hours) ? 'text-emerald-600' : 'text-muted-foreground')}>
                         {hours}
@@ -114,6 +126,14 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
               );
             });
           })()}
+          {hasUnifiedHours && (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <Clock size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
+              <span className={cn('text-xs', isShopOpen(unifiedHours) ? 'text-emerald-600' : 'text-muted-foreground')}>
+                {unifiedHours}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
