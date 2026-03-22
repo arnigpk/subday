@@ -3,7 +3,7 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { isShopOpen } from '@/utils/shopHours';
+import { isAnyAddressOpen } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -120,7 +120,7 @@ export function TopShopsByVisits() {
       
       <div className="space-y-1.5">
         {topShops.map((shop, index) => {
-          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          const isOpen = isAnyAddressOpen(shop.working_hours, Array.isArray((shop as any).coordinates) ? (shop as any).coordinates : null);
           
           return (
             <Link key={shop.id} to={`/shops/${shop.id}`} className="card-interactive flex items-center gap-3 py-2.5 px-3">

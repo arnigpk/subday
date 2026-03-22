@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isShopOpen } from '@/utils/shopHours';
+import { isAnyAddressOpen } from '@/utils/shopHours';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
@@ -24,7 +24,9 @@ interface Shop {
 
 function parseCoordinates(coords: unknown): Coordinate[] {
   if (!coords || !Array.isArray(coords)) return [];
-  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
+  return coords
+    .filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number')
+    .map(c => ({ lat: c.lat, lng: c.lng, working_hours: (c as any).working_hours }));
 }
 
 export function TopShopsCarousel() {
@@ -56,7 +58,7 @@ export function TopShopsCarousel() {
   }, [shops.length]);
 
   const shopCoordinates = useMemo(() => 
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates), shopWorkingHours: s.working_hours })),
     [shops]
   );
   const { distances, userLocation } = useShopDistances(shopCoordinates);
@@ -66,7 +68,7 @@ export function TopShopsCarousel() {
       if (userCity && s.city && s.city !== userCity) return false;
       return true;
     });
-    const openShops = filtered.filter(s => s.working_hours ? isShopOpen(s.working_hours) : false);
+    const openShops = filtered.filter(s => isAnyAddressOpen(s.working_hours, Array.isArray(s.coordinates) ? s.coordinates as any : null));
     const shopsToSort = openShops.length > 0 ? openShops : filtered;
     const sorted = userLocation && distances.size > 0
       ? sortByDistance(shopsToSort, distances)
@@ -113,7 +115,7 @@ export function TopShopsCarousel() {
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory justify-center"
       >
         {sortedShops.map((shop) => {
-          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          const isOpen = isAnyAddressOpen(shop.working_hours, Array.isArray(shop.coordinates) ? shop.coordinates as any : null);
           const shopDistance = distances.get(shop.id);
           
           return (

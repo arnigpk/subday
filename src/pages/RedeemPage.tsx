@@ -6,7 +6,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
-import { isShopOpen } from '@/utils/shopHours';
+import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -231,7 +231,7 @@ export default function RedeemPage() {
             ...shop,
             supported_types: (shop as any).supported_types || ['coffee'],
             coordinates: coords,
-            isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+            isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
           };
         });
         // Initial sort: open first, then alphabetical (will be re-sorted by distance later)
@@ -283,7 +283,7 @@ export default function RedeemPage() {
           // Also refresh shop open/closed status
           setShops(prevShops => {
             const updated = prevShops.map(shop => ({
-              ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+              ...shop, isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, shop.coordinates),
             }));
             updated.sort((a, b) => {
               if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
@@ -293,7 +293,7 @@ export default function RedeemPage() {
             return updated;
           });
           if (selectedShop) {
-            const updatedStatus = selectedShop.working_hours ? isShopOpen(selectedShop.working_hours) : false;
+            const updatedStatus = isAnyAddressOpen(selectedShop.working_hours, selectedShop.coordinates);
             if (!updatedStatus) {
               // Selected shop just closed — auto-switch to nearest open shop
               setShops(prev => {

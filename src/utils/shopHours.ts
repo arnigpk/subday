@@ -5,7 +5,6 @@
  */
 export function isShopOpen(openHours: string): boolean {
   try {
-    // Parse the hours string (supports both – and -)
     const match = openHours.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
     if (!match) {
       console.warn('Invalid openHours format:', openHours);
@@ -20,7 +19,6 @@ export function isShopOpen(openHours: string): boolean {
     const openTime = parseInt(openHour) * 60 + parseInt(openMinute);
     const closeTime = parseInt(closeHour) * 60 + parseInt(closeMinute);
     
-    // Handle overnight hours (e.g., 22:00–06:00)
     if (closeTime < openTime) {
       return currentMinutes >= openTime || currentMinutes < closeTime;
     }
@@ -30,6 +28,25 @@ export function isShopOpen(openHours: string): boolean {
     console.error('Error parsing shop hours:', error);
     return false;
   }
+}
+
+/**
+ * Checks if ANY address of a shop is currently open.
+ * Checks per-address working_hours from coordinates array first,
+ * falls back to shop-level working_hours.
+ */
+export function isAnyAddressOpen(
+  shopWorkingHours: string | null | undefined,
+  coordinates?: Array<{ working_hours?: string }> | null
+): boolean {
+  if (coordinates && coordinates.length > 0) {
+    for (const coord of coordinates) {
+      const hours = coord?.working_hours?.trim() || shopWorkingHours;
+      if (hours && isShopOpen(hours)) return true;
+    }
+    return false;
+  }
+  return shopWorkingHours ? isShopOpen(shopWorkingHours) : false;
 }
 
 /**

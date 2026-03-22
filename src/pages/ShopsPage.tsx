@@ -5,7 +5,7 @@ import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isShopOpen } from '@/utils/shopHours';
+import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
@@ -62,7 +62,9 @@ function hasSpecialtyBadge(shop: Shop): boolean {
 
 function parseCoordinates(coords: unknown): Coordinate[] {
   if (!coords || !Array.isArray(coords)) return [];
-  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
+  return coords
+    .filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number')
+    .map(c => ({ lat: c.lat, lng: c.lng, working_hours: (c as any).working_hours }));
 }
 
 export default function ShopsPage() {
@@ -91,7 +93,7 @@ export default function ShopsPage() {
   }, [refetch, queryClient]);
 
   const shopCoordinates = useMemo(() => 
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })), [shops]);
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates), shopWorkingHours: s.working_hours })), [shops]);
 
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
@@ -103,7 +105,7 @@ export default function ShopsPage() {
     })
     .map(shop => ({
       ...shop,
-      isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+      isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, Array.isArray(shop.coordinates) ? shop.coordinates as any : null),
       allBadges: getShopBadges(shop),
       isSpecialty: hasSpecialtyBadge(shop),
     })), [shops, userCountry, userCity]);
