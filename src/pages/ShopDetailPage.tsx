@@ -114,7 +114,7 @@ export default function ShopDetailPage() {
              <div className={`flex items-center gap-1 ${isCurrentlyOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
               <Clock size={12} />
               <span className="text-xs font-medium">
-                {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt}`}
+                {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt ?? '—'}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt ?? '—'}`}
               </span>
             </div>
             {getShopBadges(shop).length > 0 && <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />}
