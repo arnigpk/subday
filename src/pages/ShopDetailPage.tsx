@@ -56,6 +56,7 @@ export default function ShopDetailPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const shopStatus = useShopStatus(shop?.working_hours || '');
+  const isCurrentlyOpen = shop ? isAnyAddressOpen(shop.working_hours, parseCoordinates(shop.coordinates)) : false;
   const { t } = useLanguage();
   const translatedDescription = useAutoTranslate(shop?.description);
 
