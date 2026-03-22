@@ -20,6 +20,7 @@ import kzOrnament from '@/assets/kz-ornament.png';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVibration } from '@/hooks/useVibration';
+import { AppMessageBanner } from '@/components/home/AppMessageBanner';
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
