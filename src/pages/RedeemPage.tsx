@@ -283,7 +283,7 @@ export default function RedeemPage() {
           // Also refresh shop open/closed status
           setShops(prevShops => {
             const updated = prevShops.map(shop => ({
-              ...shop, isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+              ...shop, isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, shop.coordinates),
             }));
             updated.sort((a, b) => {
               if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
