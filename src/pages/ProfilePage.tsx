@@ -149,7 +149,7 @@ export default function ProfilePage() {
   const menuItems = [
     { icon: IconMapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
     { icon: IconBell, label: t('profile.notifications'), type: 'notification' as const },
-    { icon: IconMessageCircle, label: t('profile.support'), type: 'support' as const },
+    { icon: IconMessageCircleUser, label: t('profile.support'), type: 'support' as const },
     { icon: IconFileText, label: t('profile.rules'), type: 'rules' as const },
   ];
   
