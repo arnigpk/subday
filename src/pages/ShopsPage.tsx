@@ -91,7 +91,7 @@ export default function ShopsPage() {
   }, [refetch, queryClient]);
 
   const shopCoordinates = useMemo(() => 
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })), [shops]);
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates), shopWorkingHours: s.working_hours })), [shops]);
 
   const { distances, loading: distancesLoading, permissionDenied, userLocation } = useShopDistances(shopCoordinates);
 
