@@ -66,7 +66,7 @@ export function TopShopsCarousel() {
       if (userCity && s.city && s.city !== userCity) return false;
       return true;
     });
-    const openShops = filtered.filter(s => s.working_hours ? isShopOpen(s.working_hours) : false);
+    const openShops = filtered.filter(s => isAnyAddressOpen(s.working_hours, Array.isArray(s.coordinates) ? s.coordinates as any : null));
     const shopsToSort = openShops.length > 0 ? openShops : filtered;
     const sorted = userLocation && distances.size > 0
       ? sortByDistance(shopsToSort, distances)
