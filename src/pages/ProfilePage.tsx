@@ -266,7 +266,7 @@ export default function ProfilePage() {
                   <button key={item.label} onClick={() => setShowNotificationSettings(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
                 );
               }
