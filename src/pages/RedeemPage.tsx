@@ -231,7 +231,7 @@ export default function RedeemPage() {
             ...shop,
             supported_types: (shop as any).supported_types || ['coffee'],
             coordinates: coords,
-            isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+            isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
           };
         });
         // Initial sort: open first, then alphabetical (will be re-sorted by distance later)
