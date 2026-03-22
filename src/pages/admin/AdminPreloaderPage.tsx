@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ArrowUpTrayIcon, TrashIcon, EyeIcon, ClockIcon, PowerIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';

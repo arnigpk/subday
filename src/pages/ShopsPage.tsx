@@ -4,7 +4,7 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClockIcon } from '@heroicons/react/24/outline';
-import { MapPinOff, Navigation, Loader2 } from 'lucide-react';;
+import { MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';

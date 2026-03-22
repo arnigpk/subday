@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ClockIcon, MapPinIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
-import { Coffee, Droplets, Loader2, Navigation } from 'lucide-react';;
+import { Coffee, Droplets, Loader2, Navigation } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAddressAwareShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { XMarkIcon, PhotoIcon, MapPinIcon, PlusIcon, PlayIcon, SparklesIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';

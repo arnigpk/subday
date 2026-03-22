@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { XMarkIcon, LanguageIcon, PhotoIcon, SparklesIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';

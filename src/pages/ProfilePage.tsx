@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { UserIcon, MapPinIcon, BellIcon, ChatBubbleOvalLeftIcon, DocumentTextIcon, ArrowRightStartOnRectangleIcon, ChevronRightIcon, MoonIcon, SunIcon, CameraIcon, PencilIcon, CheckIcon, XMarkIcon, ClipboardDocumentIcon, TrashIcon, SpeakerWaveIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
-import { Vibrate } from 'lucide-react';;
+import { Vibrate } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';

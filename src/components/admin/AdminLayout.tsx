@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Squares2X2Icon, UserGroupIcon, ClockIcon, ArrowRightStartOnRectangleIcon, ChevronLeftIcon, CreditCardIcon, PaperAirplaneIcon, BellIcon, ReceiptPercentIcon, PhotoIcon, GiftIcon, BoltIcon, MegaphoneIcon, QrCodeIcon, ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline';
-import { Coffee, Settings, Loader } from 'lucide-react';;
+import { Coffee, Settings, Loader } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';

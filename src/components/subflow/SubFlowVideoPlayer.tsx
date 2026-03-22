@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { SpeakerWaveIcon, SpeakerXMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;

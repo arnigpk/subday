@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { TrashIcon, PencilIcon, EyeIcon, EyeSlashIcon, CursorArrowRippleIcon, HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { getCountryFlag } from '@/utils/countries';
 
 const LINK_TYPES = [

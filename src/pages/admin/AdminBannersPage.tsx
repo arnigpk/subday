@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PlusIcon, PencilIcon, TrashIcon, PhotoIcon, EyeIcon, CursorArrowRaysIcon, CalendarIcon, ArrowTrendingUpIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { endOfDay, startOfDay } from 'date-fns';

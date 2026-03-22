@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { CameraIcon, ArrowPathIcon, VideoCameraSlashIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';

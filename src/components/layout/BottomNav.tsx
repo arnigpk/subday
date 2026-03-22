@@ -1,5 +1,5 @@
 import { HomeIcon, MapPinIcon, BoltIcon, UserIcon } from '@heroicons/react/24/outline';
-import { Coffee } from 'lucide-react';;
+import { Coffee } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';

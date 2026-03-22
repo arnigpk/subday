@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { PlusIcon, XMarkIcon, MapPinIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Navigation } from 'lucide-react';;
+import { Navigation } from 'lucide-react';
 
 export interface AddressWithCoords {
   address: string;

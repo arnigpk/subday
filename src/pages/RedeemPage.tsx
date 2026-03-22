@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeftIcon, CheckIcon, SparklesIcon, ChevronDownIcon, MapPinIcon, ClockIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { Loader2, Coffee, UtensilsCrossed } from 'lucide-react';;
+import { Loader2, Coffee, UtensilsCrossed } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';

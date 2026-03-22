@@ -4,7 +4,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MegaphoneIcon, ArrowTrendingUpIcon, UserGroupIcon, ViewfinderCircleIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerActiveAds } from '@/components/partner/PartnerActiveAds';

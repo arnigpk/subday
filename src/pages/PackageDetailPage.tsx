@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, CreditCardIcon, SparklesIcon, GiftIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';

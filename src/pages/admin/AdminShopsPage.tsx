@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { MapPinIcon, ClockIcon, PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Coffee, UtensilsCrossed } from 'lucide-react';;
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';

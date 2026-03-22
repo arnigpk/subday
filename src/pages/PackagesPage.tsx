@@ -4,7 +4,7 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { SparklesIcon, CheckIcon, GiftIcon } from '@heroicons/react/24/outline';
-import { Coffee, UtensilsCrossed } from 'lucide-react';;
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';

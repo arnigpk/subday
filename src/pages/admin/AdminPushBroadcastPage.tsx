@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
 import { PaperAirplaneIcon, BellIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';

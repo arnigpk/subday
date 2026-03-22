@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
-import { Loader2, Coffee } from 'lucide-react';;
+import { Loader2, Coffee } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 

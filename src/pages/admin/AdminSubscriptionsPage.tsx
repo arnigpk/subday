@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { PlusIcon, PencilIcon, TrashIcon, SparklesIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
-import { Coffee, GlassWater, UtensilsCrossed } from 'lucide-react';;
+import { Coffee, GlassWater, UtensilsCrossed } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';

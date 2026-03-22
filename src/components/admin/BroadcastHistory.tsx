@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrashIcon, ChatBubbleLeftIcon, BellIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';

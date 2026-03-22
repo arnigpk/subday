@@ -1,7 +1,7 @@
 import { ReactNode, useCallback } from 'react';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ArrowDownIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 
 interface PullToRefreshProps {
   children: ReactNode;

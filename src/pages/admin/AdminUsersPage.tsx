@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, NoSymbolIcon, UserIcon, ShieldCheckIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon } from '@heroicons/react/24/outline';
-import { Coffee, UtensilsCrossed } from 'lucide-react';;
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';

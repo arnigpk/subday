@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { GiftIcon, CreditCardIcon, SparklesIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
-import { Coffee, UtensilsCrossed } from 'lucide-react';;
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';

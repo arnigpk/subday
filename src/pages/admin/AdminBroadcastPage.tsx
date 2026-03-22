@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { PaperAirplaneIcon, UserGroupIcon, UserIcon, MagnifyingGlassIcon, ChatBubbleLeftIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';;
+import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';

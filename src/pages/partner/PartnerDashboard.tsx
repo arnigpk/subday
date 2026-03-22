@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowTrendingUpIcon, ClockIcon, StarIcon, BuildingStorefrontIcon, CheckIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { Coffee, Loader2 } from 'lucide-react';;
+import { Coffee, Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
