@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserIcon, PaperAirplaneIcon, TrashIcon } from '@heroicons/react/24/outline';;
+import { UserIcon, PaperAirplaneIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';

@@ -1,4 +1,4 @@
-import { MapPinIcon, CubeIcon } from '@heroicons/react/24/outline';;
+import { MapPinIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 export function QuickActions() {

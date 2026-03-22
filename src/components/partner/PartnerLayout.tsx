@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Squares2X2Icon, QrCodeIcon, ClockIcon, UserGroupIcon, ArrowRightStartOnRectangleIcon, ChevronLeftIcon, MegaphoneIcon } from '@heroicons/react/24/outline';;
+import { Squares2X2Icon, QrCodeIcon, ClockIcon, UserGroupIcon, ArrowRightStartOnRectangleIcon, ChevronLeftIcon, MegaphoneIcon } from '@heroicons/react/24/outline';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';

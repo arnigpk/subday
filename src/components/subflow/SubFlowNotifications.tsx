@@ -3,7 +3,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { supabase } from '@/integrations/supabase/client';
-import { BellIcon, ChevronRightIcon, TrashIcon, UserIcon } from '@heroicons/react/24/outline';;
+import { BellIcon, ChevronRightIcon, TrashIcon, UserIcon } from '@heroicons/react/24/outline';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';

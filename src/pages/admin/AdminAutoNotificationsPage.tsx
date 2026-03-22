@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { PlusIcon, PencilIcon, TrashIcon, BellIcon, PaperAirplaneIcon, BoltIcon, HeartIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, DocumentTextIcon, ArrowRightOnRectangleIcon, CreditCardIcon, DevicePhoneMobileIcon, CpuChipIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, PencilIcon, TrashIcon, BellIcon, PaperAirplaneIcon, BoltIcon, HeartIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, DocumentTextIcon, ArrowRightOnRectangleIcon, CreditCardIcon, DevicePhoneMobileIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';

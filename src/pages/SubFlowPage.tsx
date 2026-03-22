@@ -15,7 +15,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useAllActiveStories } from '@/hooks/useAllActiveStories';
 import { supabase } from '@/integrations/supabase/client';
-import { LockClosedIcon, ChevronUpIcon, PencilIcon } from '@heroicons/react/24/outline';;
+import { LockClosedIcon, ChevronUpIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import logo from '@/assets/logo.png';

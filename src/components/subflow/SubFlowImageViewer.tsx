@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { XMarkIcon } from '@heroicons/react/24/outline';;
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface SourceRect {
   top: number;

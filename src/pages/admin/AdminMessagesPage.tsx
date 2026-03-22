@@ -12,7 +12,7 @@ import { AudienceTypeSelector, type AudienceType } from '@/components/admin/Audi
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useToast } from '@/hooks/use-toast';
-import { PlusIcon, TrashIcon, ChatBubbleLeftIcon, ClockIcon, EyeIcon, EyeSlashIcon, ChartBarIcon, UserGroupIcon, CursorArrowRippleIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, TrashIcon, ChatBubbleLeftIcon, ClockIcon, EyeIcon, EyeSlashIcon, ChartBarIcon, UserGroupIcon, CursorArrowRippleIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { audienceOptions } from '@/components/admin/AudienceTypeSelector';

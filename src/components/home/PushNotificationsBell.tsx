@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { BellIcon, TrashIcon } from '@heroicons/react/24/outline';;
+import { BellIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {

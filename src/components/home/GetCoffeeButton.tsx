@@ -1,4 +1,4 @@
-import { QrCodeIcon } from '@heroicons/react/24/outline';;
+import { QrCodeIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { PlusIcon, UserIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, UserIcon } from '@heroicons/react/24/outline';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAllActiveStories, StoryUser } from '@/hooks/useAllActiveStories';
 import { StoryCreateDialog } from './StoryCreateDialog';

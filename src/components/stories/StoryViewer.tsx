@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { XMarkIcon, HeartIcon, EyeIcon, TrashIcon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline';;
+import { XMarkIcon, HeartIcon, EyeIcon, TrashIcon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';

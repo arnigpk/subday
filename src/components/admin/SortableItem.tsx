@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bars3Icon } from '@heroicons/react/24/outline';;
+import { Bars3Icon } from '@heroicons/react/24/outline';
 import { ReactNode } from 'react';
 
 interface SortableItemProps {

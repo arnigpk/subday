@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';;
+import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface AvatarMenuProps {
   onAvatarChange: (file: File) => Promise<void>;

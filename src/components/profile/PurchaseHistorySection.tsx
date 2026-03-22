@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ClockIcon, ChevronRightIcon } from '@heroicons/react/24/outline';;
+import { ClockIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 

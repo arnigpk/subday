@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
-import { XMarkIcon } from '@heroicons/react/24/outline';;
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AppMessage {

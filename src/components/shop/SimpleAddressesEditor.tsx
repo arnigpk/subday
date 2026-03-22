@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { PlusIcon, XMarkIcon, MapPinIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, XMarkIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface SimpleAddressesEditorProps {
   addresses: string[];

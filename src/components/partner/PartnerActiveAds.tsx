@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChartBarIcon, EyeIcon, CursorArrowRippleIcon, ArrowTrendingUpIcon, PhotoIcon, DocumentTextIcon, CalendarIcon, HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/24/outline';;
+import { ChartBarIcon, EyeIcon, CursorArrowRippleIcon, ArrowTrendingUpIcon, PhotoIcon, DocumentTextIcon, CalendarIcon, HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/24/outline';
 import { endOfDay, format, startOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';

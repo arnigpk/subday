@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, UserIcon, CalendarIcon, TrashIcon } from '@heroicons/react/24/outline';;
+import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, UserIcon, CalendarIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';

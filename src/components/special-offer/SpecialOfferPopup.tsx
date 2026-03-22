@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { GiftIcon } from '@heroicons/react/24/outline';;
+import { GiftIcon } from '@heroicons/react/24/outline';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {

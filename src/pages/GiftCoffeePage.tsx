@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ArrowLeftIcon, GiftIcon, UserIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';;
+import { ArrowLeftIcon, GiftIcon, UserIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';

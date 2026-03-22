@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { UserGroupIcon } from '@heroicons/react/24/outline';;
+import { UserGroupIcon } from '@heroicons/react/24/outline';
 import {
   Popover,
   PopoverContent,

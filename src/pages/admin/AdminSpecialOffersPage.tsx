@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { PlusIcon, PencilIcon, TrashIcon, GiftIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, PencilIcon, TrashIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';

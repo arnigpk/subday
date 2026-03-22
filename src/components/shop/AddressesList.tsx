@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon } from '@heroicons/react/24/outline';;
+import { MapPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 import { isShopOpen } from '@/utils/shopHours';
 

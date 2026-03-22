@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPinIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';;
+import { MapPinIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface Shop {

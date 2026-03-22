@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { GiftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';;
+import { GiftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';

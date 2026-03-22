@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { MegaphoneIcon, ArrowTopRightOnSquareIcon, ChatBubbleOvalLeftIcon, PlusIcon } from '@heroicons/react/24/outline';;
+import { MegaphoneIcon, ArrowTopRightOnSquareIcon, ChatBubbleOvalLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { supabase } from '@/integrations/supabase/client';

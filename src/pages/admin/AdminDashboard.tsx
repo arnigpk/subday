@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlusIcon, ArrowRightOnRectangleIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';;
+import { UserPlusIcon, ArrowRightOnRectangleIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 
 interface DashboardStats {
   todayRegistered: number;

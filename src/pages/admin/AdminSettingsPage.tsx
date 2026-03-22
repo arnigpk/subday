@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminAuth, AppRole } from '@/hooks/useAdminAuth';
-import { PlusIcon, TrashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';;
+import { PlusIcon, TrashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 
 interface UserRole {

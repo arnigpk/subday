@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';;
+import { GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 
 const options: { value: Language; label: string; code: string }[] = [

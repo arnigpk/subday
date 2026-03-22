@@ -3,7 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { enUS } from 'date-fns/locale';
-import { ReceiptPercentIcon, CreditCardIcon, HashtagIcon, CalendarIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';;
+import { ReceiptPercentIcon, CreditCardIcon, HashtagIcon, CalendarIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
 
 interface ReceiptData {
   payment_id?: string;

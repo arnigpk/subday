@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ChatBubbleOvalLeftIcon, TrashIcon, MapPinIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, XMarkIcon, CheckIcon, UserIcon, UserPlusIcon, ArrowsPointingOutIcon, PlusIcon } from '@heroicons/react/24/outline';;
+import { ChatBubbleOvalLeftIcon, TrashIcon, MapPinIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, XMarkIcon, CheckIcon, UserIcon, UserPlusIcon, ArrowsPointingOutIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';

@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserIcon } from '@heroicons/react/24/outline';;
+import { UserIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/integrations/supabase/client';
 import { StoryViewer } from './StoryViewer';
 import { useStoriesCache } from '@/hooks/useStoriesCache';

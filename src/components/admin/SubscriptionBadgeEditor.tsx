@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SparklesIcon, BoltIcon, TrophyIcon, XMarkIcon } from '@heroicons/react/24/outline';;
+import { SparklesIcon, BoltIcon, TrophyIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
 export interface SubscriptionBadgeData {
