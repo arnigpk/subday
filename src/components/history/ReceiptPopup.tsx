@@ -3,7 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { enUS } from 'date-fns/locale';
-import { Receipt, CreditCard, Hash, Calendar, BadgeCheck } from 'lucide-react';
+import { ReceiptPercentIcon, CreditCardIcon, HashtagIcon, CalendarIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
 
 interface ReceiptData {
   payment_id?: string;
@@ -49,29 +49,29 @@ export function ReceiptPopup({ open, onOpenChange, receipt, subscriptionName }: 
   };
 
   const rows: { icon: React.ReactNode; label: string; value: string }[] = [
-    { icon: <Receipt size={16} className="text-primary" />, label: 'Подписка', value: subscriptionName },
-    { icon: <Calendar size={16} className="text-primary" />, label: 'Дата', value: formatDate(receipt.paid_at) },
-    { icon: <BadgeCheck size={16} className="text-primary" />, label: 'Сумма', value: formatAmount(receipt.amount, receipt.currency) },
+    { icon: <ReceiptPercentIcon className="w-4 h-4" className="text-primary" />, label: 'Подписка', value: subscriptionName },
+    { icon: <CalendarIcon className="w-4 h-4" className="text-primary" />, label: 'Дата', value: formatDate(receipt.paid_at) },
+    { icon: <CheckBadgeIcon className="w-4 h-4" className="text-primary" />, label: 'Сумма', value: formatAmount(receipt.amount, receipt.currency) },
   ];
 
   if (receipt.card_last4) {
     rows.push({
-      icon: <CreditCard size={16} className="text-primary" />,
+      icon: <CreditCardIcon className="w-4 h-4" className="text-primary" />,
       label: 'Карта',
       value: `${receipt.card_brand || ''} •••• ${receipt.card_last4}`.trim(),
     });
   }
 
   if (receipt.issuer_bank) {
-    rows.push({ icon: <CreditCard size={16} className="text-muted-foreground" />, label: 'Банк', value: receipt.issuer_bank });
+    rows.push({ icon: <CreditCardIcon className="w-4 h-4" className="text-muted-foreground" />, label: 'Банк', value: receipt.issuer_bank });
   }
 
   if (receipt.rrn) {
-    rows.push({ icon: <Hash size={16} className="text-muted-foreground" />, label: 'RRN', value: String(receipt.rrn) });
+    rows.push({ icon: <HashtagIcon className="w-4 h-4" className="text-muted-foreground" />, label: 'RRN', value: String(receipt.rrn) });
   }
 
   if (receipt.payment_id) {
-    rows.push({ icon: <Hash size={16} className="text-muted-foreground" />, label: 'ID платежа', value: receipt.payment_id });
+    rows.push({ icon: <HashtagIcon className="w-4 h-4" className="text-muted-foreground" />, label: 'ID платежа', value: receipt.payment_id });
   }
 
   return (
@@ -79,7 +79,7 @@ export function ReceiptPopup({ open, onOpenChange, receipt, subscriptionName }: 
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Receipt size={20} className="text-primary" />
+            <ReceiptPercentIcon className="w-5 h-5" className="text-primary" />
             Чек оплаты
           </DialogTitle>
         </DialogHeader>
@@ -96,7 +96,7 @@ export function ReceiptPopup({ open, onOpenChange, receipt, subscriptionName }: 
           {receipt.status && (
             <div className="pt-2 border-t border-border/40">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-medium">
-                <BadgeCheck size={14} />
+                <CheckBadgeIcon className="w-3.5 h-3.5" />
                 Оплачено
               </div>
             </div>

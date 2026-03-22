@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
-import { Send, Loader2, ArrowLeft } from 'lucide-react';
+import { PaperAirplaneIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TelegramLoginButtonProps {
@@ -104,7 +105,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             className="btn-secondary flex-1 flex items-center justify-center gap-2"
             disabled={isLoading}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeftIcon className="w-4 h-4" />
             {t('auth.back')}
           </button>
           <button
@@ -114,7 +115,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
             }}
             className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
           >
-            <Send size={16} />
+            <PaperAirplaneIcon className="w-4 h-4" />
             {t('auth.newCode')}
           </button>
         </div>
@@ -128,7 +129,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
       disabled={isLoading}
       className="w-full flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors disabled:opacity-50"
     >
-      <Send size={20} />
+      <PaperAirplaneIcon className="w-5 h-5" />
       {t('auth.loginViaTelegram')}
     </button>
   );

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Plus } from 'lucide-react';
+import { ChatBubbleOvalLeftIcon, TrashIcon, MapPinIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, XMarkIcon, CheckIcon, UserIcon, UserPlusIcon, ArrowsPointingOutIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -396,7 +396,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             <AvatarImage src={post.author_avatar} alt={post.author_name} className="object-cover" />
           ) : null}
           <AvatarFallback className="bg-primary/10">
-            <User size={20} className="text-primary" />
+            <UserIcon className="w-5 h-5" className="text-primary" />
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
@@ -412,7 +412,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                     : 'bg-secondary text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {isFollowing ? <UserCheck size={12} /> : <UserPlus size={12} />}
+                {isFollowing ? <UserIcon className="w-3 h-3" /> : <UserPlusIcon className="w-3 h-3" />}
                 {isFollowing ? 'Подписан' : 'Подписаться'}
               </button>
             )}
@@ -426,7 +426,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
               title="Редактировать (доступно 1 час)"
             >
-              <Pencil size={16} />
+              <PencilIcon className="w-4 h-4" />
             </button>
           )}
           {canDelete && (
@@ -436,7 +436,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
               title={isAdmin && !isOwner ? "Удалить как админ" : "Удалить"}
             >
-              <Trash2 size={16} />
+              <TrashIcon className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -445,7 +445,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
       {/* Shop tag */}
       {post.shop_name && (
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
-          <MapPin size={12} />
+          <MapPinIcon className="w-3 h-3" />
           <span>{post.shop_name}</span>
         </div>
       )}
@@ -465,14 +465,14 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               disabled={isSaving}
               className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
             >
-              <Check size={14} />
+              <CheckIcon className="w-3.5 h-3.5" />
               <span>{isSaving ? t('subflow.saving') : t('subflow.save')}</span>
             </button>
             <button
               onClick={handleCancelEdit}
               className="flex items-center gap-1 px-3 py-1.5 bg-secondary text-foreground rounded-lg text-sm font-medium"
             >
-              <X size={14} />
+              <XMarkIcon className="w-3.5 h-3.5" />
               <span>{t('subflow.cancel')}</span>
             </button>
           </div>
@@ -563,7 +563,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                 }}
                 className={`absolute bottom-2 right-2 p-1.5 rounded-full bg-black/30 backdrop-blur-sm text-white/80 transition-all hover:bg-black/50 active:scale-90 ${showImageHint ? 'animate-pulse' : ''}`}
               >
-                <Maximize2 size={14} />
+                <ArrowsPointingOutIcon className="w-3.5 h-3.5" />
               </button>
               {/* One-time tooltip hint */}
               {showImageHint && (
@@ -585,7 +585,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                   onClick={() => setCurrentImageIndex(prev => prev - 1)}
                   className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full text-foreground hover:bg-background transition-colors"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeftIcon className="w-5 h-5" />
                 </button>
               )}
               {currentImageIndex < images.length - 1 && (
@@ -593,7 +593,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                   onClick={() => setCurrentImageIndex(prev => prev + 1)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full text-foreground hover:bg-background transition-colors"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRightIcon className="w-5 h-5" />
                 </button>
               )}
               {/* Dots indicator */}
@@ -655,7 +655,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
                     type="button"
                     className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95"
                   >
-                    <Plus size={16} />
+                    <PlusIcon className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2" side="top" align="center">
@@ -692,7 +692,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
-        <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
+        <ChatBubbleOvalLeftIcon className="w-[18px] h-[18px]" className={showComments ? 'fill-primary/20' : ''} />
         <span>
           {commentsCount > 0 
             ? `${t('subflow.comments')} (${commentsCount})` 

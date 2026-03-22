@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Gift } from 'lucide-react';
+import { PlusIcon, PencilIcon, TrashIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { COUNTRY_OPTIONS, getCountryLabel } from '@/utils/countries';
@@ -179,7 +179,7 @@ export default function AdminSpecialOffersPage() {
         <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <Button onClick={openCreate} className="gap-2">
-              <Plus size={16} /> Создать предложение
+              <PlusIcon className="w-4 h-4" /> Создать предложение
             </Button>
           )}
           <Select value={listCountryFilter} onValueChange={setListCountryFilter}>
@@ -201,7 +201,7 @@ export default function AdminSpecialOffersPage() {
           </div>
         ) : offers.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <Gift className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <GiftIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>Нет спецпредложений</p>
           </div>
         ) : (
@@ -247,10 +247,10 @@ export default function AdminSpecialOffersPage() {
                       <div className="flex items-center gap-2">
                         <Switch checked={offer.is_active} onCheckedChange={(v) => handleToggle(offer.id, v)} />
                         <Button variant="ghost" size="icon" onClick={() => openEdit(offer)}>
-                          <Pencil size={16} />
+                          <PencilIcon className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(offer.id)}>
-                          <Trash2 size={16} className="text-destructive" />
+                          <TrashIcon className="w-4 h-4" className="text-destructive" />
                         </Button>
                       </div>
                     ) : (

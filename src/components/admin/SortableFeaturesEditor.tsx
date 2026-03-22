@@ -16,7 +16,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { Bars3Icon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -62,7 +62,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove, 
         {...listeners}
         className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted opacity-50 group-hover:opacity-100 transition-opacity"
       >
-        <GripVertical className="w-4 h-4 text-muted-foreground" />
+        <Bars3Icon className="w-4 h-4 text-muted-foreground" />
       </div>
       <Input
         value={value}
@@ -77,7 +77,7 @@ function SortableFeatureItem({ id, index, value, onChange, onRemove, canRemove, 
         onClick={() => onRemove(index)}
         disabled={!canRemove}
       >
-        <Trash2 className="w-4 h-4 text-destructive" />
+        <TrashIcon className="w-4 h-4 text-destructive" />
       </Button>
     </div>
   );
@@ -179,7 +179,7 @@ export function SortableFeaturesEditor({ features, onChange, label = 'Что в�
         className="mt-2"
         onClick={handleAddFeature}
       >
-        <Plus className="w-4 h-4 mr-1" />
+        <PlusIcon className="w-4 h-4 mr-1" />
         {variant === 'exclusion' ? 'Добавить исключение' : 'Добавить функцию'}
       </Button>
     </div>

@@ -28,7 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard } from 'lucide-react';
+import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, NoSymbolIcon, UserIcon, ShieldCheckIcon, CalendarDaysIcon, ArrowPathIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -140,7 +141,7 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
               className="h-6 px-2 text-xs gap-1"
               onClick={onResetDailyLimit}
             >
-              <RefreshCw className="w-3 h-3" />
+              <ArrowPathIcon className="w-3 h-3" />
               Обновить
             </Button>
           )}
@@ -599,7 +600,7 @@ export default function AdminUsersPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <CardTitle>Все пользователи ({totalCount})</CardTitle>
               <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Поиск по имени или телефону"
                   value={search}
@@ -620,7 +621,7 @@ export default function AdminUsersPage() {
                 countryClassName="w-44"
                 cityClassName="w-44"
               />
-              <CalendarDays className="w-4 h-4 text-muted-foreground" />
+              <CalendarDaysIcon className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Регистрация:</span>
               {['all', 'week', 'month', 'custom'].map((filter) => (
                 <Button
@@ -659,7 +660,7 @@ export default function AdminUsersPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <CreditCard className="w-4 h-4 text-muted-foreground" />
+              <CreditCardIcon className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Подписка:</span>
               {[
                 { value: 'all', label: 'Все' },
@@ -734,7 +735,7 @@ export default function AdminUsersPage() {
                         <TableCell>
                           {user.role && user.role !== 'user' && (
                             <div className="flex items-center gap-1 mb-1">
-                              <Shield className="w-3 h-3 text-primary" />
+                              <ShieldCheckIcon className="w-3 h-3 text-primary" />
                               <span className="text-xs text-primary font-medium">
                                 {ROLE_LABELS[user.role]}
                               </span>
@@ -754,7 +755,7 @@ export default function AdminUsersPage() {
                                 size="icon"
                                 onClick={() => openEditDialog(user)}
                               >
-                                <Pencil className="w-4 h-4" />
+                                <PencilIcon className="w-4 h-4" />
                               </Button>
                             )}
                             {canManage && (
@@ -764,9 +765,9 @@ export default function AdminUsersPage() {
                                 onClick={() => handleToggleBlock(user)}
                               >
                                 {user.is_blocked ? (
-                                  <UserCheck className="w-4 h-4 text-green-600" />
+                                  <UserIcon className="w-4 h-4 text-green-600" />
                                 ) : (
-                                  <Ban className="w-4 h-4 text-destructive" />
+                                  <NoSymbolIcon className="w-4 h-4 text-destructive" />
                                 )}
                               </Button>
                             )}
@@ -790,7 +791,7 @@ export default function AdminUsersPage() {
                       onClick={() => setPage(p => Math.max(0, p - 1))}
                       disabled={page === 0}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeftIcon className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="outline"
@@ -798,7 +799,7 @@ export default function AdminUsersPage() {
                       onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={page >= totalPages - 1}
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRightIcon className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>

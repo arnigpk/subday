@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Trash2, MessageSquare, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrashIcon, ChatBubbleLeftIcon, BellIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -232,7 +233,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
   if (messages.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <ChatBubbleLeftIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p>История рассылок пуста</p>
       </div>
     );
@@ -261,7 +262,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <TrashIcon className="w-4 h-4 mr-2" />
                   Удалить ({selectedIds.size})
                 </Button>
               </AlertDialogTrigger>
@@ -288,7 +289,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm">
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <TrashIcon className="w-4 h-4 mr-2" />
                   Очистить всё
                 </Button>
               </AlertDialogTrigger>
@@ -334,9 +335,9 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {type === 'telegram' ? (
-                          <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+                          <ChatBubbleLeftIcon className="w-4 h-4 text-blue-500 shrink-0" />
                         ) : (
-                          <Bell className="w-4 h-4 text-orange-500 shrink-0" />
+                          <BellIcon className="w-4 h-4 text-orange-500 shrink-0" />
                         )}
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(msg.created_at), 'd MMM yyyy, HH:mm', { locale: ru })}
@@ -362,7 +363,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                             onClick={() => setExpandedId(isExpanded ? null : msg.id)}
                             className="flex items-center gap-1 text-xs text-primary hover:underline"
                           >
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {isExpanded ? <ChevronUpIcon className="w-3 h-3" /> : <ChevronDownIcon className="w-3 h-3" />}
                             Получатели ({recipients.length})
                           </button>
                           {isExpanded && (
@@ -387,7 +388,7 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                       className="shrink-0"
                       onClick={() => handleDelete(msg.id)}
                     >
-                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      <TrashIcon className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   )}
                 </div>

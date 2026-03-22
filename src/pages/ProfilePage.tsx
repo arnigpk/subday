@@ -4,7 +4,8 @@ import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
-import { User, MapPin, Bell, MessageCircle, FileText, LogOut, ChevronRight, Moon, Sun, Camera, Pencil, Check, X, Copy, Trash2, Volume2, Vibrate, Smartphone } from 'lucide-react';
+import { UserIcon, MapPinIcon, BellIcon, ChatBubbleOvalLeftIcon, DocumentTextIcon, ArrowRightStartOnRectangleIcon, ChevronRightIcon, MoonIcon, SunIcon, CameraIcon, PencilIcon, CheckIcon, XMarkIcon, ClipboardDocumentIcon, TrashIcon, SpeakerWaveIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
+import { Vibrate } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -146,10 +147,10 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
-    { icon: Bell, label: t('profile.notifications'), type: 'notification' as const },
-    { icon: MessageCircle, label: t('profile.support'), type: 'support' as const },
-    { icon: FileText, label: t('profile.rules'), type: 'rules' as const },
+    { icon: MapPinIcon, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
+    { icon: BellIcon, label: t('profile.notifications'), type: 'notification' as const },
+    { icon: ChatBubbleOvalLeftIcon, label: t('profile.support'), type: 'support' as const },
+    { icon: DocumentTextIcon, label: t('profile.rules'), type: 'rules' as const },
   ];
   
   return (
@@ -172,13 +173,13 @@ export default function ProfilePage() {
               <button onClick={handleAvatarClick} className="block">
                 <Avatar className="w-16 h-16 rounded-full cursor-pointer hover:ring-2 hover:ring-accent transition-all">
                   {profile?.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" /> : null}
-                  <AvatarFallback className="bg-primary/10"><User size={32} className="text-primary" /></AvatarFallback>
+                  <AvatarFallback className="bg-primary/10"><UserIcon className="w-8 h-8" className="text-primary" /></AvatarFallback>
                 </Avatar>
               </button>
               <div className="relative">
                 <button onClick={handleCameraClick} disabled={isUploading}
                   className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center shadow-lg transition-transform hover:scale-110">
-                  {isUploading ? <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" /> : <Camera size={14} className="text-accent-foreground" />}
+                  {isUploading ? <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" /> : <CameraIcon className="w-3.5 h-3.5" className="text-accent-foreground" />}
                 </button>
                 {showAvatarMenu && (
                   <>
@@ -186,7 +187,7 @@ export default function ProfilePage() {
                     <div className="absolute left-0 top-full mt-2 z-[101] bg-background/75 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] p-1 animate-slide-up">
                       <button onClick={handleAvatarMenuSelect}
                         className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors whitespace-nowrap">
-                        <Camera size={16} className="text-primary flex-shrink-0" />
+                        <CameraIcon className="w-4 h-4" className="text-primary flex-shrink-0" />
                         <span className="font-medium">{t('profile.changeAvatar')}</span>
                       </button>
                     </div>
@@ -219,14 +220,14 @@ export default function ProfilePage() {
                     <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t('profile.enterName')} maxLength={50}
                       className="w-28 min-w-0 px-2 py-1 bg-secondary rounded-lg text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
                       autoFocus />
-                    <button onClick={handleSaveName} disabled={isSavingName} className="p-1.5 bg-accent text-accent-foreground rounded-lg flex-shrink-0"><Check size={14} /></button>
-                    <button onClick={handleCancelNameEdit} className="p-1.5 bg-secondary text-foreground rounded-lg flex-shrink-0"><X size={14} /></button>
+                    <button onClick={handleSaveName} disabled={isSavingName} className="p-1.5 bg-accent text-accent-foreground rounded-lg flex-shrink-0"><CheckIcon className="w-3.5 h-3.5" /></button>
+                    <button onClick={handleCancelNameEdit} className="p-1.5 bg-secondary text-foreground rounded-lg flex-shrink-0"><XMarkIcon className="w-3.5 h-3.5" /></button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 max-w-full">
                     <h2 className="text-xl font-bold text-foreground truncate max-w-[140px]">{profile?.name || t('profile.user')}</h2>
-                    <button onClick={() => setIsEditingName(true)} className="p-1 text-muted-foreground hover:text-primary transition-colors"><Pencil size={14} /></button>
-                    <button onClick={() => setShowDeleteDialog(true)} className="p-1 text-destructive/60 hover:text-destructive transition-colors"><Trash2 size={14} /></button>
+                    <button onClick={() => setIsEditingName(true)} className="p-1 text-muted-foreground hover:text-primary transition-colors"><PencilIcon className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setShowDeleteDialog(true)} className="p-1 text-destructive/60 hover:text-destructive transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
                   </div>
                 )}
                 <button onClick={() => {
@@ -234,7 +235,7 @@ export default function ProfilePage() {
                   if (value) { navigator.clipboard.writeText(value); toast.success(t('profile.copied')); vibrateShort(); }
                 }} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
                   <span>ID: {profile?.publicId || '...'}</span>
-                  <Copy size={12} className="flex-shrink-0" />
+                  <ClipboardDocumentIcon className="w-3 h-3" className="flex-shrink-0" />
                 </button>
               </>
               )}
@@ -249,7 +250,7 @@ export default function ProfilePage() {
 
           <div className="card-interactive flex items-center justify-between mb-3 animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-3">
-              {isDark ? <Moon size={20} className="text-muted-foreground" /> : <Sun size={20} className="text-muted-foreground" />}
+              {isDark ? <MoonIcon className="w-5 h-5" className="text-muted-foreground" /> : <SunIcon className="w-5 h-5" className="text-muted-foreground" />}
               <span className="font-medium text-foreground">{t('profile.theme')} {isDark ? t('profile.espresso') : t('profile.latte')}</span>
             </div>
             <button onClick={toggleTheme} className="w-12 h-7 rounded-full backdrop-blur-lg border border-border/40 flex items-center p-1 transition-all" style={{ background: 'hsl(var(--background) / 0.5)', boxShadow: 'inset 0 1px 2px hsl(var(--foreground) / 0.06)' }}>
@@ -265,7 +266,7 @@ export default function ProfilePage() {
                   <button key={item.label} onClick={() => setShowNotificationSettings(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -274,7 +275,7 @@ export default function ProfilePage() {
                   <button key={item.label} onClick={handleSupportClick} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -284,7 +285,7 @@ export default function ProfilePage() {
                     <button type="button" className="w-full card-interactive flex items-center gap-3 text-left">
                       <Icon size={20} className="text-muted-foreground" />
                       <span className="flex-1 font-medium text-foreground">{item.label}</span>
-                      <ChevronRight size={18} className="text-muted-foreground" />
+                      <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
                     </button>
                   </ServiceRulesDialog>
                 );
@@ -295,7 +296,7 @@ export default function ProfilePage() {
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     {item.value && <span className="text-sm text-muted-foreground">{item.value}</span>}
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
                   </button>
                 );
               }
@@ -314,7 +315,7 @@ export default function ProfilePage() {
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 
             style={{ animationDelay: '0.25s' }}
           >
-            <LogOut size={20} />
+            <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
             <span className="font-medium">{isLoggingOut ? t('profile.loggingOut') : t('profile.logout')}</span>
           </button>
           
@@ -323,7 +324,7 @@ export default function ProfilePage() {
             <DialogContent className="max-w-sm p-0">
               <DialogHeader className="p-5 pb-0">
                 <DialogTitle className="text-lg font-bold text-destructive flex items-center gap-2">
-                  <Trash2 size={20} />
+                  <TrashIcon className="w-5 h-5" />
                   {t('profile.deleteAccountTitle')}
                 </DialogTitle>
               </DialogHeader>
@@ -374,7 +375,7 @@ export default function ProfilePage() {
             <DialogContent className="max-w-sm rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <Bell size={20} className="text-primary" />
+                  <BellIcon className="w-5 h-5" className="text-primary" />
                   {t('profile.notifications')}
                 </DialogTitle>
               </DialogHeader>
@@ -383,7 +384,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Smartphone size={18} className="text-primary" />
+                      <DevicePhoneMobileIcon className="w-[18px] h-[18px]" className="text-primary" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Push-уведомления</p>
@@ -400,7 +401,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center">
-                      <Volume2 size={18} className="text-accent" />
+                      <SpeakerWaveIcon className="w-[18px] h-[18px]" className="text-accent" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Звук #subFlow</p>

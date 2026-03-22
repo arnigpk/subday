@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, LogIn, Calendar, TrendingUp } from 'lucide-react';
+import { UserPlusIcon, ArrowRightOnRectangleIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 
 interface DashboardStats {
   todayRegistered: number;
@@ -65,25 +65,25 @@ export default function AdminDashboard() {
     { 
       title: 'Сегодня зарегистрировано', 
       value: stats.todayRegistered, 
-      icon: UserPlus,
+      icon: UserPlusIcon,
       color: 'text-blue-500'
     },
     { 
       title: 'Сегодня зашли', 
       value: stats.todayLogins, 
-      icon: LogIn,
+      icon: ArrowRightOnRectangleIcon,
       color: 'text-green-500'
     },
     { 
       title: 'Регистрации за неделю', 
       value: stats.weekRegistered, 
-      icon: Calendar,
+      icon: CalendarIcon,
       color: 'text-purple-500'
     },
     { 
       title: 'Зашли за неделю', 
       value: stats.weekLogins, 
-      icon: TrendingUp,
+      icon: ArrowTrendingUpIcon,
       color: 'text-orange-500'
     },
   ];

@@ -1,16 +1,16 @@
-import { MapPin, Package } from 'lucide-react';
+import { MapPinIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 export function QuickActions() {
   const actions = [
     {
-      icon: MapPin,
+      icon: MapPinIcon,
       label: 'Рядом',
       path: '/shops',
       color: 'bg-primary/10 text-primary',
     },
     {
-      icon: Package,
+      icon: CubeIcon,
       label: 'Подписки',
       path: '/packages',
       color: 'bg-accent/10 text-accent',

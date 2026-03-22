@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, UserX, Clock, UserPlus, UserMinus } from 'lucide-react';
+import { UserGroupIcon, UserIcon, UserMinusIcon, ClockIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 
 export type AudienceType =
   | 'all'
@@ -18,12 +18,12 @@ interface AudienceOption {
 }
 
 const audienceOptions: AudienceOption[] = [
-  { value: 'all', label: 'Все пользователи', description: 'С подпиской и без', icon: <Users className="w-4 h-4" /> },
-  { value: 'subscribers', label: 'С активной подпиской', description: 'Все у кого есть подписка', icon: <UserCheck className="w-4 h-4" /> },
-  { value: 'no_subscription', label: 'Без подписки', description: 'Нет активной подписки', icon: <UserX className="w-4 h-4" /> },
-  { value: 'expiring_soon', label: 'Осталось ≤5 дней', description: 'До конца подписки ≤5 дней', icon: <Clock className="w-4 h-4" /> },
-  { value: 'new_users', label: 'Новые пользователи', description: 'Зарегистрированы за 7 дней', icon: <UserPlus className="w-4 h-4" /> },
-  { value: 'inactive', label: 'Неактивные', description: 'Не заходили 30+ дней', icon: <UserMinus className="w-4 h-4" /> },
+  { value: 'all', label: 'Все пользователи', description: 'С подпиской и без', icon: <UserGroupIcon className="w-4 h-4" /> },
+  { value: 'subscribers', label: 'С активной подпиской', description: 'Все у кого есть подписка', icon: <UserIcon className="w-4 h-4" /> },
+  { value: 'no_subscription', label: 'Без подписки', description: 'Нет активной подписки', icon: <UserMinusIcon className="w-4 h-4" /> },
+  { value: 'expiring_soon', label: 'Осталось ≤5 дней', description: 'До конца подписки ≤5 дней', icon: <ClockIcon className="w-4 h-4" /> },
+  { value: 'new_users', label: 'Новые пользователи', description: 'Зарегистрированы за 7 дней', icon: <UserPlusIcon className="w-4 h-4" /> },
+  { value: 'inactive', label: 'Неактивные', description: 'Не заходили 30+ дней', icon: <UserMinusIcon className="w-4 h-4" /> },
 ];
 
 export { audienceOptions };

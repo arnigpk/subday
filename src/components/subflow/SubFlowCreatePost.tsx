@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
+import { XMarkIcon, PhotoIcon, MapPinIcon, PlusIcon, PlayIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -240,7 +241,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-lg text-foreground">{t('subflow.newPost')}</h2>
         <button onClick={onClose} className="p-1.5 rounded-full text-muted-foreground hover:bg-secondary transition-colors">
-          <X size={18} />
+          <XMarkIcon className="w-[18px] h-[18px]" />
         </button>
       </div>
 
@@ -277,7 +278,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
                       preload="metadata"
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={32} className="text-white/80" fill="white" />
+                      <PlayIcon className="w-8 h-8" className="text-white/80" fill="white" />
                     </div>
                   </div>
                 ) : (
@@ -288,7 +289,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
                   disabled={isCompressing}
                   className="absolute top-1 right-1 p-1 bg-foreground/50 rounded-full text-background disabled:opacity-50"
                 >
-                  <X size={14} />
+                  <XMarkIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
@@ -297,7 +298,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
                 onClick={() => fileInputRef.current?.click()}
                 className="aspect-square border-2 border-dashed border-border rounded-xl flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
               >
-                <Plus size={24} />
+                <PlusIcon className="w-6 h-6" />
               </button>
             )}
           </div>
@@ -310,10 +311,10 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
       {selectedShop && (
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-            <MapPin size={14} />
+            <MapPinIcon className="w-3.5 h-3.5" />
             {selectedShop.name}
             <button onClick={() => setSelectedShop(null)} className="ml-1">
-              <X size={14} />
+              <XMarkIcon className="w-3.5 h-3.5" />
             </button>
           </span>
         </div>
@@ -346,13 +347,13 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
           onClick={() => fileInputRef.current?.click()}
           className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <Image size={22} />
+          <PhotoIcon className="w-[22px] h-[22px]" />
         </button>
         <button
           onClick={() => setShowShopPicker(!showShopPicker)}
           className={`p-2 rounded-lg transition-colors ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
         >
-          <MapPin size={22} />
+          <MapPinIcon className="w-[22px] h-[22px]" />
         </button>
         <div className="relative">
           <button
@@ -364,7 +365,7 @@ export function SubFlowCreatePost({ onClose, onPostCreated }: SubFlowCreatePostP
             disabled={!mediaFiles.some(m => m.type === 'image') || isGeneratingCaption || isSubmitting}
             className={`p-2 rounded-lg transition-colors ${mediaFiles.some(m => m.type === 'image') && !isGeneratingCaption ? 'text-accent hover:bg-accent/10' : 'text-muted-foreground/40'}`}
           >
-            {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <Wand2 size={22} />}
+            {isGeneratingCaption ? <Loader2 size={22} className="animate-spin" /> : <SparklesIcon className="w-[22px] h-[22px]" />}
           </button>
           {showStylePicker && (
             <div className="absolute bottom-full left-0 mb-2 p-1.5 bg-card border border-border rounded-xl shadow-lg min-w-[180px] z-50 animate-slide-up">

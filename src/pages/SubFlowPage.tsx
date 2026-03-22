@@ -15,7 +15,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useAllActiveStories } from '@/hooks/useAllActiveStories';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, ChevronUp, Pencil } from 'lucide-react';
+import { LockClosedIcon, ChevronUpIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import logo from '@/assets/logo.png';
@@ -133,7 +133,7 @@ export default function SubFlowPage() {
             <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
               <div className="text-center px-8 max-w-sm animate-slide-up">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Lock size={32} className="text-primary" />
+                  <LockClosedIcon className="w-8 h-8" className="text-primary" />
                 </div>
                 <h2 className="text-xl font-bold text-foreground mb-2">{t('subflow.locked')}</h2>
                 <p className="text-sm text-muted-foreground mb-6">{t('subflow.lockedDesc')}</p>
@@ -208,7 +208,7 @@ export default function SubFlowPage() {
             boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
           }}
         >
-          <Pencil size={16} />
+          <PencilIcon className="w-4 h-4" />
           {t('subflow.createPost') || 'Сделать пост'}
         </button>
       )}
@@ -223,7 +223,7 @@ export default function SubFlowPage() {
             boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
           }}
         >
-          <ChevronUp size={20} />
+          <ChevronUpIcon className="w-5 h-5" />
         </button>
       )}
 

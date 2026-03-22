@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Coffee, UtensilsCrossed, Clock, Gift } from 'lucide-react';
+import { ClockIcon, GiftIcon } from '@heroicons/react/24/outline';
+import { Coffee, UtensilsCrossed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TabSwitcher } from '../ui/TabSwitcher';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -110,7 +111,7 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
 
       {stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date() && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10">
-          <Gift size={14} className="text-primary" />
+          <GiftIcon className="w-3.5 h-3.5" className="text-primary" />
           <span className="text-xs font-medium text-primary">
             {formatGuestCoffee()}
           </span>
@@ -163,7 +164,7 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
           
           {currentTypeSub?.expires_at && typeDaysRemaining !== null && (
             <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${typeIsExpiringSoon ? 'bg-destructive/10' : 'bg-secondary'}`}>
-              <Clock size={14} className={typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
+              <ClockIcon className="w-3.5 h-3.5" className={typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'} />
               <span className={`text-xs font-medium ${typeIsExpiringSoon ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {t('balance.subscription')}{' '}
                 {formatSubscriptionExpiry(typeDaysRemaining, currentTypeSub.expires_at, language, t('balance.expired'))}

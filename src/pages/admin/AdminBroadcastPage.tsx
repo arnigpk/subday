@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
-import { Send, Users, User, Loader2, Search, MessageSquare, History } from 'lucide-react';
+import { PaperAirplaneIcon, UserGroupIcon, UserIcon, MagnifyingGlassIcon, ChatBubbleLeftIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
@@ -189,7 +190,7 @@ export default function AdminBroadcastPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
+                <ChatBubbleLeftIcon className="w-5 h-5" />
                 Новое сообщение
               </CardTitle>
               <CardDescription>
@@ -225,14 +226,14 @@ export default function AdminBroadcastPage() {
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="all" id="all" />
                     <Label htmlFor="all" className="flex items-center gap-2 cursor-pointer">
-                      <Users className="w-4 h-4" />
+                      <UserGroupIcon className="w-4 h-4" />
                       Всем ({audienceFilteredUsers.length})
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="specific" id="specific" />
                     <Label htmlFor="specific" className="flex items-center gap-2 cursor-pointer">
-                      <User className="w-4 h-4" />
+                      <UserIcon className="w-4 h-4" />
                       Выбранным {selectedUsers.length > 0 && `(${selectedUsers.length})`}
                     </Label>
                   </div>
@@ -252,7 +253,7 @@ export default function AdminBroadcastPage() {
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4 mr-2" />
+                      <PaperAirplaneIcon className="w-4 h-4 mr-2" />
                       Отправить рассылку
                     </>
                   )}
@@ -270,7 +271,7 @@ export default function AdminBroadcastPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
+                  <UserGroupIcon className="w-5 h-5" />
                   Получатели ({filteredUsers.length})
                 </span>
                 {targetType === 'specific' && (
@@ -289,7 +290,7 @@ export default function AdminBroadcastPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Поиск по имени или ID..."
                   value={searchQuery}
@@ -346,7 +347,7 @@ export default function AdminBroadcastPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" />
+              <ClockIcon className="w-5 h-5" />
               История Telegram-рассылок
             </CardTitle>
             <CardDescription>

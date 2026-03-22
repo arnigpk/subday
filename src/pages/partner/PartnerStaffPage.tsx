@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { Loader2, UserPlus, Trash2, Users, Search } from 'lucide-react';
+import { UserPlusIcon, TrashIcon, UserGroupIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -208,7 +209,7 @@ export default function PartnerStaffPage() {
         {/* Add barista section */}
         <div className="bg-card p-4 rounded-xl border border-border space-y-4">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <UserPlus size={18} />
+            <UserPlusIcon className="w-[18px] h-[18px]" />
             Добавить баристу
           </h3>
           
@@ -223,7 +224,7 @@ export default function PartnerStaffPage() {
               {isSearching ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
-                <Search size={18} />
+                <MagnifyingGlassIcon className="w-[18px] h-[18px]" />
               )}
             </Button>
           </div>
@@ -250,7 +251,7 @@ export default function PartnerStaffPage() {
         {/* Baristas list */}
         <div className="space-y-3">
           <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <Users size={18} />
+            <UserGroupIcon className="w-[18px] h-[18px]" />
             Текущие бариста ({baristas.length})
           </h3>
 
@@ -277,7 +278,7 @@ export default function PartnerStaffPage() {
                     onClick={() => setDeleteBarista(barista)}
                     className="text-destructive hover:text-destructive"
                   >
-                    <Trash2 size={18} />
+                    <TrashIcon className="w-[18px] h-[18px]" />
                   </Button>
                 </div>
               ))}

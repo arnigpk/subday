@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Trash2, Pencil, Loader2, Eye, EyeOff, MousePointerClick, Heart, MessageCircle } from 'lucide-react';
+import { TrashIcon, PencilIcon, EyeIcon, EyeSlashIcon, CursorArrowRippleIcon, HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { getCountryFlag } from '@/utils/countries';
 
 const LINK_TYPES = [
@@ -85,16 +86,16 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                     </div>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Eye size={12} /> {stats.views}
+                        <EyeIcon className="w-3 h-3" /> {stats.views}
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MousePointerClick size={12} /> {stats.clicks}
+                        <CursorArrowRippleIcon className="w-3 h-3" /> {stats.clicks}
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Heart size={12} /> {stats.reactions}
+                        <HeartIcon className="w-3 h-3" /> {stats.reactions}
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MessageCircle size={12} /> {stats.comments}
+                        <ChatBubbleOvalLeftIcon className="w-3 h-3" /> {stats.comments}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         CTR: {stats.views > 0 ? ((stats.clicks / stats.views) * 100).toFixed(1) : '0'}%
@@ -111,19 +112,19 @@ export function SubFlowAdsList({ ads, analytics, isLoading, onEdit, onDelete, on
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {onToggleActive && (
                         <button onClick={() => onToggleActive(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
-                          {ad.is_active ? <EyeOff size={16} className="text-muted-foreground" /> : <Eye size={16} className="text-muted-foreground" />}
+                          {ad.is_active ? <EyeSlashIcon className="w-4 h-4" className="text-muted-foreground" /> : <EyeIcon className="w-4 h-4" className="text-muted-foreground" />}
                         </button>
                       )}
                       {onEdit && (
                         <button onClick={() => onEdit(ad)} className="p-2 rounded-full hover:bg-muted transition-colors">
-                          <Pencil size={16} className="text-muted-foreground" />
+                          <PencilIcon className="w-4 h-4" className="text-muted-foreground" />
                         </button>
                       )}
                       {onDelete && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <button className="p-2 rounded-full hover:bg-destructive/10 transition-colors">
-                              <Trash2 size={16} className="text-destructive" />
+                              <TrashIcon className="w-4 h-4" className="text-destructive" />
                             </button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, MapPin } from 'lucide-react';
+import { PlusIcon, XMarkIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface SimpleAddressesEditorProps {
   addresses: string[];
@@ -44,7 +44,7 @@ export function SimpleAddressesEditor({ addresses, onChange, label = 'Адрес
         <div className="space-y-2">
           {addresses.map((address, index) => (
             <div key={index} className="flex items-center gap-2 bg-secondary/50 rounded-lg p-2">
-              <MapPin size={16} className="text-muted-foreground shrink-0" />
+              <MapPinIcon className="w-4 h-4" className="text-muted-foreground shrink-0" />
               <span className="flex-1 text-sm">{address}</span>
               <Button
                 type="button"
@@ -53,7 +53,7 @@ export function SimpleAddressesEditor({ addresses, onChange, label = 'Адрес
                 className="h-6 w-6"
                 onClick={() => handleRemove(index)}
               >
-                <X size={14} />
+                <XMarkIcon className="w-3.5 h-3.5" />
               </Button>
             </div>
           ))}
@@ -76,7 +76,7 @@ export function SimpleAddressesEditor({ addresses, onChange, label = 'Адрес
           onClick={handleAdd}
           disabled={!newAddress.trim()}
         >
-          <Plus size={16} />
+          <PlusIcon className="w-4 h-4" />
         </Button>
       </div>
       

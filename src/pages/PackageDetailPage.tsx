@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift, X } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, CreditCardIcon, SparklesIcon, GiftIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
@@ -126,7 +127,7 @@ export default function PackageDetailPage() {
       <AppLayout>
         <div className="safe-area-top p-4">
           <Link to="/packages" className="flex items-center gap-2 text-muted-foreground mb-4">
-            <ArrowLeft size={20} />
+            <ArrowLeftIcon className="w-5 h-5" />
             {t('packageDetail.back')}
           </Link>
           <p className="text-center text-muted-foreground">{t('packageDetail.notFound')}</p>
@@ -150,7 +151,7 @@ export default function PackageDetailPage() {
       <div className="safe-area-top">
         <div className="px-4 py-4 flex items-center gap-3">
           <Link to="/packages" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <ArrowLeft size={20} className="text-foreground" />
+            <ArrowLeftIcon className="w-5 h-5" className="text-foreground" />
           </Link>
           <h1 className="text-xl font-bold text-foreground">{t('packageDetail.title')}</h1>
         </div>
@@ -166,13 +167,13 @@ export default function PackageDetailPage() {
               </div>
               {hasOffer && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg animate-pulse">
-                  <Gift size={12} />
+                  <GiftIcon className="w-3 h-3" />
                   {offer!.badge_text || '-50%'}
                 </span>
               )}
               {!hasOffer && subscription.badge && (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(subscription.badge, subscription.badge_color)}`}>
-                  <Sparkles size={12} />
+                  <SparklesIcon className="w-3 h-3" />
                   {translatedBadge}
                 </span>
               )}
@@ -224,7 +225,7 @@ export default function PackageDetailPage() {
               {translatedFeatures.map((feature, index) => (
                 <div key={index} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
                   <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
-                    <Check size={14} className="text-accent" />
+                    <CheckIcon className="w-3.5 h-3.5" className="text-accent" />
                   </div>
                   <span className="text-sm font-medium text-foreground">{feature}</span>
                 </div>
@@ -235,7 +236,7 @@ export default function PackageDetailPage() {
                 {translatedExclusions.map((item, index) => (
                   <div key={`excl-${index}`} className="flex items-center gap-3 p-3 bg-destructive/5 rounded-xl">
                     <div className="w-6 h-6 rounded-full bg-destructive/15 flex items-center justify-center">
-                      <X size={14} className="text-destructive" />
+                      <XMarkIcon className="w-3.5 h-3.5" className="text-destructive" />
                     </div>
                     <span className="text-sm font-medium text-destructive/80">{item}</span>
                   </div>
@@ -247,7 +248,7 @@ export default function PackageDetailPage() {
           <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <div className="bg-secondary rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-muted-foreground mt-0.5" />
+                <InformationCircleIcon className="w-5 h-5" className="text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">{t('packageDetail.howItWorks')}</p>
                   {(() => {
@@ -296,7 +297,7 @@ export default function PackageDetailPage() {
                   </>
                 ) : (
                   <>
-                    <CreditCard className="w-5 h-5 mr-2" />
+                    <CreditCardIcon className="w-5 h-5 mr-2" />
                     {t('packageDetail.subscribeFor')} {formatPrice(displayPrice)}
                   </>
                 )}

@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { ArrowUpTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ShopLogoUploadProps {
@@ -96,12 +97,12 @@ export function ShopLogoUpload({
               onClick={handleRemoveLogo}
               className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
             >
-              <X className="w-3 h-3" />
+              <XMarkIcon className="w-3 h-3" />
             </button>
           </div>
         ) : (
           <div className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted">
-            <Upload className="w-6 h-6 text-muted-foreground" />
+            <ArrowUpTrayIcon className="w-6 h-6 text-muted-foreground" />
           </div>
         )}
         
@@ -128,7 +129,7 @@ export function ShopLogoUpload({
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" />
+                <ArrowUpTrayIcon className="w-4 h-4 mr-2" />
                 {previewUrl ? 'Изменить' : 'Загрузить'}
               </>
             )}

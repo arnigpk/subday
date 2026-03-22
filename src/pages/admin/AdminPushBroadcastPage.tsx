@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/sonner';
-import { Send, Bell, Loader2, History } from 'lucide-react';
+import { PaperAirplaneIcon, BellIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
@@ -75,7 +76,7 @@ export default function AdminPushBroadcastPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
+              <BellIcon className="w-5 h-5" />
               Новое PUSH-уведомление
             </CardTitle>
             <CardDescription>
@@ -127,7 +128,7 @@ export default function AdminPushBroadcastPage() {
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4 mr-2" />
+                    <PaperAirplaneIcon className="w-4 h-4 mr-2" />
                     Отправить PUSH всем
                   </>
                 )}
@@ -150,7 +151,7 @@ export default function AdminPushBroadcastPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" />
+              <ClockIcon className="w-5 h-5" />
               История PUSH-рассылок
             </CardTitle>
             <CardDescription>

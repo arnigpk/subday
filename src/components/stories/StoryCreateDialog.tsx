@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
+import { XMarkIcon, LanguageIcon, PhotoIcon, SparklesIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { toast } from 'sonner';
@@ -302,7 +303,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
               className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
             >
               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <ImageIcon size={24} className="text-white" />
+                <PhotoIcon className="w-6 h-6" className="text-white" />
               </div>
               <span className="text-white text-xs font-medium">Галерея</span>
             </button>
@@ -319,7 +320,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
           {/* Top bar */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2 safe-area-top z-20">
             <button onClick={resetAndClose} className="p-2 text-white active:scale-90 transition-transform">
-              <X size={24} />
+              <XMarkIcon className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-2">
               {mediaType === 'image' && (
@@ -328,13 +329,13 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                     onClick={handleAddText}
                     className={`p-2.5 rounded-full transition-all active:scale-90 ${textOverlay ? 'bg-white/30' : 'bg-white/10'}`}
                   >
-                    <Type size={20} className="text-white" />
+                    <LanguageIcon className="w-5 h-5" className="text-white" />
                   </button>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
                     className={`p-2.5 rounded-full transition-all active:scale-90 ${showFilters ? 'bg-white/30' : 'bg-white/10'}`}
                   >
-                    <Sparkles size={20} className="text-white" />
+                    <SparklesIcon className="w-5 h-5" className="text-white" />
                   </button>
                 </>
               )}
@@ -462,7 +463,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
               }}
               className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
             >
-              <ImageIcon size={20} className="text-white" />
+              <PhotoIcon className="w-5 h-5" className="text-white" />
             </button>
             <button
               onClick={handleUpload}
@@ -477,7 +478,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                 <Loader2 size={18} className="animate-spin" />
               ) : (
                 <>
-                  <Pencil size={16} />
+                  <PencilIcon className="w-4 h-4" />
                   <span>Опубликовать</span>
                 </>
               )}

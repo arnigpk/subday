@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,7 +83,7 @@ export function TopShopsCarousel() {
           <h2 className="text-lg font-bold text-foreground">{t('home.nearbyShops')}</h2>
           <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
             {t('home.all')}
-            <ChevronRight size={16} />
+            <ChevronRightIcon className="w-4 h-4" />
           </Link>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
@@ -106,7 +106,7 @@ export function TopShopsCarousel() {
         <h2 className="text-lg font-bold text-foreground">{t('home.nearbyShops')}</h2>
         <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
           {t('home.all')}
-          <ChevronRight size={16} />
+          <ChevronRightIcon className="w-4 h-4" />
         </Link>
       </div>
       

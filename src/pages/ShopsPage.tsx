@@ -3,7 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
+import { ClockIcon } from '@heroicons/react/24/outline';
+import { MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
@@ -34,7 +35,7 @@ interface Shop {
 function ShopStatusBadge({ isOpen, t }: { isOpen: boolean; t: (key: string) => string }) {
   return (
     <div className="flex items-center gap-1">
-      <Clock size={12} className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
+      <ClockIcon className="w-3 h-3" className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
       <span className={`text-xs font-medium ${isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
         {isOpen ? t('shops.open') : t('shops.closed')}
       </span>

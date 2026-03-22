@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
+import { UserIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/integrations/supabase/client';
 import { StoryViewer } from './StoryViewer';
 import { useStoriesCache } from '@/hooks/useStoriesCache';
@@ -86,7 +86,7 @@ export const StoryAvatar = memo(function StoryAvatar({
             <AvatarImage src={userAvatar} alt={userName} className="object-cover" />
           ) : null}
           <AvatarFallback className="bg-primary/10">
-            <User size={size === 'lg' ? 24 : size === 'md' ? 20 : 14} className="text-primary" />
+            <UserIcon size={size === 'lg' ? 24 : size === 'md' ? 20 : 14} className="text-primary" />
           </AvatarFallback>
         </Avatar>
         
