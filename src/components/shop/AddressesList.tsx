@@ -106,7 +106,12 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
               return (
                 <div key={index} className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isClosest ? "bg-green-600" : "bg-primary/50")} />
+                    {(() => {
+                      const addrHours = getHoursForIndex(index) || shopWorkingHours;
+                      const addrOpen = addrHours ? isShopOpen(addrHours) : false;
+                      const dotColor = isClosest ? (addrOpen ? "bg-green-600" : "bg-destructive") : (addrOpen ? "bg-primary/50" : "bg-destructive");
+                      return <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />;
+                    })()}
                     <span className={cn(
                       isClosest ? 'text-green-700 dark:text-green-500 font-medium' : 'text-foreground',
                       variant === 'compact' ? 'text-xs' : 'text-sm'

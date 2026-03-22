@@ -31,8 +31,7 @@ interface Shop {
   coordinates: unknown;
 }
 
-function ShopStatusBadge({ openHours, t }: { openHours: string; t: (key: string) => string }) {
-  const isOpen = isShopOpen(openHours);
+function ShopStatusBadge({ isOpen, t }: { isOpen: boolean; t: (key: string) => string }) {
   return (
     <div className="flex items-center gap-1">
       <Clock size={12} className={isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'} />
@@ -199,7 +198,7 @@ export default function ShopsPage() {
                                   <span className="text-xs text-muted-foreground">{shop.city}</span>
                                 </div>
                               )}
-                              {shop.working_hours && <ShopStatusBadge openHours={shop.working_hours} t={t} />}
+                              <ShopStatusBadge isOpen={shop.isCurrentlyOpen} t={t} />
                               {shop.allBadges.length > 0 && (
                                 <div onClick={(e) => e.preventDefault()}>
                                   <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
