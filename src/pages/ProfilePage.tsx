@@ -173,7 +173,7 @@ export default function ProfilePage() {
               <button onClick={handleAvatarClick} className="block">
                 <Avatar className="w-16 h-16 rounded-full cursor-pointer hover:ring-2 hover:ring-accent transition-all">
                   {profile?.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt="Avatar" className="object-cover" /> : null}
-                  <AvatarFallback className="bg-primary/10"><User size={32} className="text-primary" /></AvatarFallback>
+                  <AvatarFallback className="bg-primary/10"><IconUser size={32} className="text-primary" /></AvatarFallback>
                 </Avatar>
               </button>
               <div className="relative">
