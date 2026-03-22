@@ -296,7 +296,7 @@ export default function ProfilePage() {
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     {item.value && <span className="text-sm text-muted-foreground">{item.value}</span>}
-                    <ChevronRight size={18} className="text-muted-foreground" />
+                    <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
                 );
               }
