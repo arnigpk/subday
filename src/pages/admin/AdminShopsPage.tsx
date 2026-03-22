@@ -187,7 +187,7 @@ export default function AdminShopsPage() {
       addressesWithCoords: [],
       country: 'KZ',
       city: 'Атырау',
-      working_hours: '09:00-21:00',
+      working_hours: '',
       is_active: true,
       logo_url: null,
       gallery_urls: [],
