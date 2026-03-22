@@ -106,7 +106,7 @@ export default function AdminShopsPage() {
     addressesWithCoords: [] as AddressWithCoords[],
     country: 'KZ',
     city: 'Атырау',
-    working_hours: '09:00-21:00',
+    working_hours: '',
     is_active: true,
     logo_url: null as string | null,
     gallery_urls: [] as string[],
