@@ -18,7 +18,8 @@ import {
   Zap,
   Loader,
   Megaphone,
-  QrCode
+  QrCode,
+  MessageSquareText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
