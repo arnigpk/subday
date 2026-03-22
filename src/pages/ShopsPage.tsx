@@ -103,7 +103,7 @@ export default function ShopsPage() {
     })
     .map(shop => ({
       ...shop,
-      isCurrentlyOpen: shop.working_hours ? isShopOpen(shop.working_hours) : false,
+      isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, Array.isArray(shop.coordinates) ? shop.coordinates as any : null),
       allBadges: getShopBadges(shop),
       isSpecialty: hasSpecialtyBadge(shop),
     })), [shops, userCountry, userCity]);

@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGeolocation } from './useGeolocation';
+import { isShopOpen } from '@/utils/shopHours';
 
 export interface ShopDistance {
-  distance: number | null; // meters (straight-line)
-  duration: number | null; // estimated walking seconds
+  distance: number | null;
+  duration: number | null;
   closestAddressIndex: number;
 }
 
@@ -19,11 +20,13 @@ export interface UseShopDistancesResult {
 export interface Coordinate {
   lat: number;
   lng: number;
+  working_hours?: string;
 }
 
 interface ShopWithCoords {
   id: string;
   coordinates: Coordinate[];
+  shopWorkingHours?: string | null;
 }
 
 // Haversine formula for straight-line distance
@@ -43,20 +46,29 @@ function calcHaversineDistances(
   const result = new Map<string, ShopDistance>();
   for (const shop of shops) {
     if (!shop.coordinates?.length) continue;
-    let minDist = Infinity;
-    let bestIdx = 0;
+
+    const addressDistances: Array<{ idx: number; dist: number; isOpen: boolean }> = [];
     shop.coordinates.forEach((coord, idx) => {
       if (!coord?.lat || !coord?.lng) return;
       const d = haversineDistance(userLat, userLng, coord.lat, coord.lng);
-      if (d < minDist) { minDist = d; bestIdx = idx; }
+      const hours = coord.working_hours?.trim() || shop.shopWorkingHours || null;
+      const open = hours ? isShopOpen(hours) : false;
+      addressDistances.push({ idx, dist: d, isOpen: open });
     });
-    if (minDist < Infinity) {
-      result.set(shop.id, {
-        distance: Math.round(minDist),
-        duration: Math.round(minDist / 1.4),
-        closestAddressIndex: bestIdx,
-      });
-    }
+
+    if (addressDistances.length === 0) continue;
+
+    // Prefer nearest OPEN address; if none open, use nearest overall
+    const openAddresses = addressDistances.filter(a => a.isOpen);
+    const candidates = openAddresses.length > 0 ? openAddresses : addressDistances;
+    candidates.sort((a, b) => a.dist - b.dist);
+    const best = candidates[0];
+
+    result.set(shop.id, {
+      distance: Math.round(best.dist),
+      duration: Math.round(best.dist / 1.4),
+      closestAddressIndex: best.idx,
+    });
   }
   return result;
 }
