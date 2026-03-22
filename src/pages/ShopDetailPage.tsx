@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink } from 'lucide-react';
+import { isAnyAddressOpen } from '@/utils/shopHours';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
@@ -55,6 +56,7 @@ export default function ShopDetailPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const shopStatus = useShopStatus(shop?.working_hours || '');
+  const isCurrentlyOpen = shop ? isAnyAddressOpen(shop.working_hours, parseCoordinates(shop.coordinates)) : false;
   const { t } = useLanguage();
   const translatedDescription = useAutoTranslate(shop?.description);
 
@@ -106,10 +108,10 @@ export default function ShopDetailPage() {
       <div className="px-4 space-y-4">
         <div className="card-static animate-slide-up">
           <div className="flex items-center justify-between gap-4 mb-3">
-            <div className={`flex items-center gap-1 ${shopStatus.isOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
+             <div className={`flex items-center gap-1 ${isCurrentlyOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
               <Clock size={12} />
               <span className="text-xs font-medium">
-                {shopStatus.isOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt}`}
+                {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt}`}
               </span>
             </div>
             {getShopBadges(shop).length > 0 && <ShopBadgesList badges={getShopBadges(shop)} maxVisible={3} />}
@@ -199,8 +201,8 @@ export default function ShopDetailPage() {
         </div>
         
         <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <button onClick={handleRedeem} disabled={!shopStatus.isOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
-            {!shopStatus.isOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
+          <button onClick={handleRedeem} disabled={!isCurrentlyOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
+            {!isCurrentlyOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
           </button>
         </div>
       </div>
