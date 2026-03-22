@@ -12,7 +12,7 @@ import { AudienceTypeSelector, type AudienceType } from '@/components/admin/Audi
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, MessageSquare, Clock, Eye, EyeOff, BarChart3, Users, MousePointerClick } from 'lucide-react';
+import { PlusIcon, TrashIcon, ChatBubbleLeftIcon, ClockIcon, EyeIcon, EyeSlashIcon, ChartBarIcon, UserGroupIcon, CursorArrowRippleIcon } from '@heroicons/react/24/outline';;
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { audienceOptions } from '@/components/admin/AudienceTypeSelector';
@@ -158,7 +158,7 @@ export default function AdminMessagesPage() {
         {/* Only superadmin can create messages */}
         {isSuperAdmin && (
           <Button onClick={() => setShowForm(!showForm)} className="gap-2">
-            <Plus className="w-4 h-4" />
+            <PlusIcon className="w-4 h-4" />
             Новое сообщение
           </Button>
         )}
@@ -250,7 +250,7 @@ export default function AdminMessagesPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                          <ChatBubbleLeftIcon className="w-4 h-4 text-primary shrink-0" />
                           <Badge variant={msg.is_active ? 'default' : 'secondary'}>
                             {msg.is_active ? 'Активно' : 'Неактивно'}
                           </Badge>
@@ -264,15 +264,15 @@ export default function AdminMessagesPage() {
                         {stats && (
                           <div className="flex flex-wrap gap-3 text-xs">
                             <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                              <Eye className="w-3.5 h-3.5" />
+                              <EyeIcon className="w-3.5 h-3.5" />
                               {stats.totalViews} просм.
                             </span>
                             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                              <Users className="w-3.5 h-3.5" />
+                              <UserGroupIcon className="w-3.5 h-3.5" />
                               {stats.uniqueViews} уник.
                             </span>
                             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                              <MousePointerClick className="w-3.5 h-3.5" />
+                              <CursorArrowRippleIcon className="w-3.5 h-3.5" />
                               {stats.dismissals} закр.
                             </span>
                           </div>
@@ -282,7 +282,7 @@ export default function AdminMessagesPage() {
                           <span>👥 {getAudienceLabel(msg.audience_types)}</span>
                           {msg.scheduled_at && (
                             <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
+                              <ClockIcon className="w-3 h-3" />
                               {format(new Date(msg.scheduled_at), 'dd MMM yyyy HH:mm', { locale: ru })}
                             </span>
                           )}
@@ -299,7 +299,7 @@ export default function AdminMessagesPage() {
                             onClick={() => toggleActive(msg)}
                             title={msg.is_active ? 'Деактивировать' : 'Активировать'}
                           >
-                            {msg.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {msg.is_active ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                           </Button>
                           <Button
                             variant="ghost"
@@ -307,7 +307,7 @@ export default function AdminMessagesPage() {
                             onClick={() => deleteMessage(msg.id)}
                             className="text-destructive hover:text-destructive"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <TrashIcon className="w-4 h-4" />
                           </Button>
                         </div>
                       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';;
 
 export interface Country {
   code: string;
@@ -101,7 +101,7 @@ export function CountryCodePicker({ selectedCountry, onSelect }: CountryCodePick
       >
         <span className="text-base">{selectedCountry.flag}</span>
         <span>+{selectedCountry.dialCode}</span>
-        <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+        <ChevronDownIcon className="w-3 h-3 text-muted-foreground shrink-0" />
       </button>
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 min-w-[200px] overflow-hidden">

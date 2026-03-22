@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, SparklesIcon, ChevronDownIcon, MapPinIcon, ClockIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { Loader2, Coffee, UtensilsCrossed } from 'lucide-react';;
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -341,7 +342,7 @@ export default function RedeemPage() {
         <div className="min-h-screen safe-area-top safe-area-bottom flex flex-col">
           <div className="px-4 py-4 flex items-center gap-3">
             <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-              <ArrowLeft size={20} className="text-foreground" />
+              <ArrowLeftIcon className="w-5 h-5" className="text-foreground" />
             </Link>
           </div>
           <div className="flex-1 flex items-center justify-center px-4">
@@ -361,7 +362,7 @@ export default function RedeemPage() {
       <div className="min-h-screen safe-area-top safe-area-bottom flex flex-col">
         <div className="px-4 py-4 flex items-center gap-3">
           <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <ArrowLeft size={20} className="text-foreground" />
+            <ArrowLeftIcon className="w-5 h-5" className="text-foreground" />
           </Link>
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">{t('redeem.pickingUp')}</p>
@@ -376,7 +377,7 @@ export default function RedeemPage() {
                       </span>
                     )}
                   </span>
-                  <ChevronDown size={16} className="shrink-0" />
+                  <ChevronDownIcon className="w-4 h-4" className="shrink-0" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50">
@@ -404,20 +405,20 @@ export default function RedeemPage() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {shop.address && (
                           <span className="truncate flex items-center gap-1">
-                            <MapPin size={10} />
+                            <MapPinIcon className="w-[10px] h-[10px]" />
                             {shop.address}
                           </span>
                         )}
                         {shop.working_hours && (
                           <span className="shrink-0 flex items-center gap-1">
-                            <Clock size={10} />
+                            <ClockIcon className="w-[10px] h-[10px]" />
                             {shop.working_hours}
                           </span>
                         )}
                       </div>
                     </div>
                     {selectedShop?.id === shop.id && (
-                      <Check size={16} className="text-accent shrink-0" />
+                      <CheckIcon className="w-4 h-4" className="text-accent shrink-0" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -465,7 +466,7 @@ export default function RedeemPage() {
                   <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
                 ) : selectedShop && !selectedShop.isCurrentlyOpen ? (
                   <div className="text-center p-4">
-                    <Clock size={48} className="text-destructive mx-auto mb-3" />
+                    <ClockIcon className="w-12 h-12" className="text-destructive mx-auto mb-3" />
                     <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
                     <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
                   </div>
@@ -533,12 +534,12 @@ export default function RedeemPage() {
                 </div>
               )}
               <div className="w-full max-w-[256px] aspect-square bg-accent rounded-3xl shadow-glow flex items-center justify-center mb-6 mx-auto">
-                <Check size={100} className="text-accent-foreground" strokeWidth={3} />
+                <CheckIcon className="w-[100px] h-[100px]" className="text-accent-foreground" />
               </div>
               <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
               <p className="text-sm text-muted-foreground mb-2 px-2 break-words">{t('redeem.enjoy')}, {selectedShop?.name}!</p>
               <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-4">
-                <Sparkles size={16} />
+                <SparklesIcon className="w-4 h-4" />
                 +10 {t('bonuses.points')}
               </div>
               <div className="mt-8">

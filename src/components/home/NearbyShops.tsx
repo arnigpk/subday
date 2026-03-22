@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -114,7 +115,7 @@ export function TopShopsByVisits() {
         <h2 className="text-lg font-bold text-foreground">{t('home.topByVisits')}</h2>
         <Link to="/shops" className="text-sm font-semibold text-accent flex items-center gap-1">
           {t('home.all')}
-          <ChevronRight size={16} />
+          <ChevronRightIcon className="w-4 h-4" />
         </Link>
       </div>
       

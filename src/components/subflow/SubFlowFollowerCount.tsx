@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Users } from 'lucide-react';
+import { UserGroupIcon } from '@heroicons/react/24/outline';;
 import {
   Popover,
   PopoverContent,
@@ -70,7 +70,7 @@ export function SubFlowFollowerCount({ userId }: SubFlowFollowerCountProps) {
     <Popover>
       <PopoverTrigger asChild>
         <button className="relative flex items-center gap-1 px-2 py-2 rounded-full hover:bg-secondary transition-colors">
-          <Users size={20} className="text-foreground" />
+          <UserGroupIcon className="w-5 h-5" className="text-foreground" />
           <span className="text-xs font-semibold text-foreground">{count}</span>
         </button>
       </PopoverTrigger>

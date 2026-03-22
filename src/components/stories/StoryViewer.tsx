@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Heart, Eye, Trash2, ChevronDown, User } from 'lucide-react';
+import { XMarkIcon, HeartIcon, EyeIcon, TrashIcon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline';;
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -451,7 +451,7 @@ export function StoryViewer(props: StoryViewerProps) {
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10 ring-2 ring-white/50">
               {currentUser.avatar ? <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" /> : null}
-              <AvatarFallback className="bg-white/20"><User size={16} className="text-white" /></AvatarFallback>
+              <AvatarFallback className="bg-white/20"><UserIcon className="w-4 h-4" className="text-white" /></AvatarFallback>
             </Avatar>
             <div>
               <p className="text-white font-medium text-sm drop-shadow-md">{currentUser.name}</p>
@@ -461,12 +461,12 @@ export function StoryViewer(props: StoryViewerProps) {
             </div>
           </div>
           <button onClick={doClose} className="p-2 text-white/80 hover:text-white drop-shadow-md z-30">
-            <X size={24} />
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 safe-area-top">
-          <ChevronDown size={18} className="text-white/40 animate-bounce" />
+          <ChevronDownIcon className="w-[18px] h-[18px]" className="text-white/40 animate-bounce" />
         </div>
 
         {isVideo ? (
@@ -509,11 +509,11 @@ export function StoryViewer(props: StoryViewerProps) {
                       <Avatar className="w-8 h-8">
                         {v.avatar_url ? <AvatarImage src={v.avatar_url} className="object-cover" /> : null}
                         <AvatarFallback className="bg-white/10 text-white text-xs">
-                          <User size={14} />
+                          <UserIcon className="w-3.5 h-3.5" />
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-white text-sm flex-1 truncate flex items-center gap-1.5">
-                        {v.has_liked && <Heart size={12} className="fill-red-500 text-red-500 shrink-0" />}
+                        {v.has_liked && <HeartIcon className="w-3 h-3" className="fill-red-500 text-red-500 shrink-0" />}
                         {v.name}
                       </span>
                       <span className="text-white/40 text-xs">
@@ -530,12 +530,12 @@ export function StoryViewer(props: StoryViewerProps) {
             {isOwner ? (
               <div className="flex flex-col items-center gap-3">
                 <button onClick={toggleViewers} className="flex items-center gap-2 text-white/80">
-                  <Eye size={20} />
+                  <EyeIcon className="w-5 h-5" />
                   <span className="text-sm font-medium">{viewCount} просмотров</span>
                   {likesCount > 0 && (
                     <>
                       <span className="mx-2">•</span>
-                      <Heart size={18} className="fill-red-500 text-red-500" />
+                      <HeartIcon className="w-[18px] h-[18px]" className="fill-red-500 text-red-500" />
                       <span className="text-sm font-medium">{likesCount}</span>
                     </>
                   )}
@@ -545,7 +545,7 @@ export function StoryViewer(props: StoryViewerProps) {
                   disabled={isDeleting}
                   className="flex items-center gap-2 px-4 py-2 bg-destructive/20 text-destructive rounded-full text-sm font-medium hover:bg-destructive/30 transition-colors"
                 >
-                  <Trash2 size={16} />
+                  <TrashIcon className="w-4 h-4" />
                   <span>{isDeleting ? 'Удаление...' : 'Удалить'}</span>
                 </button>
               </div>
@@ -557,7 +557,7 @@ export function StoryViewer(props: StoryViewerProps) {
                     hasLiked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
-                  <Heart size={22} className={hasLiked ? 'fill-red-500' : ''} />
+                  <HeartIcon className="w-[22px] h-[22px]" className={hasLiked ? 'fill-red-500' : ''} />
                 </button>
               </div>
             )}

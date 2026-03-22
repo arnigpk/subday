@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, User } from 'lucide-react';
+import { PlusIcon, UserIcon } from '@heroicons/react/24/outline';;
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAllActiveStories, StoryUser } from '@/hooks/useAllActiveStories';
 import { StoryCreateDialog } from './StoryCreateDialog';
@@ -89,7 +89,7 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
                     <AvatarImage src={currentUserAvatar} alt="You" className="object-cover" />
                   ) : null}
                   <AvatarFallback className="bg-muted">
-                    <User size={24} className="text-muted-foreground" />
+                    <UserIcon className="w-6 h-6" className="text-muted-foreground" />
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -98,7 +98,7 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
               onClick={(e) => { e.stopPropagation(); handleAddStory(); }}
               className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
             >
-              <Plus size={12} className="text-primary-foreground" />
+              <PlusIcon className="w-3 h-3" className="text-primary-foreground" />
             </button>
           </div>
           <span className="text-[10px] text-muted-foreground max-w-[60px] truncate text-center">
@@ -123,7 +123,7 @@ export function StoriesBar({ currentUserId, currentUserName, currentUserAvatar, 
                     <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
                   ) : null}
                   <AvatarFallback className="bg-muted">
-                    <User size={24} className="text-muted-foreground" />
+                    <UserIcon className="w-6 h-6" className="text-muted-foreground" />
                   </AvatarFallback>
                 </Avatar>
               </div>

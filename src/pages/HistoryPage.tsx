@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText } from 'lucide-react';
+import { GiftIcon, CreditCardIcon, SparklesIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { Coffee, UtensilsCrossed } from 'lucide-react';;
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -130,7 +131,7 @@ export default function HistoryPage() {
                       const isGuestCoffee = item.drinkName.startsWith('Гостевой кофе');
                       if (isGuestGrant || isGuestCoffee) return (
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
-                          <Gift size={24} className="text-primary" />
+                          <GiftIcon className="w-6 h-6" className="text-primary" />
                         </div>
                       );
                       return (
@@ -180,7 +181,7 @@ export default function HistoryPage() {
                 {transactions.map((tx, index) => (
                   <div key={tx.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tx.is_special_offer ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
-                      {tx.is_special_offer ? <Sparkles size={24} className="text-amber-500" /> : <CreditCard size={24} className="text-primary" />}
+                      {tx.is_special_offer ? <SparklesIcon className="w-6 h-6" className="text-amber-500" /> : <CreditCardIcon className="w-6 h-6" className="text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-foreground truncate">{tx.subscription_name}</p>
@@ -209,7 +210,7 @@ export default function HistoryPage() {
                           className="mt-0.5 p-1.5 rounded-lg hover:bg-primary/10 transition-colors active:scale-95"
                           title="Чек"
                         >
-                          <FileText size={16} className="text-primary" />
+                          <DocumentTextIcon className="w-4 h-4" className="text-primary" />
                         </button>
                       )}
                     </div>

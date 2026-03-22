@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
-import { X } from 'lucide-react';
+import { XMarkIcon } from '@heroicons/react/24/outline';;
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AppMessage {
@@ -146,7 +146,7 @@ export function AppMessageBanner() {
             className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-muted/60 transition-colors text-muted-foreground"
             aria-label="Закрыть"
           >
-            <X className="w-4 h-4" />
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
       </motion.div>

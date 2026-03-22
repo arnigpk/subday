@@ -6,7 +6,7 @@ import { ServiceRulesDialog } from './ServiceRulesDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';;
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RegisterScreenProps {
@@ -180,7 +180,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                     <span className={city ? 'text-foreground' : 'text-muted-foreground'}>
                       {city || t('auth.cityPlaceholder')}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
                   </button>
                   {cityOpen && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">

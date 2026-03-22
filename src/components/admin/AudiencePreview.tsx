@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserGroupIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 import { Button } from '@/components/ui/button';
 import type { AudienceType } from './AudienceTypeSelector';
 
@@ -115,7 +116,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
     <div className="p-3 bg-muted rounded-lg border border-border space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" />
+          <UserGroupIcon className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">
             Получателей: <Badge variant="secondary" className="ml-1">{filteredUsers.length}</Badge>
           </span>
@@ -126,7 +127,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
           onClick={() => setShowList(!showList)}
           className="h-7 px-2 text-xs"
         >
-          {showList ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+          {showList ? <ChevronUpIcon className="w-3 h-3 mr-1" /> : <ChevronDownIcon className="w-3 h-3 mr-1" />}
           {showList ? 'Скрыть' : 'Показать список'}
         </Button>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sparkles, Zap, Crown, X } from 'lucide-react';
+import { SparklesIcon, BoltIcon, TrophyIcon, XMarkIcon } from '@heroicons/react/24/outline';;
 import { cn } from '@/lib/utils';
 
 export interface SubscriptionBadgeData {
@@ -16,10 +16,10 @@ interface SubscriptionBadgeEditorProps {
 }
 
 const PRESET_BADGES = [
-  { value: 'Хит', icon: Sparkles, color: 'green' },
-  { value: 'Выгодно', icon: Zap, color: 'green' },
-  { value: 'Максимум', icon: Crown, color: 'amber' },
-  { value: 'Новинка', icon: Sparkles, color: 'blue' },
+  { value: 'Хит', icon: SparklesIcon, color: 'green' },
+  { value: 'Выгодно', icon: BoltIcon, color: 'green' },
+  { value: 'Максимум', icon: TrophyIcon, color: 'amber' },
+  { value: 'Новинка', icon: SparklesIcon, color: 'blue' },
 ];
 
 const COLOR_OPTIONS = [
@@ -153,7 +153,7 @@ export function SubscriptionBadgeEditor({ badge, badgeColor, onChange }: Subscri
               onClick={handleClear}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              <X size={14} />
+              <XMarkIcon className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -188,7 +188,7 @@ export function SubscriptionBadgeEditor({ badge, badgeColor, onChange }: Subscri
             'inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full',
             getSubscriptionBadgeStyle(customText, selectedColor)
           )}>
-            <Sparkles size={10} />
+            <SparklesIcon className="w-[10px] h-[10px]" />
             {customText}
           </span>
         </div>

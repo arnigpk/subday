@@ -5,7 +5,8 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
-import { Loader2, Save, QrCode } from 'lucide-react';
+import { CheckIcon, QrCodeIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 
 interface QRSetting {
   id: string;
@@ -112,7 +113,7 @@ export default function AdminQRSettingsPage() {
         {/* QR Text Settings */}
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
-            <QrCode size={20} /> Тексты вокруг QR-кода
+            <QrCodeIcon className="w-5 h-5" /> Тексты вокруг QR-кода
           </h3>
           <div className="space-y-4">
             {Object.entries(SETTING_LABELS).map(([key, label]) => (
@@ -155,7 +156,7 @@ export default function AdminQRSettingsPage() {
 
         {canManage && (
           <Button onClick={handleSave} disabled={isSaving} className="w-full">
-            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckIcon className="w-4 h-4 mr-2" />}
             Сохранить настройки
           </Button>
         )}

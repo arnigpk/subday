@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot } from 'lucide-react';
+import { PlusIcon, PencilIcon, TrashIcon, BellIcon, PaperAirplaneIcon, BoltIcon, HeartIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, DocumentTextIcon, ArrowRightOnRectangleIcon, CreditCardIcon, DevicePhoneMobileIcon, CpuChipIcon } from '@heroicons/react/24/outline';;
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -238,31 +238,31 @@ export default function AdminAutoNotificationsPage() {
 
   const getTriggerIcon = (triggerType: string) => {
     switch (triggerType) {
-      case 'subflow_reaction': return <Heart className="w-4 h-4 text-red-500" />;
-      case 'subflow_comment': return <MessageCircle className="w-4 h-4 text-blue-500" />;
-      case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
-      case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
-      case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
+      case 'subflow_reaction': return <HeartIcon className="w-4 h-4 text-red-500" />;
+      case 'subflow_comment': return <ChatBubbleOvalLeftIcon className="w-4 h-4 text-blue-500" />;
+      case 'subflow_follow': return <UserPlusIcon className="w-4 h-4 text-green-500" />;
+      case 'subflow_new_post': return <DocumentTextIcon className="w-4 h-4 text-purple-500" />;
+      case 'subflow_story_like': return <HeartIcon className="w-4 h-4 text-pink-500" />;
       case 'admin_login_sms':
-      case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
+      case 'admin_register_sms': return <DevicePhoneMobileIcon className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
-      case 'admin_register_whatsapp': return <MessageCircle className="w-4 h-4 text-green-500" />;
+      case 'admin_register_whatsapp': return <ChatBubbleOvalLeftIcon className="w-4 h-4 text-green-500" />;
       case 'admin_login_miniapp':
-      case 'admin_register_miniapp': return <Bot className="w-4 h-4 text-blue-400" />;
+      case 'admin_register_miniapp': return <CpuChipIcon className="w-4 h-4 text-blue-400" />;
       case 'admin_login_telegram':
-      case 'admin_register_telegram': return <Send className="w-4 h-4 text-sky-500" />;
+      case 'admin_register_telegram': return <PaperAirplaneIcon className="w-4 h-4 text-sky-500" />;
       case 'admin_payment':
-      case 'admin_payment_special': return <CreditCard className="w-4 h-4 text-emerald-500" />;
+      case 'admin_payment_special': return <CreditCardIcon className="w-4 h-4 text-emerald-500" />;
       default: return null;
     }
   };
 
   const getChannelIcon = (channel: string) => {
     switch (channel) {
-      case 'telegram': return <Send className="w-4 h-4 text-blue-500" />;
-      case 'push': return <Bell className="w-4 h-4 text-amber-500" />;
-      case 'both': return <Zap className="w-4 h-4 text-purple-500" />;
-      default: return <Bell className="w-4 h-4" />;
+      case 'telegram': return <PaperAirplaneIcon className="w-4 h-4 text-blue-500" />;
+      case 'push': return <BellIcon className="w-4 h-4 text-amber-500" />;
+      case 'both': return <BoltIcon className="w-4 h-4 text-purple-500" />;
+      default: return <BellIcon className="w-4 h-4" />;
     }
   };
 
@@ -302,7 +302,7 @@ export default function AdminAutoNotificationsPage() {
           <CardContent>
             {canManage && (
               <Button onClick={openCreate} className="gap-2 mb-4">
-                <Plus size={16} /> Добавить шаблон
+                <PlusIcon className="w-4 h-4" /> Добавить шаблон
               </Button>
             )}
 
@@ -312,7 +312,7 @@ export default function AdminAutoNotificationsPage() {
               </div>
             ) : standardTemplates.length === 0 && subflowTemplates.length === 0 && adminTemplates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <BellIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Нет шаблонов</p>
               </div>
             ) : (
@@ -350,7 +350,7 @@ export default function AdminAutoNotificationsPage() {
           <CardContent>
             {subflowTemplates.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <ChatBubbleOvalLeftIcon className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p className="text-sm mb-3">Нет шаблонов #subFlow</p>
               </div>
             ) : (
@@ -376,7 +376,7 @@ export default function AdminAutoNotificationsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-sky-500" />
+              <CpuChipIcon className="w-5 h-5 text-sky-500" />
               <span>Уведомления админ-бота</span>
             </CardTitle>
             <CardDescription>
@@ -387,7 +387,7 @@ export default function AdminAutoNotificationsPage() {
           <CardContent>
             {adminTemplates.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Bot className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <CpuChipIcon className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p className="text-sm mb-3">Нет шаблонов админ-бота</p>
               </div>
             ) : (
@@ -575,10 +575,10 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
             <>
               <Switch checked={t.is_active} onCheckedChange={(v) => onToggle(t.id, v)} />
               <Button variant="ghost" size="icon" onClick={() => onEdit(t)}>
-                <Pencil size={16} />
+                <PencilIcon className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)}>
-                <Trash2 size={16} className="text-destructive" />
+                <TrashIcon className="w-4 h-4" className="text-destructive" />
               </Button>
             </>
           )}

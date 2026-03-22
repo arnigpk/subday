@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
+import { XMarkIcon, PhotoIcon, MapPinIcon, PlusIcon, PlayIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -374,7 +375,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                           preload="metadata"
                         />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Play size={32} className="text-white/80" fill="white" />
+                          <PlayIcon className="w-8 h-8" className="text-white/80" fill="white" />
                         </div>
                       </div>
                     ) : (
@@ -385,7 +386,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                       disabled={isCompressing}
                       className="absolute top-1.5 right-1.5 p-1 bg-foreground/60 rounded-full text-background disabled:opacity-50 hover:bg-foreground/80 transition-colors"
                     >
-                      <X size={12} />
+                      <XMarkIcon className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
@@ -394,7 +395,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                     onClick={() => fileInputRef.current?.click()}
                     className="aspect-square border-2 border-dashed border-border/60 rounded-xl flex items-center justify-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
                   >
-                    <Plus size={24} />
+                    <PlusIcon className="w-6 h-6" />
                   </button>
                 )}
               </div>
@@ -407,10 +408,10 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
           {selectedShop && (
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm">
-                <MapPin size={14} />
+                <MapPinIcon className="w-3.5 h-3.5" />
                 {selectedShop.name}
                 <button onClick={() => setSelectedShop(null)} className="ml-1 hover:opacity-70 transition-opacity">
-                  <X size={14} />
+                  <XMarkIcon className="w-3.5 h-3.5" />
                 </button>
               </span>
             </div>
@@ -449,14 +450,14 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             onClick={() => fileInputRef.current?.click()}
             className="flex flex-col items-center gap-0.5 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors min-w-[44px]"
           >
-            <Image size={18} className="sm:w-5 sm:h-5" />
+            <PhotoIcon className="w-[18px] h-[18px]" className="sm:w-5 sm:h-5" />
             <span className="text-[9px] sm:text-[10px] whitespace-nowrap">{t('subflow.hintPhoto')}</span>
           </button>
           <button
             onClick={() => setShowShopPicker(!showShopPicker)}
             className={`flex flex-col items-center gap-0.5 p-1.5 sm:p-2 rounded-xl transition-colors min-w-[44px] ${selectedShop ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
           >
-            <MapPin size={18} className="sm:w-5 sm:h-5" />
+            <MapPinIcon className="w-[18px] h-[18px]" className="sm:w-5 sm:h-5" />
             <span className="text-[9px] sm:text-[10px] whitespace-nowrap">{t('subflow.hintLocation')}</span>
           </button>
           {hasAiAccess && (
@@ -474,7 +475,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
                     : 'text-muted-foreground/40'
                 }`}
               >
-                {isGeneratingCaption ? <Loader2 size={18} className="animate-spin sm:w-5 sm:h-5" /> : <Wand2 size={18} className="sm:w-5 sm:h-5" />}
+                {isGeneratingCaption ? <Loader2 size={18} className="animate-spin sm:w-5 sm:h-5" /> : <SparklesIcon className="w-[18px] h-[18px]" className="sm:w-5 sm:h-5" />}
                 <span className="text-[9px] sm:text-[10px]">AI</span>
               </button>
               {showStylePicker && (

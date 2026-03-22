@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Megaphone, ExternalLink, MessageCircle, Plus } from 'lucide-react';
+import { MegaphoneIcon, ArrowTopRightOnSquareIcon, ChatBubbleOvalLeftIcon, PlusIcon } from '@heroicons/react/24/outline';;
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { supabase } from '@/integrations/supabase/client';
@@ -230,7 +230,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shadow-sm">
-            <Megaphone size={18} className="text-accent" />
+            <MegaphoneIcon className="w-[18px] h-[18px]" className="text-accent" />
           </div>
           <div>
             <p className="text-sm font-bold text-foreground tracking-tight">
@@ -256,7 +256,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
           onClick={handleClick}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[hsl(0,60%,30%)] text-white font-bold text-sm hover:bg-[hsl(0,60%,25%)] active:scale-[0.98] transition-all shadow-sm mb-3"
         >
-          <ExternalLink size={15} />
+          <ArrowTopRightOnSquareIcon className="w-[15px] h-[15px]" />
           {ad.link_type === 'shop' ? 'Перейти в кофейню' :
            ad.link_type === 'instagram' ? 'Открыть Instagram' :
            ad.link_type === 'whatsapp' ? 'Написать в WhatsApp' :
@@ -302,7 +302,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
               <Popover open={adEmojiPickerOpen} onOpenChange={setAdEmojiPickerOpen}>
                 <PopoverTrigger asChild>
                   <button type="button" className="flex items-center justify-center w-9 h-9 rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-all duration-200 active:scale-95">
-                    <Plus size={16} />
+                    <PlusIcon className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-2" side="top" align="center">
@@ -339,7 +339,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
-        <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
+        <ChatBubbleOvalLeftIcon className="w-[18px] h-[18px]" className={showComments ? 'fill-primary/20' : ''} />
         <span>
           {commentsCount > 0
             ? `Комментарии (${commentsCount})`

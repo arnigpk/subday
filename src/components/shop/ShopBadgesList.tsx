@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';;
 import { cn } from '@/lib/utils';
 
 export interface ShopBadgeData {
@@ -55,11 +55,11 @@ export function ShopBadgesList({ badges, className, maxVisible = 1 }: ShopBadges
         >
           {isExpanded ? (
             <>
-              Скрыть <ChevronUp size={10} />
+              Скрыть <ChevronUpIcon className="w-[10px] h-[10px]" />
             </>
           ) : (
             <>
-              +{hiddenCount} <ChevronDown size={10} />
+              +{hiddenCount} <ChevronDownIcon className="w-[10px] h-[10px]" />
             </>
           )}
         </button>

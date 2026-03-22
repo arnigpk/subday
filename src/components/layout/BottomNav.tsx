@@ -1,4 +1,5 @@
-import { Home, Coffee, MapPin, Zap, User } from 'lucide-react';
+import { HomeIcon, MapPinIcon, BoltIcon, UserIcon } from '@heroicons/react/24/outline';
+import { Coffee } from 'lucide-react';;
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
@@ -13,11 +14,11 @@ export function BottomNav() {
   const { vibrateShort } = useVibration();
   
   const navItems = [
-    { icon: Home, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
+    { icon: HomeIcon, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
     { icon: Coffee, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
-    { icon: MapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
-    { icon: Zap, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
-    { icon: User, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
+    { icon: MapPinIcon, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
+    { icon: BoltIcon, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
+    { icon: UserIcon, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
   ];
 
   const handleMouseEnter = useCallback((prefetchKey: 'home' | 'packages' | 'shops' | 'subflow' | 'profile') => {

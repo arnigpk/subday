@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, ChevronRight, Check } from 'lucide-react';
+import { MapPinIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline';;
 import { COUNTRY_OPTIONS, getCitiesForCountry, type CountryInfo } from '@/utils/countries';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
@@ -62,7 +62,7 @@ export function CountryCityDialog({ open, onOpenChange, currentCountry, currentC
       <DialogContent className="max-w-sm p-0 overflow-hidden">
         <DialogHeader className="p-5 pb-3">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-            <MapPin size={20} className="text-accent" />
+            <MapPinIcon className="w-5 h-5" className="text-accent" />
             {step === 'country' ? 'Выберите страну' : `Города: ${countryInfo?.flag} ${countryInfo?.name}`}
           </DialogTitle>
         </DialogHeader>
@@ -81,7 +81,7 @@ export function CountryCityDialog({ open, onOpenChange, currentCountry, currentC
               >
                 <span className="text-2xl">{c.flag}</span>
                 <span className="flex-1 font-medium text-foreground">{c.name}</span>
-                <ChevronRight size={18} className="text-muted-foreground" />
+                <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
               </button>
             ))}
           </div>
@@ -106,7 +106,7 @@ export function CountryCityDialog({ open, onOpenChange, currentCountry, currentC
               >
                 <span className="flex-1 font-medium text-foreground">{city}</span>
                 {currentCity === city && currentCountry === selectedCountry && (
-                  <Check size={18} className="text-accent" />
+                  <CheckIcon className="w-[18px] h-[18px]" className="text-accent" />
                 )}
               </button>
             ))}

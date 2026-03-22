@@ -1,6 +1,7 @@
 import { ReactNode, useCallback } from 'react';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { Loader2, ArrowDown } from 'lucide-react';
+import { ArrowDownIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 
 interface PullToRefreshProps {
   children: ReactNode;
@@ -47,8 +48,7 @@ export function PullToRefresh({ children, onRefresh, disabled = false }: PullToR
           {isRefreshing ? (
             <Loader2 size={20} className="text-primary animate-spin" />
           ) : (
-            <ArrowDown 
-              size={20} 
+            <ArrowDownIcon className="w-5 h-5" 
               className={`transition-colors duration-200 ${
                 isReady ? 'text-primary' : 'text-muted-foreground'
               }`}

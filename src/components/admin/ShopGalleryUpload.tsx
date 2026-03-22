@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, X, Loader2, GripVertical } from 'lucide-react';
+import { ArrowUpTrayIcon, XMarkIcon, Bars3Icon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 import { toast } from '@/hooks/use-toast';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 
@@ -145,7 +146,7 @@ export function ShopGalleryUpload({
                     onClick={() => handleMoveImage(index, index - 1)}
                     className="w-6 h-6 bg-background/80 rounded flex items-center justify-center hover:bg-background"
                   >
-                    <GripVertical className="w-3 h-3" />
+                    <Bars3Icon className="w-3 h-3" />
                   </button>
                 )}
                 <button
@@ -153,7 +154,7 @@ export function ShopGalleryUpload({
                   onClick={() => handleRemoveImage(index)}
                   className="w-6 h-6 bg-destructive text-destructive-foreground rounded flex items-center justify-center"
                 >
-                  <X className="w-3 h-3" />
+                  <XMarkIcon className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -187,7 +188,7 @@ export function ShopGalleryUpload({
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" />
+                <ArrowUpTrayIcon className="w-4 h-4 mr-2" />
                 Добавить фото ({galleryUrls.length}/{maxImages})
               </>
             )}

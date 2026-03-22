@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon, UserIcon, CreditCardIcon, ShieldCheckIcon, CheckCircleIcon, XCircleIcon, ClockIcon, DocumentTextIcon } from '@heroicons/react/24/outline';;
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -332,19 +332,19 @@ export default function AdminSubscriptionTransactionsPage() {
       case 'paid':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            <CheckCircle className="w-3 h-3" /> Оплачено
+            <CheckCircleIcon className="w-3 h-3" /> Оплачено
           </span>
         );
       case 'failed':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            <XCircle className="w-3 h-3" /> Ошибка
+            <XCircleIcon className="w-3 h-3" /> Ошибка
           </span>
         );
       case 'pending':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-            <Clock className="w-3 h-3" /> Ожидание
+            <ClockIcon className="w-3 h-3" /> Ожидание
           </span>
         );
       default:
@@ -428,10 +428,10 @@ export default function AdminSubscriptionTransactionsPage() {
         <p className="text-sm text-muted-foreground">Страница {page + 1} из {totalPages}</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeftIcon className="w-4 h-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRightIcon className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -452,7 +452,7 @@ export default function AdminSubscriptionTransactionsPage() {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <TrashIcon className="w-4 h-4 mr-2" />
                       Очистить
                     </Button>
                   </AlertDialogTrigger>
@@ -476,7 +476,7 @@ export default function AdminSubscriptionTransactionsPage() {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <TrashIcon className="w-4 h-4 mr-2" />
                       Очистить
                     </Button>
                   </AlertDialogTrigger>
@@ -540,7 +540,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         }>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-muted-foreground" />
+                              <UserIcon className="w-4 h-4 text-muted-foreground" />
                               <span className="font-medium">{p.user_name || 'Без имени'}</span>
                             </div>
                           </TableCell>
@@ -569,7 +569,7 @@ export default function AdminSubscriptionTransactionsPage() {
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                    <Trash2 className="w-4 h-4" />
+                                    <TrashIcon className="w-4 h-4" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -621,7 +621,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableRow key={t.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-muted-foreground" />
+                              <UserIcon className="w-4 h-4 text-muted-foreground" />
                               <span className="font-medium">{t.user_name || 'Без имени'}</span>
                             </div>
                           </TableCell>
@@ -647,9 +647,9 @@ export default function AdminSubscriptionTransactionsPage() {
                                 : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                             }`}>
                               {t.transaction_type === 'purchase' ? (
-                                <><CreditCard className="w-3 h-3" />Покупка</>
+                                <><CreditCardIcon className="w-3 h-3" />Покупка</>
                               ) : (
-                                <><Shield className="w-3 h-3" />Админ</>
+                                <><ShieldCheckIcon className="w-3 h-3" />Админ</>
                               )}
                             </span>
                           </TableCell>
@@ -663,7 +663,7 @@ export default function AdminSubscriptionTransactionsPage() {
                           <TableCell>
                             {t.receipt_data && (
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedReceipt({ data: t.receipt_data, name: t.subscription_name })}>
-                                <FileText className="w-4 h-4 text-primary" />
+                                <DocumentTextIcon className="w-4 h-4 text-primary" />
                               </Button>
                             )}
                           </TableCell>
@@ -672,7 +672,7 @@ export default function AdminSubscriptionTransactionsPage() {
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                    <Trash2 className="w-4 h-4" />
+                                    <TrashIcon className="w-4 h-4" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>

@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink } from 'lucide-react';
+import { ArrowLeftIcon, ClockIcon, MapPinIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { Coffee, Droplets, Loader2, Navigation } from 'lucide-react';;
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAddressAwareShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
@@ -88,7 +89,7 @@ export default function ShopDetailPage() {
 
   if (!shop) {
     return <AppLayout><div className="safe-area-top p-4">
-      <Link to="/shops" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4"><ArrowLeft size={20} className="text-foreground" /></Link>
+      <Link to="/shops" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-4"><ArrowLeftIcon className="w-5 h-5" className="text-foreground" /></Link>
       <p className="text-center text-muted-foreground">{t('shops.notFound')}</p>
     </div></AppLayout>;
   }
@@ -100,7 +101,7 @@ export default function ShopDetailPage() {
   return <AppLayout>
     <div className="safe-area-top">
       <div className="px-4 py-4 flex items-center gap-3">
-        <Link to="/shops" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center"><ArrowLeft size={20} className="text-foreground" /></Link>
+        <Link to="/shops" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center"><ArrowLeftIcon className="w-5 h-5" className="text-foreground" /></Link>
         <h1 className="text-xl font-bold text-foreground flex-1 truncate">{shop.name}</h1>
       </div>
       
@@ -112,7 +113,7 @@ export default function ShopDetailPage() {
         <div className="card-static animate-slide-up">
           <div className="flex items-center justify-between gap-4 mb-3">
              <div className={`flex items-center gap-1 ${isCurrentlyOpen ? 'text-green-700 dark:text-green-500' : 'text-destructive'}`}>
-              <Clock size={12} />
+              <ClockIcon className="w-3 h-3" />
               <span className="text-xs font-medium">
                 {isCurrentlyOpen ? `${t('shops.openUntil')} ${shopStatus.closesAt ?? '—'}` : `${t('shops.closedOpensAt')} ${shopStatus.opensAt ?? '—'}`}
               </span>
@@ -140,13 +141,13 @@ export default function ShopDetailPage() {
               }}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              <ExternalLink size={12} />
+              <ArrowTopRightOnSquareIcon className="w-3 h-3" />
               <span>{t('shops.getDirections') || 'Добраться'}</span>
             </button>
           </div>}
           
           <div className="flex items-start gap-2 text-muted-foreground">
-            <MapPin size={14} className="mt-0.5 shrink-0" />
+            <MapPinIcon className="w-3.5 h-3.5" className="mt-0.5 shrink-0" />
             <div className="flex-1">
               {shop.addresses && shop.addresses.length > 0 ? <div className="space-y-0.5">
                 {(() => {

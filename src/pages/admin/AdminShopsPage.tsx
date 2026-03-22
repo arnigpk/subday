@@ -31,7 +31,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Coffee, MapPin, Clock, Plus, Pencil, Trash2, UtensilsCrossed } from 'lucide-react';
+import { MapPinIcon, ClockIcon, PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Coffee, UtensilsCrossed } from 'lucide-react';;
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
@@ -342,7 +343,7 @@ export default function AdminShopsPage() {
           </p>
           {canManage && (
             <Button onClick={openCreateDialog}>
-              <Plus className="w-4 h-4 mr-2" />
+              <PlusIcon className="w-4 h-4 mr-2" />
               Добавить кофейню
             </Button>
           )}
@@ -372,7 +373,7 @@ export default function AdminShopsPage() {
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Нет кофеен</p>
             <Button onClick={openCreateDialog} className="mt-4">
-              <Plus className="w-4 h-4 mr-2" />
+              <PlusIcon className="w-4 h-4 mr-2" />
               Добавить первую кофейню
             </Button>
           </CardContent>
@@ -417,13 +418,13 @@ export default function AdminShopsPage() {
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               {shop.address && (
                                 <span className="flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
+                                  <MapPinIcon className="w-3 h-3" />
                                   {shop.address}
                                 </span>
                               )}
                               {shop.working_hours && (
                                 <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
+                                  <ClockIcon className="w-3 h-3" />
                                   {shop.working_hours}
                                 </span>
                               )}
@@ -437,14 +438,14 @@ export default function AdminShopsPage() {
                               size="icon"
                               onClick={() => openEditDialog(shop)}
                             >
-                              <Pencil className="w-4 h-4" />
+                              <PencilIcon className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => setDeleteShopId(shop.id)}
                             >
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                              <TrashIcon className="w-4 h-4 text-destructive" />
                             </Button>
                           </div>
                         )}

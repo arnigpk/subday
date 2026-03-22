@@ -1,26 +1,8 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { 
-  LayoutDashboard, 
-  Users, 
-  History, 
-  Coffee, 
-  Settings, 
-  LogOut,
-  ChevronLeft,
-  CreditCard,
-  Send,
-  Bell,
-  Receipt,
-  Image,
-  Gift,
-  Zap,
-  Loader,
-  Megaphone,
-  QrCode,
-  MessageSquareText
-} from 'lucide-react';
+import { Squares2X2Icon, UserGroupIcon, ClockIcon, ArrowRightStartOnRectangleIcon, ChevronLeftIcon, CreditCardIcon, PaperAirplaneIcon, BellIcon, ReceiptPercentIcon, PhotoIcon, GiftIcon, BoltIcon, MegaphoneIcon, QrCodeIcon, ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline';
+import { Coffee, Settings, Loader } from 'lucide-react';;
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -32,21 +14,21 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
-  { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
-  { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
-  { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
+  { icon: Squares2X2Icon, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
+  { icon: UserGroupIcon, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
+  { icon: ClockIcon, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
+  { icon: ReceiptPercentIcon, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
   { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
-  { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['superadmin', 'admin'] },
-  { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['superadmin', 'admin'] },
-  { icon: Megaphone, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['superadmin', 'admin'] },
-  { icon: Gift, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['superadmin', 'admin'] },
-  { icon: Send, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['superadmin', 'admin'] },
-  { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
-  { icon: MessageSquareText, label: 'Сообщения', path: '/admin/messages', roles: ['superadmin', 'admin'] },
-  { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
+  { icon: CreditCardIcon, label: 'Подписки', path: '/admin/subscriptions', roles: ['superadmin', 'admin'] },
+  { icon: PhotoIcon, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['superadmin', 'admin'] },
+  { icon: MegaphoneIcon, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['superadmin', 'admin'] },
+  { icon: GiftIcon, label: 'Спецпредложения', path: '/admin/special-offers', roles: ['superadmin', 'admin'] },
+  { icon: PaperAirplaneIcon, label: 'Рассылка Telegram', path: '/admin/broadcast', roles: ['superadmin', 'admin'] },
+  { icon: BellIcon, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
+  { icon: ChatBubbleLeftEllipsisIcon, label: 'Сообщения', path: '/admin/messages', roles: ['superadmin', 'admin'] },
+  { icon: BoltIcon, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
   { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
-  { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
+  { icon: QrCodeIcon, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['superadmin'] },
 ];
 
@@ -70,7 +52,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col">
         <div className="p-4 border-b border-border">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeftIcon className="w-4 h-4" />
             <span className="text-sm">Вернуться в приложение</span>
           </Link>
           <h1 className="text-xl font-bold mt-3">subday admin</h1>
@@ -110,7 +92,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
             onClick={handleLogout}
           >
-            <LogOut className="w-5 h-5" />
+            <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
             <span>Выйти</span>
           </Button>
         </div>
@@ -121,7 +103,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
         <div className="flex items-center justify-between p-4">
           <div>
             <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs mb-1">
-              <ChevronLeft className="w-3 h-3" />
+              <ChevronLeftIcon className="w-3 h-3" />
               <span>В приложение</span>
             </Link>
             <h1 className="font-bold">subday admin</h1>
@@ -134,7 +116,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="w-5 h-5" />
+            <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
           </Button>
         </div>
         <nav className="flex overflow-x-auto px-4 pb-2 gap-2">

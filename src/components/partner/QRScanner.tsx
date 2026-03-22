@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2, RefreshCw, VideoOff } from 'lucide-react';
+import { CameraIcon, ArrowPathIcon, VideoCameraSlashIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';;
 import { Button } from '@/components/ui/button';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
@@ -203,13 +204,13 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
         {!isScanning && !isStarting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-secondary px-6">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Camera size={40} className="text-muted-foreground" />
+              <CameraIcon className="w-10 h-10" className="text-muted-foreground" />
             </div>
             <p className="text-muted-foreground text-center text-sm">
               {error || 'Нажмите кнопку для запуска камеры'}
             </p>
             <Button size="lg" onClick={handleStartClick} className="w-full max-w-[220px]">
-              <Camera size={20} className="mr-2" />
+              <CameraIcon className="w-5 h-5" className="mr-2" />
               {error ? 'Попробовать снова' : 'Открыть камеру'}
             </Button>
           </div>
@@ -233,7 +234,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
             onClick={handleRestartClick}
             className="flex-1"
           >
-            <RefreshCw size={16} className="mr-1.5" />
+            <ArrowPathIcon className="w-4 h-4" className="mr-1.5" />
             Перезапустить
           </Button>
           <Button
@@ -242,7 +243,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
             onClick={handleStopClick}
             className="flex-1 text-muted-foreground"
           >
-            <VideoOff size={16} className="mr-1.5" />
+            <VideoCameraSlashIcon className="w-4 h-4" className="mr-1.5" />
             Выключить
           </Button>
         </div>
