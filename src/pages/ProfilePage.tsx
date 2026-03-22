@@ -147,10 +147,10 @@ export default function ProfilePage() {
   };
   
   const menuItems = [
-    { icon: MapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
-    { icon: Bell, label: t('profile.notifications'), type: 'notification' as const },
-    { icon: MessageCircle, label: t('profile.support'), type: 'support' as const },
-    { icon: FileText, label: t('profile.rules'), type: 'rules' as const },
+    { icon: IconMapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
+    { icon: IconBell, label: t('profile.notifications'), type: 'notification' as const },
+    { icon: IconMessageCircle, label: t('profile.support'), type: 'support' as const },
+    { icon: IconFileText, label: t('profile.rules'), type: 'rules' as const },
   ];
   
   return (
