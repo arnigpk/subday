@@ -201,8 +201,8 @@ export default function ShopDetailPage() {
         </div>
         
         <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <button onClick={handleRedeem} disabled={!shopStatus.isOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
-            {!shopStatus.isOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
+          <button onClick={handleRedeem} disabled={!isCurrentlyOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
+            {!isCurrentlyOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
           </button>
         </div>
       </div>
