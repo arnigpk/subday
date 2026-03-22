@@ -120,7 +120,7 @@ export function TopShopsByVisits() {
       
       <div className="space-y-1.5">
         {topShops.map((shop, index) => {
-          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          const isOpen = isAnyAddressOpen(shop.working_hours, Array.isArray((shop as any).coordinates) ? (shop as any).coordinates : null);
           
           return (
             <Link key={shop.id} to={`/shops/${shop.id}`} className="card-interactive flex items-center gap-3 py-2.5 px-3">

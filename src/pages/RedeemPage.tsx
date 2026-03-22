@@ -293,7 +293,7 @@ export default function RedeemPage() {
             return updated;
           });
           if (selectedShop) {
-            const updatedStatus = selectedShop.working_hours ? isShopOpen(selectedShop.working_hours) : false;
+            const updatedStatus = isAnyAddressOpen(selectedShop.working_hours, selectedShop.coordinates);
             if (!updatedStatus) {
               // Selected shop just closed — auto-switch to nearest open shop
               setShops(prev => {
