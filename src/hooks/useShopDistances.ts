@@ -66,7 +66,7 @@ function calcHaversineDistances(
 
     result.set(shop.id, {
       distance: Math.round(best.dist),
-      duration: Math.round(best.dist / 1.4),
+      duration: Math.round(best.dist / 8.33), // ~30 km/h city driving speed
       closestAddressIndex: best.idx,
     });
   }
