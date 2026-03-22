@@ -54,15 +54,19 @@ export default function ShopDetailPage() {
   const { stats } = useUserStatsContext();
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const shopStatus = useShopStatus(shop?.working_hours || '');
-  const isCurrentlyOpen = shop ? isAnyAddressOpen(shop.working_hours, parseCoordinates(shop.coordinates)) : false;
   const { t } = useLanguage();
   const translatedDescription = useAutoTranslate(shop?.description);
 
-  const shopCoordinates = useMemo(() => 
+  const statusCoordinates = useMemo(
+    () => Array.isArray(shop?.coordinates) ? shop.coordinates as Array<{ working_hours?: string | null }> : [],
+    [shop?.coordinates]
+  );
+  const shopCoordinates = useMemo(() =>
     shop ? [{ id: shop.id, coordinates: parseCoordinates(shop.coordinates) }] : [], [shop?.id, shop?.coordinates]);
-  const { distances, userLocation } = useShopDistances(shopCoordinates);
+  const { distances } = useShopDistances(shopCoordinates);
   const shopDistance = shop ? distances.get(shop.id) : undefined;
+  const shopStatus = useAddressAwareShopStatus(shop?.working_hours, statusCoordinates, shopDistance?.closestAddressIndex);
+  const isCurrentlyOpen = shopStatus.isOpen;
 
   useEffect(() => { if (id) fetchShop(id); }, [id]);
 
