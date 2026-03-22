@@ -113,7 +113,7 @@ export function TopShopsCarousel() {
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 snap-x snap-mandatory justify-center"
       >
         {sortedShops.map((shop) => {
-          const isOpen = shop.working_hours ? isShopOpen(shop.working_hours) : false;
+          const isOpen = isAnyAddressOpen(shop.working_hours, Array.isArray(shop.coordinates) ? shop.coordinates as any : null);
           const shopDistance = distances.get(shop.id);
           
           return (
