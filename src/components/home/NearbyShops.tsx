@@ -3,7 +3,7 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { isShopOpen } from '@/utils/shopHours';
+import { isAnyAddressOpen } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
 import { useLanguage } from '@/contexts/LanguageContext';
