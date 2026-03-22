@@ -56,7 +56,7 @@ export function TopShopsCarousel() {
   }, [shops.length]);
 
   const shopCoordinates = useMemo(() => 
-    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates) })),
+    shops.map(s => ({ id: s.id, coordinates: parseCoordinates(s.coordinates), shopWorkingHours: s.working_hours })),
     [shops]
   );
   const { distances, userLocation } = useShopDistances(shopCoordinates);
