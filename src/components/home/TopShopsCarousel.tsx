@@ -24,7 +24,9 @@ interface Shop {
 
 function parseCoordinates(coords: unknown): Coordinate[] {
   if (!coords || !Array.isArray(coords)) return [];
-  return coords.filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number');
+  return coords
+    .filter((c): c is Coordinate => c && typeof c.lat === 'number' && typeof c.lng === 'number')
+    .map(c => ({ lat: c.lat, lng: c.lng, working_hours: (c as any).working_hours }));
 }
 
 export function TopShopsCarousel() {
