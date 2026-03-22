@@ -1,4 +1,4 @@
-import { IconHomeInfinity, IconRosetteDiscountCheck, IconMapPin, IconUsersGroup, IconUserScan } from '@tabler/icons-react';
+import { IconHomeInfinity, IconRosetteDiscountCheck, IconLiveView, IconUsersGroup, IconUserScan } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
