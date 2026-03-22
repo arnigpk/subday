@@ -5,7 +5,7 @@ import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, MapPinOff, Navigation, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isShopOpen } from '@/utils/shopHours';
+import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { AddressesList } from '@/components/shop/AddressesList';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
