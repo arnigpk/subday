@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isShopOpen } from '@/utils/shopHours';
+import { isAnyAddressOpen } from '@/utils/shopHours';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
