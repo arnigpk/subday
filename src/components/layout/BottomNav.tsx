@@ -15,7 +15,7 @@ export function BottomNav() {
   const navItems = [
     { icon: IconHomeInfinity, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
     { icon: IconRosetteDiscountCheck, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
-    { icon: IconMapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
+    { icon: IconLiveView, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
     { icon: IconUsersGroup, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
     { icon: IconUserScan, labelKey: 'nav.profile', path: '/profile', prefetchKey: 'profile' as const },
   ];
