@@ -198,7 +198,7 @@ export default function ShopsPage() {
                                   <span className="text-xs text-muted-foreground">{shop.city}</span>
                                 </div>
                               )}
-                              {shop.working_hours && <ShopStatusBadge openHours={shop.working_hours} t={t} />}
+                              <ShopStatusBadge isOpen={shop.isCurrentlyOpen} t={t} />
                               {shop.allBadges.length > 0 && (
                                 <div onClick={(e) => e.preventDefault()}>
                                   <ShopBadgesList badges={shop.allBadges} maxVisible={1} />
