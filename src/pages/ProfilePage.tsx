@@ -375,7 +375,7 @@ export default function ProfilePage() {
             <DialogContent className="max-w-sm rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <Bell size={20} className="text-primary" />
+                  <IconBell size={20} className="text-primary" />
                   {t('profile.notifications')}
                 </DialogTitle>
               </DialogHeader>
