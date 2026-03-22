@@ -6,7 +6,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
-import { isShopOpen } from '@/utils/shopHours';
+import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
