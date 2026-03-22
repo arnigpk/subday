@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPinIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MapPin, ChevronDown, X } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
 interface Shop {
@@ -60,7 +60,7 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
             : 'bg-secondary text-foreground hover:bg-secondary/80'
         }`}
       >
-        <MapPinIcon className="w-4 h-4" />
+        <MapPin size={16} />
         <span className="max-w-[120px] truncate">
           {selectedShopName || 'Все кофейни'}
         </span>
@@ -72,10 +72,10 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
             }}
             className="ml-1 p-0.5 rounded-full hover:bg-primary-foreground/20"
           >
-            <XMarkIcon className="w-3.5 h-3.5" />
+            <X size={14} />
           </button>
         ) : (
-          <ChevronDownIcon className="w-4 h-4" className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         )}
       </button>
 
@@ -95,7 +95,7 @@ export function SubFlowShopFilter({ selectedShopId, onShopChange }: SubFlowShopF
                   : 'text-foreground hover:bg-secondary'
               }`}
             >
-              <MapPinIcon className="w-4 h-4" />
+              <MapPin size={16} />
               <span>Все кофейни</span>
             </button>
             

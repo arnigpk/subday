@@ -15,8 +15,7 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { PlusIcon, TrashIcon, PencilIcon, EyeIcon, EyeSlashIcon, ChartBarIcon, CursorArrowRippleIcon, HeartIcon, ChatBubbleOvalLeftIcon, CalendarIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Eye, EyeOff, BarChart3, MousePointerClick, Heart, MessageCircle, CalendarIcon, TrendingUp } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -304,7 +303,7 @@ export default function AdminSubFlowAdsPage() {
             <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
-                  <CalendarIcon className="w-3.5 h-3.5" />
+                  <CalendarIcon size={14} />
                   {analyticsDateLabel}
                 </Button>
               </PopoverTrigger>
@@ -340,7 +339,7 @@ export default function AdminSubFlowAdsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <ChartBarIcon className="w-[18px] h-[18px]" />
+                <BarChart3 size={18} />
                 Аналитика рекламы
               </CardTitle>
             </CardHeader>
@@ -375,13 +374,13 @@ export default function AdminSubFlowAdsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <EyeIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+                            <Eye size={14} className="text-muted-foreground" />
                             <span className="font-semibold">{stats.views}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <CursorArrowRippleIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+                            <MousePointerClick size={14} className="text-muted-foreground" />
                             <span className="font-semibold">{stats.clicks}</span>
                           </div>
                         </TableCell>
@@ -392,13 +391,13 @@ export default function AdminSubFlowAdsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <HeartIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+                            <Heart size={14} className="text-muted-foreground" />
                             <span className="font-semibold">{stats.reactions}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+                            <MessageCircle size={14} className="text-muted-foreground" />
                             <span className="font-semibold">{stats.comments}</span>
                           </div>
                         </TableCell>

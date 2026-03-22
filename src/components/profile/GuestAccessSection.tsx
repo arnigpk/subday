@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { GiftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { Gift, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -58,9 +58,9 @@ export function GuestAccessSection() {
 
       {!monthlyUsed && (
         <Link to="/gift-coffee" className="w-full card-interactive flex items-center gap-3">
-          <GiftIcon className="w-5 h-5" className="text-primary" />
+          <Gift size={20} className="text-primary" />
           <span className="flex-1 font-medium text-foreground">{t('guest.inviteFriend')}</span>
-          <ChevronRightIcon className="w-[18px] h-[18px]" className="text-muted-foreground" />
+          <ChevronRight size={18} className="text-muted-foreground" />
         </Link>
       )}
     </div>

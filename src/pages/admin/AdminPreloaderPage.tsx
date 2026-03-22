@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowUpTrayIcon, TrashIcon, EyeIcon, ClockIcon, PowerIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Upload, Trash2, Loader2, Eye, Clock, Power, Play } from 'lucide-react';
 import defaultPreloader from '@/assets/preloader.gif';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -166,7 +165,7 @@ export default function AdminPreloaderPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <PowerIcon className="w-5 h-5" />
+              <Power className="w-5 h-5" />
               <div>
                 <h3 className="font-semibold">Прелоадер</h3>
                 <p className="text-sm text-muted-foreground">
@@ -191,7 +190,7 @@ export default function AdminPreloaderPage() {
         {/* Current preloader */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <EyeIcon className="w-5 h-5" />
+            <Eye className="w-5 h-5" />
             Текущий прелоадер
             {!isCustom && (
               <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">стандартный</span>
@@ -225,7 +224,7 @@ export default function AdminPreloaderPage() {
               onClick={handleDelete}
               disabled={uploading}
             >
-              <TrashIcon className="w-4 h-4 mr-1" />
+              <Trash2 className="w-4 h-4 mr-1" />
               Удалить кастомный
             </Button>
           )}
@@ -234,7 +233,7 @@ export default function AdminPreloaderPage() {
         {/* Duration setting */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <ClockIcon className="w-5 h-5" />
+            <Clock className="w-5 h-5" />
             Длительность показа
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -268,7 +267,7 @@ export default function AdminPreloaderPage() {
         {/* Live Demo */}
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <PlayIcon className="w-5 h-5" />
+            <Play className="w-5 h-5" />
             Предпросмотр с таймером
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -291,7 +290,7 @@ export default function AdminPreloaderPage() {
             </div>
           ) : (
             <Button onClick={startDemo} variant="outline">
-              <PlayIcon className="w-4 h-4 mr-2" />
+              <Play className="w-4 h-4 mr-2" />
               Запустить демо ({duration} сек)
             </Button>
           )}
@@ -301,7 +300,7 @@ export default function AdminPreloaderPage() {
         {canManage && (
           <Card className="p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <ArrowUpTrayIcon className="w-5 h-5" />
+              <Upload className="w-5 h-5" />
               Загрузить новый прелоадер
             </h3>
             <p className="text-sm text-muted-foreground mb-4">

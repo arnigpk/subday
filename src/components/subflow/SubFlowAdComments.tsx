@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserIcon, PaperAirplaneIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { User, Send, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -193,7 +193,7 @@ export function SubFlowAdComments({ adId, currentUserId }: SubFlowAdCommentsProp
           disabled={isSubmitting || !newComment.trim()}
           className="p-2 bg-primary text-primary-foreground rounded-xl disabled:opacity-50"
         >
-          <PaperAirplaneIcon className="w-[18px] h-[18px]" />
+          <Send size={18} />
         </button>
       </form>
 
@@ -214,7 +214,7 @@ export function SubFlowAdComments({ adId, currentUserId }: SubFlowAdCommentsProp
                   <AvatarImage src={comment.author_avatar} alt={comment.author_name} className="object-cover" />
                 ) : null}
                 <AvatarFallback className="bg-primary/10">
-                  <UserIcon className="w-3.5 h-3.5" className="text-primary" />
+                  <User size={14} className="text-primary" />
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
@@ -226,7 +226,7 @@ export function SubFlowAdComments({ adId, currentUserId }: SubFlowAdCommentsProp
                       onClick={() => handleDelete(comment.id)}
                       className="ml-auto p-1 text-muted-foreground hover:text-destructive transition-colors"
                     >
-                      <TrashIcon className="w-3.5 h-3.5" />
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>

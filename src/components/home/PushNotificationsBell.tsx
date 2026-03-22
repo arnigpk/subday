@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { BellIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Bell, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -94,7 +94,7 @@ function SwipeableNotification({
     <div className="relative overflow-hidden">
       {/* Delete background */}
       <div className="absolute inset-0 flex items-center justify-end bg-destructive/90 px-4">
-        <TrashIcon className="w-[18px] h-[18px]" className="text-destructive-foreground" />
+        <Trash2 size={18} className="text-destructive-foreground" />
       </div>
       <div
         ref={elRef}
@@ -229,7 +229,7 @@ export function PushNotificationsBell() {
     <Sheet open={open} onOpenChange={handleOpen}>
       <SheetTrigger asChild>
         <button className="relative p-2 rounded-full hover:bg-secondary transition-colors">
-          <BellIcon className="w-[22px] h-[22px]" className="text-foreground" />
+          <Bell size={22} className="text-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -247,7 +247,7 @@ export function PushNotificationsBell() {
                     className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors"
                     title="Очистить все"
                   >
-                    <TrashIcon className="w-[18px] h-[18px]" className="text-destructive" />
+                    <Trash2 size={18} className="text-destructive" />
                   </button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -273,7 +273,7 @@ export function PushNotificationsBell() {
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
           {visibleNotifications.length === 0 ? (
             <div className="text-center py-16">
-              <BellIcon className="w-10 h-10" className="mx-auto text-muted-foreground mb-3" />
+              <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
             </div>
           ) : (

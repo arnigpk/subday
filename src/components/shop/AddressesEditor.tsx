@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { PlusIcon, XMarkIcon, MapPinIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { Navigation } from 'lucide-react';
+import { Plus, X, MapPin, Navigation, Clock } from 'lucide-react';
 
 export interface AddressWithCoords {
   address: string;
@@ -69,7 +68,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
           {addresses.map((item, index) => (
             <div key={index} className="bg-secondary/50 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <MapPinIcon className="w-4 h-4" className="text-muted-foreground shrink-0" />
+                <MapPin size={16} className="text-muted-foreground shrink-0" />
                 <Input
                   value={item.address}
                   onChange={(e) => handleAddressChange(index, e.target.value)}
@@ -83,7 +82,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
                   className="h-8 w-8"
                   onClick={() => handleRemove(index)}
                 >
-                  <XMarkIcon className="w-3.5 h-3.5" />
+                  <X size={14} />
                 </Button>
               </div>
               
@@ -117,7 +116,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
               
               {/* Working hours row */}
               <div className="flex items-center gap-2 pl-6">
-                <ClockIcon className="w-3.5 h-3.5" className="text-primary shrink-0" />
+                <Clock size={14} className="text-primary shrink-0" />
                 <Input
                   value={item.working_hours || ''}
                   onChange={(e) => handleHoursChange(index, e.target.value)}
@@ -146,7 +145,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
           onClick={handleAdd}
           disabled={!newAddress.trim()}
         >
-          <PlusIcon className="w-4 h-4" />
+          <Plus size={16} />
         </Button>
       </div>
       

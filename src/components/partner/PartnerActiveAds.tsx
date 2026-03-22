@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChartBarIcon, EyeIcon, CursorArrowRippleIcon, ArrowTrendingUpIcon, PhotoIcon, DocumentTextIcon, CalendarIcon, HeartIcon, ChatBubbleOvalLeftIcon } from '@heroicons/react/24/outline';
+import { BarChart3, Eye, MousePointerClick, TrendingUp, Image, FileText, CalendarIcon, Heart, MessageCircle } from 'lucide-react';
 import { endOfDay, format, startOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
@@ -223,7 +223,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     return (
       <Card className="border-dashed border-muted-foreground/30">
         <CardContent className="py-8 text-center">
-          <ChartBarIcon className="w-8 h-8" className="mx-auto text-muted-foreground/40 mb-2" />
+          <BarChart3 size={32} className="mx-auto text-muted-foreground/40 mb-2" />
           <p className="text-sm text-muted-foreground">У вашей кофейни пока нет рекламных кампаний</p>
           <p className="text-xs text-muted-foreground/70 mt-1">Оставьте заявку выше, чтобы начать продвижение</p>
         </CardContent>
@@ -235,7 +235,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-          <ChartBarIcon className="w-[18px] h-[18px]" className="text-primary" />
+          <BarChart3 size={18} className="text-primary" />
           Рекламные кампании
         </h3>
       </div>
@@ -244,7 +244,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={cn('text-xs gap-1.5', dateRange.from && 'border-primary text-primary')}>
-              <CalendarIcon className="w-3.5 h-3.5" />
+              <CalendarIcon size={14} />
               {dateLabel}
             </Button>
           </PopoverTrigger>
@@ -270,7 +270,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         <Card key={banner.id} className={cn('overflow-hidden', banner.is_active ? 'border-accent/20' : 'border-muted-foreground/20 opacity-75')}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <PhotoIcon className="w-3.5 h-3.5" className="text-accent flex-shrink-0" />
+              <Image size={14} className="text-accent flex-shrink-0" />
               <span className="truncate">{banner.caption || 'Баннер'}</span>
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
                 <Badge variant={banner.is_active ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0 h-4">
@@ -287,9 +287,9 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
               <img src={banner.image_url} alt={banner.caption || 'Баннер'} className="w-full h-24 object-cover rounded-lg" />
             )}
             <div className="grid grid-cols-3 gap-2">
-              <StatCard icon={<EyeIcon className="w-3.5 h-3.5" />} label="Просмотры" value={banner.views} loading={bannerAnalyticsLoading} />
-              <StatCard icon={<CursorArrowRippleIcon className="w-3.5 h-3.5" />} label="Клики" value={banner.clicks} loading={bannerAnalyticsLoading} />
-              <StatCard icon={<ArrowTrendingUpIcon className="w-3.5 h-3.5" />} label="CTR" value={`${banner.ctr}%`} loading={bannerAnalyticsLoading} />
+              <StatCard icon={<Eye size={14} />} label="Просмотры" value={banner.views} loading={bannerAnalyticsLoading} />
+              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={banner.clicks} loading={bannerAnalyticsLoading} />
+              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${banner.ctr}%`} loading={bannerAnalyticsLoading} />
             </div>
             {(banner.starts_at || banner.ends_at) && (
               <p className="text-[10px] text-muted-foreground">
@@ -306,7 +306,7 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
         <Card key={ad.id} className={cn('overflow-hidden', ad.is_active ? 'border-primary/20' : 'border-muted-foreground/20 opacity-75')}>
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <DocumentTextIcon className="w-3.5 h-3.5" className="text-primary flex-shrink-0" />
+              <FileText size={14} className="text-primary flex-shrink-0" />
               <span className="truncate">{ad.title || 'Реклама #subFlow'}</span>
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
                 <Badge variant={ad.is_active ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0 h-4">
@@ -322,11 +322,11 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
             )}
             <p className="text-xs text-muted-foreground line-clamp-2">{ad.content}</p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              <StatCard icon={<EyeIcon className="w-3.5 h-3.5" />} label="Просмотры" value={ad.views} loading={adAnalyticsLoading} />
-              <StatCard icon={<CursorArrowRippleIcon className="w-3.5 h-3.5" />} label="Клики" value={ad.clicks} loading={adAnalyticsLoading} />
-              <StatCard icon={<ArrowTrendingUpIcon className="w-3.5 h-3.5" />} label="CTR" value={`${ad.ctr}%`} loading={adAnalyticsLoading} />
-              <StatCard icon={<HeartIcon className="w-3.5 h-3.5" />} label="Реакции" value={ad.reactions} loading={adAnalyticsLoading} />
-              <StatCard icon={<ChatBubbleOvalLeftIcon className="w-3.5 h-3.5" />} label="Комменты" value={ad.comments} loading={adAnalyticsLoading} />
+              <StatCard icon={<Eye size={14} />} label="Просмотры" value={ad.views} loading={adAnalyticsLoading} />
+              <StatCard icon={<MousePointerClick size={14} />} label="Клики" value={ad.clicks} loading={adAnalyticsLoading} />
+              <StatCard icon={<TrendingUp size={14} />} label="CTR" value={`${ad.ctr}%`} loading={adAnalyticsLoading} />
+              <StatCard icon={<Heart size={14} />} label="Реакции" value={ad.reactions} loading={adAnalyticsLoading} />
+              <StatCard icon={<MessageCircle size={14} />} label="Комменты" value={ad.comments} loading={adAnalyticsLoading} />
             </div>
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
               <span>Частота: каждый {ad.frequency}-й пост</span>

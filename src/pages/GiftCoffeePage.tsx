@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { ArrowLeftIcon, GiftIcon, UserIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
+import { ArrowLeft, Gift, User, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -92,13 +92,13 @@ export default function GiftCoffeePage() {
       <div className="safe-area-top">
         <div className="px-4 py-4">
           <button onClick={() => navigate('/profile')} className="flex items-center gap-2 text-muted-foreground mb-4">
-            <ArrowLeftIcon className="w-5 h-5" />
+            <ArrowLeft size={20} />
             <span>{t('packageDetail.back')}</span>
           </button>
 
           <div className="text-center mb-6">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <GiftIcon className="w-8 h-8" className="text-primary" />
+              <Gift size={32} className="text-primary" />
             </div>
             <h1 className="text-2xl font-black text-foreground">{t('guest.giftTitle')}</h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
@@ -143,7 +143,7 @@ export default function GiftCoffeePage() {
                 <div className="flex items-center gap-3">
                   {/* Avatar placeholder */}
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <UserIcon className="w-5 h-5" className="text-primary" />
+                    <User size={20} className="text-primary" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-foreground truncate">Айдана</p>
@@ -154,7 +154,7 @@ export default function GiftCoffeePage() {
                           ID: 123456
                         </span>
                       </div>
-                      <ClipboardDocumentIcon className="w-[10px] h-[10px]" className="text-accent" />
+                      <Copy size={10} className="text-accent" />
                     </div>
                   </div>
                 </div>

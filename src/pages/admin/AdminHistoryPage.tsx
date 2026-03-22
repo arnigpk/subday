@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, UserIcon, CalendarIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -231,7 +231,7 @@ export default function AdminHistoryPage() {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <TrashIcon className="w-4 h-4 mr-2" />
+                      <Trash2 className="w-4 h-4 mr-2" />
                       Очистить историю
                     </Button>
                   </AlertDialogTrigger>
@@ -256,7 +256,7 @@ export default function AdminHistoryPage() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Поиск по имени, телефону, напитку..."
                     value={search}
@@ -369,7 +369,7 @@ export default function AdminHistoryPage() {
                       <TableRow key={r.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <UserIcon className="w-4 h-4 text-muted-foreground" />
+                            <User className="w-4 h-4 text-muted-foreground" />
                             <span className="font-medium">{r.user_name || 'Без имени'}</span>
                           </div>
                         </TableCell>
@@ -397,7 +397,7 @@ export default function AdminHistoryPage() {
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <TrashIcon className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -426,10 +426,10 @@ export default function AdminHistoryPage() {
                   <p className="text-sm text-muted-foreground">Страница {page + 1} из {totalPages}</p>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-                      <ChevronLeftIcon className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-                      <ChevronRightIcon className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>

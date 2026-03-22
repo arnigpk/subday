@@ -30,8 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { PlusIcon, PencilIcon, TrashIcon, SparklesIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
-import { Coffee, GlassWater, UtensilsCrossed } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, GlassWater, Sparkles, UtensilsCrossed, Copy } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRY_OPTIONS, getCurrencySymbol } from '@/utils/countries';
@@ -364,7 +363,7 @@ export default function AdminSubscriptionsPage() {
           </p>
           {canManage && (
             <Button onClick={openCreateDialog}>
-              <PlusIcon className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" />
               Добавить подписку
             </Button>
           )}
@@ -399,7 +398,7 @@ export default function AdminSubscriptionsPage() {
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Нет подписок</p>
             <Button onClick={openCreateDialog} className="mt-4">
-              <PlusIcon className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" />
               Добавить первую подписку
             </Button>
           </CardContent>
@@ -438,7 +437,7 @@ export default function AdminSubscriptionsPage() {
                           </div>
                           {sub.badge && (
                             <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
-                              <SparklesIcon className="w-[10px] h-[10px]" />
+                              <Sparkles size={10} />
                               {sub.badge}
                             </span>
                           )}
@@ -453,21 +452,21 @@ export default function AdminSubscriptionsPage() {
                                   onClick={() => handleDuplicate(sub)}
                                   title="Дублировать"
                                 >
-                                  <ClipboardDocumentIcon className="w-4 h-4 text-muted-foreground" />
+                                  <Copy className="w-4 h-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openEditDialog(sub)}
                                 >
-                                  <PencilIcon className="w-4 h-4" />
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => setDeleteSubId(sub.id)}
                                 >
-                                  <TrashIcon className="w-4 h-4 text-destructive" />
+                                  <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
                               </div>
                             )}

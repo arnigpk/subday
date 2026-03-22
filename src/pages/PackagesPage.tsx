@@ -3,8 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
-import { SparklesIcon, CheckIcon, GiftIcon } from '@heroicons/react/24/outline';
-import { Coffee, UtensilsCrossed } from 'lucide-react';
+import { Sparkles, Coffee, Check, UtensilsCrossed, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPeriodText } from '@/utils/subscriptionDuration';
@@ -184,7 +183,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
         {hasOffer && !isActive && (
           <div className="absolute top-4 right-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg animate-pulse">
-              <GiftIcon className="w-3 h-3" />
+              <Gift size={12} />
               {specialOffer!.badge_text || '-50%'}
             </span>
           </div>
@@ -193,7 +192,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
         {!hasOffer && sub.badge && !isActive && (
           <div className="absolute top-4 right-4">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${getSubscriptionBadgeStyle(sub.badge, sub.badge_color)}`}>
-              <SparklesIcon className="w-3 h-3" />
+              <Sparkles size={12} />
               {translatedBadge}
             </span>
           </div>
@@ -202,7 +201,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
         {isActive && (
           <div className="absolute top-4 right-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
-              <CheckIcon className="w-3 h-3" />
+              <Check size={12} />
               {t('packages.active')}
             </span>
           </div>

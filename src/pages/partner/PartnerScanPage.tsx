@@ -3,7 +3,7 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { Check, X, AlertTriangle } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 
@@ -139,7 +139,7 @@ export default function PartnerScanPage() {
         </div>
 
         <div className="flex items-start gap-3 p-4 mx-4 bg-amber-500/10 rounded-xl">
-          <ExclamationTriangleIcon className="w-5 h-5" className="text-amber-500 shrink-0 mt-0.5" />
+          <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-foreground mb-1">Важно!</p>
             <p className="text-muted-foreground">
@@ -175,7 +175,7 @@ function SuccessResult({ result, showConfetti }: { result: ScanResult; showConfe
       )}
 
       <div className="w-20 h-20 rounded-full bg-accent flex items-center justify-center shadow-glow animate-pop">
-        <CheckIcon className="w-10 h-10" className="text-accent-foreground" />
+        <Check size={40} strokeWidth={3} className="text-accent-foreground" />
       </div>
 
       <div className="text-center space-y-1">
@@ -195,7 +195,7 @@ function ErrorResult({ result }: { result: ScanResult }) {
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="w-20 h-20 rounded-full bg-destructive/20 flex items-center justify-center animate-pop">
-        <XMarkIcon className="w-10 h-10" className="text-destructive" />
+        <X size={40} strokeWidth={3} className="text-destructive" />
       </div>
       <div className="text-center space-y-1">
         <p className="text-xl font-bold text-destructive">Ошибка</p>

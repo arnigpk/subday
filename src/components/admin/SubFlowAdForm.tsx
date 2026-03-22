@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { PlusIcon, CalendarIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Plus, Loader2, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -459,7 +458,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
 
         <div className="flex gap-2">
           <Button onClick={handleSave} disabled={isSaving || isUploading}>
-            {isSaving || isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlusIcon className="w-4 h-4 mr-2" />}
+            {isSaving || isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             {editingAd ? 'Сохранить' : 'Создать'}
           </Button>
           {editingAd && (

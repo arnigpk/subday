@@ -3,7 +3,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { supabase } from '@/integrations/supabase/client';
-import { BellIcon, ChevronRightIcon, TrashIcon, UserIcon } from '@heroicons/react/24/outline';
+import { Bell, ChevronRight, Trash2, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -97,7 +97,7 @@ function SwipeableSubFlowNotification({
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-end bg-destructive/90 px-4">
-        <TrashIcon className="w-[18px] h-[18px]" className="text-destructive-foreground" />
+        <Trash2 size={18} className="text-destructive-foreground" />
       </div>
       <div
         ref={elRef}
@@ -111,7 +111,7 @@ function SwipeableSubFlowNotification({
       >
         <Avatar className="w-9 h-9 shrink-0">
           <AvatarFallback className="bg-primary/10">
-            <UserIcon className="w-4 h-4" className="text-primary" />
+            <User size={16} className="text-primary" />
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
@@ -129,7 +129,7 @@ function SwipeableSubFlowNotification({
           </p>
         </div>
         {isClickable ? (
-          <ChevronRightIcon className="w-4 h-4" className="text-muted-foreground shrink-0 mt-1.5" />
+          <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1.5" />
         ) : !notification.is_read ? (
           <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
         ) : null}
@@ -303,7 +303,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
       <SheetTrigger asChild>
         <button className="relative group p-2.5 rounded-xl transition-all duration-300">
           <div className="relative">
-            <BellIcon className="w-5 h-5"
+            <Bell
+              size={20}
               className={`text-primary transition-transform duration-300 group-hover:rotate-12 ${unreadCount > 0 ? 'animate-[swing_2s_ease-in-out_infinite]' : ''}`}
             />
             {unreadCount > 0 && (
@@ -321,7 +322,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <button className="absolute left-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <TrashIcon className="w-[18px] h-[18px]" />
+                    <Trash2 size={18} />
                   </button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -342,7 +343,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
         <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
           {notifications.length === 0 ? (
             <div className="text-center py-16">
-              <BellIcon className="w-10 h-10" className="mx-auto text-muted-foreground mb-3" />
+              <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
             </div>
           ) : (

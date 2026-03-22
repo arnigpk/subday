@@ -1,4 +1,4 @@
-import { QrCodeIcon } from '@heroicons/react/24/outline';
+import { QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useDailyLimit } from '@/hooks/useDailyLimit';
@@ -49,7 +49,7 @@ export function GetCoffeeButton({ activeTab }: GetCoffeeButtonProps) {
           !isLimitReached || hasGuestCoffee ? 'animate-pulse-glow' : ''
         }`}
       >
-        <QrCodeIcon className="w-7 h-7" />
+        <QrCode size={28} strokeWidth={2.5} />
         <span>{t('home.showQR')}</span>
       </button>
     </div>

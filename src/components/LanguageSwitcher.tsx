@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Globe, ChevronDown } from 'lucide-react';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 
 const options: { value: Language; label: string; code: string }[] = [
@@ -33,9 +33,9 @@ export function LanguageSwitcher() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 bg-secondary/80 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-xs font-semibold text-foreground transition-all hover:bg-secondary active:scale-95 border border-border/50"
       >
-        <GlobeAltIcon className="w-3.5 h-3.5" className="text-primary" />
+        <Globe size={14} className="text-primary" />
         <span>{current.code}</span>
-        <ChevronDownIcon className="w-3 h-3" className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

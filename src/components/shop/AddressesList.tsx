@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { MapPin, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isShopOpen } from '@/utils/shopHours';
 
@@ -33,7 +33,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
   if (addresses.length === 0) {
     return (
       <div className={cn('flex items-center gap-1.5 text-muted-foreground', className)}>
-        <MapPinIcon size={variant === 'compact' ? 12 : 16} className="shrink-0" />
+        <MapPin size={variant === 'compact' ? 12 : 16} className="shrink-0" />
         <span className={variant === 'compact' ? 'text-xs' : 'text-sm'}>Адрес не указан</span>
       </div>
     );
@@ -44,7 +44,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
     return (
       <div className={cn('space-y-1', className)}>
         <div className="flex items-center gap-1.5">
-          <MapPinIcon size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
+          <MapPin size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
           <span className={cn(
             'truncate',
             variant === 'compact' ? 'text-xs text-muted-foreground' : 'text-sm font-medium text-foreground'
@@ -54,7 +54,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
         </div>
         {hours && (
           <div className="flex items-center gap-1.5">
-            <ClockIcon size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
+            <Clock size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
             <span className={cn('text-xs', isShopOpen(hours) ? 'text-emerald-600' : 'text-muted-foreground')}>
               {hours}
             </span>
@@ -80,7 +80,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
         onClick={handleTriggerClick}
         className="flex items-center gap-1.5 group cursor-pointer w-full text-left"
       >
-        <MapPinIcon size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
+        <MapPin size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
         <span className={cn(
           'text-primary hover:underline',
           variant === 'compact' ? 'text-xs' : 'text-sm font-medium'
@@ -88,9 +88,9 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
           Выбрать адрес ({addresses.length})
         </span>
         {isOpen ? (
-          <ChevronUpIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+          <ChevronUp size={14} className="text-muted-foreground" />
         ) : (
-          <ChevronDownIcon className="w-3.5 h-3.5" className="text-muted-foreground" />
+          <ChevronDown size={14} className="text-muted-foreground" />
         )}
       </button>
       {isOpen && (
@@ -121,7 +121,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
                   </div>
                   {hours && (
                     <div className="flex items-center gap-1.5 pl-3">
-                      <ClockIcon className="w-[10px] h-[10px]" className="text-muted-foreground shrink-0" />
+                      <Clock size={10} className="text-muted-foreground shrink-0" />
                       <span className={cn('text-xs', isShopOpen(hours) ? 'text-emerald-600' : 'text-muted-foreground')}>
                         {hours}
                       </span>
@@ -133,7 +133,7 @@ export function AddressesList({ addresses, className, variant = 'full', closestI
           })()}
           {hasUnifiedHours && (
             <div className="flex items-center gap-1.5 pt-0.5">
-              <ClockIcon size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
+              <Clock size={variant === 'compact' ? 12 : 14} className="text-muted-foreground shrink-0" />
               <span className={cn('text-xs', isShopOpen(unifiedHours) ? 'text-emerald-600' : 'text-muted-foreground')}>
                 {unifiedHours}
               </span>

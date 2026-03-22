@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowTrendingUpIcon, ClockIcon, StarIcon, BuildingStorefrontIcon, CheckIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { Coffee, Loader2 } from 'lucide-react';
+import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -219,7 +218,7 @@ export default function PartnerDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <ArrowTrendingUpIcon className="w-4 h-4" />
+                <TrendingUp size={16} />
                 За неделю
               </CardTitle>
             </CardHeader>
@@ -232,7 +231,7 @@ export default function PartnerDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <StarIcon className="w-4 h-4" />
+                <Star size={16} />
                 Популярный напиток
               </CardTitle>
             </CardHeader>
@@ -246,7 +245,7 @@ export default function PartnerDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <ClockIcon className="w-4 h-4" />
+                <Clock size={16} />
                 Пиковое время
               </CardTitle>
             </CardHeader>
@@ -262,12 +261,12 @@ export default function PartnerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <BuildingStorefrontIcon className="w-[18px] h-[18px]" />
+              <Store size={18} />
               Моя кофейня
             </CardTitle>
             {!isEditing && (
               <Button variant="ghost" size="sm" onClick={handleEditStart}>
-                <PencilIcon className="w-4 h-4" className="mr-1" />
+                <Pencil size={16} className="mr-1" />
                 Изменить
               </Button>
             )}
@@ -319,11 +318,11 @@ export default function PartnerDashboard() {
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleSave} disabled={isSaving} className="flex-1">
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckIcon className="w-4 h-4" className="mr-1" />}
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save size={16} className="mr-1" />}
                     Сохранить
                   </Button>
                   <Button variant="outline" onClick={handleEditCancel} disabled={isSaving}>
-                    <XMarkIcon className="w-4 h-4" />
+                    <X size={16} />
                   </Button>
                 </div>
               </>

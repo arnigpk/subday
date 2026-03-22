@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { SpeakerWaveIcon, SpeakerXMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Volume2, VolumeX, Play, Loader2 } from 'lucide-react';
 
 interface SubFlowVideoPlayerProps {
   src: string;
@@ -247,7 +246,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
           aria-label="Воспроизвести видео"
         >
           <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <PlayIcon className="w-7 h-7" className="text-white ml-1" fill="white" />
+            <Play size={28} className="text-white ml-1" fill="white" />
           </div>
         </button>
       )}
@@ -260,7 +259,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
           className="absolute bottom-3 right-3 p-2 rounded-full bg-black/50 backdrop-blur-sm text-white/90 transition-all hover:bg-black/70 active:scale-90"
           aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
         >
-          {isMuted ? <SpeakerXMarkIcon className="w-4 h-4" /> : <SpeakerWaveIcon className="w-4 h-4" />}
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
       )}
     </div>

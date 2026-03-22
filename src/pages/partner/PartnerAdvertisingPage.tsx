@@ -3,8 +3,7 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MegaphoneIcon, ArrowTrendingUpIcon, UserGroupIcon, ViewfinderCircleIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Megaphone, TrendingUp, Users, Target, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerActiveAds } from '@/components/partner/PartnerActiveAds';
@@ -43,7 +42,7 @@ export default function PartnerAdvertisingPage() {
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 rounded-2xl bg-accent/15 flex items-center justify-center">
-            <MegaphoneIcon className="w-6 h-6" className="text-accent" />
+            <Megaphone size={24} className="text-accent" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Реклама</h2>
@@ -55,7 +54,7 @@ export default function PartnerAdvertisingPage() {
         <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <SparklesIcon className="w-[18px] h-[18px]" className="text-accent" />
+              <Sparkles size={18} className="text-accent" />
               Реклама в приложении subday
             </CardTitle>
           </CardHeader>
@@ -68,7 +67,7 @@ export default function PartnerAdvertisingPage() {
             <div className="space-y-3">
               <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <ArrowTrendingUpIcon className="w-4 h-4" className="text-primary" />
+                  <TrendingUp size={16} className="text-primary" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Раздел «Кофейни»</p>
@@ -80,7 +79,7 @@ export default function PartnerAdvertisingPage() {
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <UserGroupIcon className="w-4 h-4" className="text-primary" />
+                  <Users size={16} className="text-primary" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Главная страница</p>
@@ -101,7 +100,7 @@ export default function PartnerAdvertisingPage() {
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <ViewfinderCircleIcon className="w-[18px] h-[18px]" className="text-primary" />
+              <Target size={18} className="text-primary" />
               Таргетированная реклама в #subFlow
             </CardTitle>
           </CardHeader>
@@ -150,12 +149,12 @@ export default function PartnerAdvertisingPage() {
             </>
           ) : submitted ? (
             <>
-              <CheckCircleIcon className="w-5 h-5 mr-2" />
+              <CheckCircle2 className="w-5 h-5 mr-2" />
               Заявка отправлена
             </>
           ) : (
             <>
-              <MegaphoneIcon className="w-5 h-5 mr-2" />
+              <Megaphone className="w-5 h-5 mr-2" />
               Оставить заявку
             </>
           )}

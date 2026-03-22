@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Camera, Image, X } from 'lucide-react';
 
 interface AvatarMenuProps {
   onAvatarChange: (file: File) => Promise<void>;
@@ -33,7 +33,7 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
         {isUploading ? (
           <div className="w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
         ) : (
-          <CameraIcon className="w-3.5 h-3.5" className="text-accent-foreground" />
+          <Camera size={14} className="text-accent-foreground" />
         )}
       </button>
 
@@ -53,7 +53,7 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
                 onClick={() => setIsOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <XMarkIcon className="w-3.5 h-3.5" />
+                <X size={14} />
               </button>
             </div>
             
@@ -61,7 +61,7 @@ export function AvatarMenu({ onAvatarChange, isUploading }: AvatarMenuProps) {
               onClick={() => avatarInputRef.current?.click()}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
             >
-              <PhotoIcon className="w-[18px] h-[18px]" className="text-primary" />
+              <Image size={18} className="text-primary" />
               <span className="font-medium">Поменять аватарку</span>
             </button>
           </div>

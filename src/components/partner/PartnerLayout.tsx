@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Squares2X2Icon, QrCodeIcon, ClockIcon, UserGroupIcon, ArrowRightStartOnRectangleIcon, ChevronLeftIcon, MegaphoneIcon } from '@heroicons/react/24/outline';
+import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft, Megaphone } from 'lucide-react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -26,19 +26,19 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
   // Navigation items - partners see all, baristas see dashboard + scan only
   const navItems = isPartner
     ? [
-        { path: '/partner', icon: Squares2X2Icon, label: 'Дашборд' },
-        { path: '/partner/scan', icon: QrCodeIcon, label: 'Сканер' },
-        { path: '/partner/history', icon: ClockIcon, label: 'История' },
-        { path: '/partner/staff', icon: UserGroupIcon, label: 'Сотрудники' },
-        { path: '/partner/advertising', icon: MegaphoneIcon, label: 'Реклама' },
+        { path: '/partner', icon: LayoutDashboard, label: 'Дашборд' },
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
+        { path: '/partner/history', icon: History, label: 'История' },
+        { path: '/partner/staff', icon: Users, label: 'Сотрудники' },
+        { path: '/partner/advertising', icon: Megaphone, label: 'Реклама' },
       ]
     : isBarista
     ? [
-        { path: '/partner', icon: Squares2X2Icon, label: 'Дашборд' },
-        { path: '/partner/scan', icon: QrCodeIcon, label: 'Сканер' },
+        { path: '/partner', icon: LayoutDashboard, label: 'Дашборд' },
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
       ]
     : [
-        { path: '/partner/scan', icon: QrCodeIcon, label: 'Сканер' },
+        { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
       ];
 
   return (
@@ -51,7 +51,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
               onClick={handleBackToApp}
               className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-sm mb-1"
             >
-              <ChevronLeftIcon className="w-4 h-4" />
+              <ChevronLeft size={16} />
               <span>В приложение</span>
             </button>
             <h1 className="text-lg font-bold text-foreground">
@@ -62,7 +62,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
+            <LogOut size={20} />
           </Button>
         </div>
       </header>

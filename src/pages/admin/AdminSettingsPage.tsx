@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminAuth, AppRole } from '@/hooks/useAdminAuth';
-import { PlusIcon, TrashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { Plus, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface UserRole {
@@ -182,7 +182,7 @@ export default function AdminSettingsPage() {
       <AdminLayout title="Настройки">
         <Card>
           <CardContent className="p-8 text-center">
-            <ShieldCheckIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
               Только администраторы могут управлять ролями
             </p>
@@ -201,7 +201,7 @@ export default function AdminSettingsPage() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
-                  <PlusIcon className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                   Добавить роль
                 </Button>
               </DialogTrigger>
@@ -305,7 +305,7 @@ export default function AdminSettingsPage() {
                         size="icon"
                         onClick={() => handleDeleteRole(role.id)}
                       >
-                        <TrashIcon className="w-4 h-4 text-destructive" />
+                        <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </TableCell>
                   </TableRow>

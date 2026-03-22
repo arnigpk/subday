@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bars3Icon } from '@heroicons/react/24/outline';
+import { GripVertical } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface SortableItemProps {
@@ -31,7 +31,7 @@ export function SortableItem({ id, children }: SortableItemProps) {
         {...listeners}
         className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted opacity-50 group-hover:opacity-100 transition-opacity"
       >
-        <Bars3Icon className="w-5 h-5 text-muted-foreground" />
+        <GripVertical className="w-5 h-5 text-muted-foreground" />
       </div>
       <div className="pl-10">
         {children}

@@ -4,8 +4,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarDaysIcon } from '@heroicons/react/24/outline';
-import { Loader2, Coffee } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -131,7 +130,7 @@ export default function PartnerHistoryPage() {
         {/* Date filter */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <CalendarDaysIcon className="w-4 h-4 text-muted-foreground" />
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
             {filterButtons.map((f) => (
               <Button
                 key={f.value}

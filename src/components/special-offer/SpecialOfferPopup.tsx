@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { GiftIcon } from '@heroicons/react/24/outline';
+import { Gift } from 'lucide-react';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -47,7 +47,7 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offe
       <DialogContent className="w-[calc(100vw-2rem)] max-w-sm rounded-2xl p-4 sm:p-6">
         <DialogHeader className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
-            <GiftIcon className="w-7 h-7 sm:w-8 sm:h-8 text-accent" />
+            <Gift className="w-7 h-7 sm:w-8 sm:h-8 text-accent" />
           </div>
           <DialogTitle className="text-xl sm:text-2xl font-black">
             Спецпредложение 🎁

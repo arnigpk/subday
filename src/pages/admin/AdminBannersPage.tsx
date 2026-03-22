@@ -11,8 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { PlusIcon, PencilIcon, TrashIcon, PhotoIcon, EyeIcon, CursorArrowRaysIcon, CalendarIcon, ArrowTrendingUpIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Loader2, Eye, MousePointer, CalendarIcon, TrendingUp, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { endOfDay, startOfDay } from 'date-fns';
@@ -362,7 +361,7 @@ export default function AdminBannersPage() {
             </div>
             {canManage && (
               <Button onClick={openCreateDialog} className="gap-2">
-                <PlusIcon className="w-4 h-4" />
+                <Plus size={16} />
                 Добавить
               </Button>
             )}
@@ -379,7 +378,7 @@ export default function AdminBannersPage() {
             <Popover open={analyticsCalendarOpen} onOpenChange={setAnalyticsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className={cn("text-xs gap-1.5", analyticsDateRange.from && "border-primary text-primary")}>
-                  <ChartBarIcon className="w-3.5 h-3.5" />
+                  <BarChart3 size={14} />
                   {analyticsDateRange.from && analyticsDateRange.to
                     ? `${format(analyticsDateRange.from, 'd MMM', { locale: ru })} — ${format(analyticsDateRange.to, 'd MMM', { locale: ru })}`
                     : analyticsDateRange.from
@@ -452,7 +451,7 @@ export default function AdminBannersPage() {
                           className="absolute top-2 right-2 h-8 w-8"
                           onClick={() => setFormData(prev => ({ ...prev, image_url: '' }))}
                         >
-                          <TrashIcon className="w-3.5 h-3.5" />
+                          <Trash2 size={14} />
                         </Button>
                       </div>
                     ) : (
@@ -461,7 +460,7 @@ export default function AdminBannersPage() {
                           <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
                         ) : (
                           <>
-                            <PhotoIcon className="w-8 h-8 text-muted-foreground mb-2" />
+                            <Image className="w-8 h-8 text-muted-foreground mb-2" />
                             <span className="text-sm text-muted-foreground">
                               Нажмите для загрузки
                             </span>
@@ -706,7 +705,7 @@ export default function AdminBannersPage() {
           </div>
         ) : banners.length === 0 ? (
           <div className="text-center py-12">
-            <PhotoIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <Image className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium text-foreground mb-2">Нет баннеров</p>
             <p className="text-sm text-muted-foreground">
               Добавьте первый рекламный баннер
@@ -743,11 +742,11 @@ export default function AdminBannersPage() {
                       </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                         <span className="flex items-center gap-1">
-                          <EyeIcon className="w-3 h-3" />
+                          <Eye size={12} />
                           {getStats(banner.id).views}
                         </span>
                         <span className="flex items-center gap-1">
-                          <CursorArrowRaysIcon className="w-3 h-3" />
+                          <MousePointer size={12} />
                           {getStats(banner.id).clicks}
                         </span>
                         <Badge variant="outline" className="text-[10px] font-semibold px-1.5 py-0 h-4">
@@ -780,14 +779,14 @@ export default function AdminBannersPage() {
                           size="icon"
                           onClick={() => openEditDialog(banner)}
                         >
-                          <PencilIcon className="w-4 h-4" />
+                          <Pencil size={16} />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(banner)}
                         >
-                          <TrashIcon className="w-4 h-4" className="text-destructive" />
+                          <Trash2 size={16} className="text-destructive" />
                         </Button>
                       </div>
                     ) : (

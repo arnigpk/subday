@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,7 +61,7 @@ export function BadgesEditor({ badges, onChange, maxBadges = 5 }: BadgesEditorPr
                 onClick={() => handleRemoveBadge(index)}
                 className="hover:opacity-70 transition-opacity"
               >
-                <XMarkIcon className="w-3 h-3" />
+                <X size={12} />
               </button>
             </div>
           ))}
@@ -96,7 +96,7 @@ export function BadgesEditor({ badges, onChange, maxBadges = 5 }: BadgesEditorPr
             ))}
           </select>
           <Button type="button" onClick={handleAddBadge} size="icon" variant="outline">
-            <PlusIcon className="w-4 h-4" />
+            <Plus size={16} />
           </Button>
         </div>
       )}

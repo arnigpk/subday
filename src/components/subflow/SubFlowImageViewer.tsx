@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { X } from 'lucide-react';
 
 interface SourceRect {
   top: number;
@@ -270,7 +270,7 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
           pointerEvents: controlsOpacity > 0 ? 'auto' : 'none',
         }}
       >
-        <XMarkIcon className="w-[22px] h-[22px]" />
+        <X size={22} />
       </button>
 
       {images.length > 1 && (
