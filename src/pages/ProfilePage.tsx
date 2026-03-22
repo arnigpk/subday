@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
-import { IconUser, IconMapPin, IconBell, IconMessageCircle, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceWatch } from '@tabler/icons-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircle, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -418,7 +418,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
-                      <IconDeviceWatch size={18} className="text-destructive" />
+                      <IconDeviceMobileVibration size={18} className="text-destructive" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Вибрация</p>

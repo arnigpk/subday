@@ -1,4 +1,4 @@
-import { IconHome, IconRosetteDiscountCheck, IconMapPin, IconBolt, IconUser } from '@tabler/icons-react';
+import { IconHomeInfinity, IconRosetteDiscountCheck, IconMapPin, IconBolt, IconUser } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
 import { useCallback } from 'react';
@@ -13,7 +13,7 @@ export function BottomNav() {
   const { vibrateShort } = useVibration();
   
   const navItems = [
-    { icon: IconHome, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
+    { icon: IconHomeInfinity, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
     { icon: IconRosetteDiscountCheck, labelKey: 'nav.packages', path: '/packages', prefetchKey: 'packages' as const },
     { icon: IconMapPin, labelKey: 'nav.shops', path: '/shops', prefetchKey: 'shops' as const },
     { icon: IconBolt, labelKey: 'nav.subflow', path: '/subflow', prefetchKey: 'subflow' as const },
