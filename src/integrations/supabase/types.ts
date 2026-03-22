@@ -141,6 +141,77 @@ export type Database = {
         }
         Relationships: []
       }
+      app_message_dismissals: {
+        Row: {
+          dismiss_date: string
+          dismissed_at: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          dismiss_date?: string
+          dismissed_at?: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          dismiss_date?: string
+          dismissed_at?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_message_dismissals_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "app_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_messages: {
+        Row: {
+          audience_types: string[]
+          content: string
+          created_at: string
+          created_by: string
+          daily_frequency: number
+          frequency_type: string
+          id: string
+          is_active: boolean
+          scheduled_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          audience_types?: string[]
+          content: string
+          created_at?: string
+          created_by: string
+          daily_frequency?: number
+          frequency_type?: string
+          id?: string
+          is_active?: boolean
+          scheduled_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audience_types?: string[]
+          content?: string
+          created_at?: string
+          created_by?: string
+          daily_frequency?: number
+          frequency_type?: string
+          id?: string
+          is_active?: boolean
+          scheduled_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       auto_notification_templates: {
         Row: {
           channel: string
