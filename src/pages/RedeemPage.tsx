@@ -230,6 +230,7 @@ export default function RedeemPage() {
           }
           return {
             ...shop,
+            addresses: (shop as any).addresses || null,
             supported_types: (shop as any).supported_types || ['coffee'],
             coordinates: coords,
             isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
