@@ -316,14 +316,26 @@ export default function RedeemPage() {
     return () => clearInterval(interval);
   }, [selectedShop]);
 
+  // Get the closest address for the selected shop
+  const selectedShopClosestAddress = useMemo(() => {
+    if (!selectedShop) return selectedShop?.address || null;
+    const distInfo = distances.get(selectedShop.id);
+    const idx = distInfo?.closestAddressIndex ?? 0;
+    if (selectedShop.addresses?.length) {
+      return selectedShop.addresses[idx] || selectedShop.addresses[0] || selectedShop.address;
+    }
+    return selectedShop.address || null;
+  }, [selectedShop, distances]);
+
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
     return JSON.stringify({
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
+      shopAddress: selectedShopClosestAddress || '',
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
     });
-  }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
+  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
 
   const goHome = () => navigate('/');
 
