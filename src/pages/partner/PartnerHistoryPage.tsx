@@ -36,7 +36,7 @@ export default function PartnerHistoryPage() {
     try {
       let query = supabase
         .from('redemptions')
-        .select('id, drink_name, subscription_name, redeemed_at, user_id')
+        .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
         .eq('shop_id', shopId)
         .order('redeemed_at', { ascending: false })
         .limit(200);
