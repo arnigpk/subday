@@ -218,7 +218,7 @@ export default function RedeemPage() {
     const fetchShops = async () => {
       try {
         const { data, error } = await supabase
-          .from('shops').select('id, name, address, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
+          .from('shops').select('id, name, address, addresses, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
         if (error) throw error;
         const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => {
           const rawCoords = (shop as any).coordinates;
