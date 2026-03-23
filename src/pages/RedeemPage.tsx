@@ -39,6 +39,7 @@ interface Shop {
   id: string;
   name: string;
   address: string | null;
+  addresses: string[] | null;
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
