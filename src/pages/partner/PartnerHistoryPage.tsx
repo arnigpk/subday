@@ -27,6 +27,8 @@ export default function PartnerHistoryPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
+  const [addressFilter, setAddressFilter] = useState('all');
+  const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
 
   const fetchHistory = useCallback(async () => {
     if (!shopId) return;
