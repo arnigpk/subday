@@ -377,7 +377,14 @@ export default function AdminHistoryPage() {
                         </TableCell>
                         <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
                         <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
-                        <TableCell>{r.shop_name}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span>{r.shop_name}</span>
+                            {r.shop_address && (
+                              <p className="text-xs text-muted-foreground">{r.shop_address}</p>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{r.drink_name}</TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
                         <TableCell>

@@ -249,6 +249,7 @@ Deno.serve(async (req) => {
       supabase.from('user_stats').update(newStats).eq('user_id', userId),
       supabase.from('redemptions').insert({
         user_id: userId, shop_name: shopName, shop_id: shopId,
+        shop_address: shopAddress || null,
         drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
       }),
     ]);

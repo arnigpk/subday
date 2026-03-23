@@ -142,6 +142,9 @@ export default function HistoryPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-foreground truncate">{item.drinkName}</p>
                       <p className="text-sm text-muted-foreground truncate">{item.shopName}</p>
+                      {item.shopAddress && (
+                        <p className="text-xs text-muted-foreground truncate">{item.shopAddress}</p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-foreground">{formatDate(item.redeemedAt)}</p>
