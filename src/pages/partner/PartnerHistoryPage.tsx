@@ -113,7 +113,7 @@ export default function PartnerHistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [shopId, dateFilter, customDateFrom, customDateTo]);
+  }, [shopId, dateFilter, customDateFrom, customDateTo, addressFilter]);
 
   useEffect(() => {
     if (!shopId || authLoading) return;
