@@ -186,6 +186,24 @@ export default function PartnerHistoryPage() {
           )}
         </div>
 
+        {/* Address filter */}
+        {availableAddresses.length > 1 && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <Select value={addressFilter} onValueChange={setAddressFilter}>
+              <SelectTrigger className="w-full sm:w-64 h-8 text-sm">
+                <SelectValue placeholder="Все адреса" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все адреса</SelectItem>
+                {availableAddresses.map(addr => (
+                  <SelectItem key={addr} value={addr}>{addr}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
