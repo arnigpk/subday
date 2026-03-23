@@ -9,6 +9,7 @@ interface ScanRequest {
   userId: string;
   shopId: string;
   shopName: string;
+  shopAddress?: string;
   drinkType: 'coffee' | 'drinks';
   drinkName: string;
   isGuestCoffee?: boolean;
