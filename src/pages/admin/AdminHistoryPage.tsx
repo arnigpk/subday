@@ -136,6 +136,7 @@ export default function AdminHistoryPage() {
 
       let combined: RedemptionWithUser[] = redemptionsData.map(r => ({
         ...r,
+        shop_address: (r as any).shop_address || null,
         user_name: profileMap.get(r.user_id)?.name || null,
         user_phone: profileMap.get(r.user_id)?.phone || null,
         user_public_id: profileMap.get(r.user_id)?.public_id || null,
