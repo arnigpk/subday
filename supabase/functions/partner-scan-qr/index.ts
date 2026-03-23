@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { userId, shopId, shopName, drinkType, drinkName, isGuestCoffee } = body;
+    const { userId, shopId, shopName, shopAddress, drinkType, drinkName, isGuestCoffee } = body;
 
     if (scannerRole.shop_id !== shopId) {
       return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
