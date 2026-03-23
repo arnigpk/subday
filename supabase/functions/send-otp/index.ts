@@ -150,12 +150,6 @@ Deno.serve(async (req) => {
                       body: {
                         placeholders: [code],
                       },
-                      buttons: [
-                        {
-                          type: 'QUICK_REPLY',
-                          parameter: code,
-                        },
-                      ],
                     },
                     language: 'ru',
                   },
