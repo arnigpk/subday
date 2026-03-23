@@ -145,19 +145,19 @@ Deno.serve(async (req) => {
                   from: infobipSender,
                   to: waRecipient,
                   content: {
-                    templateName: 'authentication',
+                    templateName: 'verify_code_1',
                     templateData: {
                       body: {
                         placeholders: [code],
                       },
                       buttons: [
                         {
-                          type: 'URL',
+                          type: 'QUICK_REPLY',
                           parameter: code,
                         },
                       ],
                     },
-                    language: 'en_GB',
+                    language: 'ru',
                   },
                 },
               ],
