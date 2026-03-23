@@ -14,6 +14,7 @@ interface Redemption {
   customerPublicId: string | null;
   drinkName: string;
   subscriptionName: string | null;
+  shopAddress: string | null;
   redeemedAt: string;
 }
 
