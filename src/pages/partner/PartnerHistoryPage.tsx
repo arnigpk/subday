@@ -85,14 +85,29 @@ export default function PartnerHistoryPage() {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      setRedemptions(data.map(r => ({
+      // Collect unique addresses
+      const addresses = new Set<string>();
+      data.forEach(r => {
+        if ((r as any).shop_address) addresses.add((r as any).shop_address);
+      });
+      setAvailableAddresses(Array.from(addresses).sort());
+
+      let mapped = data.map(r => ({
         id: r.id,
         customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
         customerPublicId: profileMap.get(r.user_id)?.public_id || null,
         drinkName: r.drink_name,
         subscriptionName: r.subscription_name,
+        shopAddress: (r as any).shop_address || null,
         redeemedAt: r.redeemed_at,
-      })));
+      }));
+
+      // Apply address filter
+      if (addressFilter !== 'all') {
+        mapped = mapped.filter(r => r.shopAddress === addressFilter);
+      }
+
+      setRedemptions(mapped);
     } catch (error) {
       console.error('Error fetching history:', error);
     } finally {
