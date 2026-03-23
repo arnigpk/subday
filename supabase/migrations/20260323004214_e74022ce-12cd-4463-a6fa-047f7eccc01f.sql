@@ -1,0 +1,1 @@
+ALTER TABLE public.redemptions ADD COLUMN shop_address text;
