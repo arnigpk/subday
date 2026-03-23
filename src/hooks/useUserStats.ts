@@ -29,6 +29,7 @@ export interface Redemption {
   id: string;
   shopName: string;
   shopId: string | null;
+  shopAddress: string | null;
   drinkName: string;
   drinkType: 'coffee' | 'drinks';
   redeemedAt: string;
