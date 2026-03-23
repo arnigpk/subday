@@ -37,6 +37,7 @@ interface RedemptionWithUser {
   id: string;
   user_id: string;
   shop_name: string;
+  shop_address: string | null;
   drink_name: string;
   drink_type: string;
   redeemed_at: string;
