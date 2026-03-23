@@ -627,6 +627,7 @@ export type Database = {
           drink_type: string
           id: string
           redeemed_at: string
+          shop_address: string | null
           shop_id: string | null
           shop_name: string
           subscription_name: string | null
@@ -638,6 +639,7 @@ export type Database = {
           drink_type: string
           id?: string
           redeemed_at?: string
+          shop_address?: string | null
           shop_id?: string | null
           shop_name: string
           subscription_name?: string | null
@@ -649,6 +651,7 @@ export type Database = {
           drink_type?: string
           id?: string
           redeemed_at?: string
+          shop_address?: string | null
           shop_id?: string | null
           shop_name?: string
           subscription_name?: string | null

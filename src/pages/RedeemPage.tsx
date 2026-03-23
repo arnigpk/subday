@@ -39,6 +39,7 @@ interface Shop {
   id: string;
   name: string;
   address: string | null;
+  addresses: string[] | null;
   city: string | null;
   working_hours: string | null;
   is_active: boolean;
@@ -217,7 +218,7 @@ export default function RedeemPage() {
     const fetchShops = async () => {
       try {
         const { data, error } = await supabase
-          .from('shops').select('id, name, address, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
+          .from('shops').select('id, name, address, addresses, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
         if (error) throw error;
         const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => {
           const rawCoords = (shop as any).coordinates;
@@ -229,6 +230,7 @@ export default function RedeemPage() {
           }
           return {
             ...shop,
+            addresses: (shop as any).addresses || null,
             supported_types: (shop as any).supported_types || ['coffee'],
             coordinates: coords,
             isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
@@ -314,14 +316,26 @@ export default function RedeemPage() {
     return () => clearInterval(interval);
   }, [selectedShop]);
 
+  // Get the closest address for the selected shop
+  const selectedShopClosestAddress = useMemo(() => {
+    if (!selectedShop) return selectedShop?.address || null;
+    const distInfo = distances.get(selectedShop.id);
+    const idx = distInfo?.closestAddressIndex ?? 0;
+    if (selectedShop.addresses?.length) {
+      return selectedShop.addresses[idx] || selectedShop.addresses[0] || selectedShop.address;
+    }
+    return selectedShop.address || null;
+  }, [selectedShop, distances]);
+
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
     return JSON.stringify({
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
+      shopAddress: selectedShopClosestAddress || '',
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
     });
-  }, [userId, selectedShop, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
+  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
 
   const goHome = () => navigate('/');
 
@@ -379,6 +393,12 @@ export default function RedeemPage() {
                   <ChevronDown size={16} className="shrink-0" />
                 </button>
               </DropdownMenuTrigger>
+              {selectedShopClosestAddress && (
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                  <MapPin size={10} />
+                  {selectedShopClosestAddress}
+                </p>
+              )}
               <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50">
                 {shops.map((shop) => (
                   <DropdownMenuItem
@@ -402,18 +422,29 @@ export default function RedeemPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {shop.address && (
-                          <span className="truncate flex items-center gap-1">
-                            <MapPin size={10} />
-                            {shop.address}
-                          </span>
-                        )}
-                        {shop.working_hours && (
-                          <span className="shrink-0 flex items-center gap-1">
-                            <Clock size={10} />
-                            {shop.working_hours}
-                          </span>
-                        )}
+                        {(() => {
+                          const distInfo = distances.get(shop.id);
+                          const idx = distInfo?.closestAddressIndex ?? 0;
+                          const addr = shop.addresses?.[idx] || shop.addresses?.[0] || shop.address;
+                          return addr ? (
+                            <span className="truncate flex items-center gap-1">
+                              <MapPin size={10} />
+                              {addr}
+                            </span>
+                          ) : null;
+                        })()}
+                        {(() => {
+                          const distInfo = distances.get(shop.id);
+                          const idx = distInfo?.closestAddressIndex ?? 0;
+                          const coord = shop.coordinates?.[idx];
+                          const hours = coord?.working_hours?.trim() || shop.working_hours;
+                          return hours ? (
+                            <span className="shrink-0 flex items-center gap-1">
+                              <Clock size={10} />
+                              {hours}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     {selectedShop?.id === shop.id && (

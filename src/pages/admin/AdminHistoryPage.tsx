@@ -37,6 +37,7 @@ interface RedemptionWithUser {
   id: string;
   user_id: string;
   shop_name: string;
+  shop_address: string | null;
   drink_name: string;
   drink_type: string;
   redeemed_at: string;
@@ -135,6 +136,7 @@ export default function AdminHistoryPage() {
 
       let combined: RedemptionWithUser[] = redemptionsData.map(r => ({
         ...r,
+        shop_address: (r as any).shop_address || null,
         user_name: profileMap.get(r.user_id)?.name || null,
         user_phone: profileMap.get(r.user_id)?.phone || null,
         user_public_id: profileMap.get(r.user_id)?.public_id || null,
@@ -375,7 +377,14 @@ export default function AdminHistoryPage() {
                         </TableCell>
                         <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
                         <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
-                        <TableCell>{r.shop_name}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span>{r.shop_name}</span>
+                            {r.shop_address && (
+                              <p className="text-xs text-muted-foreground">{r.shop_address}</p>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{r.drink_name}</TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
                         <TableCell>

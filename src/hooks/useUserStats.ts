@@ -29,6 +29,7 @@ export interface Redemption {
   id: string;
   shopName: string;
   shopId: string | null;
+  shopAddress: string | null;
   drinkName: string;
   drinkType: 'coffee' | 'drinks';
   redeemedAt: string;
@@ -108,6 +109,7 @@ export function useUserStats() {
       setRedemptions(
         redemptionsResult.data.map((r) => ({
           id: r.id, shopName: r.shop_name, shopId: r.shop_id,
+          shopAddress: (r as any).shop_address || null,
           drinkName: r.drink_name, drinkType: r.drink_type as 'coffee' | 'drinks',
           redeemedAt: r.redeemed_at,
         }))

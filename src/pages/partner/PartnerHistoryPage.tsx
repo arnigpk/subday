@@ -4,7 +4,14 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -14,6 +21,7 @@ interface Redemption {
   customerPublicId: string | null;
   drinkName: string;
   subscriptionName: string | null;
+  shopAddress: string | null;
   redeemedAt: string;
 }
 
@@ -26,6 +34,8 @@ export default function PartnerHistoryPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
+  const [addressFilter, setAddressFilter] = useState('all');
+  const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
 
   const fetchHistory = useCallback(async () => {
     if (!shopId) return;
@@ -33,7 +43,7 @@ export default function PartnerHistoryPage() {
     try {
       let query = supabase
         .from('redemptions')
-        .select('id, drink_name, subscription_name, redeemed_at, user_id')
+        .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
         .eq('shop_id', shopId)
         .order('redeemed_at', { ascending: false })
         .limit(200);
@@ -82,20 +92,35 @@ export default function PartnerHistoryPage() {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      setRedemptions(data.map(r => ({
+      // Collect unique addresses
+      const addresses = new Set<string>();
+      data.forEach(r => {
+        if ((r as any).shop_address) addresses.add((r as any).shop_address);
+      });
+      setAvailableAddresses(Array.from(addresses).sort());
+
+      let mapped = data.map(r => ({
         id: r.id,
         customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
         customerPublicId: profileMap.get(r.user_id)?.public_id || null,
         drinkName: r.drink_name,
         subscriptionName: r.subscription_name,
+        shopAddress: (r as any).shop_address || null,
         redeemedAt: r.redeemed_at,
-      })));
+      }));
+
+      // Apply address filter
+      if (addressFilter !== 'all') {
+        mapped = mapped.filter(r => r.shopAddress === addressFilter);
+      }
+
+      setRedemptions(mapped);
     } catch (error) {
       console.error('Error fetching history:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [shopId, dateFilter, customDateFrom, customDateTo]);
+  }, [shopId, dateFilter, customDateFrom, customDateTo, addressFilter]);
 
   useEffect(() => {
     if (!shopId || authLoading) return;
@@ -161,6 +186,24 @@ export default function PartnerHistoryPage() {
           )}
         </div>
 
+        {/* Address filter */}
+        {availableAddresses.length > 1 && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <Select value={addressFilter} onValueChange={setAddressFilter}>
+              <SelectTrigger className="w-full sm:w-64 h-8 text-sm">
+                <SelectValue placeholder="Все адреса" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все адреса</SelectItem>
+                {availableAddresses.map(addr => (
+                  <SelectItem key={addr} value={addr}>{addr}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -195,6 +238,12 @@ export default function PartnerHistoryPage() {
                     <p className="text-sm text-muted-foreground">
                       {redemption.drinkName}
                     </p>
+                    {redemption.shopAddress && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin size={10} />
+                        {redemption.shopAddress}
+                      </p>
+                    )}
                     {redemption.subscriptionName && (
                       <p className="text-xs text-primary">
                         {redemption.subscriptionName}

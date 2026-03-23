@@ -9,6 +9,7 @@ interface ScanRequest {
   userId: string;
   shopId: string;
   shopName: string;
+  shopAddress?: string;
   drinkType: 'coffee' | 'drinks';
   drinkName: string;
   isGuestCoffee?: boolean;
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { userId, shopId, shopName, drinkType, drinkName, isGuestCoffee } = body;
+    const { userId, shopId, shopName, shopAddress, drinkType, drinkName, isGuestCoffee } = body;
 
     if (scannerRole.shop_id !== shopId) {
       return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
@@ -167,6 +168,7 @@ Deno.serve(async (req) => {
         }).eq('user_id', userId),
         supabase.from('redemptions').insert({
           user_id: userId, shop_name: shopName, shop_id: shopId,
+          shop_address: shopAddress || null,
           drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
           drink_type: 'coffee', subscription_name: 'Гостевой доступ',
         }),
@@ -247,6 +249,7 @@ Deno.serve(async (req) => {
       supabase.from('user_stats').update(newStats).eq('user_id', userId),
       supabase.from('redemptions').insert({
         user_id: userId, shop_name: shopName, shop_id: shopId,
+        shop_address: shopAddress || null,
         drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
       }),
     ]);
