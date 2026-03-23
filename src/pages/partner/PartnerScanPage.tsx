@@ -77,6 +77,7 @@ export default function PartnerScanPage() {
           userId: data.userId,
           shopId: data.shopId,
           shopName: data.shopName,
+          shopAddress: data.shopAddress || null,
           drinkType: data.drinkType,
           drinkName: data.drinkName,
           isGuestCoffee: data.isGuestCoffee || false,
