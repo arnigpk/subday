@@ -109,6 +109,7 @@ export function useUserStats() {
       setRedemptions(
         redemptionsResult.data.map((r) => ({
           id: r.id, shopName: r.shop_name, shopId: r.shop_id,
+          shopAddress: (r as any).shop_address || null,
           drinkName: r.drink_name, drinkType: r.drink_type as 'coffee' | 'drinks',
           redeemedAt: r.redeemed_at,
         }))

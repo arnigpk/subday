@@ -416,18 +416,29 @@ export default function RedeemPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {shop.address && (
-                          <span className="truncate flex items-center gap-1">
-                            <MapPin size={10} />
-                            {shop.address}
-                          </span>
-                        )}
-                        {shop.working_hours && (
-                          <span className="shrink-0 flex items-center gap-1">
-                            <Clock size={10} />
-                            {shop.working_hours}
-                          </span>
-                        )}
+                        {(() => {
+                          const distInfo = distances.get(shop.id);
+                          const idx = distInfo?.closestAddressIndex ?? 0;
+                          const addr = shop.addresses?.[idx] || shop.addresses?.[0] || shop.address;
+                          return addr ? (
+                            <span className="truncate flex items-center gap-1">
+                              <MapPin size={10} />
+                              {addr}
+                            </span>
+                          ) : null;
+                        })()}
+                        {(() => {
+                          const distInfo = distances.get(shop.id);
+                          const idx = distInfo?.closestAddressIndex ?? 0;
+                          const coord = shop.coordinates?.[idx];
+                          const hours = coord?.working_hours?.trim() || shop.working_hours;
+                          return hours ? (
+                            <span className="shrink-0 flex items-center gap-1">
+                              <Clock size={10} />
+                              {hours}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     {selectedShop?.id === shop.id && (
