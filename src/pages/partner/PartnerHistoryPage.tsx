@@ -238,6 +238,12 @@ export default function PartnerHistoryPage() {
                     <p className="text-sm text-muted-foreground">
                       {redemption.drinkName}
                     </p>
+                    {redemption.shopAddress && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin size={10} />
+                        {redemption.shopAddress}
+                      </p>
+                    )}
                     {redemption.subscriptionName && (
                       <p className="text-xs text-primary">
                         {redemption.subscriptionName}
