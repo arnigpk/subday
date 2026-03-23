@@ -393,6 +393,12 @@ export default function RedeemPage() {
                   <ChevronDown size={16} className="shrink-0" />
                 </button>
               </DropdownMenuTrigger>
+              {selectedShopClosestAddress && (
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                  <MapPin size={10} />
+                  {selectedShopClosestAddress}
+                </p>
+              )}
               <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50">
                 {shops.map((shop) => (
                   <DropdownMenuItem
