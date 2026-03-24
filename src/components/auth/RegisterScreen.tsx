@@ -204,7 +204,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
               </div>
               {channel === 'sms' && (
                 <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
-                  {t('auth.beelineWarning')}
+                  {t('auth.beelineWarningRegister')}
                 </p>
               )}
               <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
