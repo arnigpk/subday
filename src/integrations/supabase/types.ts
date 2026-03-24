@@ -382,6 +382,7 @@ export type Database = {
           inviter_user_id: string
           month_key: string
           status: string
+          subscription_type_id: string | null
         }
         Insert: {
           created_at?: string
@@ -392,6 +393,7 @@ export type Database = {
           inviter_user_id: string
           month_key: string
           status?: string
+          subscription_type_id?: string | null
         }
         Update: {
           created_at?: string
@@ -402,8 +404,17 @@ export type Database = {
           inviter_user_id?: string
           month_key?: string
           status?: string
+          subscription_type_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guest_grants_subscription_type_id_fkey"
+            columns: ["subscription_type_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       investor_settings: {
         Row: {
@@ -1626,15 +1637,26 @@ export type Database = {
               views: number
             }[]
           }
-      grant_guest_access: {
-        Args: {
-          _expires_at: string
-          _invitee_id: string
-          _inviter_id: string
-          _month_key: string
-        }
-        Returns: Json
-      }
+      grant_guest_access:
+        | {
+            Args: {
+              _expires_at: string
+              _invitee_id: string
+              _inviter_id: string
+              _month_key: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _expires_at: string
+              _invitee_id: string
+              _inviter_id: string
+              _month_key: string
+              _subscription_type_id?: string
+            }
+            Returns: Json
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
