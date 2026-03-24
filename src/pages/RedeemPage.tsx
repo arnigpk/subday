@@ -64,6 +64,8 @@ export default function RedeemPage() {
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
   const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(59);
+  const [guestSubName, setGuestSubName] = useState<string | null>(null);
+  const [guestSubVolume, setGuestSubVolume] = useState<string | null>(null);
   
   const { stats, refetch } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
