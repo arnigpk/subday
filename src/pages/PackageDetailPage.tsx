@@ -306,6 +306,12 @@ export default function PackageDetailPage() {
           </div>
         </div>
       </div>
+
+      <PaymentPopup 
+        open={isPaymentOpen} 
+        onClose={closePayment} 
+        paymentUrl={paymentUrl} 
+      />
     </AppLayout>
   );
 }
