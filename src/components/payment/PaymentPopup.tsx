@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 
 interface PaymentPopupProps {
@@ -13,124 +14,105 @@ interface PaymentPopupProps {
 }
 
 export function PaymentPopup({ open, onClose, paymentUrl }: PaymentPopupProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [status, setStatus] = useState<'waiting' | 'checking' | 'success' | 'failed'>('waiting');
+  const paymentWindowRef = useRef<Window | null>(null);
   const { t } = useLanguage();
 
+  // Open payment in new window when popup opens
   useEffect(() => {
-    if (open) {
-      setIsLoading(true);
-      setPaymentCompleted(false);
+    if (open && paymentUrl) {
+      setStatus('waiting');
+      paymentWindowRef.current = window.open(paymentUrl, '_blank');
     }
+    return () => {
+      paymentWindowRef.current = null;
+    };
   }, [open, paymentUrl]);
 
-  // Listen for iframe URL changes - when it redirects to our success/failure URL
+  // Poll for payment completion
   useEffect(() => {
-    if (!open || paymentCompleted) return;
+    if (!open || status === 'success' || status === 'failed') return;
 
-    const handleMessage = (event: MessageEvent) => {
-      // Some payment providers send postMessage on completion
-      if (event.data?.type === 'payment_success' || event.data?.status === 'success') {
-        handlePaymentSuccess();
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [open, paymentCompleted]);
-
-  // Poll for payment status - but only check actual Paylink API status, not time-based
-  useEffect(() => {
-    if (!open || paymentCompleted) return;
-
-    // Start polling after 15 seconds (give user time to pay)
-    const startDelay = setTimeout(() => {
+    // Start polling after 10 seconds
+    const startTimeout = setTimeout(() => {
       const interval = setInterval(async () => {
+        setStatus('checking');
         try {
           const { data, error } = await supabase.functions.invoke('verify-payment');
           if (!error && data?.success) {
-            handlePaymentSuccess();
+            setStatus('success');
+            toast.success('🎉 Подписка успешно активирована!', {
+              duration: 5000,
+              description: 'Спасибо за покупку! Наслаждайтесь кофе.',
+            });
             clearInterval(interval);
+            setTimeout(() => {
+              onClose();
+              window.location.reload();
+            }, 2000);
           }
         } catch {
-          // ignore
+          // ignore, keep polling
         }
-      }, 6000);
+      }, 5000);
 
       return () => clearInterval(interval);
-    }, 15000);
+    }, 10000);
 
-    return () => clearTimeout(startDelay);
-  }, [open, paymentCompleted]);
+    return () => clearTimeout(startTimeout);
+  }, [open, status, onClose]);
 
-  const handlePaymentSuccess = () => {
-    if (paymentCompleted) return;
-    setPaymentCompleted(true);
-    toast.success('🎉 Подписка успешно активирована!', {
-      duration: 5000,
-      description: 'Спасибо за покупку! Наслаждайтесь кофе.',
-    });
-    onClose();
-    setTimeout(() => window.location.reload(), 1500);
-  };
-
-  // Detect when iframe navigates to success/failure URL
-  const handleIframeLoad = () => {
-    setIsLoading(false);
-    
-    try {
-      const iframe = iframeRef.current;
-      if (iframe?.contentWindow) {
-        const url = iframe.contentWindow.location.href;
-        if (url.includes('payment=success')) {
-          handlePaymentSuccess();
-        } else if (url.includes('payment=failed')) {
-          toast.error('Оплата не прошла', {
-            description: 'Попробуйте ещё раз или выберите другой способ оплаты.',
-          });
-          onClose();
-        }
-      }
-    } catch {
-      // Cross-origin - can't access iframe URL, that's fine
+  const handleOpenPayment = () => {
+    if (paymentUrl) {
+      paymentWindowRef.current = window.open(paymentUrl, '_blank');
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="!max-w-[95vw] sm:!max-w-[520px] !p-0 !rounded-2xl !overflow-hidden !h-[85vh] sm:!h-[80vh]">
+      <DialogContent className="!max-w-[90vw] sm:!max-w-[420px] !rounded-2xl">
         <VisuallyHidden.Root>
           <DialogTitle>Оплата</DialogTitle>
         </VisuallyHidden.Root>
 
-        {/* Custom close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border/40 flex items-center justify-center hover:bg-foreground/10 transition-colors"
-        >
-          <X size={16} className="text-foreground" />
-        </button>
+        <div className="flex flex-col items-center text-center py-4 gap-5">
+          {status === 'success' ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-accent/15 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-accent" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground mb-1">Оплата прошла!</h3>
+                <p className="text-sm text-muted-foreground">Подписка активирована. Страница обновится автоматически.</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full bg-accent/15 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-accent animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground mb-1">Ожидание оплаты</h3>
+                <p className="text-sm text-muted-foreground">
+                  Страница оплаты открыта в новом окне. После оплаты подписка активируется автоматически.
+                </p>
+              </div>
 
-        {/* Loading overlay */}
-        {isLoading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-accent" />
-            <p className="text-sm text-muted-foreground">{t('packageDetail.creating')}</p>
-          </div>
-        )}
+              <Button
+                onClick={handleOpenPayment}
+                variant="outline"
+                className="gap-2"
+              >
+                <ExternalLink size={16} />
+                Открыть страницу оплаты
+              </Button>
 
-        {/* Payment iframe */}
-        {paymentUrl && (
-          <iframe
-            ref={iframeRef}
-            src={paymentUrl}
-            className="w-full h-full border-0"
-            onLoad={handleIframeLoad}
-            allow="payment"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
-          />
-        )}
+              <p className="text-xs text-muted-foreground/60">
+                {status === 'checking' ? 'Проверяем статус оплаты...' : 'Проверка начнётся автоматически'}
+              </p>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
