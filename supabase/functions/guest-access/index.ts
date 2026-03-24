@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get auth user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -59,7 +58,6 @@ function jsonRes(data: any, status = 200) {
   });
 }
 
-// Get current month_key in Asia/Aqtau timezone
 function getMonthKey(): string {
   const now = new Date();
   const aqtau = new Date(now.getTime() + 5 * 60 * 60 * 1000);
@@ -68,10 +66,8 @@ function getMonthKey(): string {
   return `${year}-${month}-01`;
 }
 
-// Send guest coffee notification to invitee (Telegram + Push)
 async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string) {
   try {
-    // Fetch template from DB
     const { data: template } = await supabase
       .from("auto_notification_templates")
       .select("message_template, channel, is_active")
@@ -79,19 +75,17 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
       .eq("is_active", true)
       .maybeSingle();
 
-    if (!template) return; // Template disabled or not found
+    if (!template) return;
 
     const message = template.message_template;
     const channel: string = template.channel || "both";
 
-    // Get invitee profile for Telegram check
     const { data: profile } = await supabase
       .from("profiles")
       .select("phone, name")
       .eq("user_id", inviteeUserId)
       .single();
 
-    // Send Telegram if channel allows
     if (channel === "telegram" || channel === "both") {
       const telegramId = profile?.phone ? extractTelegramId(profile.phone) : null;
       if (telegramId) {
@@ -102,7 +96,6 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
       }
     }
 
-    // Send Push if channel allows
     if (channel === "push" || channel === "both") {
       const { data: tokens } = await supabase
         .from("device_tokens")
@@ -127,7 +120,6 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
       }
     }
 
-    // Save to push_notifications table
     await supabase.from("push_notifications").insert({
       user_id: inviteeUserId,
       title: "Подарок от друга ☕",
@@ -181,6 +173,24 @@ async function handleStatus(supabase: any, userId: string) {
   });
 }
 
+// Helper: get inviter's active coffee subscription type id
+async function getInviterSubscriptionTypeId(supabase: any, inviterId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("user_subscriptions")
+    .select("subscription_type_id, subscription_types (type)")
+    .eq("user_id", inviterId)
+    .eq("is_active", true);
+
+  if (!data || data.length === 0) return null;
+
+  const coffeeSub = data.find((s: any) => {
+    const st = s.subscription_types;
+    return st && st.type === "coffee";
+  });
+
+  return coffeeSub?.subscription_type_id || null;
+}
+
 async function handleGrant(supabase: any, inviterId: string, mode: string, value: string) {
   if (!mode || !value) return jsonRes({ error: "Некорректные данные" }, 400);
 
@@ -198,13 +208,13 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "В этом месяце вы уже выдали гостевой доступ." }, 400);
   }
 
-  // 2. Check inviter has coffee
-  const { data: inviterStats } = await supabase
-    .from("user_stats")
-    .select("coffee_remaining")
-    .eq("user_id", inviterId)
-    .single();
+  // 2. Check inviter has coffee + get subscription type in parallel
+  const [inviterStatsResult, subscriptionTypeId] = await Promise.all([
+    supabase.from("user_stats").select("coffee_remaining").eq("user_id", inviterId).single(),
+    getInviterSubscriptionTypeId(supabase, inviterId),
+  ]);
 
+  const inviterStats = inviterStatsResult.data;
   if (!inviterStats || inviterStats.coffee_remaining < 1) {
     return jsonRes({ error: "Недостаточно кофе в подписке для приглашения друга." }, 400);
   }
@@ -243,6 +253,14 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
       }
 
+      // Get subscription name for history record
+      let subName = "Гостевой доступ";
+      if (subscriptionTypeId) {
+        const { data: subType } = await supabase
+          .from("subscription_types").select("name").eq("id", subscriptionTypeId).single();
+        if (subType) subName = `Гостевой доступ (${subType.name})`;
+      }
+
       const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
       const { error: insertError } = await supabase
         .from("guest_grants")
@@ -252,6 +270,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
           month_key: monthKey,
           expires_at: expiresAt,
           status: "pending",
+          subscription_type_id: subscriptionTypeId,
         });
 
       if (insertError) {
@@ -268,6 +287,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         shop_id: null,
         drink_name: `Гостевой доступ → ${phone}`,
         drink_type: "coffee",
+        subscription_name: subName,
       });
 
       return jsonRes({ status: "pending" });
@@ -280,12 +300,10 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "Такого пользователя не существует, попробуй ввести правильный ID" }, 400);
   }
 
-  // 4. Self-invite check
   if (inviteeProfile.user_id === inviterId) {
     return jsonRes({ error: "Нельзя выдать гостевой доступ самому себе." }, 400);
   }
 
-  // 5. Check invitee ever received
   const { data: inviteeStats } = await supabase
     .from("user_stats")
     .select("guest_ever_received")
@@ -296,7 +314,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
   }
 
-  // 5b. Check if invitee ever had a subscription
   const { data: existingSub } = await supabase
     .from("user_subscriptions")
     .select("id")
@@ -329,13 +346,14 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
   }
 
-  // 6. Atomic grant via DB function
+  // 6. Atomic grant via DB function (now with subscription_type_id)
   const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
   const { data: result, error: rpcError } = await supabase.rpc("grant_guest_access", {
     _inviter_id: inviterId,
     _invitee_id: inviteeProfile.user_id,
     _month_key: monthKey,
     _expires_at: expiresAt,
+    _subscription_type_id: subscriptionTypeId,
   });
 
   if (rpcError) {
@@ -352,6 +370,14 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: errorMap[result.error] || "Ошибка" }, 400);
   }
 
+  // Get subscription name for history
+  let subName = "Гостевой доступ";
+  if (subscriptionTypeId) {
+    const { data: subType } = await supabase
+      .from("subscription_types").select("name").eq("id", subscriptionTypeId).single();
+    if (subType) subName = `Гостевой доступ (${subType.name})`;
+  }
+
   // Insert history record for inviter
   const inviteeIdentifier = mode === "phone" ? value : `ID: ${value}`;
   await supabase.from("redemptions").insert({
@@ -360,6 +386,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     shop_id: null,
     drink_name: `Гостевой доступ → ${inviteeIdentifier}`,
     drink_type: "coffee",
+    subscription_name: subName,
   });
 
   // Send notification to invitee (fire-and-forget)
@@ -389,7 +416,6 @@ async function handleClaim(supabase: any, inviteeId: string) {
     return jsonRes({ success: false, reason: "error" });
   }
 
-  // Send notification on successful claim
   if (result?.success) {
     sendGuestCoffeeNotification(supabase, inviteeId).catch(e => console.error("Claim notification error:", e));
   }
