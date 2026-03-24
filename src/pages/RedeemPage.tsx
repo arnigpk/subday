@@ -194,10 +194,34 @@ export default function RedeemPage() {
           .limit(1)
           .maybeSingle();
         if (lastRedemption) setLastRedemptionId(lastRedemption.id);
+
+        // Fetch guest grant subscription info if guest coffee mode
+        if (isGuestCoffee) {
+          const { data: grant } = await supabase
+            .from('guest_grants')
+            .select('subscription_type_id')
+            .eq('invitee_user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (grant?.subscription_type_id) {
+            const { data: subType } = await supabase
+              .from('subscription_types')
+              .select('name, max_volume')
+              .eq('id', grant.subscription_type_id)
+              .single();
+            if (subType) {
+              setGuestSubName(subType.name);
+              setGuestSubVolume((subType as any).max_volume || null);
+            }
+          }
+        }
       }
     };
     initUser();
-  }, []);
+  }, [isGuestCoffee]);
 
   useEffect(() => {
     if (!userId) return;
