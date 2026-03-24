@@ -21,7 +21,6 @@ function extractTelegramId(phone: string): string | null {
 }
 
 function sendTelegramMessage(telegramId: string, message: string, botToken: string): void {
-  // Fire-and-forget
   fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -68,7 +67,6 @@ Deno.serve(async (req) => {
 
     const scannerId = authUser.id;
 
-    // Parse body and check scanner role in parallel
     const bodyPromise = req.json() as Promise<ScanRequest>;
     const rolePromise = supabase
       .from('user_roles').select('role, shop_id')
@@ -108,7 +106,6 @@ Deno.serve(async (req) => {
       if (match) {
         const now = new Date();
         const currentMinutes = now.getUTCHours() * 60 + now.getMinutes();
-        // Adjust for timezone offset (~+5 for KZ/UZ/KG, +3 for RU) - use +5 as default
         const offsetMinutes = 5 * 60;
         const localMinutes = (currentMinutes + offsetMinutes) % (24 * 60);
         const openTime = parseInt(match[1]) * 60 + parseInt(match[2]);
@@ -144,16 +141,43 @@ Deno.serve(async (req) => {
 
     if (useGuestCoffee) {
       // ===== GUEST COFFEE REDEMPTION =====
+      // Fetch grant with subscription_type info
       const { data: grant } = await supabase
-        .from('guest_grants').select('inviter_user_id')
+        .from('guest_grants')
+        .select('inviter_user_id, subscription_type_id')
         .eq('invitee_user_id', userId).eq('status', 'active')
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
       let inviterPublicId = '???';
+      let guestSubscriptionName = 'Гостевой доступ';
+      
+      // Fetch inviter info and subscription type info in parallel
+      const fetchPromises: Promise<any>[] = [];
+      
       if (grant?.inviter_user_id) {
-        const { data: inviterProfile } = await supabase
-          .from('profiles').select('public_id').eq('user_id', grant.inviter_user_id).maybeSingle();
-        if (inviterProfile?.public_id) inviterPublicId = inviterProfile.public_id;
+        fetchPromises.push(
+          supabase.from('profiles').select('public_id').eq('user_id', grant.inviter_user_id).maybeSingle()
+        );
+      } else {
+        fetchPromises.push(Promise.resolve({ data: null }));
+      }
+      
+      if (grant?.subscription_type_id) {
+        fetchPromises.push(
+          supabase.from('subscription_types').select('name, max_volume').eq('id', grant.subscription_type_id).single()
+        );
+      } else {
+        fetchPromises.push(Promise.resolve({ data: null }));
+      }
+      
+      const [inviterProfileResult, subTypeResult] = await Promise.all(fetchPromises);
+      
+      if (inviterProfileResult?.data?.public_id) {
+        inviterPublicId = inviterProfileResult.data.public_id;
+      }
+      
+      if (subTypeResult?.data?.name) {
+        guestSubscriptionName = `Гостевой доступ (${subTypeResult.data.name})`;
       }
 
       const { newStreak, newMaxStreak } = calculateStreak(stats, today);
@@ -170,7 +194,7 @@ Deno.serve(async (req) => {
           user_id: userId, shop_name: shopName, shop_id: shopId,
           shop_address: shopAddress || null,
           drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
-          drink_type: 'coffee', subscription_name: 'Гостевой доступ',
+          drink_type: 'coffee', subscription_name: guestSubscriptionName,
         }),
       ]);
 
@@ -186,7 +210,8 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true, customerName: profile?.name || 'Клиент',
-        drinkName: 'Гостевой кофе', remaining: stats.guest_coffees - 1,
+        drinkName: subTypeResult?.data?.name ? `Гостевой кофе (${subTypeResult.data.name})` : 'Гостевой кофе',
+        remaining: stats.guest_coffees - 1,
         isGuestRedemption: true,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -212,11 +237,9 @@ Deno.serve(async (req) => {
     });
     const subTypes = matchingSub?.subscription_types as unknown as SubTypeInfo | null;
     
-    // Use per-user override if set, otherwise use subscription type default
     const effectiveDailyLimit = (matchingSub as any)?.daily_limit_override ?? subTypes?.daily_limit;
     
     if (effectiveDailyLimit !== null && effectiveDailyLimit !== undefined) {
-      // If daily limit was reset by admin today, only count redemptions after the reset
       const resetAt = (matchingSub as any)?.daily_limit_reset_at;
       const countAfter = resetAt && resetAt.startsWith(today) ? resetAt : `${today}T00:00:00`;
       
@@ -261,7 +284,6 @@ Deno.serve(async (req) => {
 
     const newRemaining = drinkType === 'coffee' ? newStats.coffee_remaining : newStats.drinks_remaining;
 
-    // If remaining hits 0, deactivate the subscription
     if (newRemaining <= 0 && matchingSub) {
       supabase.from('user_subscriptions')
         .update({ is_active: false })
@@ -274,9 +296,6 @@ Deno.serve(async (req) => {
           }
         });
     }
-
-    // Low balance & expiry notifications are now handled by check-subscription-alerts periodic function
-    // No longer triggered on QR scan
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',

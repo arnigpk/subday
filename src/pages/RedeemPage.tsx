@@ -64,6 +64,8 @@ export default function RedeemPage() {
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
   const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(59);
+  const [guestSubName, setGuestSubName] = useState<string | null>(null);
+  const [guestSubVolume, setGuestSubVolume] = useState<string | null>(null);
   
   const { stats, refetch } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
@@ -192,10 +194,34 @@ export default function RedeemPage() {
           .limit(1)
           .maybeSingle();
         if (lastRedemption) setLastRedemptionId(lastRedemption.id);
+
+        // Fetch guest grant subscription info if guest coffee mode
+        if (isGuestCoffee) {
+          const { data: grant } = await supabase
+            .from('guest_grants')
+            .select('subscription_type_id')
+            .eq('invitee_user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (grant?.subscription_type_id) {
+            const { data: subType } = await supabase
+              .from('subscription_types')
+              .select('name, max_volume')
+              .eq('id', grant.subscription_type_id)
+              .single();
+            if (subType) {
+              setGuestSubName(subType.name);
+              setGuestSubVolume((subType as any).max_volume || null);
+            }
+          }
+        }
       }
     };
     initUser();
-  }, []);
+  }, [isGuestCoffee]);
 
   useEffect(() => {
     if (!userId) return;
@@ -507,6 +533,9 @@ export default function RedeemPage() {
               <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
               {/* Current plan name */}
               {(() => {
+                if (isGuestCoffee && guestSubName) {
+                  return <p className="text-sm font-semibold text-accent mb-1">Гостевой доступ ({guestSubName})</p>;
+                }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
                 return activeSub?.subscription_name ? (
                   <p className="text-sm font-semibold text-accent mb-1">{activeSub.subscription_name}</p>
@@ -518,6 +547,9 @@ export default function RedeemPage() {
               <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
               {/* Volume */}
               {(() => {
+                if (isGuestCoffee && guestSubVolume) {
+                  return <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {guestSubVolume}</p>;
+                }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
                 const subVolume = activeSub?.subscription_type_id
                   ? subTypeVolumes.find(sv => sv.id === activeSub.subscription_type_id)?.max_volume
