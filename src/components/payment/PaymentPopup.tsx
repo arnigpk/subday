@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Loader2, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface PaymentPopupProps {
   open: boolean;
@@ -16,6 +18,29 @@ export function PaymentPopup({ open, onClose, paymentUrl }: PaymentPopupProps) {
   useEffect(() => {
     if (open) setIsLoading(true);
   }, [open, paymentUrl]);
+
+  // Poll for payment completion while popup is open
+  const checkPayment = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-payment');
+      if (!error && data?.success) {
+        toast.success('🎉 Подписка успешно активирована!', {
+          duration: 5000,
+          description: 'Спасибо за покупку! Наслаждайтесь кофе.',
+        });
+        onClose();
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    } catch {
+      // ignore
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(checkPayment, 4000);
+    return () => clearInterval(interval);
+  }, [open, checkPayment]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
