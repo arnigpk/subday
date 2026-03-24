@@ -41,7 +41,7 @@ export default function PackageDetailPage() {
   const { id } = useParams();
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isProcessing, createPayment } = usePayment();
+  const { isProcessing, createPayment, paymentUrl, isPaymentOpen, closePayment } = usePayment();
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
