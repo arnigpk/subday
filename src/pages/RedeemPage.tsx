@@ -533,6 +533,9 @@ export default function RedeemPage() {
               <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
               {/* Current plan name */}
               {(() => {
+                if (isGuestCoffee && guestSubName) {
+                  return <p className="text-sm font-semibold text-accent mb-1">Гостевой доступ ({guestSubName})</p>;
+                }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
                 return activeSub?.subscription_name ? (
                   <p className="text-sm font-semibold text-accent mb-1">{activeSub.subscription_name}</p>
@@ -544,6 +547,9 @@ export default function RedeemPage() {
               <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
               {/* Volume */}
               {(() => {
+                if (isGuestCoffee && guestSubVolume) {
+                  return <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {guestSubVolume}</p>;
+                }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
                 const subVolume = activeSub?.subscription_type_id
                   ? subTypeVolumes.find(sv => sv.id === activeSub.subscription_type_id)?.max_volume
