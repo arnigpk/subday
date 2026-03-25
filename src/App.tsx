@@ -65,6 +65,7 @@ const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
 const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
 const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
 const PartnerAdvertisingPage = lazy(() => import("./pages/partner/PartnerAdvertisingPage"));
+const BaristaHistoryPage = lazy(() => import("./pages/partner/BaristaHistoryPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -367,6 +368,7 @@ const AppContent = () => {
             <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
             <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
             <Route path="/partner/advertising" element={<PartnerProtectedRoute allowBarista={false}><PartnerAdvertisingPage /></PartnerProtectedRoute>} />
+            <Route path="/partner/barista-history" element={<PartnerProtectedRoute><BaristaHistoryPage /></PartnerProtectedRoute>} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
