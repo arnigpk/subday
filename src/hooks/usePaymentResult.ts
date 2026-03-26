@@ -2,16 +2,22 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function usePaymentResult() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isVerifying, setIsVerifying] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     
     if (paymentStatus === 'success' && !isVerifying) {
       setIsVerifying(true);
+      
+      // Remove payment param from URL immediately
+      searchParams.delete('payment');
+      setSearchParams(searchParams, { replace: true });
       
       // Verify and activate subscription
       verifyPayment().then((result) => {
@@ -27,14 +33,8 @@ export function usePaymentResult() {
           });
         }
         
-        // Remove payment param from URL
-        searchParams.delete('payment');
-        setSearchParams(searchParams, { replace: true });
-        
-        // Refresh the page data
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Invalidate all queries to refresh data instantly
+        queryClient.invalidateQueries();
       }).finally(() => {
         setIsVerifying(false);
       });
@@ -44,11 +44,10 @@ export function usePaymentResult() {
         description: 'Попробуйте ещё раз или выберите другой способ оплаты.',
       });
       
-      // Remove payment param from URL
       searchParams.delete('payment');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams, isVerifying]);
+  }, [searchParams, setSearchParams, isVerifying, queryClient]);
 }
 
 async function verifyPayment(): Promise<{ success: boolean }> {
