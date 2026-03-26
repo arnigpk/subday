@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
+import { PaymentIframeDialog } from '@/components/payment/PaymentIframeDialog';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -40,7 +41,7 @@ export default function PackageDetailPage() {
   const { id } = useParams();
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isProcessing, createPayment } = usePayment();
+  const { isProcessing, createPayment, paymentUrl, paymentOrderId, showIframe, closePayment, onPaymentSuccess } = usePayment();
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
@@ -305,6 +306,13 @@ export default function PackageDetailPage() {
           </div>
         </div>
       </div>
+      <PaymentIframeDialog
+        open={showIframe}
+        paymentUrl={paymentUrl}
+        paymentOrderId={paymentOrderId}
+        onClose={closePayment}
+        onSuccess={onPaymentSuccess}
+      />
     </AppLayout>
   );
 }

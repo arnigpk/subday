@@ -1,21 +1,33 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface UsePaymentResult {
+interface PaymentState {
   isProcessing: boolean;
+  paymentUrl: string | null;
+  paymentOrderId: string | null;
+  showIframe: boolean;
+}
+
+interface UsePaymentResult extends PaymentState {
   createPayment: (subscriptionTypeId: string) => Promise<void>;
+  closePayment: () => void;
+  onPaymentSuccess: () => void;
 }
 
 export function usePayment(): UsePaymentResult {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [state, setState] = useState<PaymentState>({
+    isProcessing: false,
+    paymentUrl: null,
+    paymentOrderId: null,
+    showIframe: false,
+  });
 
-  const createPayment = async (subscriptionTypeId: string) => {
-    setIsProcessing(true);
-    
+  const createPayment = useCallback(async (subscriptionTypeId: string) => {
+    setState(s => ({ ...s, isProcessing: true }));
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         toast.error('Необходимо авторизоваться');
         return;
@@ -32,8 +44,12 @@ export function usePayment(): UsePaymentResult {
       }
 
       if (data?.payment_url) {
-        // Redirect to payment page in the same window
-        window.location.href = data.payment_url;
+        setState(s => ({
+          ...s,
+          paymentUrl: data.payment_url,
+          paymentOrderId: data.payment_order_id || null,
+          showIframe: true,
+        }));
       } else {
         console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
@@ -42,12 +58,34 @@ export function usePayment(): UsePaymentResult {
       console.error('Payment error:', error);
       toast.error('Произошла ошибка при создании платежа');
     } finally {
-      setIsProcessing(false);
+      setState(s => ({ ...s, isProcessing: false }));
     }
-  };
+  }, []);
+
+  const closePayment = useCallback(() => {
+    setState({
+      isProcessing: false,
+      paymentUrl: null,
+      paymentOrderId: null,
+      showIframe: false,
+    });
+  }, []);
+
+  const onPaymentSuccess = useCallback(() => {
+    setState({
+      isProcessing: false,
+      paymentUrl: null,
+      paymentOrderId: null,
+      showIframe: false,
+    });
+    // Reload to refresh subscription status
+    setTimeout(() => window.location.reload(), 1500);
+  }, []);
 
   return {
-    isProcessing,
+    ...state,
     createPayment,
+    closePayment,
+    onPaymentSuccess,
   };
 }
