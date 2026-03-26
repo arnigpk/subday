@@ -190,13 +190,12 @@ Deno.serve(async (req) => {
           total_cups: stats.total_cups + 1, bonus_points: stats.bonus_points + bonusForRedemption,
           last_redemption_date: today,
         }).eq('user_id', userId),
-      supabase.from('redemptions').insert({
-        user_id: userId, shop_name: shopName, shop_id: shopId,
-        shop_address: shopAddress || null,
-        drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
-        drink_type: 'coffee', subscription_name: guestSubscriptionName,
-        scanned_by: scannerId,
-      }),
+        supabase.from('redemptions').insert({
+          user_id: userId, shop_name: shopName, shop_id: shopId,
+          shop_address: shopAddress || null,
+          drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
+          drink_type: 'coffee', subscription_name: guestSubscriptionName,
+        }),
       ]);
 
       if (updateResult.error) {
@@ -275,7 +274,6 @@ Deno.serve(async (req) => {
         user_id: userId, shop_name: shopName, shop_id: shopId,
         shop_address: shopAddress || null,
         drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
-        scanned_by: scannerId,
       }),
     ]);
 

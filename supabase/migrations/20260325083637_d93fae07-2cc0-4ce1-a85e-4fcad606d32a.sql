@@ -1,1 +1,0 @@
-ALTER TABLE public.redemptions ADD COLUMN scanned_by uuid;

@@ -35,7 +35,6 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
     : isBarista
     ? [
         { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
-        { path: '/partner/barista-history', icon: History, label: 'Моя смена' },
       ]
     : [
         { path: '/partner/scan', icon: QrCode, label: 'Сканер' },
