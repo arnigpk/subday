@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, Info, Loader2, CreditCard, Sparkles, Gift, X } from 'lucide-react';
+import { PaymentSuccessAnimation } from '@/components/payment/PaymentSuccessAnimation';
 import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
@@ -41,7 +42,7 @@ export default function PackageDetailPage() {
   const { id } = useParams();
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isProcessing, createPayment, paymentUrl, paymentOrderId, showIframe, closePayment, onPaymentSuccess } = usePayment();
+  const { isProcessing, createPayment, paymentUrl, paymentOrderId, showIframe, closePayment, onPaymentSuccess, externalMode, showSuccessAnimation, dismissSuccessAnimation } = usePayment();
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
@@ -312,6 +313,11 @@ export default function PackageDetailPage() {
         paymentOrderId={paymentOrderId}
         onClose={closePayment}
         onSuccess={onPaymentSuccess}
+        externalMode={externalMode}
+      />
+      <PaymentSuccessAnimation
+        show={showSuccessAnimation}
+        onComplete={dismissSuccessAnimation}
       />
     </AppLayout>
   );
