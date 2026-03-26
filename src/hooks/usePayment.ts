@@ -1,33 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface PaymentState {
+interface UsePaymentResult {
   isProcessing: boolean;
-  paymentUrl: string | null;
-  paymentOrderId: string | null;
-  showIframe: boolean;
-}
-
-interface UsePaymentResult extends PaymentState {
   createPayment: (subscriptionTypeId: string) => Promise<void>;
-  closePayment: () => void;
-  onPaymentSuccess: () => void;
 }
 
 export function usePayment(): UsePaymentResult {
-  const [state, setState] = useState<PaymentState>({
-    isProcessing: false,
-    paymentUrl: null,
-    paymentOrderId: null,
-    showIframe: false,
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const createPayment = useCallback(async (subscriptionTypeId: string) => {
-    setState(s => ({ ...s, isProcessing: true }));
-
+  const createPayment = async (subscriptionTypeId: string) => {
+    setIsProcessing(true);
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
         toast.error('Необходимо авторизоваться');
         return;
@@ -44,12 +32,8 @@ export function usePayment(): UsePaymentResult {
       }
 
       if (data?.payment_url) {
-        setState(s => ({
-          ...s,
-          paymentUrl: data.payment_url,
-          paymentOrderId: data.payment_order_id || null,
-          showIframe: true,
-        }));
+        // Redirect to payment page in the same window
+        window.location.href = data.payment_url;
       } else {
         console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
@@ -58,34 +42,12 @@ export function usePayment(): UsePaymentResult {
       console.error('Payment error:', error);
       toast.error('Произошла ошибка при создании платежа');
     } finally {
-      setState(s => ({ ...s, isProcessing: false }));
+      setIsProcessing(false);
     }
-  }, []);
-
-  const closePayment = useCallback(() => {
-    setState({
-      isProcessing: false,
-      paymentUrl: null,
-      paymentOrderId: null,
-      showIframe: false,
-    });
-  }, []);
-
-  const onPaymentSuccess = useCallback(() => {
-    setState({
-      isProcessing: false,
-      paymentUrl: null,
-      paymentOrderId: null,
-      showIframe: false,
-    });
-    // Reload to refresh subscription status
-    setTimeout(() => window.location.reload(), 1500);
-  }, []);
+  };
 
   return {
-    ...state,
+    isProcessing,
     createPayment,
-    closePayment,
-    onPaymentSuccess,
   };
 }
