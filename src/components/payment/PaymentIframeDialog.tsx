@@ -11,6 +11,8 @@ interface PaymentIframeDialogProps {
   paymentOrderId: string | null;
   onClose: () => void;
   onSuccess: () => void;
+  /** If true, payment was opened externally — show waiting UI instead of iframe */
+  externalMode?: boolean;
 }
 
 export function PaymentIframeDialog({
@@ -19,6 +21,7 @@ export function PaymentIframeDialog({
   paymentOrderId,
   onClose,
   onSuccess,
+  externalMode = false,
 }: PaymentIframeDialogProps) {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,10 +47,6 @@ export function PaymentIframeDialog({
 
         if (data?.status === 'paid') {
           stopPolling();
-          toast.success('🎉 Оплата прошла успешно!', {
-            duration: 5000,
-            description: 'Подписка активирована. Наслаждайтесь кофе!',
-          });
           onSuccess();
         } else if (data?.status === 'failed') {
           stopPolling();
@@ -61,9 +60,7 @@ export function PaymentIframeDialog({
       }
     };
 
-    // Start polling every 3 seconds
     pollRef.current = setInterval(poll, 3000);
-
     return () => stopPolling();
   }, [open, paymentOrderId, onSuccess, onClose, stopPolling]);
 
@@ -72,7 +69,8 @@ export function PaymentIframeDialog({
     if (paymentUrl) setIframeLoaded(false);
   }, [paymentUrl]);
 
-  if (!paymentUrl) return null;
+  if (!paymentUrl && !externalMode) return null;
+  if (!open) return null;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -92,25 +90,53 @@ export function PaymentIframeDialog({
           </Button>
         </div>
 
-        {/* Loading overlay */}
-        {!iframeLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background z-10 mt-12">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Загрузка формы оплаты...</span>
+        {externalMode ? (
+          /* External mode: payment opened in browser, show waiting UI */
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="text-center space-y-2">
+              <p className="text-base font-medium text-foreground">Ожидание оплаты...</p>
+              <p className="text-sm text-muted-foreground">
+                Страница оплаты открыта в браузере. После завершения оплаты это окно обновится автоматически.
+              </p>
             </div>
+            <Button variant="outline" size="sm" onClick={() => {
+              if (paymentUrl) {
+                const tg = window.Telegram?.WebApp;
+                if (tg) {
+                  (tg as any).openLink?.(paymentUrl);
+                } else {
+                  window.open(paymentUrl, '_blank');
+                }
+              }
+            }}>
+              Открыть заново
+            </Button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Loading overlay */}
+            {!iframeLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background z-10 mt-12">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Загрузка формы оплаты...</span>
+                </div>
+              </div>
+            )}
 
-        {/* Iframe */}
-        <iframe
-          src={paymentUrl}
-          className="w-full flex-1 border-0"
-          style={{ minHeight: 0 }}
-          allow="payment *"
-          referrerPolicy="strict-origin-when-cross-origin"
-          onLoad={() => setIframeLoaded(true)}
-        />
+            {/* Iframe */}
+            <iframe
+              src={paymentUrl!}
+              className="w-full flex-1 border-0"
+              style={{ minHeight: 0 }}
+              allow="payment *"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={() => setIframeLoaded(true)}
+            />
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
