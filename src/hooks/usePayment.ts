@@ -7,12 +7,19 @@ interface PaymentState {
   paymentUrl: string | null;
   paymentOrderId: string | null;
   showIframe: boolean;
+  externalMode: boolean;
+  showSuccessAnimation: boolean;
 }
 
 interface UsePaymentResult extends PaymentState {
   createPayment: (subscriptionTypeId: string) => Promise<void>;
   closePayment: () => void;
   onPaymentSuccess: () => void;
+  dismissSuccessAnimation: () => void;
+}
+
+function isTelegramMiniApp(): boolean {
+  return !!(window.Telegram?.WebApp?.initData);
 }
 
 export function usePayment(): UsePaymentResult {
@@ -21,6 +28,8 @@ export function usePayment(): UsePaymentResult {
     paymentUrl: null,
     paymentOrderId: null,
     showIframe: false,
+    externalMode: false,
+    showSuccessAnimation: false,
   });
 
   const createPayment = useCallback(async (subscriptionTypeId: string) => {
@@ -44,12 +53,35 @@ export function usePayment(): UsePaymentResult {
       }
 
       if (data?.payment_url) {
-        setState(s => ({
-          ...s,
-          paymentUrl: data.payment_url,
-          paymentOrderId: data.payment_order_id || null,
-          showIframe: true,
-        }));
+        const isTg = isTelegramMiniApp();
+
+        if (isTg) {
+          // In Telegram Mini App, open payment URL externally
+          const tg = window.Telegram?.WebApp;
+          if (tg && (tg as any).openLink) {
+            (tg as any).openLink(data.payment_url);
+          } else {
+            window.open(data.payment_url, '_blank');
+          }
+
+          // Show waiting dialog with polling
+          setState(s => ({
+            ...s,
+            paymentUrl: data.payment_url,
+            paymentOrderId: data.payment_order_id || null,
+            showIframe: true,
+            externalMode: true,
+          }));
+        } else {
+          // Normal browser — use iframe
+          setState(s => ({
+            ...s,
+            paymentUrl: data.payment_url,
+            paymentOrderId: data.payment_order_id || null,
+            showIframe: true,
+            externalMode: false,
+          }));
+        }
       } else {
         console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
@@ -68,18 +100,30 @@ export function usePayment(): UsePaymentResult {
       paymentUrl: null,
       paymentOrderId: null,
       showIframe: false,
+      externalMode: false,
+      showSuccessAnimation: false,
     });
   }, []);
 
   const onPaymentSuccess = useCallback(() => {
+    setState(s => ({
+      ...s,
+      showIframe: false,
+      showSuccessAnimation: true,
+    }));
+  }, []);
+
+  const dismissSuccessAnimation = useCallback(() => {
     setState({
       isProcessing: false,
       paymentUrl: null,
       paymentOrderId: null,
       showIframe: false,
+      externalMode: false,
+      showSuccessAnimation: false,
     });
     // Reload to refresh subscription status
-    setTimeout(() => window.location.reload(), 1500);
+    setTimeout(() => window.location.reload(), 500);
   }, []);
 
   return {
@@ -87,5 +131,6 @@ export function usePayment(): UsePaymentResult {
     createPayment,
     closePayment,
     onPaymentSuccess,
+    dismissSuccessAnimation,
   };
 }
