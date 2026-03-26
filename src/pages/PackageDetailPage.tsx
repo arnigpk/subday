@@ -306,6 +306,13 @@ export default function PackageDetailPage() {
           </div>
         </div>
       </div>
+      <PaymentIframeDialog
+        open={showIframe}
+        paymentUrl={paymentUrl}
+        paymentOrderId={paymentOrderId}
+        onClose={closePayment}
+        onSuccess={onPaymentSuccess}
+      />
     </AppLayout>
   );
 }
