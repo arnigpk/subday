@@ -321,6 +321,7 @@ export default function AdminSubscriptionTransactionsPage() {
 
   const handleDeletePayment = async (id: string) => {
     try {
+      await supabase.from('subscription_transactions').delete().eq('payment_order_id', id);
       const { error } = await supabase.from('payment_orders').delete().eq('id', id);
       if (error) throw error;
       toast.success('Запись оплаты удалена');
