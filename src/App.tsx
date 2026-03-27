@@ -63,6 +63,7 @@ const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerPro
 const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
 const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
 const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
+const BaristaShiftHistory = lazy(() => import("./pages/partner/BaristaShiftHistory"));
 const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
 const PartnerAdvertisingPage = lazy(() => import("./pages/partner/PartnerAdvertisingPage"));
 
@@ -365,6 +366,7 @@ const AppContent = () => {
             <Route path="/partner" element={<PartnerProtectedRoute allowBarista={false}><PartnerDashboard /></PartnerProtectedRoute>} />
             <Route path="/partner/scan" element={<PartnerProtectedRoute><PartnerScanPage /></PartnerProtectedRoute>} />
             <Route path="/partner/history" element={<PartnerProtectedRoute allowBarista={false}><PartnerHistoryPage /></PartnerProtectedRoute>} />
+            <Route path="/partner/my-shift" element={<PartnerProtectedRoute><BaristaShiftHistory /></PartnerProtectedRoute>} />
             <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
             <Route path="/partner/advertising" element={<PartnerProtectedRoute allowBarista={false}><PartnerAdvertisingPage /></PartnerProtectedRoute>} />
             

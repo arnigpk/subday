@@ -263,7 +263,7 @@ export default function AdminSubscriptionTransactionsPage() {
       if (dateFilters) {
         query = query.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
       } else {
-        query = query.gt('created_at', '1970-01-01');
+        query = query.neq('id', '00000000-0000-0000-0000-000000000000');
       }
       const { error } = await query;
       if (error) throw error;
@@ -271,18 +271,31 @@ export default function AdminSubscriptionTransactionsPage() {
       fetchTransactions();
     } catch (error) {
       console.error('Error clearing history:', error);
-      toast.error('Ошибка очистки');
+      toast.error('Ошибка очистки: ' + (error as any)?.message || 'Неизвестная ошибка');
     }
   };
 
   const handleClearPayments = async () => {
     try {
       const dateFilters = getDateFilters();
+      
+      // First delete subscription_transactions referencing these payment_orders
+      let txQuery = supabase.from('subscription_transactions').delete();
+      if (dateFilters) {
+        txQuery = txQuery.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+      } else {
+        txQuery = txQuery.neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      // Only delete transactions that have a payment_order_id (linked to payment_orders)
+      txQuery = txQuery.not('payment_order_id', 'is', null);
+      await txQuery;
+
+      // Then delete payment_orders
       let query = supabase.from('payment_orders').delete();
       if (dateFilters) {
         query = query.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
       } else {
-        query = query.gt('created_at', '1970-01-01');
+        query = query.neq('id', '00000000-0000-0000-0000-000000000000');
       }
       const { error } = await query;
       if (error) throw error;
@@ -290,7 +303,7 @@ export default function AdminSubscriptionTransactionsPage() {
       fetchPayments();
     } catch (error) {
       console.error('Error clearing payments:', error);
-      toast.error('Ошибка очистки');
+      toast.error('Ошибка очистки: ' + (error as any)?.message || 'Неизвестная ошибка');
     }
   };
 

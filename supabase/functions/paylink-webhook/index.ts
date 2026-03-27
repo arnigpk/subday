@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
         // Try fetching full invoice details from Paylink API
         if (paylinkApiKey && invoiceUid) {
           const invoiceRes = await fetch(`https://core.paylink.kz/api/v1/invoices/${invoiceUid}`, {
-            headers: { 'Authorization': `Bearer ${paylinkApiKey}` },
+            headers: { 'X-API-KEY': paylinkApiKey, 'Accept': 'application/json' },
           });
           if (invoiceRes.ok) {
             const invoice = await invoiceRes.json();
