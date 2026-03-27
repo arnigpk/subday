@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -9,20 +10,25 @@ interface UsePaymentResult {
 
 export function usePayment(): UsePaymentResult {
   const [isProcessing, setIsProcessing] = useState(false);
+  const location = useLocation();
 
   const createPayment = async (subscriptionTypeId: string) => {
     setIsProcessing(true);
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         toast.error('Необходимо авторизоваться');
         return;
       }
 
+      const returnPath = `${location.pathname}${location.search}${location.hash}`;
       const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: { subscription_type_id: subscriptionTypeId },
+        body: {
+          subscription_type_id: subscriptionTypeId,
+          return_path: returnPath,
+        },
       });
 
       if (error) {
@@ -32,7 +38,6 @@ export function usePayment(): UsePaymentResult {
       }
 
       if (data?.payment_url) {
-        // Redirect to payment page in the same window
         window.location.href = data.payment_url;
       } else {
         console.error('No payment URL in response:', data);

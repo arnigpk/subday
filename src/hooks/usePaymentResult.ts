@@ -9,12 +9,12 @@ export function usePaymentResult() {
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
-    
+    const orderId = searchParams.get('order');
+
     if (paymentStatus === 'success' && !isVerifying) {
       setIsVerifying(true);
-      
-      // Verify and activate subscription
-      verifyPayment().then((result) => {
+
+      verifyPayment(orderId).then((result) => {
         if (result.success) {
           toast.success('🎉 Подписка успешно активирована!', {
             duration: 5000,
@@ -23,15 +23,15 @@ export function usePaymentResult() {
         } else {
           toast.info('Платёж обрабатывается...', {
             duration: 5000,
-            description: 'Подписка будет активирована в течение нескольких минут.',
+            description: 'Подписка будет активирована сразу после подтверждения оплаты.',
           });
         }
-        
-        // Remove payment param from URL
-        searchParams.delete('payment');
-        setSearchParams(searchParams, { replace: true });
-        
-        // Refresh the page data
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('payment');
+        nextParams.delete('order');
+        setSearchParams(nextParams, { replace: true });
+
         setTimeout(() => {
           window.location.reload();
         }, 1500);
@@ -43,23 +43,26 @@ export function usePaymentResult() {
         duration: 5000,
         description: 'Попробуйте ещё раз или выберите другой способ оплаты.',
       });
-      
-      // Remove payment param from URL
-      searchParams.delete('payment');
-      setSearchParams(searchParams, { replace: true });
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('payment');
+      nextParams.delete('order');
+      setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams, isVerifying]);
 }
 
-async function verifyPayment(): Promise<{ success: boolean }> {
+async function verifyPayment(orderId: string | null): Promise<{ success: boolean }> {
   try {
-    const { data, error } = await supabase.functions.invoke('verify-payment');
-    
+    const { data, error } = await supabase.functions.invoke('verify-payment', {
+      body: orderId ? { order_id: orderId } : {},
+    });
+
     if (error) {
       console.error('Verify payment error:', error);
       return { success: false };
     }
-    
+
     console.log('Verify payment result:', data);
     return { success: data?.success === true };
   } catch (e) {
