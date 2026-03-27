@@ -1,0 +1,228 @@
+import { useState, useEffect, useCallback } from 'react';
+import { PartnerLayout } from '@/components/partner/PartnerLayout';
+import { usePartnerAuth } from '@/hooks/usePartnerAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, Coffee, CalendarDays, MapPin } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+
+interface Redemption {
+  id: string;
+  customerName: string | null;
+  customerPublicId: string | null;
+  drinkName: string;
+  subscriptionName: string | null;
+  shopAddress: string | null;
+  redeemedAt: string;
+}
+
+type DateFilter = 'today' | 'week' | 'month' | 'custom';
+
+export default function BaristaShiftHistory() {
+  const { shopId, isLoading: authLoading } = usePartnerAuth();
+  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [addressFilter, setAddressFilter] = useState('all');
+  const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+
+  const fetchHistory = useCallback(async () => {
+    if (!shopId) return;
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let query = supabase
+        .from('redemptions')
+        .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
+        .eq('shop_id', shopId)
+        .eq('scanned_by', user.id)
+        .order('redeemed_at', { ascending: false })
+        .limit(200);
+
+      const now = new Date();
+      if (dateFilter === 'today') {
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        query = query.gte('redeemed_at', todayStart);
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('redeemed_at', weekAgo);
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('redeemed_at', monthAgo);
+      } else if (dateFilter === 'custom') {
+        if (customDateFrom) query = query.gte('redeemed_at', new Date(customDateFrom).toISOString());
+        if (customDateTo) {
+          const endDate = new Date(customDateTo);
+          endDate.setDate(endDate.getDate() + 1);
+          query = query.lt('redeemed_at', endDate.toISOString());
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) { console.error('Error:', error); setIsLoading(false); return; }
+      if (!data || data.length === 0) { setRedemptions([]); setIsLoading(false); return; }
+
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, public_id')
+        .in('user_id', userIds);
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+      const addresses = new Set<string>();
+      data.forEach(r => { if (r.shop_address) addresses.add(r.shop_address); });
+      setAvailableAddresses(Array.from(addresses).sort());
+
+      let mapped = data.map(r => ({
+        id: r.id,
+        customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
+        customerPublicId: profileMap.get(r.user_id)?.public_id || null,
+        drinkName: r.drink_name,
+        subscriptionName: r.subscription_name,
+        shopAddress: r.shop_address || null,
+        redeemedAt: r.redeemed_at,
+      }));
+
+      if (addressFilter !== 'all') {
+        mapped = mapped.filter(r => r.shopAddress === addressFilter);
+      }
+
+      setRedemptions(mapped);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [shopId, dateFilter, customDateFrom, customDateTo, addressFilter]);
+
+  useEffect(() => {
+    if (!shopId || authLoading) return;
+    fetchHistory();
+  }, [shopId, authLoading, fetchHistory]);
+
+  if (authLoading) {
+    return (
+      <PartnerLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </PartnerLayout>
+    );
+  }
+
+  const filterButtons: { value: DateFilter; label: string }[] = [
+    { value: 'today', label: 'Сегодня' },
+    { value: 'week', label: 'Неделя' },
+    { value: 'month', label: 'Месяц' },
+    { value: 'custom', label: 'Произвольно' },
+  ];
+
+  return (
+    <PartnerLayout>
+      <div className="p-4 space-y-4">
+        <h2 className="text-xl font-bold text-foreground">
+          Моя смена {redemptions.length > 0 && `(${redemptions.length})`}
+        </h2>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+            {filterButtons.map((f) => (
+              <Button
+                key={f.value}
+                variant={dateFilter === f.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter(f.value)}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+          {dateFilter === 'custom' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} className="w-36 h-8 text-sm" />
+              <span className="text-sm text-muted-foreground">—</span>
+              <Input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} className="w-36 h-8 text-sm" />
+            </div>
+          )}
+        </div>
+
+        {availableAddresses.length > 1 && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <Select value={addressFilter} onValueChange={setAddressFilter}>
+              <SelectTrigger className="w-full sm:w-64 h-8 text-sm">
+                <SelectValue placeholder="Все адреса" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все адреса</SelectItem>
+                {availableAddresses.map(addr => (
+                  <SelectItem key={addr} value={addr}>{addr}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : redemptions.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+              <Coffee size={32} className="text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground">
+              {dateFilter === 'today' ? 'За сегодня пока нет списаний' : 'Нет записей за выбранный период'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {redemptions.map((redemption) => (
+              <div key={redemption.id} className="bg-card p-4 rounded-xl border border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Coffee size={20} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{redemption.customerName}</p>
+                    {redemption.customerPublicId && (
+                      <p className="text-xs text-muted-foreground font-mono">ID: {redemption.customerPublicId}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground">{redemption.drinkName}</p>
+                    {redemption.shopAddress && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin size={10} />{redemption.shopAddress}
+                      </p>
+                    )}
+                    {redemption.subscriptionName && (
+                      <p className="text-xs text-primary">{redemption.subscriptionName}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-foreground">{format(new Date(redemption.redeemedAt), 'HH:mm')}</p>
+                  <p className="text-xs text-muted-foreground">{format(new Date(redemption.redeemedAt), 'd MMM', { locale: ru })}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </PartnerLayout>
+  );
+}
