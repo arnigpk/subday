@@ -174,11 +174,16 @@
   }
   
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
+    padding-bottom: env(safe-area-inset-bottom, 16px);
   }
   
   .safe-area-top {
-    padding-top: env(safe-area-inset-top, 20px);
+    padding-top: env(safe-area-inset-top, 8px);
+  }
+
+  /* Extra breathing room in Telegram MiniApp */
+  .tg-miniapp .safe-area-top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
   }
 }
 

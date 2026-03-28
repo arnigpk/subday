@@ -91,7 +91,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-6 safe-area-bottom">
         {children}
       </main>
     </div>

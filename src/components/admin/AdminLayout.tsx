@@ -117,7 +117,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50 safe-area-top">
         <div className="flex items-center justify-between p-4">
           <div>
             <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs mb-1">
@@ -161,7 +161,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 md:overflow-auto">
-        <div className="md:p-8 p-4 pt-28 md:pt-8">
+        <div className="md:p-8 p-4 pt-28 md:pt-8 pb-8 safe-area-bottom">
           <h2 className="text-2xl font-bold mb-6">{title}</h2>
           {children}
         </div>

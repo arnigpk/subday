@@ -26,56 +26,55 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
   const [isBuffering, setIsBuffering] = useState(false);
   const [loadSrc, setLoadSrc] = useState(false);
   const pauseIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playAttemptRef = useRef(false);
 
   const remainingTimeLabel = useMemo(() => {
     const base = duration > 0 ? duration - currentTime : 0;
     return formatRemainingTime(base);
   }, [duration, currentTime]);
 
-  const configureVideoElement = useCallback((video: HTMLVideoElement, muted: boolean) => {
-    video.muted = muted;
-    video.playsInline = true;
-    video.autoplay = true;
-    video.preload = 'auto';
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-  }, []);
-
   const playVideo = useCallback(async (fromUserGesture: boolean) => {
     const video = videoRef.current;
-    if (!video) return false;
+    if (!video || playAttemptRef.current) return false;
+    playAttemptRef.current = true;
 
-    configureVideoElement(video, true);
+    // Always ensure muted for autoplay compliance
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     if (fromUserGesture) setIsMuted(true);
 
-    // Start playback immediately without waiting for full buffer
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await video.play();
+        const playPromise = video.play();
+        if (playPromise) await playPromise;
         setShowPlayButton(false);
+        setIsPlaying(true);
+        playAttemptRef.current = false;
         return true;
       } catch (err) {
         if (attempt < 2) {
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 200));
         } else {
           console.log('Video play blocked after retries:', err);
           setIsPlaying(false);
           setShowPlayButton(true);
           if (fromUserGesture) setShowNativeControls(true);
+          playAttemptRef.current = false;
           return false;
         }
       }
     }
+    playAttemptRef.current = false;
     return false;
-  }, [configureVideoElement]);
+  }, []);
 
   // Lazy loading: load src when approaching viewport
-  // Autoplay: play when visible, pause when not
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    // Preload observer: start loading video when within 500px of viewport
     const preloadObserver = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -83,17 +82,30 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
           preloadObserver.unobserve(entry.target);
         }
       },
-      { rootMargin: '500px 0px' }
+      { rootMargin: '800px 0px' }
     );
 
-    // Playback observer: autoplay when 35%+ visible
+    preloadObserver.observe(el);
+    return () => preloadObserver.disconnect();
+  }, []);
+
+  // Autoplay when visible, pause when not
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !loadSrc) return;
+
     const playbackObserver = new IntersectionObserver(
       ([entry]) => {
         const video = videoRef.current;
         if (!video) return;
 
         if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
-          void playVideo(false);
+          // Small delay to allow DOM to settle (especially in Telegram MiniApp)
+          setTimeout(() => {
+            if (video.paused) {
+              void playVideo(false);
+            }
+          }, 100);
         } else {
           video.pause();
           setIsPlaying(false);
@@ -104,14 +116,36 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
       { threshold: [0.2, 0.35, 0.6] }
     );
 
-    preloadObserver.observe(el);
     playbackObserver.observe(el);
+    return () => playbackObserver.disconnect();
+  }, [playVideo, loadSrc]);
+
+  // Try to play once video data is loaded (canplay event)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !loadSrc) return;
+
+    const onCanPlayThrough = () => {
+      // Only autoplay if visible
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const visibleRatio = Math.max(0, Math.min(rect.bottom, viewportH) - Math.max(rect.top, 0)) / rect.height;
+      if (visibleRatio >= 0.35 && video.paused) {
+        void playVideo(false);
+      }
+    };
+
+    video.addEventListener('canplay', onCanPlayThrough);
+    // Also try on loadeddata for Telegram WebView
+    video.addEventListener('loadeddata', onCanPlayThrough);
 
     return () => {
-      preloadObserver.disconnect();
-      playbackObserver.disconnect();
+      video.removeEventListener('canplay', onCanPlayThrough);
+      video.removeEventListener('loadeddata', onCanPlayThrough);
     };
-  }, [playVideo]);
+  }, [playVideo, loadSrc]);
 
   // Sync muted state
   useEffect(() => {
@@ -120,16 +154,13 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     }
   }, [isMuted]);
 
-  // Manual play for blocked autoplay
   const handlePlayTap = useCallback(async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.stopPropagation();
     await playVideo(true);
   }, [playVideo]);
 
-  // Tap video area to toggle play/pause
   const handleVideoTap = useCallback(async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
-
     const video = videoRef.current;
     if (!video) return;
 
@@ -208,7 +239,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
           src={src}
           className="w-full max-h-[28rem] object-contain bg-black/5 dark:bg-white/5 rounded-sm"
           loop
-          muted={isMuted}
+          muted
           playsInline
           autoPlay
           controls={showNativeControls}
