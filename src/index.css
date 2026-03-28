@@ -178,7 +178,12 @@
   }
   
   .safe-area-top {
-    padding-top: env(safe-area-inset-top, 12px);
+    padding-top: env(safe-area-inset-top, 8px);
+  }
+
+  /* Extra breathing room in Telegram MiniApp */
+  .tg-miniapp .safe-area-top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
   }
 }
 
