@@ -113,8 +113,8 @@ export default function RedeemPage() {
     });
     
     setShops(sorted);
-    // Auto-select nearest open shop on first distance calc
-    if (!lastDistanceKey && sorted.length > 0) {
+    // Auto-select nearest open shop on first distance calc, but NOT if user came from a specific shop
+    if (!lastDistanceKey && sorted.length > 0 && !initialShop?.id) {
       const nearestOpen = sorted.find(s => s.isCurrentlyOpen);
       setSelectedShop(nearestOpen || sorted[0]);
     }
@@ -269,6 +269,14 @@ export default function RedeemPage() {
           return a.name.localeCompare(b.name);
         });
         setShops(shopsWithStatus);
+        // If navigated from ShopDetailPage with a specific shop, use it
+        if (initialShop?.id) {
+          const matchedShop = shopsWithStatus.find(s => s.id === initialShop.id);
+          if (matchedShop) {
+            setSelectedShop(matchedShop);
+            return;
+          }
+        }
         // Set temporary selection; will be overridden by distance-based sort
         const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
         setSelectedShop(firstOpen || shopsWithStatus[0] || null);
