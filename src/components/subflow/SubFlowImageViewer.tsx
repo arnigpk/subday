@@ -278,7 +278,7 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
         <div
           className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-white/90 text-xs font-medium backdrop-blur-md"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 18px)',
+            top: 'calc(max(env(safe-area-inset-top, 0px), 12px) + 14px)',
             zIndex: 100000,
             opacity: controlsOpacity,
             transition: 'opacity 0.2s ease',
