@@ -117,8 +117,9 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50 safe-area-top">
-        <div className="flex items-center justify-between p-4">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50">
+        <div className="safe-area-top" />
+        <div className="flex items-center justify-between px-4 pb-2 pt-2">
           <div>
             <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs mb-1">
               <ChevronLeft className="w-3 h-3" />

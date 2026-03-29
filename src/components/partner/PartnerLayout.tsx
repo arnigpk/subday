@@ -44,8 +44,9 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3 safe-area-top">
-        <div className="flex items-center justify-between">
+      <header className="bg-card border-b border-border">
+        <div className="safe-area-top" />
+        <div className="flex items-center justify-between px-4 pb-2 pt-2">
           <div>
             <button 
               onClick={handleBackToApp}

@@ -174,20 +174,20 @@
   }
   
   .safe-area-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   }
   
   .safe-area-top {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
   }
 
   /* Extra breathing room in Telegram MiniApp */
   .tg-miniapp .safe-area-top {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
   }
 
   .tg-miniapp .safe-area-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
   }
 }
 
