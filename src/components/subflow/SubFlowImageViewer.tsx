@@ -265,7 +265,13 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
         className="absolute right-4 p-3 rounded-full bg-black/50 text-white backdrop-blur-md active:scale-90"
         style={{
           zIndex: 100000,
-          top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+          top: 'max(env(safe-area-inset-top, 0px), 12px)',
+          marginTop: '12px',
+          opacity: controlsOpacity,
+          transition: 'opacity 0.2s ease',
+          pointerEvents: controlsOpacity > 0 ? 'auto' : 'none',
+        }}
+      >
           opacity: controlsOpacity,
           transition: 'opacity 0.2s ease',
           pointerEvents: controlsOpacity > 0 ? 'auto' : 'none',
