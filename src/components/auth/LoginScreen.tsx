@@ -159,11 +159,12 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-top safe-area-bottom">
-      <div className="absolute top-4 left-4 z-50">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="safe-area-top" />
+      <div className="absolute z-50" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)', left: '16px' }}>
         <span className="text-2xl">🇰🇿</span>
       </div>
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute z-50" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)', right: '16px' }}>
         <LanguageSwitcher />
       </div>
       <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -241,7 +242,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         </div>
       </div>
       
-      <div className="px-6 pb-6 space-y-3">
+      <div className="px-6 pb-6 space-y-3 safe-area-bottom">
         <div className="relative">
           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
           <div className="relative flex justify-center text-xs uppercase">

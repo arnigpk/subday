@@ -316,7 +316,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
         </button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-sm p-0">
-        <SheetHeader className="px-4 pt-4 pb-3 border-b border-border">
+        <SheetHeader className="px-4 pb-3 border-b border-border safe-area-top pt-4">
           <div className="flex items-center relative">
             {notifications.length > 0 && (
               <AlertDialog>

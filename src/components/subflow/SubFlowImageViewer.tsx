@@ -262,9 +262,10 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
     >
       <button
         onClick={close}
-        className="absolute top-3 right-3 p-2.5 rounded-full bg-black/40 text-white backdrop-blur-md active:scale-90"
+        className="absolute right-4 p-3 rounded-full bg-black/50 text-white backdrop-blur-md active:scale-90"
         style={{
           zIndex: 100000,
+          top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
           opacity: controlsOpacity,
           transition: 'opacity 0.2s ease',
           pointerEvents: controlsOpacity > 0 ? 'auto' : 'none',
@@ -275,8 +276,9 @@ export function SubFlowImageViewer({ images, initialIndex, onClose, sourceRect }
 
       {images.length > 1 && (
         <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-white/90 text-xs font-medium backdrop-blur-md"
+          className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-white/90 text-xs font-medium backdrop-blur-md"
           style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 18px)',
             zIndex: 100000,
             opacity: controlsOpacity,
             transition: 'opacity 0.2s ease',
