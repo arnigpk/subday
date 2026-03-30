@@ -1,15 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, Trash2 } from 'lucide-react';
+import { Bell, Trash2, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface PushNotification {
   id: string;
@@ -69,7 +63,6 @@ function SwipeableNotification({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging.current || !elRef.current) return;
     const diff = e.touches[0].clientX - startX.current;
-    // Only allow swipe left
     currentX.current = Math.min(0, diff);
     elRef.current.style.transform = `translateX(${currentX.current}px)`;
     elRef.current.style.transition = 'none';
@@ -79,7 +72,6 @@ function SwipeableNotification({
     isDragging.current = false;
     if (!elRef.current) return;
     if (currentX.current < -80) {
-      // Dismiss
       elRef.current.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
       elRef.current.style.transform = 'translateX(-100%)';
       elRef.current.style.opacity = '0';
@@ -92,13 +84,12 @@ function SwipeableNotification({
 
   return (
     <div className="relative overflow-hidden">
-      {/* Delete background */}
       <div className="absolute inset-0 flex items-center justify-end bg-destructive/90 px-4">
         <Trash2 size={18} className="text-destructive-foreground" />
       </div>
       <div
         ref={elRef}
-        className={`relative px-4 py-3 transition-colors bg-background ${isNew ? 'bg-primary/5' : ''}`}
+        className={`relative px-4 py-3 transition-colors bg-background/60 ${isNew ? 'bg-primary/5' : ''}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -124,6 +115,7 @@ export function PushNotificationsBell() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('push_last_seen_at');
@@ -154,7 +146,6 @@ export function PushNotificationsBell() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Realtime for new push notifications
   useEffect(() => {
     if (!userId) return;
 
@@ -185,15 +176,33 @@ export function PushNotificationsBell() {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // Lock body scroll when popup is open
+  useEffect(() => {
+    if (open) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
+
   const visibleNotifications = notifications.filter(n => !dismissedIds.has(n.id));
 
   const unreadCount = lastSeenAt
     ? visibleNotifications.filter(n => n.created_at > lastSeenAt).length
     : visibleNotifications.length;
 
-  const handleOpen = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (isOpen && visibleNotifications.length > 0) {
+  const handleOpen = () => {
+    setOpen(true);
+    if (visibleNotifications.length > 0) {
       const now = new Date().toISOString();
       setLastSeenAt(now);
       localStorage.setItem('push_last_seen_at', now);
@@ -226,74 +235,110 @@ export function PushNotificationsBell() {
   if (!userId) return null;
 
   return (
-    <Sheet open={open} onOpenChange={handleOpen}>
-      <SheetTrigger asChild>
-        <button className="relative p-2 rounded-full hover:bg-secondary transition-colors">
-          <Bell size={22} className="text-foreground" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-sm p-0">
-        <SheetHeader className="px-4 pb-3 border-b border-border pt-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
-          <div className="flex items-center justify-between">
-            {visibleNotifications.length > 0 ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button
-                    className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors"
-                    title="Очистить все"
-                  >
-                    <Trash2 size={18} className="text-destructive" />
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
-                    <AlertDialogDescription>Все уведомления будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : (
-              <div className="w-[30px]" />
-            )}
-            <SheetTitle className="text-lg font-bold flex-1 text-center">
-              Уведомления и Обновления
-            </SheetTitle>
-            <div className="w-[30px]" />
+    <>
+      <button
+        onClick={handleOpen}
+        className="relative p-2 rounded-full hover:bg-secondary transition-colors"
+      >
+        <Bell size={22} className="text-foreground" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            />
+
+            {/* Popup */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+              className="relative w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl border border-border/40 backdrop-blur-xl bg-background/75 shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] overflow-hidden"
+              onTouchMove={(e) => {
+                // Prevent background scroll, allow inner scroll
+                if (scrollRef.current?.contains(e.target as Node)) return;
+                e.preventDefault();
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+                {visibleNotifications.length > 0 ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors" title="Очистить все">
+                        <Trash2 size={18} className="text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
+                        <AlertDialogDescription>Все уведомления будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <div className="w-[30px]" />
+                )}
+                <h2 className="text-base font-bold text-foreground text-center flex-1">
+                  Уведомления и Обновления
+                </h2>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-foreground/5 transition-colors"
+                >
+                  <X size={18} className="text-foreground/70" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div
+                ref={scrollRef}
+                className="overflow-y-auto flex-1 overscroll-contain"
+              >
+                {visibleNotifications.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/30">
+                    {visibleNotifications.map(n => {
+                      const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
+                      return (
+                        <SwipeableNotification
+                          key={n.id}
+                          notification={n}
+                          isNew={isNew}
+                          formatDate={formatDate}
+                          onDismiss={handleDismissOne}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </SheetHeader>
-        <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
-          {visibleNotifications.length === 0 ? (
-            <div className="text-center py-16">
-              <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {visibleNotifications.map(n => {
-                const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
-                return (
-                  <SwipeableNotification
-                    key={n.id}
-                    notification={n}
-                    isNew={isNew}
-                    formatDate={formatDate}
-                    onDismiss={handleDismissOne}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
