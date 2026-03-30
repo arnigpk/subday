@@ -3,18 +3,12 @@ import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, ChevronRight, Trash2, User } from 'lucide-react';
+import { Bell, ChevronRight, Trash2, User, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,7 +99,7 @@ function SwipeableSubFlowNotification({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={onClick}
-        className={`relative flex items-start gap-3 px-4 py-3 bg-background transition-colors ${
+        className={`relative flex items-start gap-3 px-4 py-3 bg-background/60 transition-colors ${
           !notification.is_read ? 'bg-primary/5' : ''
         } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
       >
@@ -146,8 +140,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
   const { vibrate } = useVibration();
   const { settings: notifSettings } = useNotificationSettings();
   const initialLoadDone = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Use refs to avoid stale closures in realtime callback
   const notifSettingsRef = useRef(notifSettings);
   notifSettingsRef.current = notifSettings;
   const playNotificationSoundRef = useRef(playNotificationSound);
@@ -240,6 +234,24 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // Lock body scroll when popup is open
+  useEffect(() => {
+    if (open) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
+
   const markAllRead = async () => {
     if (!userId || unreadCount === 0) return;
 
@@ -253,9 +265,9 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
     setUnreadCount(0);
   };
 
-  const handleOpen = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (isOpen && unreadCount > 0) {
+  const handleOpen = () => {
+    setOpen(true);
+    if (unreadCount > 0) {
       markAllRead();
     }
   };
@@ -299,84 +311,127 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleOpen}>
-      <SheetTrigger asChild>
-        <button className="relative group p-2.5 rounded-xl transition-all duration-300">
-          <div className="relative">
-            <Bell
-              size={20}
-              className={`text-primary transition-transform duration-300 group-hover:rotate-12 ${unreadCount > 0 ? 'animate-[swing_2s_ease-in-out_infinite]' : ''}`}
-            />
-            {unreadCount > 0 && (
-              <span className="absolute -top-2.5 -right-2.5 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-gradient-to-br from-destructive to-destructive/80 text-destructive-foreground text-[10px] font-bold px-1 shadow-[0_2px_8px_hsl(var(--destructive)/0.4)] animate-[pulse_2s_ease-in-out_infinite]">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </div>
-        </button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-sm p-0">
-        <SheetHeader className="px-4 pb-3 border-b border-border pt-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
-          <div className="flex items-center relative">
-            {notifications.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="absolute left-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 size={18} />
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
-                    <AlertDialogDescription>Все уведомления #subFlow будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            <SheetTitle className="text-lg font-bold w-full text-center">Уведомления #subFlow</SheetTitle>
-          </div>
-        </SheetHeader>
-        <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
-          {notifications.length === 0 ? (
-            <div className="text-center py-16">
-              <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {notifications.map(n => {
-                const isStoryLike = n.type === 'story_like';
-                const isClickable = isStoryLike
-                  ? !!n.post_id && !!onOpenStory
-                  : !!n.post_id && !!onNavigateToPost;
-                return (
-                  <SwipeableSubFlowNotification
-                    key={n.id}
-                    notification={n}
-                    isClickable={isClickable}
-                    onDismiss={handleDismissOne}
-                    onClick={() => {
-                      if (isStoryLike && n.post_id && onOpenStory) {
-                        setOpen(false);
-                        setTimeout(() => onOpenStory(n.post_id!), 300);
-                      } else if (n.post_id && onNavigateToPost) {
-                        setOpen(false);
-                        setTimeout(() => onNavigateToPost(n.post_id!), 300);
-                      }
-                    }}
-                    getNotificationText={getNotificationText}
-                    formatDate={formatDateStr}
-                  />
-                );
-              })}
-            </div>
+    <>
+      <button
+        onClick={handleOpen}
+        className="relative group p-2.5 rounded-xl transition-all duration-300"
+      >
+        <div className="relative">
+          <Bell
+            size={20}
+            className={`text-primary transition-transform duration-300 group-hover:rotate-12 ${unreadCount > 0 ? 'animate-[swing_2s_ease-in-out_infinite]' : ''}`}
+          />
+          {unreadCount > 0 && (
+            <span className="absolute -top-2.5 -right-2.5 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-gradient-to-br from-destructive to-destructive/80 text-destructive-foreground text-[10px] font-bold px-1 shadow-[0_2px_8px_hsl(var(--destructive)/0.4)] animate-[pulse_2s_ease-in-out_infinite]">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            />
+
+            {/* Popup */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+              className="relative w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl border border-border/40 backdrop-blur-xl bg-background/75 shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] overflow-hidden"
+              onTouchMove={(e) => {
+                if (scrollRef.current?.contains(e.target as Node)) return;
+                e.preventDefault();
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+                {notifications.length > 0 ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors" title="Очистить все">
+                        <Trash2 size={18} className="text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
+                        <AlertDialogDescription>Все уведомления #subFlow будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <div className="w-[30px]" />
+                )}
+                <h2 className="text-base font-bold text-foreground text-center flex-1">
+                  Уведомления #subFlow
+                </h2>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-foreground/5 transition-colors"
+                >
+                  <X size={18} className="text-foreground/70" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div
+                ref={scrollRef}
+                className="overflow-y-auto flex-1 overscroll-contain"
+              >
+                {notifications.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/30">
+                    {notifications.map(n => {
+                      const isStoryLike = n.type === 'story_like';
+                      const isClickable = isStoryLike
+                        ? !!n.post_id && !!onOpenStory
+                        : !!n.post_id && !!onNavigateToPost;
+                      return (
+                        <SwipeableSubFlowNotification
+                          key={n.id}
+                          notification={n}
+                          isClickable={isClickable}
+                          onDismiss={handleDismissOne}
+                          onClick={() => {
+                            if (isStoryLike && n.post_id && onOpenStory) {
+                              setOpen(false);
+                              setTimeout(() => onOpenStory(n.post_id!), 300);
+                            } else if (n.post_id && onNavigateToPost) {
+                              setOpen(false);
+                              setTimeout(() => onNavigateToPost(n.post_id!), 300);
+                            }
+                          }}
+                          getNotificationText={getNotificationText}
+                          formatDate={formatDateStr}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
