@@ -4,18 +4,23 @@ import { Bell, Trash2, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
+  AlertDialogContent as AlertContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as AlertTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface PushNotification {
   id: string;
@@ -115,7 +120,6 @@ export function PushNotificationsBell() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('push_last_seen_at');
@@ -176,24 +180,6 @@ export function PushNotificationsBell() {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Lock body scroll when popup is open
-  useEffect(() => {
-    if (open) {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
-      };
-    }
-  }, [open]);
-
   const visibleNotifications = notifications.filter(n => !dismissedIds.has(n.id));
 
   const unreadCount = lastSeenAt
@@ -248,97 +234,62 @@ export function PushNotificationsBell() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-              onClick={() => setOpen(false)}
-            />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b border-border/30 shrink-0 flex flex-row items-center justify-between space-y-0">
+            {visibleNotifications.length > 0 ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors" title="Очистить все">
+                    <Trash2 size={18} className="text-destructive" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertContent>
+                  <AlertDialogHeader>
+                    <AlertTitle>Очистить уведомления?</AlertTitle>
+                    <AlertDialogDescription>Все уведомления будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertContent>
+              </AlertDialog>
+            ) : (
+              <div className="w-[30px]" />
+            )}
+            <DialogTitle className="text-base font-bold text-foreground text-center flex-1">
+              Уведомления и Обновления
+            </DialogTitle>
+            {/* The Dialog's built-in X button handles close on the right */}
+            <div className="w-[30px]" />
+          </DialogHeader>
 
-            {/* Popup */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 16 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
-              className="relative w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl border border-border/40 backdrop-blur-xl bg-background/75 shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] overflow-hidden"
-              onTouchMove={(e) => {
-                // Prevent background scroll, allow inner scroll
-                if (scrollRef.current?.contains(e.target as Node)) return;
-                e.preventDefault();
-              }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
-                {visibleNotifications.length > 0 ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button className="p-1.5 rounded-full hover:bg-destructive/10 transition-colors" title="Очистить все">
-                        <Trash2 size={18} className="text-destructive" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Очистить уведомления?</AlertDialogTitle>
-                        <AlertDialogDescription>Все уведомления будут удалены. Это действие нельзя отменить.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Отмена</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearAll}>Очистить</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <div className="w-[30px]" />
-                )}
-                <h2 className="text-base font-bold text-foreground text-center flex-1">
-                  Уведомления и Обновления
-                </h2>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-foreground/5 transition-colors"
-                >
-                  <X size={18} className="text-foreground/70" />
-                </button>
+          <div className="overflow-y-auto flex-1 overscroll-contain">
+            {visibleNotifications.length === 0 ? (
+              <div className="text-center py-16">
+                <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
               </div>
-
-              {/* Content */}
-              <div
-                ref={scrollRef}
-                className="overflow-y-auto flex-1 overscroll-contain"
-              >
-                {visibleNotifications.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Bell size={40} className="mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground text-sm">Пока нет уведомлений</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border/30">
-                    {visibleNotifications.map(n => {
-                      const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
-                      return (
-                        <SwipeableNotification
-                          key={n.id}
-                          notification={n}
-                          isNew={isNew}
-                          formatDate={formatDate}
-                          onDismiss={handleDismissOne}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
+            ) : (
+              <div className="divide-y divide-border/30">
+                {visibleNotifications.map(n => {
+                  const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
+                  return (
+                    <SwipeableNotification
+                      key={n.id}
+                      notification={n}
+                      isNew={isNew}
+                      formatDate={formatDate}
+                      onDismiss={handleDismissOne}
+                    />
+                  );
+                })}
               </div>
-            </motion.div>
+            )}
           </div>
-        )}
-      </AnimatePresence>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
