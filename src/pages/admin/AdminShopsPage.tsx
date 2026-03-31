@@ -253,6 +253,7 @@ export default function AdminShopsPage() {
         lat: a.lat,
         lng: a.lng,
         working_hours: a.working_hours || '',
+        twogis_link: a.twogis_link || '',
       }));
       
       if (editingShop) {

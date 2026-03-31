@@ -134,8 +134,14 @@ export default function ShopDetailPage() {
                 const idx = shopDistance.closestAddressIndex;
                 const coord = coords[idx] || coords[0];
                 if (coord) {
-                  const url = `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`;
-                  window.open(url, '_blank');
+                  // Use admin-configured 2GIS link if available
+                  const twogisLink = (coord as any).twogis_link;
+                  if (twogisLink) {
+                    window.open(twogisLink, '_blank');
+                  } else if (coord.lat && coord.lng) {
+                    const url = `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`;
+                    window.open(url, '_blank');
+                  }
                 }
               }}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
