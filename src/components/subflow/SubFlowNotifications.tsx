@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
@@ -45,6 +45,8 @@ interface SubFlowNotificationsProps {
   onOpenStory?: (storyId: string) => void;
 }
 
+const SWIPE_HINT_KEY = 'subflow_swipe_hint_shown';
+
 function SwipeableSubFlowNotification({
   notification,
   isClickable,
@@ -52,6 +54,8 @@ function SwipeableSubFlowNotification({
   onClick,
   getNotificationText,
   formatDate,
+  showSwipeHint,
+  onHintDone,
 }: {
   notification: Notification;
   isClickable: boolean;
@@ -59,11 +63,31 @@ function SwipeableSubFlowNotification({
   onClick: () => void;
   getNotificationText: (n: Notification) => string;
   formatDate: (d: string) => string;
+  showSwipeHint?: boolean;
+  onHintDone?: () => void;
 }) {
   const startX = useRef(0);
   const currentX = useRef(0);
   const isDragging = useRef(false);
   const elRef = useRef<HTMLDivElement>(null);
+  const hintPlayed = useRef(false);
+
+  useEffect(() => {
+    if (showSwipeHint && !hintPlayed.current && elRef.current) {
+      hintPlayed.current = true;
+      const el = elRef.current;
+      const timer = setTimeout(() => {
+        el.style.transition = 'transform 0.4s ease';
+        el.style.transform = 'translateX(-60px)';
+        setTimeout(() => {
+          el.style.transition = 'transform 0.3s ease';
+          el.style.transform = 'translateX(0)';
+          onHintDone?.();
+        }, 600);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showSwipeHint, onHintDone]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
@@ -104,7 +128,7 @@ function SwipeableSubFlowNotification({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={onClick}
-        className={`relative flex items-start gap-3 px-4 py-3 bg-background/60 transition-colors ${
+        className={`relative flex items-start gap-3 px-4 py-3 bg-background ${
           !notification.is_read ? 'bg-primary/5' : ''
         } ${isClickable ? 'cursor-pointer active:bg-secondary/80' : ''}`}
       >
@@ -141,6 +165,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const playNotificationSound = useNotificationSound();
   const { vibrate } = useVibration();
   const { settings: notifSettings } = useNotificationSettings();
@@ -256,7 +281,15 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
     if (unreadCount > 0) {
       markAllRead();
     }
+    if (!localStorage.getItem(SWIPE_HINT_KEY)) {
+      setShowHint(true);
+    }
   };
+
+  const handleHintDone = useCallback(() => {
+    localStorage.setItem(SWIPE_HINT_KEY, '1');
+    setShowHint(false);
+  }, []);
 
   const handleDismissOne = async (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -353,11 +386,12 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
               </div>
             ) : (
               <div className="divide-y divide-border/30">
-                {notifications.map(n => {
+                {notifications.map((n, idx) => {
                   const isStoryLike = n.type === 'story_like';
                   const isClickable = isStoryLike
                     ? !!n.post_id && !!onOpenStory
                     : !!n.post_id && !!onNavigateToPost;
+                  const isLast = idx === notifications.length - 1;
                   return (
                     <SwipeableSubFlowNotification
                       key={n.id}
@@ -375,6 +409,8 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
                       }}
                       getNotificationText={getNotificationText}
                       formatDate={formatDateStr}
+                      showSwipeHint={showHint && isLast}
+                      onHintDone={handleHintDone}
                     />
                   );
                 })}

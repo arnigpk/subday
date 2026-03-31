@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, Trash2, X } from 'lucide-react';
+import { Bell, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -31,6 +31,7 @@ interface PushNotification {
 }
 
 const DISMISSED_KEY = 'push_dismissed_ids';
+const SWIPE_HINT_KEY = 'push_swipe_hint_shown';
 
 function getDismissedIds(): Set<string> {
   try {
@@ -48,16 +49,38 @@ function SwipeableNotification({
   isNew,
   formatDate,
   onDismiss,
+  showSwipeHint,
+  onHintDone,
 }: {
   notification: PushNotification;
   isNew: boolean;
   formatDate: (d: string) => string;
   onDismiss: (id: string) => void;
+  showSwipeHint?: boolean;
+  onHintDone?: () => void;
 }) {
   const startX = useRef(0);
   const currentX = useRef(0);
   const isDragging = useRef(false);
   const elRef = useRef<HTMLDivElement>(null);
+  const hintPlayed = useRef(false);
+
+  useEffect(() => {
+    if (showSwipeHint && !hintPlayed.current && elRef.current) {
+      hintPlayed.current = true;
+      const el = elRef.current;
+      const timer = setTimeout(() => {
+        el.style.transition = 'transform 0.4s ease';
+        el.style.transform = 'translateX(-60px)';
+        setTimeout(() => {
+          el.style.transition = 'transform 0.3s ease';
+          el.style.transform = 'translateX(0)';
+          onHintDone?.();
+        }, 600);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showSwipeHint, onHintDone]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
@@ -94,7 +117,7 @@ function SwipeableNotification({
       </div>
       <div
         ref={elRef}
-        className={`relative px-4 py-3 transition-colors bg-background/60 ${isNew ? 'bg-primary/5' : ''}`}
+        className={`relative px-4 py-3 bg-background ${isNew ? 'bg-primary/5' : ''}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -120,6 +143,7 @@ export function PushNotificationsBell() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('push_last_seen_at');
@@ -193,7 +217,16 @@ export function PushNotificationsBell() {
       setLastSeenAt(now);
       localStorage.setItem('push_last_seen_at', now);
     }
+    // Check if swipe hint should be shown
+    if (!localStorage.getItem(SWIPE_HINT_KEY)) {
+      setShowHint(true);
+    }
   };
+
+  const handleHintDone = useCallback(() => {
+    localStorage.setItem(SWIPE_HINT_KEY, '1');
+    setShowHint(false);
+  }, []);
 
   const handleDismissOne = (id: string) => {
     const newDismissed = new Set(dismissedIds);
@@ -261,7 +294,6 @@ export function PushNotificationsBell() {
             <DialogTitle className="text-base font-bold text-foreground text-center flex-1">
               Уведомления и Обновления
             </DialogTitle>
-            {/* The Dialog's built-in X button handles close on the right */}
             <div className="w-[30px]" />
           </DialogHeader>
 
@@ -273,8 +305,9 @@ export function PushNotificationsBell() {
               </div>
             ) : (
               <div className="divide-y divide-border/30">
-                {visibleNotifications.map(n => {
+                {visibleNotifications.map((n, idx) => {
                   const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
+                  const isLast = idx === visibleNotifications.length - 1;
                   return (
                     <SwipeableNotification
                       key={n.id}
@@ -282,6 +315,8 @@ export function PushNotificationsBell() {
                       isNew={isNew}
                       formatDate={formatDate}
                       onDismiss={handleDismissOne}
+                      showSwipeHint={showHint && isLast}
+                      onHintDone={handleHintDone}
                     />
                   );
                 })}
