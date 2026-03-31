@@ -131,6 +131,17 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
                   className="flex-1 text-sm h-8"
                 />
               </div>
+              
+              {/* 2GIS link row */}
+              <div className="flex items-center gap-2 pl-6">
+                <ExternalLink size={14} className="text-green-600 shrink-0" />
+                <Input
+                  value={item.twogis_link || ''}
+                  onChange={(e) => handleTwogisChange(index, e.target.value)}
+                  placeholder="https://2gis.kz/..."
+                  className="flex-1 text-sm h-8"
+                />
+              </div>
             </div>
           ))}
         </div>
