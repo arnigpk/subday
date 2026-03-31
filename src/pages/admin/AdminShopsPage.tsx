@@ -221,6 +221,7 @@ export default function AdminShopsPage() {
       lat: coords[i]?.lat ?? null,
       lng: coords[i]?.lng ?? null,
       working_hours: coords[i]?.working_hours || '',
+      twogis_link: coords[i]?.twogis_link || '',
     }));
     
     setFormData({
