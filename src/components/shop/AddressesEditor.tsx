@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, MapPin, Navigation, Clock } from 'lucide-react';
+import { Plus, X, MapPin, Navigation, Clock, ExternalLink } from 'lucide-react';
 
 export interface AddressWithCoords {
   address: string;
   lat: number | null;
   lng: number | null;
   working_hours?: string;
+  twogis_link?: string;
 }
 
 interface AddressesEditorProps {
@@ -23,7 +24,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
   const handleAdd = () => {
     const trimmed = newAddress.trim();
     if (trimmed && !addresses.some(a => a.address === trimmed)) {
-      onChange([...addresses, { address: trimmed, lat: null, lng: null, working_hours: '' }]);
+      onChange([...addresses, { address: trimmed, lat: null, lng: null, working_hours: '', twogis_link: '' }]);
       setNewAddress('');
     }
   };
@@ -48,6 +49,12 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
   const handleHoursChange = (index: number, value: string) => {
     const updated = [...addresses];
     updated[index] = { ...updated[index], working_hours: value };
+    onChange(updated);
+  };
+
+  const handleTwogisChange = (index: number, value: string) => {
+    const updated = [...addresses];
+    updated[index] = { ...updated[index], twogis_link: value };
     onChange(updated);
   };
 
@@ -121,6 +128,17 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
                   value={item.working_hours || ''}
                   onChange={(e) => handleHoursChange(index, e.target.value)}
                   placeholder="09:00-21:00"
+                  className="flex-1 text-sm h-8"
+                />
+              </div>
+              
+              {/* 2GIS link row */}
+              <div className="flex items-center gap-2 pl-6">
+                <ExternalLink size={14} className="text-green-600 shrink-0" />
+                <Input
+                  value={item.twogis_link || ''}
+                  onChange={(e) => handleTwogisChange(index, e.target.value)}
+                  placeholder="https://2gis.kz/..."
                   className="flex-1 text-sm h-8"
                 />
               </div>

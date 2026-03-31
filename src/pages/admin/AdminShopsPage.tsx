@@ -81,6 +81,7 @@ interface Coordinate {
   lat: number | null;
   lng: number | null;
   working_hours?: string;
+  twogis_link?: string;
 }
 
 function parseCoordinates(coords: unknown): Coordinate[] {
@@ -89,6 +90,7 @@ function parseCoordinates(coords: unknown): Coordinate[] {
     lat: typeof c?.lat === 'number' ? c.lat : null,
     lng: typeof c?.lng === 'number' ? c.lng : null,
     working_hours: typeof c?.working_hours === 'string' ? c.working_hours : '',
+    twogis_link: typeof c?.twogis_link === 'string' ? c.twogis_link : '',
   }));
 }
 
@@ -219,6 +221,7 @@ export default function AdminShopsPage() {
       lat: coords[i]?.lat ?? null,
       lng: coords[i]?.lng ?? null,
       working_hours: coords[i]?.working_hours || '',
+      twogis_link: coords[i]?.twogis_link || '',
     }));
     
     setFormData({
@@ -250,6 +253,7 @@ export default function AdminShopsPage() {
         lat: a.lat,
         lng: a.lng,
         working_hours: a.working_hours || '',
+        twogis_link: a.twogis_link || '',
       }));
       
       if (editingShop) {
