@@ -52,6 +52,12 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
     onChange(updated);
   };
 
+  const handleTwogisChange = (index: number, value: string) => {
+    const updated = [...addresses];
+    updated[index] = { ...updated[index], twogis_link: value };
+    onChange(updated);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
