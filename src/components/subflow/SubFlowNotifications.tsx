@@ -391,7 +391,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
                   const isClickable = isStoryLike
                     ? !!n.post_id && !!onOpenStory
                     : !!n.post_id && !!onNavigateToPost;
-                  const isLast = idx === notifications.length - 1;
+                  const isFirst = idx === 0;
                   return (
                     <SwipeableSubFlowNotification
                       key={n.id}
@@ -409,7 +409,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
                       }}
                       getNotificationText={getNotificationText}
                       formatDate={formatDateStr}
-                      showSwipeHint={showHint && isLast}
+                      showSwipeHint={showHint && isFirst}
                       onHintDone={handleHintDone}
                     />
                   );

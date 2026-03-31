@@ -307,7 +307,7 @@ export function PushNotificationsBell() {
               <div className="divide-y divide-border/30">
                 {visibleNotifications.map((n, idx) => {
                   const isNew = lastSeenAt ? n.created_at > lastSeenAt : true;
-                  const isLast = idx === visibleNotifications.length - 1;
+                  const isFirst = idx === 0;
                   return (
                     <SwipeableNotification
                       key={n.id}
@@ -315,7 +315,7 @@ export function PushNotificationsBell() {
                       isNew={isNew}
                       formatDate={formatDate}
                       onDismiss={handleDismissOne}
-                      showSwipeHint={showHint && isLast}
+                      showSwipeHint={showHint && isFirst}
                       onHintDone={handleHintDone}
                     />
                   );
