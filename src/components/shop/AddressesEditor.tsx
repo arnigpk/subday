@@ -24,7 +24,7 @@ export function AddressesEditor({ addresses, onChange, label = 'Адреса' }:
   const handleAdd = () => {
     const trimmed = newAddress.trim();
     if (trimmed && !addresses.some(a => a.address === trimmed)) {
-      onChange([...addresses, { address: trimmed, lat: null, lng: null, working_hours: '' }]);
+      onChange([...addresses, { address: trimmed, lat: null, lng: null, working_hours: '', twogis_link: '' }]);
       setNewAddress('');
     }
   };
