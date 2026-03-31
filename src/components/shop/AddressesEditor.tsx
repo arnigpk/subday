@@ -9,6 +9,7 @@ export interface AddressWithCoords {
   lat: number | null;
   lng: number | null;
   working_hours?: string;
+  twogis_link?: string;
 }
 
 interface AddressesEditorProps {
