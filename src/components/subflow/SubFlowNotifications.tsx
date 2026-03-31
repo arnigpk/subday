@@ -409,7 +409,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
                       }}
                       getNotificationText={getNotificationText}
                       formatDate={formatDateStr}
-                      showSwipeHint={showHint && isLast}
+                      showSwipeHint={showHint && isFirst}
                       onHintDone={handleHintDone}
                     />
                   );

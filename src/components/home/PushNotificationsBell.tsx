@@ -315,7 +315,7 @@ export function PushNotificationsBell() {
                       isNew={isNew}
                       formatDate={formatDate}
                       onDismiss={handleDismissOne}
-                      showSwipeHint={showHint && isLast}
+                      showSwipeHint={showHint && isFirst}
                       onHintDone={handleHintDone}
                     />
                   );
