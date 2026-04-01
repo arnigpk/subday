@@ -100,7 +100,7 @@ export default function SubFlowPage() {
     return (
       <AppLayout>
         <PullToRefresh onRefresh={handleRefresh}>
-          <div className="safe-area-top relative min-h-[calc(100vh-80px)]">
+          <div className="safe-area-top relative app-viewport-with-nav">
             <div className="px-4 py-4 blur-sm pointer-events-none select-none opacity-50">
               <div className="flex items-center justify-between mb-1">
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
@@ -191,7 +191,7 @@ export default function SubFlowPage() {
             />
           )}
 
-          <div className="px-4 pt-2">
+          <div className="px-4 pt-2 subflow-feed-safe-bottom">
 
             <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
           </div>
@@ -202,7 +202,7 @@ export default function SubFlowPage() {
       {!isSubLoading && hasActiveSubscription && (
         <button
           onClick={() => setShowCreateDialog(true)}
-          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-5 py-3 rounded-full font-semibold text-sm text-foreground backdrop-blur-xl border border-border/40 transition-all duration-300 hover:scale-105 active:scale-95"
+          className="fixed app-floating-above-nav left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-5 py-3 rounded-full font-semibold text-sm text-foreground backdrop-blur-xl border border-border/40 transition-all duration-300 hover:scale-105 active:scale-95"
           style={{
             background: 'hsl(var(--background) / 0.65)',
             boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
@@ -217,7 +217,7 @@ export default function SubFlowPage() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 left-4 z-40 w-11 h-11 rounded-full backdrop-blur-xl border border-border/40 flex items-center justify-center text-foreground transition-all duration-300 hover:scale-105 active:scale-95 animate-fade-in"
+          className="fixed app-floating-above-nav-compact left-4 z-40 w-11 h-11 rounded-full backdrop-blur-xl border border-border/40 flex items-center justify-center text-foreground transition-all duration-300 hover:scale-105 active:scale-95 animate-fade-in"
           style={{
             background: 'hsl(var(--background) / 0.65)',
             boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',

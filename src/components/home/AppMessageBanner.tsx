@@ -135,7 +135,7 @@ export function AppMessageBanner() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="fixed bottom-[72px] left-3 right-3 z-40 max-w-lg mx-auto"
+        className="fixed app-banner-above-nav left-3 right-3 z-40 max-w-lg mx-auto"
       >
         <div className="relative rounded-2xl border border-white/20 bg-card/90 backdrop-blur-xl shadow-lg px-4 py-3 pr-10">
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
