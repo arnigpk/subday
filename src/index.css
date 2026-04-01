@@ -66,6 +66,30 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --safe-area-top-base: env(safe-area-inset-top, 0px);
+    --safe-area-bottom-base: env(safe-area-inset-bottom, 0px);
+    --safe-area-top-offset: 12px;
+    --safe-area-bottom-offset: 16px;
+    --app-nav-height: 76px;
+    --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 8px);
+    --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 24px);
+    --app-floating-clearance: calc(var(--app-nav-total-height) + 12px);
+    --app-floating-clearance-compact: calc(var(--app-nav-total-height));
+    --app-banner-clearance: calc(var(--app-nav-total-height) - 8px);
+    --admin-mobile-header-offset: calc(var(--safe-area-top-base) + 7rem);
+    --subflow-feed-bottom-clearance: 72px;
+  }
+
+  .tg-miniapp {
+    --safe-area-top-offset: 20px;
+    --safe-area-bottom-offset: 20px;
+    --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 32px);
+    --app-floating-clearance: calc(var(--app-nav-total-height) + 18px);
+    --app-floating-clearance-compact: calc(var(--app-nav-total-height) + 6px);
+    --app-banner-clearance: calc(var(--app-nav-total-height) - 2px);
+    --admin-mobile-header-offset: calc(var(--safe-area-top-base) + 7.5rem);
+    --subflow-feed-bottom-clearance: 84px;
   }
 
   .dark {
@@ -124,6 +148,11 @@
 }
 
 @layer base {
+  html {
+    min-height: 100%;
+    background: hsl(var(--background));
+  }
+
   * {
     @apply border-border;
   }
@@ -131,6 +160,14 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    min-height: 100dvh;
   }
 }
 
@@ -172,22 +209,61 @@
   .shadow-glow {
     box-shadow: var(--shadow-glow);
   }
+
+  .min-safe-screen {
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .app-viewport-with-nav {
+    min-height: calc(100svh - var(--app-nav-total-height));
+    min-height: calc(100dvh - var(--app-nav-total-height));
+  }
   
   .safe-area-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    padding-bottom: calc(var(--safe-area-bottom-base) + var(--safe-area-bottom-offset));
   }
   
   .safe-area-top {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-top: calc(var(--safe-area-top-base) + var(--safe-area-top-offset));
   }
 
-  /* Extra breathing room in Telegram MiniApp */
-  .tg-miniapp .safe-area-top {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  .app-content-no-nav {
+    padding-bottom: calc(var(--safe-area-bottom-base) + 24px);
+    scroll-padding-bottom: calc(var(--safe-area-bottom-base) + 24px);
   }
 
-  .tg-miniapp .safe-area-bottom {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  .app-content-with-nav {
+    padding-bottom: var(--app-content-bottom-clearance);
+    scroll-padding-bottom: var(--app-content-bottom-clearance);
+  }
+
+  .app-nav-shell {
+    padding-bottom: calc(var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 8px);
+  }
+
+  .app-nav-bar {
+    min-height: var(--app-nav-height);
+  }
+
+  .app-floating-above-nav {
+    bottom: var(--app-floating-clearance);
+  }
+
+  .app-floating-above-nav-compact {
+    bottom: var(--app-floating-clearance-compact);
+  }
+
+  .app-banner-above-nav {
+    bottom: var(--app-banner-clearance);
+  }
+
+  .admin-mobile-content-safe {
+    padding-top: var(--admin-mobile-header-offset);
+  }
+
+  .subflow-feed-safe-bottom {
+    padding-bottom: var(--subflow-feed-bottom-clearance);
   }
 }
 

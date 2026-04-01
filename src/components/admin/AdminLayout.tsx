@@ -65,7 +65,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-safe-screen bg-background flex">
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col">
         <div className="p-4 border-b border-border">
@@ -161,8 +161,8 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:overflow-auto">
-        <div className="md:p-8 p-4 pt-28 md:pt-8 pb-8 safe-area-bottom">
+      <main className="flex-1 min-w-0 md:overflow-auto">
+        <div className="p-4 pb-10 safe-area-bottom admin-mobile-content-safe md:p-8 md:pt-8 md:pb-8">
           <h2 className="text-2xl font-bold mb-6">{title}</h2>
           {children}
         </div>

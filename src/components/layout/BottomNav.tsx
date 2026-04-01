@@ -33,10 +33,10 @@ export function BottomNav() {
   }, [vibrateShort]);
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom px-3 pb-2 pointer-events-none">
-      <nav className="liquid-glass-nav rounded-2xl max-w-lg mx-auto pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50 app-nav-shell px-3 pointer-events-none">
+      <nav className="liquid-glass-nav app-nav-bar rounded-2xl max-w-lg mx-auto pointer-events-auto">
         <LayoutGroup>
-          <div className="flex items-center justify-around px-1 py-1.5">
+          <div className="flex h-full items-center justify-around px-1 py-1.5">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;

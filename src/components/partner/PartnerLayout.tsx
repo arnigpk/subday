@@ -42,7 +42,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-safe-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-card border-b border-border">
         <div className="safe-area-top" />
@@ -92,7 +92,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pb-6 safe-area-bottom">
+      <main className="flex-1 min-h-0 overflow-auto pb-8 safe-area-bottom">
         {children}
       </main>
     </div>
