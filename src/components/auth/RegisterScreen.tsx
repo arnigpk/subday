@@ -252,6 +252,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
         <p className="text-xs text-muted-foreground">
           {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
+        <PaymentLogos />
       </div>
     </div>
   );
