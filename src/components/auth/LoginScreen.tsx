@@ -255,6 +255,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         <p className="text-xs text-muted-foreground text-center">
           {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
+        <PaymentLogos />
       </div>
     </div>
   );
