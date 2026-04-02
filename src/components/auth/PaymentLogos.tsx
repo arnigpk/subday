@@ -1,17 +1,11 @@
+import visaLogo from '@/assets/visa-logo.png';
+import mastercardLogo from '@/assets/mastercard-logo.png';
+
 export function PaymentLogos() {
   return (
-    <div className="flex items-center justify-center gap-5 mt-3 opacity-50">
-      {/* Visa */}
-      <svg viewBox="0 0 256 83" className="h-6 w-auto" aria-label="Visa" role="img">
-        <path d="M97.2 1.3L64 81.5H42.1L25.9 16.7c-1-3.8-1.8-5.2-4.8-6.8C16.2 7.3 7.6 4.8 0 3.3l.5-2h35c4.5 0 8.5 3 9.5 8.1l8.7 46L86.7 1.3h10.5zm41.4 54c0-21.2-29.3-22.4-29.1-31.8.1-2.9 2.8-5.9 8.8-6.7 3-.4 11.2-.7 20.5 3.5l3.6-17C138.3 1.6 132.8 0 126 0c-19.8 0-33.7 10.5-33.8 25.6-.1 11.1 9.9 17.4 17.5 21.1 7.8 3.8 10.4 6.2 10.4 9.6-.1 5.2-6.2 7.5-12 7.5-10.1.2-15.9-2.7-20.6-4.9l-3.6 17c4.7 2.1 13.3 4 22.2 4.1 21 0 34.8-10.4 34.8-26.5l-.3-2.2zM205.3 81.5h18.5L207.4 1.3h-17.1c-3.8 0-7.1 2.2-8.5 5.7l-29.9 74.5h20.9l4.2-11.5h25.5l2.4 11.5zm-22.2-27.3l10.5-28.9 6 28.9h-16.5zM88.3 1.3L71 81.5H51.2L68.5 1.3h19.8z" fill="#1a1f71"/>
-      </svg>
-      {/* Mastercard */}
-      <svg viewBox="0 0 256 199" className="h-6 w-auto" aria-label="Mastercard" role="img">
-        <path d="M46.5 198.6V185c0-5.2-3.1-8.6-8.5-8.6-2.7 0-5.6.9-7.6 3.8-1.5-2.4-3.7-3.8-7-3.8-2.3 0-4.5.7-6.3 3.2v-2.7h-4.7v21.6h4.7v-12c0-3.8 2.1-5.7 5.3-5.7 3.1 0 4.7 2 4.7 5.7v12h4.7v-12c0-3.8 2.2-5.7 5.3-5.7 3.2 0 4.7 2 4.7 5.7v12h4.7z" fill="#231f20"/>
-        <rect x="161" y="31.5" width="46.6" height="136" fill="#ff5f00"/>
-        <path d="M164.3 99.5c0-27.6 12.9-52.1 33-67.9a86.4 86.4 0 100 135.9c-20.1-15.9-33-40.4-33-68z" fill="#eb001b"/>
-        <path d="M336.1 99.5a86.4 86.4 0 01-139.7 67.9 86.4 86.4 0 000-135.9 86.4 86.4 0 01139.7 68z" fill="#f79e1b"/>
-      </svg>
+    <div className="flex items-center justify-center gap-4 mt-3 opacity-40">
+      <img src={visaLogo} alt="Visa" className="h-5 w-auto object-contain" />
+      <img src={mastercardLogo} alt="Mastercard" className="h-5 w-auto object-contain" />
     </div>
   );
 }
