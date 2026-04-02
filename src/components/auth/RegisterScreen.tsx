@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
+import { PaymentLogos } from './PaymentLogos';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
@@ -252,6 +253,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
         <p className="text-xs text-muted-foreground">
           {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
+        <PaymentLogos />
       </div>
     </div>
   );
