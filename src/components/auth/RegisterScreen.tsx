@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
 import { ServiceRulesDialog } from './ServiceRulesDialog';
+import { PaymentLogos } from './PaymentLogos';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
