@@ -1,11 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as hexEncode } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const PAYLINK_BASE_URL = 'https://core.paylink.kz/api/v1';
+const FREEDOMPAY_API_URL = 'https://api.freedompay.kz';
 const DEFAULT_RETURN_ORIGIN = 'https://vhod.lovable.app';
 
 type JsonRecord = Record<string, unknown>;
@@ -20,16 +21,10 @@ function jsonResponse(body: unknown, status = 200) {
 function detectAppOrigin(req: Request) {
   const originHeader = req.headers.get('origin');
   if (originHeader) return originHeader;
-
   const refererHeader = req.headers.get('referer');
   if (refererHeader) {
-    try {
-      return new URL(refererHeader).origin;
-    } catch {
-      return DEFAULT_RETURN_ORIGIN;
-    }
+    try { return new URL(refererHeader).origin; } catch { return DEFAULT_RETURN_ORIGIN; }
   }
-
   return DEFAULT_RETURN_ORIGIN;
 }
 
@@ -41,27 +36,43 @@ function buildReturnUrl(origin: string, returnPath: string | undefined, status: 
   return url.toString();
 }
 
-function extractInvoiceUid(paylinkResponse: JsonRecord, paymentUrl?: string | null) {
-  const directUid = paylinkResponse.uid || paylinkResponse.invoiceUid || paylinkResponse.invoice_id || paylinkResponse.id;
-  if (typeof directUid === 'string' && directUid.trim()) {
-    return directUid;
-  }
-
-  if (!paymentUrl) return null;
-
-  try {
-    const url = new URL(paymentUrl);
-    const segments = url.pathname.split('/').filter(Boolean);
-    return segments[segments.length - 1] || null;
-  } catch {
-    return null;
-  }
-}
-
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
   if (!forwardedFor) return undefined;
   return forwardedFor.split(',')[0]?.trim() || undefined;
+}
+
+/**
+ * Generate FreedomPay signature.
+ * Signature = md5(scriptName;sorted_param_values;secretKey)
+ * Params sorted alphabetically by key name, values joined with ;
+ */
+async function generateSignature(scriptName: string, params: Record<string, string>, secretKey: string): Promise<string> {
+  const sortedKeys = Object.keys(params).sort();
+  const parts = [scriptName];
+  for (const key of sortedKeys) {
+    parts.push(params[key]);
+  }
+  parts.push(secretKey);
+  const signString = parts.join(';');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(signString);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = new Uint8Array(hashBuffer);
+  return Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Parse XML response from FreedomPay into a flat key-value object
+ */
+function parseXmlResponse(xml: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const tagRegex = /<(pg_[a-z_0-9]+)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = tagRegex.exec(xml)) !== null) {
+    result[match[1]] = match[2].trim();
+  }
+  return result;
 }
 
 Deno.serve(async (req) => {
@@ -72,13 +83,13 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY');
+    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID');
+    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return jsonResponse({ error: 'Backend not configured' }, 500);
     }
-
-    if (!paylinkApiKey) {
+    if (!merchantId || !secretKey) {
       return jsonResponse({ error: 'Payment not configured' }, 500);
     }
 
@@ -118,6 +129,7 @@ Deno.serve(async (req) => {
     let finalDays = subscriptionType.duration_days;
     let isSpecialOffer = false;
 
+    // Check special offers
     const { data: offers } = await supabaseClient
       .from('special_offers')
       .select('*')
@@ -175,6 +187,7 @@ Deno.serve(async (req) => {
     const cleanName = subscriptionType.name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_').substring(0, 20);
     const orderId = `${cleanName}_${Date.now()}`;
 
+    // Create payment order in DB
     const { data: paymentOrder, error: orderError } = await supabaseClient
       .from('payment_orders')
       .insert({
@@ -198,101 +211,107 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to create order' }, 500);
     }
 
-    const { data: profile } = await supabaseClient
+    // Get user profile for contact info
+    const { data: userProfile } = await supabaseClient
       .from('profiles')
       .select('phone, name')
       .eq('user_id', authUser.id)
       .single();
 
-    const cleanPhone = profile?.phone?.replace(/\D/g, '') || '';
-    const formattedPhone = cleanPhone.startsWith('7') ? cleanPhone : `7${cleanPhone}`;
-    const customerName = profile?.name || 'Клиент';
-    const [firstName = 'Клиент', ...restName] = customerName.split(' ');
-    const lastName = restName.join(' ');
+    const cleanPhone = userProfile?.phone?.replace(/\D/g, '') || '';
     const appOrigin = detectAppOrigin(req);
     const description = `Подписка: ${subscriptionType.name}`.slice(0, 50);
 
-    const paylinkPayload = {
-      amount: finalPrice,
-      currency: 'KZT',
-      requestId: crypto.randomUUID(),
-      trackingId: orderId,
-      description,
-      callbackUrl: `${supabaseUrl}/functions/v1/paylink-webhook`,
-      successUrl: buildReturnUrl(appOrigin, return_path, 'success', orderId),
-      failureUrl: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
-      customFields: {
-        user_id: authUser.id,
-        subscription_type_id,
-        payment_order_id: paymentOrder.id,
-      },
-      customer: {
-        id: authUser.id,
-        firstName,
-        lastName,
-        phone: formattedPhone ? (formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`) : undefined,
-        email: authUser.email || `user_${authUser.id.substring(0, 8)}@subday.app`,
-        language: 'RU',
-        ip: getClientIp(req),
-      },
-      transactionType: 'PAYMENT',
-      doTokenize: false,
+    // Build FreedomPay init_payment params
+    const pgSalt = crypto.randomUUID();
+    const pgParams: Record<string, string> = {
+      pg_merchant_id: merchantId,
+      pg_order_id: orderId,
+      pg_amount: String(finalPrice),
+      pg_currency: 'KZT',
+      pg_description: description,
+      pg_salt: pgSalt,
+      pg_language: 'ru',
+      pg_auto_clearing: '1',
+      pg_result_url: `${supabaseUrl}/functions/v1/freedompay-webhook`,
+      pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
+      pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
+      pg_testing_mode: '0',
+      pg_user_id: authUser.id,
     };
 
-    const paylinkResponse = await fetch(`${PAYLINK_BASE_URL}/invoices`, {
+    // Enable Apple Pay & Google Pay on payment page
+    pgParams['pg_template_params[applepay]'] = '1';
+    pgParams['pg_template_params[googlepay]'] = '1';
+
+    if (cleanPhone) {
+      pgParams.pg_user_phone = cleanPhone;
+    }
+    if (authUser.email) {
+      pgParams.pg_user_contact_email = authUser.email;
+    }
+    const clientIp = getClientIp(req);
+    if (clientIp) {
+      pgParams.pg_user_ip = clientIp;
+    }
+
+    // Generate signature
+    const scriptName = 'init_payment.php';
+    pgParams.pg_sig = await generateSignature(scriptName, pgParams, secretKey);
+
+    // Send request to FreedomPay
+    const formData = new URLSearchParams();
+    for (const [key, value] of Object.entries(pgParams)) {
+      formData.append(key, value);
+    }
+
+    console.log('Sending init_payment to FreedomPay, order:', orderId);
+
+    const fpResponse = await fetch(`${FREEDOMPAY_API_URL}/init_payment.php`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-API-KEY': paylinkApiKey,
-      },
-      body: JSON.stringify(paylinkPayload),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
 
-    const responseText = await paylinkResponse.text();
-    let paylinkData: JsonRecord = {};
+    const responseText = await fpResponse.text();
+    console.log('FreedomPay response:', responseText.slice(0, 500));
 
-    if (responseText) {
-      try {
-        paylinkData = JSON.parse(responseText);
-      } catch {
-        await supabaseClient.from('payment_orders').update({ status: 'failed' }).eq('id', paymentOrder.id);
-        return jsonResponse({ error: 'Invalid response from payment provider', details: responseText.slice(0, 200) }, 500);
-      }
-    }
-
-    if (!paylinkResponse.ok || paylinkData.error || paylinkData.errors) {
-      console.error('Paylink create invoice error:', paylinkData);
+    if (!fpResponse.ok) {
+      console.error('FreedomPay HTTP error:', fpResponse.status);
       await supabaseClient.from('payment_orders').update({ status: 'failed' }).eq('id', paymentOrder.id);
-      return jsonResponse({ error: 'Payment creation failed', details: paylinkData }, 500);
+      return jsonResponse({ error: 'Payment creation failed', details: responseText.slice(0, 200) }, 500);
     }
 
-    const paymentUrl = typeof paylinkData.paymentUrl === 'string'
-      ? paylinkData.paymentUrl
-      : typeof paylinkData.payment_url === 'string'
-        ? paylinkData.payment_url
-        : null;
+    const parsed = parseXmlResponse(responseText);
 
-    const invoiceUid = extractInvoiceUid(paylinkData, paymentUrl);
+    if (parsed.pg_status === 'error') {
+      console.error('FreedomPay error:', parsed.pg_error_description || parsed);
+      await supabaseClient.from('payment_orders').update({ status: 'failed' }).eq('id', paymentOrder.id);
+      return jsonResponse({ error: 'Payment creation failed', details: parsed.pg_error_description || 'Unknown error' }, 500);
+    }
+
+    const paymentUrl = parsed.pg_redirect_url;
+    const paymentId = parsed.pg_payment_id;
 
     if (!paymentUrl) {
-      console.error('No paymentUrl in Paylink response:', paylinkData);
+      console.error('No redirect URL in FreedomPay response:', parsed);
       await supabaseClient.from('payment_orders').update({ status: 'failed' }).eq('id', paymentOrder.id);
-      return jsonResponse({ error: 'No payment URL received', response: paylinkData }, 500);
+      return jsonResponse({ error: 'No payment URL received' }, 500);
     }
 
+    // Update payment order with FreedomPay payment_id
     await supabaseClient
       .from('payment_orders')
       .update({
         payment_url: paymentUrl,
-        payment_id: invoiceUid,
+        payment_id: paymentId || null,
       })
       .eq('id', paymentOrder.id);
 
     return jsonResponse({
       success: true,
       payment_url: paymentUrl,
-      payment_id: invoiceUid,
+      payment_id: paymentId,
       order_id: orderId,
     });
   } catch (error: unknown) {

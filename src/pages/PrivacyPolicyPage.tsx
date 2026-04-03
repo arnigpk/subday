@@ -74,13 +74,13 @@ function PolicyRu() {
         <li>Отправка push-уведомлений и сообщений</li>
         <li>Отображение ближайших заведений-партнёров</li>
         <li>Улучшение работы Приложения и анализ статистики</li>
-        <li>Обработка платежей через эквайринг Paylink (Visa/Mastercard)</li>
+        <li>Обработка платежей через эквайринг FreedomPay (Visa/Mastercard/Apple Pay/Google Pay)</li>
       </ul>
 
       <h2 className="text-lg font-semibold">3. Платежи</h2>
       <p>
-        Оплата производится онлайн банковскими картами Visa/Mastercard через сертифицированный
-        платёжный сервис Paylink. Оператор не хранит данные банковских карт — они обрабатываются
+        Оплата производится онлайн банковскими картами Visa/Mastercard, а также через Apple Pay и Google Pay
+        через сертифицированный платёжный сервис FreedomPay. Оператор не хранит данные банковских карт — они обрабатываются
         непосредственно платёжным провайдером.
       </p>
 
@@ -164,13 +164,13 @@ function PolicyEn() {
         <li>Sending push notifications and messages</li>
         <li>Displaying nearby partner venues</li>
         <li>Improving the Application and analyzing statistics</li>
-        <li>Processing payments via Paylink (Visa/Mastercard)</li>
+        <li>Processing payments via FreedomPay (Visa/Mastercard/Apple Pay/Google Pay)</li>
       </ul>
 
       <h2 className="text-lg font-semibold">3. Payments</h2>
       <p>
-        Payments are processed online using Visa/Mastercard bank cards through the certified
-        payment service Paylink. The Operator does not store bank card data — it is processed directly
+        Payments are processed online using Visa/Mastercard bank cards, as well as Apple Pay and Google Pay,
+        through the certified payment service FreedomPay. The Operator does not store bank card data — it is processed directly
         by the payment provider.
       </p>
 

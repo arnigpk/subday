@@ -152,7 +152,7 @@ function PublicOfferContent() {
       <div className="space-y-2">
         <h4 className="font-semibold text-foreground">8. Цена и оплата</h4>
         <p>8.1. Цены Пакетов указываются в приложении в тенге (KZT).</p>
-        <p>8.2. Оплата производится через Онлайн посредством Карты Visa/Mastercard, интернет эквайринг Paylink.</p>
+        <p>8.2. Оплата производится онлайн посредством карт Visa/Mastercard, Apple Pay и Google Pay через интернет-эквайринг FreedomPay.</p>
       </div>
 
       <div className="space-y-2">
@@ -304,7 +304,7 @@ function PrivacyPolicyContent() {
         <h4 className="font-semibold text-foreground">4. Кому мы передаём данные</h4>
         <ul className="list-disc list-inside space-y-1">
           <li><strong>Партнёрам:</strong> минимально необходимое для подтверждения Погашения.</li>
-          <li><strong>Paylink и платёжной инфраструктуре:</strong> для обработки оплаты.</li>
+          <li><strong>FreedomPay и платёжной инфраструктуре:</strong> для обработки оплаты.</li>
           <li><strong>Подрядчикам:</strong> хостинг/облако/уведомления/аналитика.</li>
           <li><strong>Госорганам:</strong> по законному требованию.</li>
         </ul>
