@@ -152,7 +152,7 @@ function PublicOfferContent() {
       <div className="space-y-2">
         <h4 className="font-semibold text-foreground">8. Цена и оплата</h4>
         <p>8.1. Цены Пакетов указываются в приложении в тенге (KZT).</p>
-        <p>8.2. Оплата производится через Онлайн посредством Карты Visa/Mastercard, интернет эквайринг Paylink.</p>
+        <p>8.2. Оплата производится онлайн посредством карт Visa/Mastercard, Apple Pay и Google Pay через интернет-эквайринг FreedomPay.</p>
       </div>
 
       <div className="space-y-2">
