@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { crypto as stdCrypto } from "https://deno.land/std@0.224.0/crypto/mod.ts";
+import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,9 +27,8 @@ async function verifySignature(scriptName: string, params: Record<string, string
 
   const encoder = new TextEncoder();
   const data = encoder.encode(signString);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = new Uint8Array(hashBuffer);
-  const computedSig = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashBuffer = await stdCrypto.subtle.digest('MD5', data);
+  const computedSig = encodeHex(new Uint8Array(hashBuffer));
 
   return computedSig === receivedSig;
 }
@@ -54,9 +55,8 @@ async function xmlResponse(status: string, description: string, secretKey: strin
   const signString = parts.join(';');
   const encoder = new TextEncoder();
   const data = encoder.encode(signString);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = new Uint8Array(hashBuffer);
-  const pgSig = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashBuffer = await stdCrypto.subtle.digest('MD5', data);
+  const pgSig = encodeHex(new Uint8Array(hashBuffer));
 
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <response>
