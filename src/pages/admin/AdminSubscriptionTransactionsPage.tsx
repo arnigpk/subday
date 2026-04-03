@@ -668,7 +668,7 @@ export default function AdminSubscriptionTransactionsPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {t.payment_method === 'paylink' ? 'Paylink' : (t.payment_method || '—')}
+                            {t.payment_method === 'freedompay' ? 'FreedomPay' : (t.payment_method === 'paylink' ? 'Paylink (legacy)' : (t.payment_method || '—'))}
                           </TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground max-w-[120px] truncate" title={t.payment_id || ''}>
                             {t.payment_id || '—'}

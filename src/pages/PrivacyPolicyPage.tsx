@@ -169,8 +169,8 @@ function PolicyEn() {
 
       <h2 className="text-lg font-semibold">3. Payments</h2>
       <p>
-        Payments are processed online using Visa/Mastercard bank cards through the certified
-        payment service Paylink. The Operator does not store bank card data — it is processed directly
+        Payments are processed online using Visa/Mastercard bank cards, as well as Apple Pay and Google Pay,
+        through the certified payment service FreedomPay. The Operator does not store bank card data — it is processed directly
         by the payment provider.
       </p>
 

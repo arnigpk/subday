@@ -304,7 +304,7 @@ function PrivacyPolicyContent() {
         <h4 className="font-semibold text-foreground">4. Кому мы передаём данные</h4>
         <ul className="list-disc list-inside space-y-1">
           <li><strong>Партнёрам:</strong> минимально необходимое для подтверждения Погашения.</li>
-          <li><strong>Paylink и платёжной инфраструктуре:</strong> для обработки оплаты.</li>
+          <li><strong>FreedomPay и платёжной инфраструктуре:</strong> для обработки оплаты.</li>
           <li><strong>Подрядчикам:</strong> хостинг/облако/уведомления/аналитика.</li>
           <li><strong>Госорганам:</strong> по законному требованию.</li>
         </ul>

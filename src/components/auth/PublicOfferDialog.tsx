@@ -116,7 +116,7 @@ export function PublicOfferDialog({ children }: PublicOfferDialogProps) {
               <div>
                 <h3 className="font-bold mb-2">8. Цена и оплата</h3>
                 <p>8.1. Цены Пакетов указываются в приложении в тенге (KZT).</p>
-                <p>8.2. Оплата производится через Онлайн посредством Карты Visa/Mastercard, интернет эквайринг Paylink.</p>
+                <p>8.2. Оплата производится онлайн посредством карт Visa/Mastercard, Apple Pay и Google Pay через интернет-эквайринг FreedomPay.</p>
               </div>
 
               <div>
