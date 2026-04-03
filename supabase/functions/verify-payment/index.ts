@@ -5,9 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const PAYLINK_BASE_URL = 'https://core.paylink.kz/api/v1';
-const SUCCESS_STATUSES = ['successful', 'success', 'paid', 'completed', 'approved', 'authorized', 'captured'];
-const FAILURE_STATUSES = ['failed', 'error', 'expired', 'cancelled', 'canceled', 'declined'];
+const FREEDOMPAY_API_URL = 'https://api.freedompay.kz';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -18,45 +16,35 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function extractInvoiceUid(paymentId: string | null, paymentUrl: string | null) {
-  if (paymentId) return paymentId;
-  if (!paymentUrl) return null;
-
-  try {
-    const url = new URL(paymentUrl);
-    const segments = url.pathname.split('/').filter(Boolean);
-    return segments[segments.length - 1] || null;
-  } catch {
-    return null;
+/**
+ * Generate FreedomPay signature
+ */
+async function generateSignature(scriptName: string, params: Record<string, string>, secretKey: string): Promise<string> {
+  const sortedKeys = Object.keys(params).sort();
+  const parts = [scriptName];
+  for (const key of sortedKeys) {
+    parts.push(params[key]);
   }
+  parts.push(secretKey);
+  const signString = parts.join(';');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(signString);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = new Uint8Array(hashBuffer);
+  return Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function collectStatuses(invoice: JsonRecord) {
-  const transaction = (invoice.transaction || {}) as JsonRecord;
-  return [invoice.status, invoice.transactionStatus, transaction.status]
-    .filter((value): value is string => typeof value === 'string')
-    .map((value) => value.toLowerCase());
-}
-
-function buildReceiptData(invoice: JsonRecord, fallbackAmount: number, trackingId: string) {
-  const transaction = (invoice.transaction || {}) as JsonRecord;
-  const cardInfo = (invoice.cardInfo || {}) as JsonRecord;
-
-  return {
-    payment_id: String(transaction.uid || invoice.uid || ''),
-    invoice_uid: String(invoice.uid || ''),
-    rrn: transaction.rrn || invoice.rrn || null,
-    amount: Number(invoice.amount ?? fallbackAmount),
-    commission_amount: Number(invoice.commissionAmount ?? 0),
-    currency: String(invoice.currency || 'KZT'),
-    card_last4: cardInfo.last4 ? String(cardInfo.last4) : null,
-    card_brand: cardInfo.brand ? String(cardInfo.brand) : null,
-    issuer_bank: cardInfo.issuerBank ? String(cardInfo.issuerBank) : null,
-    description: invoice.description ? String(invoice.description) : null,
-    tracking_id: trackingId,
-    paid_at: new Date().toISOString(),
-    status: 'successful',
-  };
+/**
+ * Parse XML response from FreedomPay
+ */
+function parseXmlResponse(xml: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const tagRegex = /<(pg_[a-z_0-9]+)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = tagRegex.exec(xml)) !== null) {
+    result[match[1]] = match[2].trim();
+  }
+  return result;
 }
 
 async function sendAdminNotification(
@@ -101,13 +89,13 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const paylinkApiKey = Deno.env.get('PAYLINK_API_KEY');
+    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID');
+    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return jsonResponse({ error: 'Backend not configured' }, 500);
     }
-
-    if (!paylinkApiKey) {
+    if (!merchantId || !secretKey) {
       return jsonResponse({ error: 'Payment verification not configured' }, 500);
     }
 
@@ -135,6 +123,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
+    // Find pending order
     let pendingOrderQuery = supabase
       .from('payment_orders')
       .select('*')
@@ -155,6 +144,7 @@ Deno.serve(async (req) => {
     }
 
     if (!pendingOrder) {
+      // Check if already paid
       let paidOrderQuery = supabase
         .from('payment_orders')
         .select('*')
@@ -177,36 +167,52 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, message: 'No pending orders found' });
     }
 
-    const invoiceUid = extractInvoiceUid(pendingOrder.payment_id, pendingOrder.payment_url);
-    if (!invoiceUid) {
-      return jsonResponse({ success: false, message: 'Invoice UID is missing for this order', order_id: pendingOrder.order_id });
+    const paymentId = pendingOrder.payment_id;
+    if (!paymentId) {
+      return jsonResponse({ success: false, message: 'Payment ID missing for this order', order_id: pendingOrder.order_id });
     }
 
-    const statusResponse = await fetch(`${PAYLINK_BASE_URL}/invoices/${invoiceUid}`, {
-      method: 'GET',
-      headers: { 'X-API-KEY': paylinkApiKey, 'Accept': 'application/json' },
+    // Check status via FreedomPay get_status3.php
+    const pgSalt = crypto.randomUUID();
+    const statusParams: Record<string, string> = {
+      pg_merchant_id: merchantId,
+      pg_payment_id: paymentId,
+      pg_order_id: pendingOrder.order_id,
+      pg_salt: pgSalt,
+    };
+    statusParams.pg_sig = await generateSignature('get_status3.php', statusParams, secretKey);
+
+    const formData = new URLSearchParams();
+    for (const [key, value] of Object.entries(statusParams)) {
+      formData.append(key, value);
+    }
+
+    const statusResponse = await fetch(`${FREEDOMPAY_API_URL}/get_status3.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
 
     const responseText = await statusResponse.text();
+    console.log('FreedomPay status response:', responseText.slice(0, 500));
+
     if (!statusResponse.ok || !responseText) {
       return jsonResponse({ success: false, message: 'Payment not confirmed yet', order_id: pendingOrder.order_id });
     }
 
-    let invoiceData: JsonRecord = {};
-    try {
-      invoiceData = JSON.parse(responseText);
-    } catch {
-      return jsonResponse({ success: false, message: 'Payment not confirmed yet', order_id: pendingOrder.order_id });
-    }
+    const statusData = parseXmlResponse(responseText);
+    const paymentStatus = (statusData.pg_payment_status || '').toLowerCase();
 
-    const statuses = collectStatuses(invoiceData);
-    const isPaymentSuccessful = statuses.some((status) => SUCCESS_STATUSES.includes(status));
-    const isPaymentFailed = statuses.some((status) => FAILURE_STATUSES.includes(status));
+    const SUCCESS_STATUSES = ['success', 'ok'];
+    const FAILURE_STATUSES = ['failed', 'error', 'expired', 'cancelled', 'canceled', 'declined', 'rejected'];
+
+    const isPaymentSuccessful = SUCCESS_STATUSES.includes(paymentStatus);
+    const isPaymentFailed = FAILURE_STATUSES.includes(paymentStatus);
 
     if (isPaymentFailed) {
       await supabase
         .from('payment_orders')
-        .update({ status: 'failed', payment_id: invoiceUid })
+        .update({ status: 'failed', payment_id: paymentId })
         .eq('id', pendingOrder.id)
         .eq('status', 'pending');
 
@@ -217,9 +223,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, message: 'Payment not confirmed yet', order_id: pendingOrder.order_id });
     }
 
+    // Atomically mark as paid
     const { data: updatedOrder, error: updateError } = await supabase
       .from('payment_orders')
-      .update({ status: 'paid', paid_at: new Date().toISOString(), payment_id: invoiceUid })
+      .update({ status: 'paid', paid_at: new Date().toISOString(), payment_id: paymentId })
       .eq('id', pendingOrder.id)
       .eq('status', 'pending')
       .select()
@@ -233,6 +240,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, message: 'Already activated' });
     }
 
+    // Activate subscription
     const metadata = (pendingOrder.metadata || {}) as Record<string, unknown>;
     const isSpecialOffer = metadata.is_special_offer === true;
     let activationResult: Record<string, unknown>;
@@ -251,7 +259,7 @@ Deno.serve(async (req) => {
       await supabase.from('user_subscriptions').update({ is_active: false })
         .eq('user_id', authUser.id).eq('is_active', true)
         .in('subscription_type_id',
-          (await supabase.from('subscription_types').select('id').eq('type', subType.type)).data?.map(s => s.id) || []
+          (await supabase.from('subscription_types').select('id').eq('type', subType.type)).data?.map((s: any) => s.id) || []
         );
 
       const expiresAt = new Date(Date.now() + offerDays * 24 * 60 * 60 * 1000);
@@ -307,6 +315,7 @@ Deno.serve(async (req) => {
     const { data: subType } = await supabase.from('subscription_types')
       .select('name, cups_count, duration_days').eq('id', pendingOrder.subscription_type_id).single();
 
+    // Send user notification
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
         method: 'POST',
@@ -323,20 +332,36 @@ Deno.serve(async (req) => {
       console.error('Failed to send user notification:', notifError);
     }
 
-    const receiptData = buildReceiptData(invoiceData, pendingOrder.amount, pendingOrder.order_id);
+    // Build receipt from status response
+    const receiptData = {
+      payment_id: paymentId,
+      rrn: statusData.pg_reference || null,
+      amount: Number(statusData.pg_amount) || pendingOrder.amount,
+      currency: statusData.pg_currency || 'KZT',
+      card_last4: statusData.pg_card_pan ? statusData.pg_card_pan.replace(/[^0-9]/g, '').slice(-4) : null,
+      card_brand: null,
+      issuer_bank: null,
+      description: null,
+      tracking_id: pendingOrder.order_id,
+      paid_at: statusData.pg_payment_date || new Date().toISOString(),
+      status: 'successful',
+      payment_method: statusData.pg_payment_method || 'bankcard',
+      card_owner: statusData.pg_card_name || null,
+    };
 
     await supabase.from('subscription_transactions').insert({
       user_id: authUser.id,
       subscription_type_id: pendingOrder.subscription_type_id,
       subscription_name: subType?.name || metadata.subscription_name || 'Unknown',
       transaction_type: 'purchase',
-      payment_method: 'paylink',
+      payment_method: 'freedompay',
       amount: pendingOrder.amount,
       payment_order_id: pendingOrder.id,
       is_special_offer: isSpecialOffer,
       receipt_data: receiptData,
     });
 
+    // Admin notification
     const { data: buyerProfile } = await supabase
       .from('profiles').select('name, phone').eq('user_id', authUser.id).maybeSingle();
 
