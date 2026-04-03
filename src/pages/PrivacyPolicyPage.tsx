@@ -74,7 +74,7 @@ function PolicyRu() {
         <li>Отправка push-уведомлений и сообщений</li>
         <li>Отображение ближайших заведений-партнёров</li>
         <li>Улучшение работы Приложения и анализ статистики</li>
-        <li>Обработка платежей через эквайринг Paylink (Visa/Mastercard)</li>
+        <li>Обработка платежей через эквайринг FreedomPay (Visa/Mastercard/Apple Pay/Google Pay)</li>
       </ul>
 
       <h2 className="text-lg font-semibold">3. Платежи</h2>
