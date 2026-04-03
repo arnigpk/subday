@@ -164,7 +164,7 @@ function PolicyEn() {
         <li>Sending push notifications and messages</li>
         <li>Displaying nearby partner venues</li>
         <li>Improving the Application and analyzing statistics</li>
-        <li>Processing payments via Paylink (Visa/Mastercard)</li>
+        <li>Processing payments via FreedomPay (Visa/Mastercard/Apple Pay/Google Pay)</li>
       </ul>
 
       <h2 className="text-lg font-semibold">3. Payments</h2>
