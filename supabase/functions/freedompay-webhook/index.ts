@@ -55,8 +55,8 @@ async function xmlResponse(status: string, description: string, secretKey: strin
   const signString = parts.join(';');
   const encoder = new TextEncoder();
   const data = encoder.encode(signString);
-  const hashBuffer = await stdCrypto.subtle.digest('MD5', data);
-  const pgSig = encodeHex(new Uint8Array(hashBuffer));
+  const hashBuffer2 = await stdCrypto.subtle.digest('MD5', data);
+  const pgSig = encodeHex(new Uint8Array(hashBuffer2));
 
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <response>
