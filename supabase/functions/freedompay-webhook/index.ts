@@ -27,9 +27,8 @@ async function verifySignature(scriptName: string, params: Record<string, string
 
   const encoder = new TextEncoder();
   const data = encoder.encode(signString);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = new Uint8Array(hashBuffer);
-  const computedSig = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashBuffer = await stdCrypto.subtle.digest('MD5', data);
+  const computedSig = encodeHex(new Uint8Array(hashBuffer));
 
   return computedSig === receivedSig;
 }
