@@ -8,8 +8,18 @@ const corsHeaders = {
 };
 
 const FREEDOMPAY_API_URL = 'https://api.freedompay.kz';
+const FREEDOMPAY_STATUS_URL = `${FREEDOMPAY_API_URL}/g2g/status_v2`;
 
 type JsonRecord = Record<string, unknown>;
+
+function decodeXmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -43,7 +53,7 @@ function parseXmlResponse(xml: string): Record<string, string> {
   const tagRegex = /<(pg_[a-z_0-9]+)>([\s\S]*?)<\/\1>/gi;
   let match;
   while ((match = tagRegex.exec(xml)) !== null) {
-    result[match[1]] = match[2].trim();
+    result[match[1]] = decodeXmlEntities(match[2].trim());
   }
   return result;
 }
@@ -173,7 +183,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, message: 'Payment ID missing for this order', order_id: pendingOrder.order_id });
     }
 
-    // Check status via FreedomPay get_status3.php
+    // Check status via FreedomPay status_v2
     const pgSalt = crypto.randomUUID();
     const statusParams: Record<string, string> = {
       pg_merchant_id: merchantId,
@@ -183,15 +193,14 @@ Deno.serve(async (req) => {
     };
     statusParams.pg_sig = await generateSignature('get_status3.php', statusParams, secretKey);
 
-    const formData = new URLSearchParams();
+    const formData = new FormData();
     for (const [key, value] of Object.entries(statusParams)) {
       formData.append(key, value);
     }
 
-    const statusResponse = await fetch(`${FREEDOMPAY_API_URL}/get_status3.php`, {
+    const statusResponse = await fetch(FREEDOMPAY_STATUS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      body: formData,
     });
 
     const responseText = await statusResponse.text();
@@ -202,13 +211,25 @@ Deno.serve(async (req) => {
     }
 
     const statusData = parseXmlResponse(responseText);
+    const requestStatus = (statusData.pg_status || '').toLowerCase();
+    if (requestStatus && requestStatus !== 'ok') {
+      console.error('FreedomPay status request failed:', statusData);
+      return jsonResponse({
+        success: false,
+        message: statusData.pg_failure_description || statusData.pg_error_description || 'Payment status request failed',
+        order_id: pendingOrder.order_id,
+      });
+    }
+
     const paymentStatus = (statusData.pg_payment_status || '').toLowerCase();
 
-    const SUCCESS_STATUSES = ['success', 'ok'];
-    const FAILURE_STATUSES = ['failed', 'error', 'expired', 'cancelled', 'canceled', 'declined', 'rejected'];
+    const SUCCESS_STATUSES = ['success', 'ok', 'paid'];
+    const FAILURE_STATUSES = ['failed', 'failure', 'error', 'expired', 'cancelled', 'canceled', 'declined', 'rejected'];
+    const PENDING_STATUSES = ['pending', 'processing', 'process', 'incomplete', 'not_completed', 'new', 'wait', 'waiting'];
 
     const isPaymentSuccessful = SUCCESS_STATUSES.includes(paymentStatus);
     const isPaymentFailed = FAILURE_STATUSES.includes(paymentStatus);
+    const isPaymentPending = !paymentStatus || PENDING_STATUSES.includes(paymentStatus);
 
     if (isPaymentFailed) {
       await supabase
@@ -218,6 +239,10 @@ Deno.serve(async (req) => {
         .eq('status', 'pending');
 
       return jsonResponse({ success: false, message: 'Payment failed', order_id: pendingOrder.order_id });
+    }
+
+    if (isPaymentPending) {
+      return jsonResponse({ success: false, message: 'Payment not confirmed yet', order_id: pendingOrder.order_id });
     }
 
     if (!isPaymentSuccessful) {

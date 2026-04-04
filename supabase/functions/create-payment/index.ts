@@ -12,6 +12,15 @@ const DEFAULT_RETURN_ORIGIN = 'https://vhod.lovable.app';
 
 type JsonRecord = Record<string, unknown>;
 
+function decodeXmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -70,7 +79,7 @@ function parseXmlResponse(xml: string): Record<string, string> {
   const tagRegex = /<(pg_[a-z_0-9]+)>([\s\S]*?)<\/\1>/gi;
   let match;
   while ((match = tagRegex.exec(xml)) !== null) {
-    result[match[1]] = match[2].trim();
+    result[match[1]] = decodeXmlEntities(match[2].trim());
   }
   return result;
 }
@@ -232,10 +241,14 @@ Deno.serve(async (req) => {
       pg_description: description,
       pg_salt: pgSalt,
       pg_language: 'ru',
+      pg_request_method: 'POST',
       pg_result_url: `${supabaseUrl}/functions/v1/freedompay-webhook`,
       pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
+      pg_success_url_method: 'GET',
       pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
+      pg_failure_url_method: 'GET',
       pg_testing_mode: '1',
+      pg_idempotency_key: orderId,
       pg_user_id: authUser.id,
     };
 
