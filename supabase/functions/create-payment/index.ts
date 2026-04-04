@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
       pg_result_url: `${supabaseUrl}/functions/v1/freedompay-webhook`,
       pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
       pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
-      pg_testing_mode: '0',
+      pg_testing_mode: '1',
       pg_user_id: authUser.id,
     };
 
