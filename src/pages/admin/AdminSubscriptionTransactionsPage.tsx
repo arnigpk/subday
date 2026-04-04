@@ -366,6 +366,19 @@ export default function AdminSubscriptionTransactionsPage() {
     }
   };
 
+  const getPaymentMethodLabel = (method: string | null, receiptData: any | null) => {
+    const receiptMethod = typeof receiptData?.payment_method === 'string'
+      ? receiptData.payment_method.toLowerCase()
+      : '';
+
+    if (receiptMethod.includes('apple')) return 'Apple Pay';
+    if (receiptMethod.includes('google')) return 'Google Pay';
+    if (receiptMethod === 'wallet') return 'FreedomPay Wallet';
+    if (method === 'freedompay' || method === 'paylink') return 'FreedomPay';
+
+    return method || '—';
+  };
+
   const pmTotalPages = Math.ceil(pmTotal / PAGE_SIZE);
   const txTotalPages = Math.ceil(txTotal / PAGE_SIZE);
 
@@ -668,7 +681,7 @@ export default function AdminSubscriptionTransactionsPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {t.payment_method === 'freedompay' ? 'FreedomPay' : (t.payment_method === 'paylink' ? 'Paylink (legacy)' : (t.payment_method || '—'))}
+                            {getPaymentMethodLabel(t.payment_method, t.receipt_data)}
                           </TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground max-w-[120px] truncate" title={t.payment_id || ''}>
                             {t.payment_id || '—'}

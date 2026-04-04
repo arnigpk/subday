@@ -8,7 +8,6 @@ import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { usePaymentResult } from '@/hooks/usePaymentResult';
 import { useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
@@ -32,7 +31,6 @@ export default function HomePage() {
   const { vibrateShort } = useVibration();
   
   const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
-  usePaymentResult();
   
   useEffect(() => {
     prefetchAll();

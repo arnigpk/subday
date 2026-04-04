@@ -72,6 +72,64 @@ async function xmlResponse(status: string, description: string, secretKey: strin
   });
 }
 
+async function extractWebhookPayload(req: Request): Promise<Record<string, string>> {
+  const payload: Record<string, string> = {};
+  const url = new URL(req.url);
+
+  for (const [key, value] of url.searchParams.entries()) {
+    payload[key] = value;
+  }
+
+  if (req.method !== 'POST') {
+    return payload;
+  }
+
+  const contentType = req.headers.get('content-type') || '';
+
+  try {
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      for (const [key, value] of formData.entries()) {
+        if (typeof value === 'string') {
+          payload[key] = value;
+        }
+      }
+      return payload;
+    }
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const bodyText = await req.text();
+      const formParams = new URLSearchParams(bodyText);
+      for (const [key, value] of formParams.entries()) {
+        payload[key] = value;
+      }
+      return payload;
+    }
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json() as Record<string, unknown>;
+      for (const [key, value] of Object.entries(body)) {
+        if (typeof value === 'string') {
+          payload[key] = value;
+        }
+      }
+      return payload;
+    }
+
+    const bodyText = await req.text();
+    if (bodyText) {
+      const formParams = new URLSearchParams(bodyText);
+      for (const [key, value] of formParams.entries()) {
+        payload[key] = value;
+      }
+    }
+  } catch (parseError) {
+    console.log('Webhook payload parse error:', parseError);
+  }
+
+  return payload;
+}
+
 async function sendAdminNotification(
   supabase: any,
   triggerType: string,
@@ -122,48 +180,14 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Parse form-data or url-encoded body from FreedomPay
-    const payload: Record<string, string> = {};
-    const contentType = req.headers.get('content-type') || '';
-    const url = new URL(req.url);
-
-    // Query params
-    for (const [key, value] of url.searchParams.entries()) {
-      payload[key] = value;
-    }
-
-    if (req.method === 'POST') {
-      try {
-        const bodyText = await req.text();
-        console.log('FreedomPay webhook raw body:', bodyText.slice(0, 500));
-
-        if (bodyText) {
-          if (contentType.includes('multipart/form-data')) {
-            // Parse multipart - re-read as formData
-            // FreedomPay sends as form-data but we already consumed body, parse manually
-            const formParams = new URLSearchParams(bodyText);
-            for (const [key, value] of formParams.entries()) {
-              payload[key] = value;
-            }
-          } else {
-            // Try URL-encoded
-            const formParams = new URLSearchParams(bodyText);
-            for (const [key, value] of formParams.entries()) {
-              payload[key] = value;
-            }
-          }
-        }
-      } catch (parseError) {
-        console.log('Body parse error (non-fatal):', parseError);
-      }
-    }
+    const payload = await extractWebhookPayload(req);
 
     console.log('FreedomPay webhook received:', JSON.stringify(payload, null, 2));
 
     // Log webhook event
     await supabase.from('webhook_logs').insert({
       source: 'freedompay',
-      event_type: payload.pg_result === '1' ? 'success' : (payload.pg_result === '0' ? 'failure' : 'unknown'),
+      event_type: payload.pg_result === '1' ? 'success' : (payload.pg_result === '0' ? 'failure' : (payload.pg_result === '2' ? 'pending' : 'unknown')),
       payload: payload as any,
       order_id: payload.pg_order_id || '',
       status: payload.pg_result || '',
@@ -195,12 +219,29 @@ Deno.serve(async (req) => {
       return await xmlResponse('error', 'Order not found', secretKey);
     }
 
-    if (paymentOrder.status === 'paid') {
+    const { data: existingTransaction } = await supabase
+      .from('subscription_transactions')
+      .select('id')
+      .eq('payment_order_id', paymentOrder.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (paymentOrder.status === 'paid' && existingTransaction) {
       console.log('Order already processed:', orderId);
       return await xmlResponse('ok', 'Already processed', secretKey);
     }
 
     const isSuccess = pgResult === '1';
+    const isPending = pgResult === '2';
+
+    if (isPending) {
+      await supabase.from('payment_orders').update({
+        status: 'pending',
+        payment_id: pgPaymentId || paymentOrder.payment_id || null,
+      }).eq('id', paymentOrder.id);
+
+      return await xmlResponse('ok', 'Payment pending', secretKey);
+    }
 
     if (isSuccess) {
       console.log('Payment successful, activating subscription for user:', paymentOrder.user_id);

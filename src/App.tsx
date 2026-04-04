@@ -13,6 +13,7 @@ import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
+import { usePaymentResult } from "@/hooks/usePaymentResult";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 
@@ -143,6 +144,11 @@ function DeepLinkHandler() {
     };
   }, [navigate]);
 
+  return null;
+}
+
+function PaymentResultHandler() {
+  usePaymentResult();
   return null;
 }
 
@@ -327,6 +333,7 @@ const AppContent = () => {
   return (
     <UserStatsProvider>
       <BrowserRouter>
+        <PaymentResultHandler />
         <DeepLinkHandler />
         <Toaster />
         <Sonner />
