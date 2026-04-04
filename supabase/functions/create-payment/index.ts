@@ -232,17 +232,12 @@ Deno.serve(async (req) => {
       pg_description: description,
       pg_salt: pgSalt,
       pg_language: 'ru',
-      pg_auto_clearing: '1',
       pg_result_url: `${supabaseUrl}/functions/v1/freedompay-webhook`,
       pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
       pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
       pg_testing_mode: '1',
       pg_user_id: authUser.id,
     };
-
-    // Enable Apple Pay & Google Pay on payment page
-    pgParams['pg_template_params[applepay]'] = '1';
-    pgParams['pg_template_params[googlepay]'] = '1';
 
     if (cleanPhone) {
       pgParams.pg_user_phone = cleanPhone;
@@ -259,18 +254,17 @@ Deno.serve(async (req) => {
     const scriptName = 'init_payment.php';
     pgParams.pg_sig = await generateSignature(scriptName, pgParams, secretKey);
 
-    // Send request to FreedomPay
-    const formData = new URLSearchParams();
+    // Send request to FreedomPay using multipart/form-data as per docs
+    const formData = new FormData();
     for (const [key, value] of Object.entries(pgParams)) {
       formData.append(key, value);
     }
 
-    console.log('Sending init_payment to FreedomPay, order:', orderId);
+    console.log('Sending init_payment to FreedomPay, order:', orderId, 'merchant:', merchantId);
 
     const fpResponse = await fetch(`${FREEDOMPAY_API_URL}/init_payment.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      body: formData,
     });
 
     const responseText = await fpResponse.text();
