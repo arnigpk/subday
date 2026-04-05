@@ -206,13 +206,13 @@ Deno.serve(async (req) => {
       return await xmlResponse('error', 'Missing order_id', secretKey);
     }
 
-    // Verify signature
+    // Verify signature — STRICTLY reject invalid signatures
     const isValidSig = await verifySignature('', payload, secretKey);
     if (!isValidSig) {
-      console.error('Invalid signature in webhook');
-      // Don't reject - some edge cases with signature. Log and continue.
-      console.log('Signature verification failed but continuing...');
+      console.error('REJECTED: Invalid signature in webhook for order:', orderId);
+      return await xmlResponse('error', 'Invalid signature', secretKey);
     }
+    console.log('Signature verified OK for order:', orderId);
 
     // Find payment order
     const { data: paymentOrder, error: findError } = await supabase
