@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (paymentOrder.status === 'paid' && existingTransaction) {
-      console.log('Order already processed:', orderId);
+    if (paymentOrder.status === 'paid' || existingTransaction) {
+      console.log('Order already processed (status or transaction exists):', orderId);
       return await xmlResponse('ok', 'Already processed', secretKey);
     }
 
