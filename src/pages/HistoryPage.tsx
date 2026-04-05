@@ -82,6 +82,17 @@ export default function HistoryPage() {
     if (!amount) return '';
     return `${amount.toLocaleString()} ₸`;
   };
+
+  const getPaymentLabel = (receiptData: any | null): string => {
+    const method = typeof receiptData?.payment_method === 'string' ? receiptData.payment_method.toLowerCase() : '';
+    const brand = typeof receiptData?.card_brand === 'string' ? receiptData.card_brand.toUpperCase() : '';
+    if (method.includes('apple')) return '🍎 Apple Pay';
+    if (method.includes('google')) return '📱 Google Pay';
+    if (method === 'wallet') return '💳 FreedomPay Wallet';
+    if (brand === 'VI' || brand === 'VISA') return '💳 Visa';
+    if (brand === 'MC' || brand === 'MASTERCARD') return '💳 Mastercard';
+    return '💳 Онлайн оплата';
+  };
   
   if (isLoading) {
     return (
