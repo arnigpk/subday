@@ -370,11 +370,26 @@ export default function AdminSubscriptionTransactionsPage() {
     const receiptMethod = typeof receiptData?.payment_method === 'string'
       ? receiptData.payment_method.toLowerCase()
       : '';
+    const cardBrand = typeof receiptData?.card_brand === 'string'
+      ? receiptData.card_brand.toUpperCase()
+      : '';
 
-    if (receiptMethod.includes('apple')) return 'Apple Pay';
-    if (receiptMethod.includes('google')) return 'Google Pay';
-    if (receiptMethod === 'wallet') return 'FreedomPay Wallet';
-    if (method === 'freedompay' || method === 'paylink') return 'FreedomPay';
+    // Apple Pay / Google Pay detection
+    if (receiptMethod.includes('apple')) return '🍎 Apple Pay';
+    if (receiptMethod.includes('google')) return '📱 Google Pay';
+    if (receiptMethod === 'wallet') return '💳 FreedomPay Wallet';
+
+    // Card brand detection from pg_card_brand codes
+    if (cardBrand === 'VI' || cardBrand === 'VISA') return '💳 Visa';
+    if (cardBrand === 'MC' || cardBrand === 'MASTERCARD') return '💳 Mastercard';
+    if (cardBrand === 'AE' || cardBrand === 'AMEX') return '💳 Amex';
+
+    // Fallback: detect from card_pan patterns
+    const cardPan = receiptData?.card_last4 || '';
+    if (method === 'freedompay' || method === 'paylink') {
+      if (receiptMethod === 'bankcard' || !receiptMethod) return '💳 Карта';
+      return '💳 FreedomPay';
+    }
 
     return method || '—';
   };

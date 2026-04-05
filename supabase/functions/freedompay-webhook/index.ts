@@ -185,13 +185,17 @@ Deno.serve(async (req) => {
     console.log('FreedomPay webhook received:', JSON.stringify(payload, null, 2));
 
     // Log webhook event
-    await supabase.from('webhook_logs').insert({
-      source: 'freedompay',
-      event_type: payload.pg_result === '1' ? 'success' : (payload.pg_result === '0' ? 'failure' : (payload.pg_result === '2' ? 'pending' : 'unknown')),
-      payload: payload as any,
-      order_id: payload.pg_order_id || '',
-      status: payload.pg_result || '',
-    }).catch(e => console.error('Webhook log error:', e));
+    try {
+      await supabase.from('webhook_logs').insert({
+        source: 'freedompay',
+        event_type: payload.pg_result === '1' ? 'success' : (payload.pg_result === '0' ? 'failure' : (payload.pg_result === '2' ? 'pending' : 'unknown')),
+        payload: payload as any,
+        order_id: payload.pg_order_id || '',
+        status: payload.pg_result || '',
+      });
+    } catch (e) {
+      console.error('Webhook log error:', e);
+    }
 
     const orderId = payload.pg_order_id;
     const pgResult = payload.pg_result; // 1 = success, 0 = failure
