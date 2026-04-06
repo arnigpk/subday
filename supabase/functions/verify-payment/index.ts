@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
       pg_order_id: pendingOrder.order_id,
       pg_salt: pgSalt,
     };
-    statusParams.pg_sig = await generateSignature('get_status3.php', statusParams, secretKey);
+    statusParams.pg_sig = await generateSignature('status_v2', statusParams, secretKey);
 
     const formData = new FormData();
     for (const [key, value] of Object.entries(statusParams)) {
