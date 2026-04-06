@@ -47,7 +47,7 @@ async function xmlResponse(status: string, description: string, secretKey: strin
   
   // Generate signature for response
   const sortedKeys = Object.keys(params).sort();
-  const parts = [''];
+  const parts = ['freedompay-webhook'];
   for (const key of sortedKeys) {
     parts.push(params[key]);
   }
