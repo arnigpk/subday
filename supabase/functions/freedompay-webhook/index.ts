@@ -47,7 +47,7 @@ async function xmlResponse(status: string, description: string, secretKey: strin
   
   // Generate signature for response
   const sortedKeys = Object.keys(params).sort();
-  const parts = [''];
+  const parts = ['freedompay-webhook'];
   for (const key of sortedKeys) {
     parts.push(params[key]);
   }
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify signature — STRICTLY reject invalid signatures
-    const isValidSig = await verifySignature('', payload, secretKey);
+    const isValidSig = await verifySignature('freedompay-webhook', payload, secretKey);
     if (!isValidSig) {
       console.error('REJECTED: Invalid signature in webhook for order:', orderId);
       return await xmlResponse('error', 'Invalid signature', secretKey);
