@@ -250,6 +250,7 @@ Deno.serve(async (req) => {
       pg_testing_mode: '1',
       pg_idempotency_key: orderId,
       pg_user_id: authUser.id,
+      pg_payment_route: 'frame',
     };
 
     if (cleanPhone) {

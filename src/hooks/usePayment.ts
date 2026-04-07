@@ -5,11 +5,18 @@ import { toast } from 'sonner';
 
 interface UsePaymentResult {
   isProcessing: boolean;
+  paymentUrl: string | null;
+  orderId: string | null;
+  showPaymentFrame: boolean;
+  setShowPaymentFrame: (show: boolean) => void;
   createPayment: (subscriptionTypeId: string) => Promise<void>;
 }
 
 export function usePayment(): UsePaymentResult {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [showPaymentFrame, setShowPaymentFrame] = useState(false);
   const location = useLocation();
 
   const createPayment = async (subscriptionTypeId: string) => {
@@ -38,7 +45,9 @@ export function usePayment(): UsePaymentResult {
       }
 
       if (data?.payment_url) {
-        window.location.href = data.payment_url;
+        setPaymentUrl(data.payment_url);
+        setOrderId(data.order_id || null);
+        setShowPaymentFrame(true);
       } else {
         console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
@@ -53,6 +62,10 @@ export function usePayment(): UsePaymentResult {
 
   return {
     isProcessing,
+    paymentUrl,
+    orderId,
+    showPaymentFrame,
+    setShowPaymentFrame,
     createPayment,
   };
 }
