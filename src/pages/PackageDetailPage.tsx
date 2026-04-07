@@ -306,6 +306,12 @@ export default function PackageDetailPage() {
           </div>
         </div>
       </div>
+
+      <PaymentFrameDialog
+        open={showPaymentFrame}
+        onOpenChange={setShowPaymentFrame}
+        paymentUrl={paymentUrl}
+      />
     </AppLayout>
   );
 }
