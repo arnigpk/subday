@@ -311,6 +311,7 @@ export default function PackageDetailPage() {
         open={showPaymentFrame}
         onOpenChange={setShowPaymentFrame}
         paymentUrl={paymentUrl}
+        orderId={orderId}
       />
     </AppLayout>
   );
