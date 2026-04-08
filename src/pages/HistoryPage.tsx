@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText, ShoppingBag } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -10,6 +10,7 @@ import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReceiptPopup } from '@/components/history/ReceiptPopup';
+import { PreorderHistoryItem } from '@/components/preorder/PreorderHistoryItem';
 
 interface SubscriptionTransaction {
   id: string;
@@ -22,6 +23,17 @@ interface SubscriptionTransaction {
   receipt_data: any | null;
 }
 
+interface PreorderItem {
+  id: string;
+  shop_name: string;
+  coffee_name: string;
+  syrup: string | null;
+  status: string;
+  qr_code: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export default function HistoryPage() {
   const { redemptions, isLoading } = useUserStatsContext();
   const { t, language } = useLanguage();
@@ -29,17 +41,38 @@ export default function HistoryPage() {
   const [transactions, setTransactions] = useState<SubscriptionTransaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
+  const [preorders, setPreorders] = useState<PreorderItem[]>([]);
+  const [preordersLoading, setPreordersLoading] = useState(false);
   
   const tabs = [
     { id: 'redemptions', label: t('history.tabRedemptions') },
+    { id: 'preorders', label: 'Предзаказы' },
     { id: 'transactions', label: t('history.tabTransactions') },
   ];
 
   useEffect(() => {
-    if (activeTab === 'transactions') {
-      fetchTransactions();
-    }
+    if (activeTab === 'transactions') fetchTransactions();
+    if (activeTab === 'preorders') fetchPreorders();
   }, [activeTab]);
+
+  const fetchPreorders = async () => {
+    setPreordersLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('preorders')
+        .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (!error && data) setPreorders(data);
+    } catch (e) {
+      console.error('Error fetching preorders:', e);
+    } finally {
+      setPreordersLoading(false);
+    }
+  };
 
   const fetchTransactions = async () => {
     setTransactionsLoading(true);
