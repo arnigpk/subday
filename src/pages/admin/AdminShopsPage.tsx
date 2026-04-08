@@ -278,7 +278,8 @@ export default function AdminShopsPage() {
             badge_color: formData.badges[0]?.color || null,
             description: formData.description.trim() || null,
             supported_types: formData.supported_types,
-          })
+            preorders_enabled: formData.preorders_enabled,
+          } as any)
           .eq('id', editingShop.id);
 
         if (error) throw error;
@@ -307,7 +308,8 @@ export default function AdminShopsPage() {
             description: formData.description.trim() || null,
             sort_order: maxOrder + 1,
             supported_types: formData.supported_types,
-          }]);
+            preorders_enabled: formData.preorders_enabled,
+          } as any]);
 
         if (error) throw error;
         toast({ title: 'Кофейня добавлена' });
