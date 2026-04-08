@@ -204,6 +204,33 @@ export default function HistoryPage() {
                 <p className="text-sm text-muted-foreground">{t('history.emptyDesc')}</p>
               </div>
             )
+          ) : activeTab === 'preorders' ? (
+            // Preorders tab
+            preordersLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="card-static flex items-center gap-4 animate-pulse">
+                    <div className="w-12 h-12 rounded-xl bg-muted" />
+                    <div className="flex-1">
+                      <div className="h-4 w-28 bg-muted rounded mb-2" />
+                      <div className="h-3 w-20 bg-muted rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : preorders.length > 0 ? (
+              <div className="space-y-3">
+                {preorders.map((p, index) => (
+                  <PreorderHistoryItem key={p.id} preorder={p} index={index} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-4xl mb-4">☕</div>
+                <p className="text-lg font-semibold text-foreground mb-2">Нет предзаказов</p>
+                <p className="text-sm text-muted-foreground">Предзаказы кофе появятся здесь</p>
+              </div>
+            )
           ) : (
             // Transactions tab
             transactionsLoading ? (
