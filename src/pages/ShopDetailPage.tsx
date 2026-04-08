@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink, ShoppingBag } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAddressAwareShopStatus } from '@/utils/shopHours';
 import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList';
@@ -11,6 +11,8 @@ import { formatDistance, formatDuration } from '@/utils/distance';
 import { ShopGalleryCarousel } from '@/components/shop/ShopGalleryCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { PreorderDialog } from '@/components/preorder/PreorderDialog';
+import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 
 interface Shop {
   id: string;
@@ -28,6 +30,7 @@ interface Shop {
   coordinates: unknown;
   description: string | null;
   supported_types: string[];
+  preorders_enabled?: boolean;
 }
 
 function parseCoordinates(coords: unknown): Coordinate[] {
@@ -51,11 +54,14 @@ function getShopBadges(shop: Shop): ShopBadgeData[] {
 export default function ShopDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { stats } = useUserStatsContext();
+  const { stats, refetch: refetchStats } = useUserStatsContext();
   const [shop, setShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [preorderOpen, setPreorderOpen] = useState(false);
   const { t } = useLanguage();
   const translatedDescription = useAutoTranslate(shop?.description);
+  const { activeSubscriptionTypeIds } = useActiveSubscription();
+  const hasActiveSubscription = activeSubscriptionTypeIds.length > 0;
 
   const statusCoordinates = useMemo(
     () => Array.isArray(shop?.coordinates) ? shop.coordinates as Array<{ working_hours?: string | null }> : [],
@@ -209,6 +215,18 @@ export default function ShopDetailPage() {
           </div>
         </div>
         
+        {shop.preorders_enabled && hasActiveSubscription && stats.coffeeRemaining > 0 && isCurrentlyOpen && (
+          <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
+            <button
+              onClick={() => setPreorderOpen(true)}
+              className="w-full py-3 rounded-xl border-2 border-primary text-primary font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <ShoppingBag size={18} />
+              Предзаказ кофе
+            </button>
+          </div>
+        )}
+
         <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <button onClick={handleRedeem} disabled={!isCurrentlyOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
             {!isCurrentlyOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
@@ -216,5 +234,16 @@ export default function ShopDetailPage() {
         </div>
       </div>
     </div>
+
+    {shop && (
+      <PreorderDialog
+        open={preorderOpen}
+        onOpenChange={setPreorderOpen}
+        shopId={shop.id}
+        shopName={shop.name}
+        coffeeRemaining={stats.coffeeRemaining}
+        onComplete={refetchStats}
+      />
+    )}
   </AppLayout>;
 }

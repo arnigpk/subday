@@ -52,6 +52,59 @@ export default function PartnerScanPage() {
         return;
       }
 
+      // Handle preorder QR
+      if (data.type === 'subday_preorder') {
+        try {
+          const { data: preorder, error: fetchErr } = await supabase
+            .from('preorders')
+            .select('id, status, shop_id, coffee_name, syrup, user_id')
+            .eq('qr_code', data.qrCode)
+            .maybeSingle();
+
+          if (fetchErr || !preorder) {
+            setResult({ success: false, message: 'Предзаказ не найден' });
+            setIsProcessing(false);
+            return;
+          }
+
+          if (preorder.shop_id !== shopId) {
+            setResult({ success: false, message: 'Этот предзаказ для другой кофейни' });
+            setIsProcessing(false);
+            return;
+          }
+
+          if (preorder.status === 'completed') {
+            setResult({ success: false, message: 'Этот предзаказ уже выдан' });
+            setIsProcessing(false);
+            return;
+          }
+
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error: updateErr } = await supabase
+            .from('preorders')
+            .update({ status: 'completed', completed_by: user?.id, completed_at: new Date().toISOString() })
+            .eq('id', preorder.id);
+
+          if (updateErr) {
+            setResult({ success: false, message: 'Ошибка при обновлении предзаказа' });
+            setIsProcessing(false);
+            return;
+          }
+
+          const drinkDesc = preorder.syrup ? `${preorder.coffee_name} + ${preorder.syrup}` : preorder.coffee_name;
+          setResult({ success: true, message: 'Предзаказ выдан!', drinkName: drinkDesc });
+          setShowConfetti(true);
+          playSuccessSound();
+          vibrateSuccess();
+          setTimeout(() => setShowConfetti(false), 2000);
+        } catch (err) {
+          console.error('Preorder scan error:', err);
+          setResult({ success: false, message: 'Ошибка обработки предзаказа' });
+        }
+        setIsProcessing(false);
+        return;
+      }
+
       if (data.type !== 'subday_redeem') {
         setResult({ success: false, message: 'Это не QR-код SubDay' });
         setIsProcessing(false);
@@ -71,7 +124,6 @@ export default function PartnerScanPage() {
         return;
       }
 
-      // No artificial delay — call edge function immediately
       const { data: response, error } = await supabase.functions.invoke('partner-scan-qr', {
         body: {
           userId: data.userId,

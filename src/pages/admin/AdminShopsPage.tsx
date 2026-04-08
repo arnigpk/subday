@@ -115,6 +115,7 @@ export default function AdminShopsPage() {
     badges: [] as ShopBadgeData[],
     description: '',
     supported_types: ['coffee'] as string[],
+    preorders_enabled: false,
   });
 
   const sensors = useSensors(
@@ -196,6 +197,7 @@ export default function AdminShopsPage() {
       badges: [],
       description: '',
       supported_types: ['coffee'],
+      preorders_enabled: false,
     });
     setIsDialogOpen(true);
   };
@@ -236,6 +238,7 @@ export default function AdminShopsPage() {
       badges: parsedBadges,
       description: (shop as any).description || '',
       supported_types: shop.supported_types || ['coffee'],
+      preorders_enabled: (shop as any).preorders_enabled || false,
     });
     setIsDialogOpen(true);
   };
@@ -275,7 +278,8 @@ export default function AdminShopsPage() {
             badge_color: formData.badges[0]?.color || null,
             description: formData.description.trim() || null,
             supported_types: formData.supported_types,
-          })
+            preorders_enabled: formData.preorders_enabled,
+          } as any)
           .eq('id', editingShop.id);
 
         if (error) throw error;
@@ -304,7 +308,8 @@ export default function AdminShopsPage() {
             description: formData.description.trim() || null,
             sort_order: maxOrder + 1,
             supported_types: formData.supported_types,
-          }]);
+            preorders_enabled: formData.preorders_enabled,
+          } as any]);
 
         if (error) throw error;
         toast({ title: 'Кофейня добавлена' });
@@ -588,6 +593,16 @@ export default function AdminShopsPage() {
               />
               <Label htmlFor="is_active">Активна</Label>
             </div>
+            {canManage && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="preorders_enabled"
+                  checked={formData.preorders_enabled}
+                  onCheckedChange={(checked) => setFormData({ ...formData, preorders_enabled: checked })}
+                />
+                <Label htmlFor="preorders_enabled">Принимать предзаказы</Label>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена
