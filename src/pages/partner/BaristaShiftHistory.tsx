@@ -4,7 +4,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, ShoppingBag } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { PartnerPreorders } from '@/components/partner/PartnerPreorders';
+import { TabSwitcher } from '@/components/ui/TabSwitcher';
 
 interface Redemption {
   id: string;
@@ -36,6 +38,12 @@ export default function BaristaShiftHistory() {
   const [customDateTo, setCustomDateTo] = useState('');
   const [addressFilter, setAddressFilter] = useState('all');
   const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState('shift');
+
+  const tabs = [
+    { id: 'shift', label: 'Моя смена' },
+    { id: 'preorders', label: 'Предзаказы' },
+  ];
 
   const fetchHistory = useCallback(async () => {
     if (!shopId) return;
@@ -134,7 +142,15 @@ export default function BaristaShiftHistory() {
     <PartnerLayout>
       <div className="p-4 space-y-4">
         <h2 className="text-xl font-bold text-foreground">
-          Моя смена {redemptions.length > 0 && `(${redemptions.length})`}
+          Моя смена
+        </h2>
+
+        <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-2" />
+
+        {activeTab === 'preorders' ? (
+          shopId ? <PartnerPreorders shopId={shopId} /> : null
+        ) : (
+        <>
         </h2>
 
         <div className="space-y-2">
