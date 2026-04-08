@@ -593,6 +593,16 @@ export default function AdminShopsPage() {
               />
               <Label htmlFor="is_active">Активна</Label>
             </div>
+            {canManage && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="preorders_enabled"
+                  checked={formData.preorders_enabled}
+                  onCheckedChange={(checked) => setFormData({ ...formData, preorders_enabled: checked })}
+                />
+                <Label htmlFor="preorders_enabled">Принимать предзаказы</Label>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена
