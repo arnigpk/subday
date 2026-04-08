@@ -520,6 +520,56 @@ export type Database = {
           },
         ]
       }
+      preorders: {
+        Row: {
+          coffee_name: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          qr_code: string
+          shop_id: string
+          shop_name: string
+          status: string
+          syrup: string | null
+          user_id: string
+        }
+        Insert: {
+          coffee_name: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          qr_code?: string
+          shop_id: string
+          shop_name: string
+          status?: string
+          syrup?: string | null
+          user_id: string
+        }
+        Update: {
+          coffee_name?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          qr_code?: string
+          shop_id?: string
+          shop_name?: string
+          status?: string
+          syrup?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preorders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ai_access: boolean
@@ -690,6 +740,7 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
+          preorders_enabled: boolean
           sort_order: number | null
           supported_types: string[]
           updated_at: string | null
@@ -711,6 +762,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
+          preorders_enabled?: boolean
           sort_order?: number | null
           supported_types?: string[]
           updated_at?: string | null
@@ -732,6 +784,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          preorders_enabled?: boolean
           sort_order?: number | null
           supported_types?: string[]
           updated_at?: string | null
