@@ -197,6 +197,7 @@ export default function AdminShopsPage() {
       badges: [],
       description: '',
       supported_types: ['coffee'],
+      preorders_enabled: false,
     });
     setIsDialogOpen(true);
   };
@@ -237,6 +238,7 @@ export default function AdminShopsPage() {
       badges: parsedBadges,
       description: (shop as any).description || '',
       supported_types: shop.supported_types || ['coffee'],
+      preorders_enabled: (shop as any).preorders_enabled || false,
     });
     setIsDialogOpen(true);
   };
