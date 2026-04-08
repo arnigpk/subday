@@ -151,8 +151,6 @@ export default function BaristaShiftHistory() {
           shopId ? <PartnerPreorders shopId={shopId} /> : null
         ) : (
         <>
-        </h2>
-
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CalendarDays className="w-4 h-4 text-muted-foreground" />
@@ -237,6 +235,8 @@ export default function BaristaShiftHistory() {
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </PartnerLayout>
