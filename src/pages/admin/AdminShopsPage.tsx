@@ -115,6 +115,7 @@ export default function AdminShopsPage() {
     badges: [] as ShopBadgeData[],
     description: '',
     supported_types: ['coffee'] as string[],
+    preorders_enabled: false,
   });
 
   const sensors = useSensors(
