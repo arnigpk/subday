@@ -79,15 +79,18 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 mb-2">
+      <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
           <Coffee size={20} className="text-primary" />
         </div>
         <div>
-          <h3 className="font-bold text-foreground">Предзаказ кофе</h3>
+          <h3 className="font-bold text-foreground">Сделать предзаказ</h3>
           <p className="text-xs text-muted-foreground">{shopName}</p>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground mb-2">
+        ☕ Пока вы дойдёте или доедете до кофейни — ваш кофе уже будет готов!
+      </p>
 
       <div>
         <label className="text-sm font-medium text-foreground mb-1.5 block">Название кофе *</label>
