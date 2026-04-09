@@ -103,10 +103,12 @@ const defaultMessages: Record<string, string> = {
   admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
+  preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
 const isAdminTrigger = (type: string) => ADMIN_TRIGGERS.includes(type);
+const isStaffTrigger = (type: string) => PREORDER_TRIGGERS.includes(type);
 
 export default function AdminAutoNotificationsPage() {
   const { canManage } = useAdminAuth();
