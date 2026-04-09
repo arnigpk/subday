@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot } from 'lucide-react';
+import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot, Coffee } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -251,6 +251,7 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
       case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
+      case 'preorder_new': return <Coffee className="w-4 h-4 text-amber-600" />;
       case 'admin_login_sms':
       case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
