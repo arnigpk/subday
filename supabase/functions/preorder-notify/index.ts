@@ -24,6 +24,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Get shop name
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('name')
+      .eq('id', shopId)
+      .single();
+
+    const shopName = shop?.name || 'Неизвестная кофейня';
+
     // Find all baristas and partners for this shop
     const { data: staffRoles } = await supabase
       .from('user_roles')
@@ -33,111 +42,162 @@ Deno.serve(async (req) => {
 
     const staffUserIds = staffRoles?.map((r: any) => r.user_id) || [];
 
-    if (staffUserIds.length === 0) {
-      return new Response(JSON.stringify({ success: true, sent: 0, message: 'No staff found' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Get template for preorder notifications
+    const { data: template } = await supabase
+      .from('auto_notification_templates')
+      .select('message_template, is_active, channel')
+      .eq('trigger_type', 'preorder_new')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    const now = new Date();
+    const timeStr = now.toLocaleString('ru-RU', { timeZone: 'Asia/Aqtau', hour: '2-digit', minute: '2-digit' });
+
+    const variables: Record<string, string> = {
+      shop_name: shopName,
+      coffee_name: coffeeName,
+      syrup: syrup || 'нет',
+      customer_name: customerName || 'Клиент',
+      time: timeStr,
+    };
+
+    // Build message from template or use default
+    let notificationMessage: string;
+    const channel = template?.channel || 'both';
+    if (template?.message_template) {
+      notificationMessage = template.message_template;
+      for (const [key, value] of Object.entries(variables)) {
+        notificationMessage = notificationMessage.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+      }
+    } else {
+      const syrupText = syrup ? ` + ${syrup}` : '';
+      notificationMessage = `☕ Новый предзаказ!\n\n🏪 Кофейня: ${shopName}\n☕ Напиток: ${coffeeName}${syrupText}\n👤 Клиент: ${customerName || 'Клиент'}\n🕐 ${timeStr}`;
     }
 
-    // Get device tokens for staff
-    const { data: tokens } = await supabase
-      .from('device_tokens')
-      .select('token, user_id')
-      .in('user_id', staffUserIds);
-
-    if (!tokens || tokens.length === 0) {
-      console.log('No device tokens for staff, skipping FCM push');
-      return new Response(JSON.stringify({ success: true, sent: 0, message: 'No device tokens' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Check FCM credentials
-    const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
-    if (!fcmServiceAccountJson) {
-      console.warn('FCM_SERVICE_ACCOUNT not configured, skipping push');
-      return new Response(JSON.stringify({ success: true, sent: 0, push_enabled: false }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    let serviceAccount: any;
-    try {
-      serviceAccount = JSON.parse(fcmServiceAccountJson);
-    } catch {
-      console.error('Invalid FCM_SERVICE_ACCOUNT JSON');
-      return new Response(JSON.stringify({ success: true, sent: 0, push_enabled: false }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
-      return new Response(JSON.stringify({ success: true, sent: 0, push_enabled: false }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const accessToken = await getAccessToken(serviceAccount);
-    const title = '☕ Новый предзаказ!';
+    const pushTitle = '☕ Новый предзаказ!';
     const syrupText = syrup ? ` + ${syrup}` : '';
-    const body = `${customerName || 'Клиент'}: ${coffeeName}${syrupText}`;
+    const pushBody = `${shopName}: ${coffeeName}${syrupText}`;
 
-    let sent = 0;
-    let failed = 0;
+    let telegramSent = false;
+    let fcmSent = 0;
+    let fcmFailed = 0;
+    let inAppCreated = 0;
 
-    for (const deviceToken of tokens) {
-      try {
-        const fcmResponse = await fetch(
-          `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
-          {
+    // 1. Send Telegram notification to admin bot
+    if (channel === 'telegram' || channel === 'both') {
+      const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
+      const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+      if (notificationBotToken && chatId) {
+        try {
+          await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: {
-                token: deviceToken.token,
-                notification: { title, body },
-                android: {
-                  priority: 'high',
-                  notification: {
-                    sound: 'default',
-                    channel_id: 'preorders',
-                  },
-                },
-                apns: {
-                  payload: {
-                    aps: {
-                      sound: 'default',
-                      badge: 1,
-                    },
-                  },
-                },
-              },
-            }),
-          }
-        );
-
-        if (fcmResponse.ok) {
-          sent++;
-        } else {
-          failed++;
-          const err = await fcmResponse.json();
-          console.error('FCM error:', err);
-
-          // Clean invalid tokens
-          if (err?.error?.code === 404 || err?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')) {
-            await supabase.from('device_tokens').delete().eq('token', deviceToken.token);
-          }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: notificationMessage, parse_mode: 'HTML' }),
+          });
+          telegramSent = true;
+        } catch (e) {
+          console.error('Telegram notification failed:', e);
         }
-      } catch (err) {
-        failed++;
-        console.error('FCM send error:', err);
       }
     }
 
-    return new Response(JSON.stringify({ success: true, sent, failed, push_enabled: true }), {
+    if (staffUserIds.length === 0) {
+      return new Response(JSON.stringify({ success: true, telegram_sent: telegramSent, fcm_sent: 0, in_app_created: 0, message: 'No staff found' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2. Create in-app push notifications for staff
+    if (channel === 'push' || channel === 'both') {
+      const pushRows = staffUserIds.map((userId: string) => ({
+        title: pushTitle,
+        message: pushBody,
+        user_id: userId,
+      }));
+
+      const { error: pushError } = await supabase.from('push_notifications').insert(pushRows);
+      if (pushError) {
+        console.error('Failed to create in-app notifications:', pushError);
+      } else {
+        inAppCreated = pushRows.length;
+      }
+    }
+
+    // 3. Send FCM push notifications to staff devices
+    if (channel === 'push' || channel === 'both') {
+      const { data: tokens } = await supabase
+        .from('device_tokens')
+        .select('token, user_id')
+        .in('user_id', staffUserIds);
+
+      if (tokens && tokens.length > 0) {
+        const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
+        if (fcmServiceAccountJson) {
+          let serviceAccount: any;
+          try {
+            serviceAccount = JSON.parse(fcmServiceAccountJson);
+          } catch {
+            console.error('Invalid FCM_SERVICE_ACCOUNT JSON');
+          }
+
+          if (serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key) {
+            const accessToken = await getAccessToken(serviceAccount);
+
+            for (const deviceToken of tokens) {
+              try {
+                const fcmResponse = await fetch(
+                  `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      message: {
+                        token: deviceToken.token,
+                        notification: { title: pushTitle, body: pushBody },
+                        android: {
+                          priority: 'high',
+                          notification: { sound: 'default', channel_id: 'preorders' },
+                        },
+                        apns: {
+                          payload: { aps: { sound: 'default', badge: 1 } },
+                        },
+                      },
+                    }),
+                  }
+                );
+
+                if (fcmResponse.ok) {
+                  fcmSent++;
+                } else {
+                  fcmFailed++;
+                  const err = await fcmResponse.json();
+                  console.error('FCM error:', err);
+                  if (err?.error?.code === 404 || err?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')) {
+                    await supabase.from('device_tokens').delete().eq('token', deviceToken.token);
+                  }
+                }
+              } catch (err) {
+                fcmFailed++;
+                console.error('FCM send error:', err);
+              }
+            }
+          }
+        } else {
+          console.warn('FCM_SERVICE_ACCOUNT not configured, skipping device push');
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      telegram_sent: telegramSent,
+      fcm_sent: fcmSent,
+      fcm_failed: fcmFailed,
+      in_app_created: inAppCreated,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
