@@ -276,9 +276,10 @@ export default function AdminAutoNotificationsPage() {
   };
 
   // Group templates
-  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type) && !isAdminTrigger(t.trigger_type));
+  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type) && !isAdminTrigger(t.trigger_type) && !isPreorderTrigger(t.trigger_type));
   const subflowTemplates = templates.filter(t => isSubflowTrigger(t.trigger_type));
   const adminTemplates = templates.filter(t => isAdminTrigger(t.trigger_type));
+  const preorderTemplates = templates.filter(t => isPreorderTrigger(t.trigger_type));
 
   const getVariablesHelp = (triggerType: string) => {
     if (isAdminTrigger(triggerType)) {
