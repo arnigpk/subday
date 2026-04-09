@@ -480,6 +480,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="low_balance">Низкий баланс (напитки/ланчи)</SelectItem>
                   <SelectItem value="expiring_soon">Скоро истекает подписка</SelectItem>
                   <SelectItem value="custom">Кастомное</SelectItem>
+                  <SelectItem value="preorder_new">☕ Новый предзаказ</SelectItem>
                   <SelectItem value="subflow_reaction">#subFlow — Реакции</SelectItem>
                   <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
                   <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
