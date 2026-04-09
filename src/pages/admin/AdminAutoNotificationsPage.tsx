@@ -294,6 +294,9 @@ export default function AdminAutoNotificationsPage() {
     if (isSubflowTrigger(triggerType)) {
       return '{{count}} — число, {{actor_name}} — имя, {{preview}} — превью поста';
     }
+    if (isPreorderTrigger(triggerType)) {
+      return '{{shop_name}} — кофейня, {{coffee_name}} — напиток, {{syrup}} — сироп, {{customer_name}} — клиент, {{time}} — время';
+    }
     return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
   };
 
