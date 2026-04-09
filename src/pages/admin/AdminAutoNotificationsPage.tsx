@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot } from 'lucide-react';
+import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot, Coffee } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,6 +44,7 @@ const triggerLabels: Record<string, string> = {
   low_balance: 'Низкий баланс',
   expiring_soon: 'Скоро истекает',
   custom: 'Кастомное',
+  preorder_new: 'Новый предзаказ',
   subflow_reaction: '#subFlow — Реакции',
   subflow_comment: '#subFlow — Комментарии',
   subflow_follow: '#subFlow — Подписчики',
@@ -69,6 +70,7 @@ const channelLabels: Record<string, string> = {
 };
 
 const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post', 'subflow_story_like'];
+const PREORDER_TRIGGERS = ['preorder_new'];
 const ADMIN_TRIGGERS = [
   'admin_login_sms', 'admin_register_sms',
   'admin_login_whatsapp', 'admin_register_whatsapp',
@@ -76,6 +78,7 @@ const ADMIN_TRIGGERS = [
   'admin_login_telegram', 'admin_register_telegram',
   'admin_payment', 'admin_payment_special',
 ];
+const isPreorderTrigger = (type: string) => PREORDER_TRIGGERS.includes(type);
 
 const defaultMilestones: Record<string, number[]> = {
   subflow_reaction: [3, 5, 10, 20, 50, 100],
@@ -100,10 +103,12 @@ const defaultMessages: Record<string, string> = {
   admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
+  preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
 const isAdminTrigger = (type: string) => ADMIN_TRIGGERS.includes(type);
+const isStaffTrigger = (type: string) => PREORDER_TRIGGERS.includes(type);
 
 export default function AdminAutoNotificationsPage() {
   const { canManage } = useAdminAuth();
@@ -166,7 +171,7 @@ export default function AdminAutoNotificationsPage() {
 
   const handleTriggerTypeChange = (v: string) => {
     const updates: any = { trigger_type: v };
-    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v)) && !editingTemplate) {
+    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v)) && !editingTemplate) {
       updates.message_template = defaultMessages[v] || '';
       if (!form.name) {
         updates.name = triggerLabels[v] || '';
@@ -177,6 +182,9 @@ export default function AdminAutoNotificationsPage() {
       }
       if (ADMIN_TRIGGERS.includes(v)) {
         updates.channel = 'telegram';
+      }
+      if (PREORDER_TRIGGERS.includes(v)) {
+        updates.channel = 'both';
       }
     }
     setForm(f => ({ ...f, ...updates }));
@@ -243,6 +251,7 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_follow': return <UserPlus className="w-4 h-4 text-green-500" />;
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
       case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
+      case 'preorder_new': return <Coffee className="w-4 h-4 text-amber-600" />;
       case 'admin_login_sms':
       case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
@@ -267,9 +276,10 @@ export default function AdminAutoNotificationsPage() {
   };
 
   // Group templates
-  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type) && !isAdminTrigger(t.trigger_type));
+  const standardTemplates = templates.filter(t => !isSubflowTrigger(t.trigger_type) && !isAdminTrigger(t.trigger_type) && !isPreorderTrigger(t.trigger_type));
   const subflowTemplates = templates.filter(t => isSubflowTrigger(t.trigger_type));
   const adminTemplates = templates.filter(t => isAdminTrigger(t.trigger_type));
+  const preorderTemplates = templates.filter(t => isPreorderTrigger(t.trigger_type));
 
   const getVariablesHelp = (triggerType: string) => {
     if (isAdminTrigger(triggerType)) {
@@ -283,6 +293,9 @@ export default function AdminAutoNotificationsPage() {
     }
     if (isSubflowTrigger(triggerType)) {
       return '{{count}} — число, {{actor_name}} — имя, {{preview}} — превью поста';
+    }
+    if (isPreorderTrigger(triggerType)) {
+      return '{{shop_name}} — кофейня, {{coffee_name}} — напиток, {{syrup}} — сироп, {{customer_name}} — клиент, {{time}} — время';
     }
     return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
   };
@@ -408,6 +421,43 @@ export default function AdminAutoNotificationsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Preorder notifications section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coffee className="w-5 h-5 text-amber-600" />
+              <span>Уведомления предзаказов</span>
+            </CardTitle>
+            <CardDescription>
+              Уведомления для баристы и партнёра при новом предзаказе кофе. Отправляются в Telegram и Push.
+              Переменные: {'{{shop_name}}'}, {'{{coffee_name}}'}, {'{{syrup}}'}, {'{{customer_name}}'}, {'{{time}}'}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {preorderTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Coffee className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm mb-3">Нет шаблонов предзаказов</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {preorderTemplates.map(t => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    getChannelIcon={getChannelIcon}
+                    getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -430,6 +480,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="low_balance">Низкий баланс (напитки/ланчи)</SelectItem>
                   <SelectItem value="expiring_soon">Скоро истекает подписка</SelectItem>
                   <SelectItem value="custom">Кастомное</SelectItem>
+                  <SelectItem value="preorder_new">☕ Новый предзаказ</SelectItem>
                   <SelectItem value="subflow_reaction">#subFlow — Реакции</SelectItem>
                   <SelectItem value="subflow_comment">#subFlow — Комментарии</SelectItem>
                   <SelectItem value="subflow_follow">#subFlow — Подписчики</SelectItem>
