@@ -421,6 +421,43 @@ export default function AdminAutoNotificationsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Preorder notifications section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coffee className="w-5 h-5 text-amber-600" />
+              <span>Уведомления предзаказов</span>
+            </CardTitle>
+            <CardDescription>
+              Уведомления для баристы и партнёра при новом предзаказе кофе. Отправляются в Telegram и Push.
+              Переменные: {'{{shop_name}}'}, {'{{coffee_name}}'}, {'{{syrup}}'}, {'{{customer_name}}'}, {'{{time}}'}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {preorderTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Coffee className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm mb-3">Нет шаблонов предзаказов</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {preorderTemplates.map(t => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    getChannelIcon={getChannelIcon}
+                    getTriggerIcon={getTriggerIcon}
+                    canManage={canManage}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
