@@ -178,14 +178,26 @@ export default function ShopDetailPage() {
           </div>
         </div>
         
+        {shop.preorders_enabled && hasActiveSubscription && stats.coffeeRemaining > 0 && isCurrentlyOpen && (
+          <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
+            <button
+              onClick={() => setPreorderOpen(true)}
+              className="w-full py-3 rounded-xl border-2 border-primary text-primary font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <ShoppingBag size={18} />
+              Сделать предзаказ
+            </button>
+          </div>
+        )}
+
         {shop.description && (
-          <div className="card-static animate-slide-up" style={{ animationDelay: '0.05s' }}>
+          <div className="card-static animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <h3 className="text-sm font-bold text-foreground mb-1.5">{shop.name}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{translatedDescription}</p>
           </div>
         )}
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
           <h3 className="text-lg font-bold text-foreground mb-3">{t('shops.bySubscription')}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="card-static">
@@ -214,18 +226,6 @@ export default function ShopDetailPage() {
             </div>
           </div>
         </div>
-        
-        {shop.preorders_enabled && hasActiveSubscription && stats.coffeeRemaining > 0 && isCurrentlyOpen && (
-          <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
-            <button
-              onClick={() => setPreorderOpen(true)}
-              className="w-full py-3 rounded-xl border-2 border-primary text-primary font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-            >
-              <ShoppingBag size={18} />
-              Предзаказ кофе
-            </button>
-          </div>
-        )}
 
         <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <button onClick={handleRedeem} disabled={!isCurrentlyOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
