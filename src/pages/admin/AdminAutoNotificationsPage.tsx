@@ -44,6 +44,7 @@ const triggerLabels: Record<string, string> = {
   low_balance: 'Низкий баланс',
   expiring_soon: 'Скоро истекает',
   custom: 'Кастомное',
+  preorder_new: 'Новый предзаказ',
   subflow_reaction: '#subFlow — Реакции',
   subflow_comment: '#subFlow — Комментарии',
   subflow_follow: '#subFlow — Подписчики',
@@ -69,6 +70,7 @@ const channelLabels: Record<string, string> = {
 };
 
 const SUBFLOW_TRIGGERS = ['subflow_reaction', 'subflow_comment', 'subflow_follow', 'subflow_new_post', 'subflow_story_like'];
+const PREORDER_TRIGGERS = ['preorder_new'];
 const ADMIN_TRIGGERS = [
   'admin_login_sms', 'admin_register_sms',
   'admin_login_whatsapp', 'admin_register_whatsapp',
@@ -76,6 +78,7 @@ const ADMIN_TRIGGERS = [
   'admin_login_telegram', 'admin_register_telegram',
   'admin_payment', 'admin_payment_special',
 ];
+const isPreorderTrigger = (type: string) => PREORDER_TRIGGERS.includes(type);
 
 const defaultMilestones: Record<string, number[]> = {
   subflow_reaction: [3, 5, 10, 20, 50, 100],
