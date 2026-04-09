@@ -171,7 +171,7 @@ export default function AdminAutoNotificationsPage() {
 
   const handleTriggerTypeChange = (v: string) => {
     const updates: any = { trigger_type: v };
-    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v)) && !editingTemplate) {
+    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v)) && !editingTemplate) {
       updates.message_template = defaultMessages[v] || '';
       if (!form.name) {
         updates.name = triggerLabels[v] || '';
@@ -182,6 +182,9 @@ export default function AdminAutoNotificationsPage() {
       }
       if (ADMIN_TRIGGERS.includes(v)) {
         updates.channel = 'telegram';
+      }
+      if (PREORDER_TRIGGERS.includes(v)) {
+        updates.channel = 'both';
       }
     }
     setForm(f => ({ ...f, ...updates }));
