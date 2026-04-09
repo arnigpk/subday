@@ -62,6 +62,16 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
         throw error;
       }
 
+      // Notify baristas via FCM (fire-and-forget)
+      supabase.functions.invoke('preorder-notify', {
+        body: {
+          shopId,
+          coffeeName: coffeeName.trim(),
+          syrup: syrup.trim() || null,
+          customerName: null, // privacy: don't send name
+        },
+      }).catch(() => {});
+
       onSuccess({
         id: data.id,
         coffeeName: coffeeName.trim(),
