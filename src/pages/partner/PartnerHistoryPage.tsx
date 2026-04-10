@@ -4,7 +4,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, Check, XCircle, ShoppingBag } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -15,21 +15,23 @@ import {
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
-interface Redemption {
+interface HistoryItem {
   id: string;
+  type: 'redemption' | 'preorder';
   customerName: string | null;
   customerPublicId: string | null;
   drinkName: string;
   subscriptionName: string | null;
   shopAddress: string | null;
   redeemedAt: string;
+  status?: string;
 }
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function PartnerHistoryPage() {
   const { shopId, isLoading: authLoading } = usePartnerAuth();
-  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -37,84 +39,110 @@ export default function PartnerHistoryPage() {
   const [addressFilter, setAddressFilter] = useState('all');
   const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
 
+  const getDateRange = () => {
+    const now = new Date();
+    if (dateFilter === 'today') return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString() };
+    if (dateFilter === 'week') return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
+    if (dateFilter === 'month') return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() };
+    if (dateFilter === 'custom') {
+      const range: any = {};
+      if (customDateFrom) range.from = new Date(customDateFrom).toISOString();
+      if (customDateTo) {
+        const endDate = new Date(customDateTo);
+        endDate.setDate(endDate.getDate() + 1);
+        range.to = endDate.toISOString();
+      }
+      return range;
+    }
+    return {};
+  };
+
   const fetchHistory = useCallback(async () => {
     if (!shopId) return;
     setIsLoading(true);
     try {
-      let query = supabase
+      const range = getDateRange();
+
+      // Fetch redemptions
+      let rQuery = supabase
         .from('redemptions')
         .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
         .eq('shop_id', shopId)
         .order('redeemed_at', { ascending: false })
         .limit(200);
+      if (range.from) rQuery = rQuery.gte('redeemed_at', range.from);
+      if (range.to) rQuery = rQuery.lt('redeemed_at', range.to);
 
-      // Date filter
-      const now = new Date();
-      if (dateFilter === 'today') {
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        query = query.gte('redeemed_at', todayStart);
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        query = query.gte('redeemed_at', weekAgo);
-      } else if (dateFilter === 'month') {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        query = query.gte('redeemed_at', monthAgo);
-      } else if (dateFilter === 'custom') {
-        if (customDateFrom) {
-          query = query.gte('redeemed_at', new Date(customDateFrom).toISOString());
-        }
-        if (customDateTo) {
-          const endDate = new Date(customDateTo);
-          endDate.setDate(endDate.getDate() + 1);
-          query = query.lt('redeemed_at', endDate.toISOString());
-        }
+      // Fetch preorders
+      let pQuery = supabase
+        .from('preorders')
+        .select('id, coffee_name, syrup, status, created_at, user_id, shop_name')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (range.from) pQuery = pQuery.gte('created_at', range.from);
+      if (range.to) pQuery = pQuery.lt('created_at', range.to);
+
+      const [{ data: rData }, { data: pData }] = await Promise.all([rQuery, pQuery]);
+
+      // Collect all user IDs
+      const userIds = new Set<string>();
+      rData?.forEach(r => userIds.add(r.user_id));
+      pData?.forEach(p => userIds.add(p.user_id));
+
+      let profileMap = new Map<string, any>();
+      if (userIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name, public_id')
+          .in('user_id', Array.from(userIds));
+        profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching history:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        setRedemptions([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const userIds = [...new Set(data.map(r => r.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, name, public_id')
-        .in('user_id', userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
-      // Collect unique addresses
       const addresses = new Set<string>();
-      data.forEach(r => {
-        if ((r as any).shop_address) addresses.add((r as any).shop_address);
+      const combined: HistoryItem[] = [];
+
+      rData?.forEach(r => {
+        if (r.shop_address) addresses.add(r.shop_address);
+        combined.push({
+          id: r.id,
+          type: 'redemption',
+          customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
+          customerPublicId: profileMap.get(r.user_id)?.public_id || null,
+          drinkName: r.drink_name,
+          subscriptionName: r.subscription_name,
+          shopAddress: r.shop_address || null,
+          redeemedAt: r.redeemed_at,
+        });
       });
+
+      pData?.forEach(p => {
+        const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
+        combined.push({
+          id: p.id,
+          type: 'preorder',
+          customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
+          customerPublicId: profileMap.get(p.user_id)?.public_id || null,
+          drinkName: drinkDesc,
+          subscriptionName: null,
+          shopAddress: null,
+          redeemedAt: p.created_at,
+          status: p.status,
+        });
+      });
+
       setAvailableAddresses(Array.from(addresses).sort());
 
-      let mapped = data.map(r => ({
-        id: r.id,
-        customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
-        customerPublicId: profileMap.get(r.user_id)?.public_id || null,
-        drinkName: r.drink_name,
-        subscriptionName: r.subscription_name,
-        shopAddress: (r as any).shop_address || null,
-        redeemedAt: r.redeemed_at,
-      }));
+      // Sort by date descending
+      combined.sort((a, b) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime());
 
       // Apply address filter
+      let filtered = combined;
       if (addressFilter !== 'all') {
-        mapped = mapped.filter(r => r.shopAddress === addressFilter);
+        filtered = filtered.filter(r => r.shopAddress === addressFilter || r.type === 'preorder');
       }
 
-      setRedemptions(mapped);
+      setItems(filtered);
     } catch (error) {
       console.error('Error fetching history:', error);
     } finally {
@@ -145,14 +173,31 @@ export default function PartnerHistoryPage() {
     { value: 'custom', label: 'Произвольно' },
   ];
 
+  const getStatusBadge = (item: HistoryItem) => {
+    if (item.type === 'preorder') {
+      if (item.status === 'cancelled') return { text: 'Отменён', className: 'bg-destructive/10 text-destructive' };
+      if (item.status === 'completed') return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
+      return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
+    }
+    return null;
+  };
+
+  const getItemIcon = (item: HistoryItem) => {
+    if (item.type === 'preorder') {
+      if (item.status === 'cancelled') return <XCircle size={20} className="text-destructive" />;
+      if (item.status === 'completed') return <Check size={20} className="text-accent" />;
+      return <ShoppingBag size={20} className="text-amber-600" />;
+    }
+    return <Coffee size={20} className="text-primary" />;
+  };
+
   return (
     <PartnerLayout>
       <div className="p-4 space-y-4">
         <h2 className="text-xl font-bold text-foreground">
-          История покупок {redemptions.length > 0 && `(${redemptions.length})`}
+          История {items.length > 0 && `(${items.length})`}
         </h2>
 
-        {/* Date filter */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CalendarDays className="w-4 h-4 text-muted-foreground" />
@@ -169,24 +214,13 @@ export default function PartnerHistoryPage() {
           </div>
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2 flex-wrap">
-              <Input
-                type="date"
-                value={customDateFrom}
-                onChange={(e) => setCustomDateFrom(e.target.value)}
-                className="w-36 h-8 text-sm"
-              />
+              <Input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} className="w-36 h-8 text-sm" />
               <span className="text-sm text-muted-foreground">—</span>
-              <Input
-                type="date"
-                value={customDateTo}
-                onChange={(e) => setCustomDateTo(e.target.value)}
-                className="w-36 h-8 text-sm"
-              />
+              <Input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} className="w-36 h-8 text-sm" />
             </div>
           )}
         </div>
 
-        {/* Address filter */}
         {availableAddresses.length > 1 && (
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -208,7 +242,7 @@ export default function PartnerHistoryPage() {
           <div className="flex items-center justify-center h-32">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
-        ) : redemptions.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
               <Coffee size={32} className="text-muted-foreground" />
@@ -219,48 +253,53 @@ export default function PartnerHistoryPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {redemptions.map((redemption) => (
-              <div
-                key={redemption.id}
-                className="bg-card p-4 rounded-xl border border-border flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Coffee size={20} className="text-primary" />
+            {items.map((item) => {
+              const badge = getStatusBadge(item);
+              return (
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="bg-card p-4 rounded-xl border border-border flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      item.type === 'preorder'
+                        ? item.status === 'cancelled' ? 'bg-destructive/10' : item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
+                        : 'bg-primary/10'
+                    }`}>
+                      {getItemIcon(item)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{item.customerName}</p>
+                      {item.customerPublicId && (
+                        <p className="text-xs text-muted-foreground font-mono">ID: {item.customerPublicId}</p>
+                      )}
+                      <p className="text-sm text-muted-foreground">{item.drinkName}</p>
+                      {item.shopAddress && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin size={10} />{item.shopAddress}
+                        </p>
+                      )}
+                      {item.subscriptionName && (
+                        <p className="text-xs text-primary">{item.subscriptionName}</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {redemption.customerName}
+                  <div className="text-right">
+                    {badge && (
+                      <div className={`text-xs font-medium px-2 py-0.5 rounded-full mb-1 ${badge.className}`}>
+                        {badge.text}
+                      </div>
+                    )}
+                    <p className="text-sm font-medium text-foreground">
+                      {format(new Date(item.redeemedAt), 'HH:mm')}
                     </p>
-                    {redemption.customerPublicId && (
-                      <p className="text-xs text-muted-foreground font-mono">ID: {redemption.customerPublicId}</p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {redemption.drinkName}
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(item.redeemedAt), 'd MMM', { locale: ru })}
                     </p>
-                    {redemption.shopAddress && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin size={10} />
-                        {redemption.shopAddress}
-                      </p>
-                    )}
-                    {redemption.subscriptionName && (
-                      <p className="text-xs text-primary">
-                        {redemption.subscriptionName}
-                      </p>
-                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">
-                    {format(new Date(redemption.redeemedAt), 'HH:mm')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(redemption.redeemedAt), 'd MMM', { locale: ru })}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

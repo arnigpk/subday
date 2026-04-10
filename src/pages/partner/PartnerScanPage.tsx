@@ -57,7 +57,7 @@ export default function PartnerScanPage() {
         try {
           const { data: preorder, error: fetchErr } = await supabase
             .from('preorders')
-            .select('id, status, shop_id, coffee_name, syrup, user_id')
+            .select('id, status, shop_id, coffee_name, syrup, user_id, qr_scanned')
             .eq('qr_code', data.qrCode)
             .maybeSingle();
 
@@ -73,8 +73,14 @@ export default function PartnerScanPage() {
             return;
           }
 
-          if (preorder.status === 'completed') {
-            setResult({ success: false, message: 'Этот предзаказ уже выдан' });
+          if (preorder.status === 'cancelled') {
+            setResult({ success: false, message: 'Этот предзаказ отменён' });
+            setIsProcessing(false);
+            return;
+          }
+
+          if (preorder.status === 'completed' || preorder.qr_scanned) {
+            setResult({ success: false, message: 'Этот QR-код уже использован' });
             setIsProcessing(false);
             return;
           }
@@ -82,8 +88,9 @@ export default function PartnerScanPage() {
           const { data: { user } } = await supabase.auth.getUser();
           const { error: updateErr } = await supabase
             .from('preorders')
-            .update({ status: 'completed', completed_by: user?.id, completed_at: new Date().toISOString() })
-            .eq('id', preorder.id);
+            .update({ status: 'completed', completed_by: user?.id, completed_at: new Date().toISOString(), qr_scanned: true })
+            .eq('id', preorder.id)
+            .eq('qr_scanned', false);
 
           if (updateErr) {
             setResult({ success: false, message: 'Ошибка при обновлении предзаказа' });
