@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText, ShoppingBag } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText, ShoppingBag, XCircle } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -32,6 +32,22 @@ interface PreorderItem {
   qr_code: string;
   created_at: string;
   completed_at: string | null;
+  cancelled_at: string | null;
+}
+
+// Unified item for the redemptions list
+interface UnifiedHistoryItem {
+  id: string;
+  type: 'redemption' | 'preorder';
+  date: string;
+  // redemption fields
+  drinkName?: string;
+  drinkType?: string;
+  shopName?: string;
+  shopAddress?: string;
+  redeemedAt?: string;
+  // preorder fields
+  preorder?: PreorderItem;
 }
 
 export default function HistoryPage() {
@@ -46,13 +62,12 @@ export default function HistoryPage() {
   
   const tabs = [
     { id: 'redemptions', label: t('history.tabRedemptions') },
-    { id: 'preorders', label: 'Предзаказы' },
     { id: 'transactions', label: t('history.tabTransactions') },
   ];
 
   useEffect(() => {
+    fetchPreorders();
     if (activeTab === 'transactions') fetchTransactions();
-    if (activeTab === 'preorders') fetchPreorders();
   }, [activeTab]);
 
   const fetchPreorders = async () => {
@@ -62,11 +77,11 @@ export default function HistoryPage() {
       if (!user) return;
       const { data, error } = await supabase
         .from('preorders')
-        .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at')
+        .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at, cancelled_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
-      if (!error && data) setPreorders(data);
+      if (!error && data) setPreorders(data as PreorderItem[]);
     } catch (e) {
       console.error('Error fetching preorders:', e);
     } finally {
@@ -126,6 +141,38 @@ export default function HistoryPage() {
     if (brand === 'MC' || brand === 'MASTERCARD') return '💳 Mastercard';
     return '💳 Онлайн оплата';
   };
+
+  // Build unified history list (redemptions + preorders merged by date)
+  const buildUnifiedList = (): UnifiedHistoryItem[] => {
+    const items: UnifiedHistoryItem[] = [];
+    
+    redemptions.forEach(r => {
+      items.push({
+        id: r.id,
+        type: 'redemption',
+        date: r.redeemedAt,
+        drinkName: r.drinkName,
+        drinkType: r.drinkType,
+        shopName: r.shopName,
+        shopAddress: r.shopAddress,
+        redeemedAt: r.redeemedAt,
+      });
+    });
+
+    preorders.forEach(p => {
+      items.push({
+        id: p.id,
+        type: 'preorder',
+        date: p.created_at,
+        preorder: p,
+      });
+    });
+
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return items;
+  };
+
+  const unifiedList = buildUnifiedList();
   
   if (isLoading) {
     return (
@@ -164,71 +211,49 @@ export default function HistoryPage() {
           <TabSwitcher tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-4" />
 
           {activeTab === 'redemptions' ? (
-            // Redemptions tab
-            redemptions.length > 0 ? (
+            unifiedList.length > 0 ? (
               <div className="space-y-3">
-                {redemptions.map((item, index) => (
-                  <div key={item.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
-                    {(() => {
-                      const isGuestGrant = item.drinkName.startsWith('Гостевой доступ');
-                      const isGuestCoffee = item.drinkName.startsWith('Гостевой кофе');
-                      if (isGuestGrant || isGuestCoffee) return (
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
-                          <Gift size={24} className="text-primary" />
-                        </div>
-                      );
-                      return (
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.drinkType === 'coffee' ? 'bg-primary/10' : 'bg-accent/10'}`}>
-                          {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <UtensilsCrossed size={24} className="text-accent" />}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">{item.drinkName}</p>
-                      <p className="text-sm text-muted-foreground truncate">{item.shopName}</p>
-                      {item.shopAddress && (
-                        <p className="text-xs text-muted-foreground truncate">{item.shopAddress}</p>
-                      )}
+                {unifiedList.map((item, index) => {
+                  if (item.type === 'preorder' && item.preorder) {
+                    return <PreorderHistoryItem key={`p-${item.id}`} preorder={item.preorder} index={index} onCancelSuccess={fetchPreorders} />;
+                  }
+                  // Redemption item
+                  return (
+                    <div key={item.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                      {(() => {
+                        const isGuestGrant = item.drinkName?.startsWith('Гостевой доступ');
+                        const isGuestCoffee = item.drinkName?.startsWith('Гостевой кофе');
+                        if (isGuestGrant || isGuestCoffee) return (
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10">
+                            <Gift size={24} className="text-primary" />
+                          </div>
+                        );
+                        return (
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.drinkType === 'coffee' ? 'bg-primary/10' : 'bg-accent/10'}`}>
+                            {item.drinkType === 'coffee' ? <Coffee size={24} className="text-primary" /> : <UtensilsCrossed size={24} className="text-accent" />}
+                          </div>
+                        );
+                      })()}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground truncate">{item.drinkName}</p>
+                        <p className="text-sm text-muted-foreground truncate">{item.shopName}</p>
+                        {item.shopAddress && (
+                          <p className="text-xs text-muted-foreground truncate">{item.shopAddress}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-foreground">{formatDate(item.redeemedAt!)}</p>
+                        <p className="text-xs text-muted-foreground">{formatTime(item.redeemedAt!)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-foreground">{formatDate(item.redeemedAt)}</p>
-                      <p className="text-xs text-muted-foreground">{formatTime(item.redeemedAt)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
                 <div className="text-4xl mb-4">📋</div>
                 <p className="text-lg font-semibold text-foreground mb-2">{t('history.empty')}</p>
                 <p className="text-sm text-muted-foreground">{t('history.emptyDesc')}</p>
-              </div>
-            )
-          ) : activeTab === 'preorders' ? (
-            // Preorders tab
-            preordersLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="card-static flex items-center gap-4 animate-pulse">
-                    <div className="w-12 h-12 rounded-xl bg-muted" />
-                    <div className="flex-1">
-                      <div className="h-4 w-28 bg-muted rounded mb-2" />
-                      <div className="h-3 w-20 bg-muted rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : preorders.length > 0 ? (
-              <div className="space-y-3">
-                {preorders.map((p, index) => (
-                  <PreorderHistoryItem key={p.id} preorder={p} index={index} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-4">☕</div>
-                <p className="text-lg font-semibold text-foreground mb-2">Нет предзаказов</p>
-                <p className="text-sm text-muted-foreground">Предзаказы кофе появятся здесь</p>
               </div>
             )
           ) : (

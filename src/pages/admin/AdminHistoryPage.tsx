@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2, ShoppingBag } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -33,8 +33,9 @@ import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
 import { toast } from '@/components/ui/sonner';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
-interface RedemptionWithUser {
+interface HistoryRow {
   id: string;
+  source: 'redemption' | 'preorder';
   user_id: string;
   shop_name: string;
   shop_address: string | null;
@@ -46,6 +47,7 @@ interface RedemptionWithUser {
   user_phone: string | null;
   user_public_id: string | null;
   user_country: string | null;
+  preorder_status?: string;
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -54,7 +56,7 @@ const PAGE_SIZE = 20;
 
 export default function AdminHistoryPage() {
   const { canManage } = useAdminAuth();
-  const [redemptions, setRedemptions] = useState<RedemptionWithUser[]>([]);
+  const [rows, setRows] = useState<HistoryRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [shopFilter, setShopFilter] = useState('all');
@@ -72,17 +74,12 @@ export default function AdminHistoryPage() {
   }, []);
 
   useEffect(() => {
-    fetchRedemptions();
+    fetchData();
   }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange]);
 
   const fetchShops = async () => {
-    const { data } = await supabase
-      .from('shops')
-      .select('name')
-      .eq('is_active', true);
-    if (data) {
-      setShops(data.map(s => s.name));
-    }
+    const { data } = await supabase.from('shops').select('name').eq('is_active', true);
+    if (data) setShops(data.map(s => s.name));
   };
 
   const getDateFilters = () => {
@@ -97,63 +94,102 @@ export default function AdminHistoryPage() {
     return null;
   };
 
-  const fetchRedemptions = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      let query = supabase
-        .from('redemptions')
-        .select('*', { count: 'exact' });
-
-      if (shopFilter !== 'all') query = query.eq('shop_name', shopFilter);
-      if (typeFilter !== 'all') query = query.eq('drink_type', typeFilter);
-
       const dateFilters = getDateFilters();
+
+      // Fetch redemptions
+      let rQuery = supabase.from('redemptions').select('*', { count: 'exact' });
+      if (shopFilter !== 'all') rQuery = rQuery.eq('shop_name', shopFilter);
+      if (typeFilter !== 'all' && typeFilter !== 'preorder') rQuery = rQuery.eq('drink_type', typeFilter);
       if (dateFilters) {
-        query = query.gte('redeemed_at', dateFilters.from.toISOString());
-        query = query.lte('redeemed_at', dateFilters.to.toISOString());
+        rQuery = rQuery.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
       }
 
-      const { data: redemptionsData, count, error } = await query
-        .order('redeemed_at', { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-      if (error) throw error;
-      setTotalCount(count || 0);
-
-      if (!redemptionsData || redemptionsData.length === 0) {
-        setRedemptions([]);
-        setIsLoading(false);
-        return;
+      // Fetch preorders
+      let pQuery = supabase.from('preorders').select('*', { count: 'exact' });
+      if (shopFilter !== 'all') pQuery = pQuery.eq('shop_name', shopFilter);
+      if (dateFilters) {
+        pQuery = pQuery.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
       }
 
-      const userIds = [...new Set(redemptionsData.map(r => r.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, name, phone, public_id, country, city')
-        .in('user_id', userIds);
+      // If filtering by type, skip one or the other
+      const skipRedemptions = typeFilter === 'preorder';
+      const skipPreorders = typeFilter === 'coffee' || typeFilter === 'drinks';
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const [rResult, pResult] = await Promise.all([
+        skipRedemptions ? Promise.resolve({ data: [], count: 0, error: null }) : rQuery.order('redeemed_at', { ascending: false }).limit(500),
+        skipPreorders ? Promise.resolve({ data: [], count: 0, error: null }) : pQuery.order('created_at', { ascending: false }).limit(500),
+      ]);
 
-      let combined: RedemptionWithUser[] = redemptionsData.map(r => ({
-        ...r,
-        shop_address: (r as any).shop_address || null,
-        user_name: profileMap.get(r.user_id)?.name || null,
-        user_phone: profileMap.get(r.user_id)?.phone || null,
-        user_public_id: profileMap.get(r.user_id)?.public_id || null,
-        user_country: profileMap.get(r.user_id)?.country || null,
-      }));
+      const rData = rResult.data || [];
+      const pData = pResult.data || [];
 
-      // Filter by country/city (client-side since it's from profiles)
-      if (countryFilter !== 'all') {
-        combined = combined.filter(r => r.user_country === countryFilter);
+      // Collect user IDs
+      const userIds = new Set<string>();
+      rData.forEach((r: any) => userIds.add(r.user_id));
+      pData.forEach((p: any) => userIds.add(p.user_id));
+
+      let profileMap = new Map<string, any>();
+      if (userIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name, phone, public_id, country, city')
+          .in('user_id', Array.from(userIds));
+        profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
       }
+
+      let combined: HistoryRow[] = [];
+
+      rData.forEach((r: any) => {
+        combined.push({
+          id: r.id,
+          source: 'redemption',
+          user_id: r.user_id,
+          shop_name: r.shop_name,
+          shop_address: r.shop_address || null,
+          drink_name: r.drink_name,
+          drink_type: r.drink_type,
+          redeemed_at: r.redeemed_at,
+          subscription_name: r.subscription_name,
+          user_name: profileMap.get(r.user_id)?.name || null,
+          user_phone: profileMap.get(r.user_id)?.phone || null,
+          user_public_id: profileMap.get(r.user_id)?.public_id || null,
+          user_country: profileMap.get(r.user_id)?.country || null,
+        });
+      });
+
+      pData.forEach((p: any) => {
+        const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
+        combined.push({
+          id: p.id,
+          source: 'preorder',
+          user_id: p.user_id,
+          shop_name: p.shop_name,
+          shop_address: null,
+          drink_name: drinkDesc,
+          drink_type: 'preorder',
+          redeemed_at: p.created_at,
+          subscription_name: null,
+          user_name: profileMap.get(p.user_id)?.name || null,
+          user_phone: profileMap.get(p.user_id)?.phone || null,
+          user_public_id: profileMap.get(p.user_id)?.public_id || null,
+          user_country: profileMap.get(p.user_id)?.country || null,
+          preorder_status: p.status,
+        });
+      });
+
+      // Filter by country/city
+      if (countryFilter !== 'all') combined = combined.filter(r => r.user_country === countryFilter);
       if (cityFilter !== 'all') {
         combined = combined.filter(r => {
           const profile = profileMap.get(r.user_id);
-          return (profile as any)?.city === cityFilter;
+          return profile?.city === cityFilter;
         });
       }
 
+      // Search
       if (search) {
         const searchLower = search.toLowerCase();
         combined = combined.filter(r =>
@@ -164,9 +200,16 @@ export default function AdminHistoryPage() {
         );
       }
 
-      setRedemptions(combined);
+      // Sort by date descending
+      combined.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
+
+      setTotalCount(combined.length);
+
+      // Paginate
+      const start = page * PAGE_SIZE;
+      setRows(combined.slice(start, start + PAGE_SIZE));
     } catch (error) {
-      console.error('Error fetching redemptions:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -190,29 +233,32 @@ export default function AdminHistoryPage() {
       const { error } = await query;
       if (error) throw error;
       toast.success('История списаний очищена');
-      fetchRedemptions();
+      fetchData();
     } catch (error) {
       console.error('Error clearing redemptions:', error);
       toast.error('Ошибка очистки');
     }
   };
 
-  const handleDeleteRedemption = async (id: string) => {
+  const handleDeleteRow = async (row: HistoryRow) => {
     try {
-      const { error } = await supabase.from('redemptions').delete().eq('id', id);
-      if (error) throw error;
+      if (row.source === 'redemption') {
+        const { error } = await supabase.from('redemptions').delete().eq('id', row.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('preorders').delete().eq('id', row.id);
+        if (error) throw error;
+      }
       toast.success('Запись удалена');
-      fetchRedemptions();
+      fetchData();
     } catch (error) {
-      console.error('Error deleting redemption:', error);
+      console.error('Error deleting:', error);
       toast.error('Ошибка удаления');
     }
   };
 
   const formatPeriodLabel = () => {
-    if (periodType === 'last_month') {
-      return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
-    }
+    if (periodType === 'last_month') return format(subMonths(new Date(), 1), 'LLLL yyyy', { locale: ru });
     if (periodType === 'custom' && dateRange?.from) {
       if (dateRange.to) return `${format(dateRange.from, 'd MMM', { locale: ru })} - ${format(dateRange.to, 'd MMM yyyy', { locale: ru })}`;
       return format(dateRange.from, 'd MMMM yyyy', { locale: ru });
@@ -222,13 +268,24 @@ export default function AdminHistoryPage() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const getTypeBadge = (row: HistoryRow) => {
+    if (row.source === 'preorder') {
+      const status = row.preorder_status;
+      if (status === 'cancelled') return { text: 'Отменён', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' };
+      if (status === 'completed') return { text: 'Предзаказ ✓', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' };
+      return { text: 'Предзаказ', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };
+    }
+    if (row.drink_type === 'coffee') return { text: 'Кофе', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };
+    return { text: 'Ланч', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' };
+  };
+
   return (
     <AdminLayout title="История">
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <CardTitle>Всего покупок ({totalCount})</CardTitle>
+              <CardTitle>Всего записей ({totalCount})</CardTitle>
               {canManage && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -244,7 +301,7 @@ export default function AdminHistoryPage() {
                         {periodType !== 'all'
                           ? `Будут удалены списания за период: ${formatPeriodLabel()}`
                           : 'Будут удалены ВСЕ списания'
-                        }. Это действие нельзя отменить. История исчезнет у пользователей и в кабинете партнера.
+                        }. Это действие нельзя отменить.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -291,6 +348,7 @@ export default function AdminHistoryPage() {
                     <SelectItem value="all">Все типы</SelectItem>
                     <SelectItem value="coffee">Кофе</SelectItem>
                     <SelectItem value="drinks">Ланч</SelectItem>
+                    <SelectItem value="preorder">Предзаказы</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -347,7 +405,7 @@ export default function AdminHistoryPage() {
                 <div key={i} className="h-12 bg-muted animate-pulse rounded" />
               ))}
             </div>
-          ) : redemptions.length === 0 ? (
+          ) : rows.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Нет данных за выбранный период</p>
           ) : (
             <>
@@ -363,69 +421,66 @@ export default function AdminHistoryPage() {
                       <TableHead>Подписка</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
-                      <TableHead className="w-10">{canManage ? '' : ''}</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {redemptions.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">{r.user_name || 'Без имени'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
-                        <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
-                        <TableCell>
-                          <div>
-                            <span>{r.shop_name}</span>
-                            {r.shop_address && (
-                              <p className="text-xs text-muted-foreground">{r.shop_address}</p>
+                    {rows.map((r) => {
+                      const badge = getTypeBadge(r);
+                      return (
+                        <TableRow key={`${r.source}-${r.id}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {r.source === 'preorder' ? <ShoppingBag className="w-4 h-4 text-amber-600" /> : <User className="w-4 h-4 text-muted-foreground" />}
+                              <span className="font-medium">{r.user_name || 'Без имени'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground">{r.user_public_id || '—'}</TableCell>
+                          <TableCell>{r.user_phone?.startsWith('+telegram_') ? 'TG' : (r.user_phone || '—')}</TableCell>
+                          <TableCell>
+                            <div>
+                              <span>{r.shop_name}</span>
+                              {r.shop_address && <p className="text-xs text-muted-foreground">{r.shop_address}</p>}
+                            </div>
+                          </TableCell>
+                          <TableCell>{r.drink_name}</TableCell>
+                          <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded text-xs ${badge.className}`}>
+                              {badge.text}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(r.redeemed_at).toLocaleString('ru-RU', {
+                              day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {canManage && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Удалить запись?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Запись будет удалена безвозвратно.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteRow(r)}>Удалить</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{r.drink_name}</TableCell>
-                        <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            r.drink_type === 'coffee' 
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' 
-                              : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                          }`}>
-                            {r.drink_type === 'coffee' ? 'Кофе' : 'Ланч'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(r.redeemed_at).toLocaleString('ru-RU', {
-                            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                          })}
-                        </TableCell>
-                        <TableCell>
-                          {canManage && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить запись?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Запись будет удалена безвозвратно у пользователя и в кабинете партнера.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteRedemption(r.id)}>Удалить</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
