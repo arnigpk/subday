@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { PartnerPreorders } from '@/components/partner/PartnerPreorders';
+
 import { format, startOfDay, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -383,20 +383,7 @@ export default function PartnerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Preorders section */}
-        {shopId && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Coffee size={18} />
-                Предзаказы
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PartnerPreorders shopId={shopId} />
-            </CardContent>
-          </Card>
-        )}
+        {/* Preorders are now shown inline in history */}
       </div>
     </PartnerLayout>
   );
