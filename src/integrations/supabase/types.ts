@@ -522,12 +522,14 @@ export type Database = {
       }
       preorders: {
         Row: {
+          cancelled_at: string | null
           coffee_name: string
           completed_at: string | null
           completed_by: string | null
           created_at: string
           id: string
           qr_code: string
+          qr_scanned: boolean
           shop_id: string
           shop_name: string
           status: string
@@ -535,12 +537,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancelled_at?: string | null
           coffee_name: string
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
           id?: string
           qr_code?: string
+          qr_scanned?: boolean
           shop_id: string
           shop_name: string
           status?: string
@@ -548,12 +552,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancelled_at?: string | null
           coffee_name?: string
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
           id?: string
           qr_code?: string
+          qr_scanned?: boolean
           shop_id?: string
           shop_name?: string
           status?: string
