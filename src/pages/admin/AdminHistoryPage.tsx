@@ -271,7 +271,6 @@ export default function AdminHistoryPage() {
   const getTypeBadge = (row: HistoryRow) => {
     if (row.source === 'preorder') {
       const status = row.preorder_status;
-      if (status === 'cancelled') return { text: 'Отменён', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' };
       if (status === 'completed') return { text: 'Предзаказ ✓', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' };
       return { text: 'Предзаказ', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };
     }
