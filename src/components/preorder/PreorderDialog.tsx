@@ -9,6 +9,7 @@ interface PreorderDialogProps {
   shopId: string;
   shopName: string;
   coffeeRemaining: number;
+  addresses: string[];
   onComplete: () => void;
 }
 
@@ -20,7 +21,7 @@ interface PreorderResult {
   createdAt: string;
 }
 
-export function PreorderDialog({ open, onOpenChange, shopId, shopName, coffeeRemaining, onComplete }: PreorderDialogProps) {
+export function PreorderDialog({ open, onOpenChange, shopId, shopName, coffeeRemaining, addresses, onComplete }: PreorderDialogProps) {
   const [result, setResult] = useState<PreorderResult | null>(null);
 
   const handleClose = () => {
@@ -47,6 +48,7 @@ export function PreorderDialog({ open, onOpenChange, shopId, shopName, coffeeRem
             shopId={shopId}
             shopName={shopName}
             coffeeRemaining={coffeeRemaining}
+            addresses={addresses}
             onSuccess={setResult}
             onCancel={() => onOpenChange(false)}
           />

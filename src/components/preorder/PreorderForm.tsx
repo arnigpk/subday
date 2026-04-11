@@ -1,27 +1,37 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
-import { Coffee, Loader2 } from 'lucide-react';
+import { Coffee, Loader2, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 interface PreorderFormProps {
   shopId: string;
   shopName: string;
   coffeeRemaining: number;
+  addresses: string[];
   onSuccess: (preorder: { id: string; coffeeName: string; syrup: string | null; qrCode: string; createdAt: string }) => void;
   onCancel: () => void;
 }
 
-export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onCancel }: PreorderFormProps) {
+export function PreorderForm({ shopId, shopName, coffeeRemaining, addresses, onSuccess, onCancel }: PreorderFormProps) {
   const [coffeeName, setCoffeeName] = useState('');
   const [syrup, setSyrup] = useState('');
+  const [selectedAddress, setSelectedAddress] = useState(addresses.length === 1 ? addresses[0] : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t } = useLanguage();
 
   const handleSubmit = async () => {
     if (!coffeeName.trim()) {
       toast({ title: 'Укажите название кофе', variant: 'destructive' });
+      return;
+    }
+
+    if (addresses.length > 1 && !selectedAddress) {
+      toast({ title: 'Выберите адрес', variant: 'destructive' });
       return;
     }
 
@@ -43,6 +53,8 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
 
       if (statsError) throw statsError;
 
+      const addr = selectedAddress || addresses[0] || null;
+
       // Create preorder
       const { data, error } = await supabase
         .from('preorders')
@@ -52,6 +64,7 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
           shop_name: shopName,
           coffee_name: coffeeName.trim(),
           syrup: syrup.trim() || null,
+          shop_address: addr,
         })
         .select('id, qr_code, created_at')
         .single();
@@ -62,13 +75,14 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
         throw error;
       }
 
-      // Notify baristas via FCM (fire-and-forget)
+      // Notify baristas via edge function (fire-and-forget)
       supabase.functions.invoke('preorder-notify', {
         body: {
           shopId,
           coffeeName: coffeeName.trim(),
           syrup: syrup.trim() || null,
-          customerName: null, // privacy: don't send name
+          customerName: null,
+          shopAddress: addr,
         },
       }).catch(() => {});
 
@@ -102,6 +116,27 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
         ☕ Пока вы дойдёте или доедете до кофейни — ваш кофе уже будет готов!
       </p>
 
+      {addresses.length > 1 && (
+        <div>
+          <label className="text-sm font-medium text-foreground mb-1.5 block">Адрес *</label>
+          <Select value={selectedAddress} onValueChange={setSelectedAddress}>
+            <SelectTrigger>
+              <SelectValue placeholder="Выберите адрес" />
+            </SelectTrigger>
+            <SelectContent>
+              {addresses.map((addr, i) => (
+                <SelectItem key={i} value={addr}>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-muted-foreground" />
+                    {addr}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div>
         <label className="text-sm font-medium text-foreground mb-1.5 block">Название кофе *</label>
         <Input
@@ -132,7 +167,7 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, onSuccess, onC
         </button>
         <button
           onClick={handleSubmit}
-          disabled={isSubmitting || !coffeeName.trim()}
+          disabled={isSubmitting || !coffeeName.trim() || (addresses.length > 1 && !selectedAddress)}
           className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
