@@ -74,6 +74,12 @@ export default function ShopDetailPage() {
   const shopStatus = useAddressAwareShopStatus(shop?.working_hours, statusCoordinates, shopDistance?.closestAddressIndex);
   const isCurrentlyOpen = shopStatus.isOpen;
 
+  const shopAddresses = useMemo(() => {
+    if (shop?.addresses && shop.addresses.length > 0) return shop.addresses;
+    if (shop?.address) return [shop.address];
+    return [];
+  }, [shop]);
+
   useEffect(() => { if (id) fetchShop(id); }, [id]);
 
   const fetchShop = async (shopId: string) => {
@@ -102,6 +108,8 @@ export default function ShopDetailPage() {
   const handleRedeem = () => {
     navigate('/redeem', { state: { shop: { id: shop.id, name: shop.name, address: shop.address }, drinkType: 'coffee', drinkName: t('balance.coffee') } });
   };
+
+  const canPreorder = shop.preorders_enabled && hasActiveSubscription && stats.coffeeRemaining > 0;
 
   return <AppLayout>
     <div className="safe-area-top">
@@ -140,7 +148,6 @@ export default function ShopDetailPage() {
                 const idx = shopDistance.closestAddressIndex;
                 const coord = coords[idx] || coords[0];
                 if (coord) {
-                  // Use admin-configured 2GIS link if available
                   const twogisLink = (coord as any).twogis_link;
                   if (twogisLink) {
                     window.open(twogisLink, '_blank');
@@ -178,14 +185,20 @@ export default function ShopDetailPage() {
           </div>
         </div>
         
-        {shop.preorders_enabled && hasActiveSubscription && stats.coffeeRemaining > 0 && isCurrentlyOpen && (
+        {/* Preorder button - between address and description */}
+        {canPreorder && (
           <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <button
-              onClick={() => setPreorderOpen(true)}
-              className="w-full py-3 rounded-xl border-2 border-primary text-primary font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              onClick={() => isCurrentlyOpen && setPreorderOpen(true)}
+              disabled={!isCurrentlyOpen}
+              className={`w-full py-3 rounded-xl border-2 font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                isCurrentlyOpen 
+                  ? 'border-primary text-primary active:scale-[0.98]' 
+                  : 'border-muted text-muted-foreground cursor-not-allowed opacity-60'
+              }`}
             >
               <ShoppingBag size={18} />
-              Сделать предзаказ
+              {isCurrentlyOpen ? 'Сделать предзаказ' : 'Предзаказ доступен после открытия'}
             </button>
           </div>
         )}
@@ -242,6 +255,7 @@ export default function ShopDetailPage() {
         shopId={shop.id}
         shopName={shop.name}
         coffeeRemaining={stats.coffeeRemaining}
+        addresses={shopAddresses}
         onComplete={refetchStats}
       />
     )}

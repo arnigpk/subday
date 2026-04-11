@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText, ShoppingBag, XCircle } from 'lucide-react';
+import { Coffee, UtensilsCrossed, Gift, CreditCard, Sparkles, FileText } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -32,21 +32,18 @@ interface PreorderItem {
   qr_code: string;
   created_at: string;
   completed_at: string | null;
-  cancelled_at: string | null;
+  shop_address: string | null;
 }
 
-// Unified item for the redemptions list
 interface UnifiedHistoryItem {
   id: string;
   type: 'redemption' | 'preorder';
   date: string;
-  // redemption fields
   drinkName?: string;
   drinkType?: string;
   shopName?: string;
   shopAddress?: string;
   redeemedAt?: string;
-  // preorder fields
   preorder?: PreorderItem;
 }
 
@@ -58,7 +55,6 @@ export default function HistoryPage() {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<{ data: any; name: string } | null>(null);
   const [preorders, setPreorders] = useState<PreorderItem[]>([]);
-  const [preordersLoading, setPreordersLoading] = useState(false);
   
   const tabs = [
     { id: 'redemptions', label: t('history.tabRedemptions') },
@@ -71,21 +67,19 @@ export default function HistoryPage() {
   }, [activeTab]);
 
   const fetchPreorders = async () => {
-    setPreordersLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data, error } = await supabase
         .from('preorders')
-        .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at, cancelled_at')
+        .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at, shop_address')
         .eq('user_id', user.id)
+        .in('status', ['new', 'completed'])
         .order('created_at', { ascending: false })
         .limit(50);
       if (!error && data) setPreorders(data as PreorderItem[]);
     } catch (e) {
       console.error('Error fetching preorders:', e);
-    } finally {
-      setPreordersLoading(false);
     }
   };
 
@@ -94,17 +88,13 @@ export default function HistoryPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { data, error } = await supabase
         .from('subscription_transactions')
         .select('id, subscription_name, transaction_type, amount, is_special_offer, payment_method, created_at, receipt_data')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
-
-      if (!error && data) {
-        setTransactions(data);
-      }
+      if (!error && data) setTransactions(data);
     } catch (e) {
       console.error('Error fetching transactions:', e);
     } finally {
@@ -142,7 +132,6 @@ export default function HistoryPage() {
     return '💳 Онлайн оплата';
   };
 
-  // Build unified history list (redemptions + preorders merged by date)
   const buildUnifiedList = (): UnifiedHistoryItem[] => {
     const items: UnifiedHistoryItem[] = [];
     
@@ -215,9 +204,8 @@ export default function HistoryPage() {
               <div className="space-y-3">
                 {unifiedList.map((item, index) => {
                   if (item.type === 'preorder' && item.preorder) {
-                    return <PreorderHistoryItem key={`p-${item.id}`} preorder={item.preorder} index={index} onCancelSuccess={fetchPreorders} />;
+                    return <PreorderHistoryItem key={`p-${item.id}`} preorder={item.preorder} index={index} />;
                   }
-                  // Redemption item
                   return (
                     <div key={item.id} className="card-static flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
                       {(() => {
@@ -257,7 +245,6 @@ export default function HistoryPage() {
               </div>
             )
           ) : (
-            // Transactions tab
             transactionsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
