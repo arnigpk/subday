@@ -306,6 +306,36 @@ export type Database = {
         }
         Relationships: []
       }
+      barista_shifts: {
+        Row: {
+          address: string
+          created_at: string
+          expires_at: string
+          id: string
+          shop_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          shop_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          shop_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       broadcast_messages: {
         Row: {
           broadcast_type: string
@@ -530,6 +560,7 @@ export type Database = {
           id: string
           qr_code: string
           qr_scanned: boolean
+          shop_address: string | null
           shop_id: string
           shop_name: string
           status: string
@@ -545,6 +576,7 @@ export type Database = {
           id?: string
           qr_code?: string
           qr_scanned?: boolean
+          shop_address?: string | null
           shop_id: string
           shop_name: string
           status?: string
@@ -560,6 +592,7 @@ export type Database = {
           id?: string
           qr_code?: string
           qr_scanned?: boolean
+          shop_address?: string | null
           shop_id?: string
           shop_name?: string
           status?: string
