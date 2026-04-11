@@ -4,16 +4,13 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin, ShoppingBag, Check, XCircle } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, ShoppingBag, Check } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
 
 interface HistoryItem {
   id: string;
@@ -38,6 +35,53 @@ export default function BaristaShiftHistory() {
   const [customDateTo, setCustomDateTo] = useState('');
   const [addressFilter, setAddressFilter] = useState('all');
   const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+  const [showAddressDialog, setShowAddressDialog] = useState(false);
+  const [shopAddresses, setShopAddresses] = useState<string[]>([]);
+  const [currentShiftAddress, setCurrentShiftAddress] = useState<string | null>(null);
+
+  // Check barista shift on mount
+  useEffect(() => {
+    if (!shopId || authLoading) return;
+    checkShiftAddress();
+  }, [shopId, authLoading]);
+
+  const checkShiftAddress = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get shop addresses
+      const { data: shop } = await supabase
+        .from('shops')
+        .select('addresses, address')
+        .eq('id', shopId!)
+        .maybeSingle();
+
+      const addrs = shop?.addresses?.length ? shop.addresses : (shop?.address ? [shop.address] : []);
+      setShopAddresses(addrs);
+
+      // Check existing shift
+      const { data: shift } = await supabase
+        .from('barista_shifts')
+        .select('address, expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (shift && new Date(shift.expires_at) > new Date()) {
+        setCurrentShiftAddress(shift.address);
+      } else {
+        // Need to pick address
+        setShowAddressDialog(true);
+      }
+    } catch (e) {
+      console.error('Shift check error:', e);
+    }
+  };
+
+  const handleAddressSelected = (address: string) => {
+    setCurrentShiftAddress(address);
+    setShowAddressDialog(false);
+  };
 
   const fetchHistory = useCallback(async () => {
     if (!shopId) return;
@@ -65,7 +109,6 @@ export default function BaristaShiftHistory() {
         }
       }
 
-      // Fetch redemptions (scanned by this barista)
       let rQuery = supabase
         .from('redemptions')
         .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
@@ -76,11 +119,11 @@ export default function BaristaShiftHistory() {
       if (dateFrom) rQuery = rQuery.gte('redeemed_at', dateFrom);
       if (dateTo) rQuery = rQuery.lt('redeemed_at', dateTo);
 
-      // Fetch preorders for the shop
       let pQuery = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, user_id')
+        .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by')
         .eq('shop_id', shopId)
+        .in('status', ['new', 'completed'])
         .order('created_at', { ascending: false })
         .limit(200);
       if (dateFrom) pQuery = pQuery.gte('created_at', dateFrom);
@@ -120,6 +163,8 @@ export default function BaristaShiftHistory() {
 
       pData?.forEach(p => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
+        const addr = (p as any).shop_address || null;
+        if (addr) addresses.add(addr);
         combined.push({
           id: p.id,
           type: 'preorder',
@@ -127,7 +172,7 @@ export default function BaristaShiftHistory() {
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
           subscriptionName: null,
-          shopAddress: null,
+          shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
         });
@@ -138,7 +183,7 @@ export default function BaristaShiftHistory() {
 
       let filtered = combined;
       if (addressFilter !== 'all') {
-        filtered = filtered.filter(r => r.shopAddress === addressFilter || r.type === 'preorder');
+        filtered = filtered.filter(r => r.shopAddress === addressFilter);
       }
 
       setItems(filtered);
@@ -185,7 +230,6 @@ export default function BaristaShiftHistory() {
 
   const getItemIcon = (item: HistoryItem) => {
     if (item.type === 'preorder') {
-      if (item.status === 'cancelled') return <XCircle size={20} className="text-destructive" />;
       if (item.status === 'completed') return <Check size={20} className="text-accent" />;
       return <ShoppingBag size={20} className="text-amber-600" />;
     }
@@ -194,7 +238,6 @@ export default function BaristaShiftHistory() {
 
   const getStatusBadge = (item: HistoryItem) => {
     if (item.type === 'preorder') {
-      if (item.status === 'cancelled') return { text: 'Отменён', className: 'bg-destructive/10 text-destructive' };
       if (item.status === 'completed') return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
       return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
     }
@@ -204,7 +247,18 @@ export default function BaristaShiftHistory() {
   return (
     <PartnerLayout>
       <div className="p-4 space-y-4">
-        <h2 className="text-xl font-bold text-foreground">Моя смена</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-foreground">Моя смена</h2>
+          {currentShiftAddress && (
+            <button
+              onClick={() => setShowAddressDialog(true)}
+              className="text-xs text-primary flex items-center gap-1 hover:underline"
+            >
+              <MapPin size={12} />
+              {currentShiftAddress}
+            </button>
+          )}
+        </div>
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -268,7 +322,7 @@ export default function BaristaShiftHistory() {
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                       item.type === 'preorder'
-                        ? item.status === 'cancelled' ? 'bg-destructive/10' : item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
+                        ? item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
                         : 'bg-primary/10'
                     }`}>
                       {getItemIcon(item)}
@@ -304,6 +358,15 @@ export default function BaristaShiftHistory() {
           </div>
         )}
       </div>
+
+      {shopAddresses.length > 0 && (
+        <BaristaAddressDialog
+          open={showAddressDialog}
+          onSelect={handleAddressSelected}
+          addresses={shopAddresses}
+          shopId={shopId || ''}
+        />
+      )}
     </PartnerLayout>
   );
 }

@@ -4,13 +4,9 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin, Check, XCircle, ShoppingBag } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, Check, ShoppingBag } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -63,7 +59,6 @@ export default function PartnerHistoryPage() {
     try {
       const range = getDateRange();
 
-      // Fetch redemptions
       let rQuery = supabase
         .from('redemptions')
         .select('id, drink_name, subscription_name, redeemed_at, user_id, shop_address')
@@ -73,11 +68,11 @@ export default function PartnerHistoryPage() {
       if (range.from) rQuery = rQuery.gte('redeemed_at', range.from);
       if (range.to) rQuery = rQuery.lt('redeemed_at', range.to);
 
-      // Fetch preorders
       let pQuery = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, user_id, shop_name')
+        .select('id, coffee_name, syrup, status, created_at, user_id, shop_name, shop_address')
         .eq('shop_id', shopId)
+        .in('status', ['new', 'completed'])
         .order('created_at', { ascending: false })
         .limit(200);
       if (range.from) pQuery = pQuery.gte('created_at', range.from);
@@ -85,7 +80,6 @@ export default function PartnerHistoryPage() {
 
       const [{ data: rData }, { data: pData }] = await Promise.all([rQuery, pQuery]);
 
-      // Collect all user IDs
       const userIds = new Set<string>();
       rData?.forEach(r => userIds.add(r.user_id));
       pData?.forEach(p => userIds.add(p.user_id));
@@ -118,6 +112,8 @@ export default function PartnerHistoryPage() {
 
       pData?.forEach(p => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
+        const addr = (p as any).shop_address || null;
+        if (addr) addresses.add(addr);
         combined.push({
           id: p.id,
           type: 'preorder',
@@ -125,21 +121,18 @@ export default function PartnerHistoryPage() {
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
           subscriptionName: null,
-          shopAddress: null,
+          shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
         });
       });
 
       setAvailableAddresses(Array.from(addresses).sort());
-
-      // Sort by date descending
       combined.sort((a, b) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime());
 
-      // Apply address filter
       let filtered = combined;
       if (addressFilter !== 'all') {
-        filtered = filtered.filter(r => r.shopAddress === addressFilter || r.type === 'preorder');
+        filtered = filtered.filter(r => r.shopAddress === addressFilter);
       }
 
       setItems(filtered);
@@ -154,6 +147,16 @@ export default function PartnerHistoryPage() {
     if (!shopId || authLoading) return;
     fetchHistory();
   }, [shopId, authLoading, fetchHistory]);
+
+  // Realtime
+  useEffect(() => {
+    if (!shopId) return;
+    const channel = supabase
+      .channel(`partner-preorders-${shopId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'preorders', filter: `shop_id=eq.${shopId}` }, () => fetchHistory())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [shopId, fetchHistory]);
 
   if (authLoading) {
     return (
@@ -175,7 +178,6 @@ export default function PartnerHistoryPage() {
 
   const getStatusBadge = (item: HistoryItem) => {
     if (item.type === 'preorder') {
-      if (item.status === 'cancelled') return { text: 'Отменён', className: 'bg-destructive/10 text-destructive' };
       if (item.status === 'completed') return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
       return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
     }
@@ -184,7 +186,6 @@ export default function PartnerHistoryPage() {
 
   const getItemIcon = (item: HistoryItem) => {
     if (item.type === 'preorder') {
-      if (item.status === 'cancelled') return <XCircle size={20} className="text-destructive" />;
       if (item.status === 'completed') return <Check size={20} className="text-accent" />;
       return <ShoppingBag size={20} className="text-amber-600" />;
     }
@@ -263,7 +264,7 @@ export default function PartnerHistoryPage() {
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                       item.type === 'preorder'
-                        ? item.status === 'cancelled' ? 'bg-destructive/10' : item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
+                        ? item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
                         : 'bg-primary/10'
                     }`}>
                       {getItemIcon(item)}
