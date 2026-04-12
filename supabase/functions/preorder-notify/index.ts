@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { shopId, coffeeName, syrup, customerName } = await req.json();
+    const { shopId, coffeeName, syrup, customerName, shopAddress } = await req.json();
 
     if (!shopId || !coffeeName) {
       return new Response(JSON.stringify({ error: 'shopId and coffeeName required' }), {
@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
       syrup: syrup || 'нет',
       customer_name: customerName || 'Клиент',
       time: timeStr,
+      shop_address: shopAddress || '',
     };
 
     // Build message from template or use default
@@ -71,38 +72,57 @@ Deno.serve(async (req) => {
       }
     } else {
       const syrupText = syrup ? ` + ${syrup}` : '';
-      notificationMessage = `☕ Новый предзаказ!\n\n🏪 Кофейня: ${shopName}\n☕ Напиток: ${coffeeName}${syrupText}\n👤 Клиент: ${customerName || 'Клиент'}\n🕐 ${timeStr}`;
+      const addrText = shopAddress ? `\n📍 Адрес: ${shopAddress}` : '';
+      notificationMessage = `☕ Новый предзаказ!\n\n🏪 Кофейня: ${shopName}${addrText}\n☕ Напиток: ${coffeeName}${syrupText}\n👤 Клиент: ${customerName || 'Клиент'}\n🕐 ${timeStr}`;
     }
 
     const pushTitle = '☕ Новый предзаказ!';
     const syrupText = syrup ? ` + ${syrup}` : '';
     const pushBody = `${shopName}: ${coffeeName}${syrupText}`;
 
-    let telegramSent = false;
+    let telegramSent = 0;
     let fcmSent = 0;
     let fcmFailed = 0;
     let inAppCreated = 0;
 
-    // 1. Send Telegram notification to admin bot
-    if (channel === 'telegram' || channel === 'both') {
-      const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-      const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
-      if (notificationBotToken && chatId) {
-        try {
-          await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: notificationMessage, parse_mode: 'HTML' }),
-          });
-          telegramSent = true;
-        } catch (e) {
-          console.error('Telegram notification failed:', e);
+    // 1. Send personal Telegram messages to staff via @subday_lgbot
+    if ((channel === 'telegram' || channel === 'both') && staffUserIds.length > 0) {
+      const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+      if (telegramBotToken) {
+        // Get staff profiles to find their telegram chat IDs
+        const { data: staffProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, phone')
+          .in('user_id', staffUserIds);
+
+        // Extract telegram IDs from phone field (format: +telegram_<id>)
+        const telegramChatIds: string[] = [];
+        staffProfiles?.forEach((p: any) => {
+          if (p.phone?.startsWith('+telegram_')) {
+            telegramChatIds.push(p.phone.replace('+telegram_', ''));
+          }
+        });
+
+        for (const chatId of telegramChatIds) {
+          try {
+            const res = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: notificationMessage, parse_mode: 'HTML' }),
+            });
+            if (res.ok) telegramSent++;
+            else console.error('Telegram send failed:', await res.text());
+          } catch (e) {
+            console.error('Telegram notification failed:', e);
+          }
         }
+      } else {
+        console.warn('TELEGRAM_BOT_TOKEN not configured, skipping personal Telegram notifications');
       }
     }
 
     if (staffUserIds.length === 0) {
-      return new Response(JSON.stringify({ success: true, telegram_sent: telegramSent, fcm_sent: 0, in_app_created: 0, message: 'No staff found' }), {
+      return new Response(JSON.stringify({ success: true, telegram_sent: 0, fcm_sent: 0, in_app_created: 0, message: 'No staff found' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
