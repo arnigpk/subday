@@ -167,7 +167,7 @@ export default function AdminHistoryPage() {
           source: 'preorder',
           user_id: p.user_id,
           shop_name: p.shop_name,
-          shop_address: null,
+          shop_address: p.shop_address || null,
           drink_name: drinkDesc,
           drink_type: 'preorder',
           redeemed_at: p.created_at,
