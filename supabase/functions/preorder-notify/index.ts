@@ -33,14 +33,34 @@ Deno.serve(async (req) => {
 
     const shopName = shop?.name || 'Неизвестная кофейня';
 
-    // Find all baristas and partners for this shop
+    // Find partners (always notified) and baristas for this shop
     const { data: staffRoles } = await supabase
       .from('user_roles')
-      .select('user_id')
+      .select('user_id, role')
       .eq('shop_id', shopId)
       .in('role', ['partner', 'barista']);
 
-    const staffUserIds = staffRoles?.map((r: any) => r.user_id) || [];
+    const partnerUserIds = staffRoles?.filter((r: any) => r.role === 'partner').map((r: any) => r.user_id) || [];
+    const baristaUserIds = staffRoles?.filter((r: any) => r.role === 'barista').map((r: any) => r.user_id) || [];
+
+    // Filter baristas: only those on shift at the specific address
+    let targetBaristaIds: string[] = [];
+    if (baristaUserIds.length > 0 && shopAddress) {
+      const { data: activeShifts } = await supabase
+        .from('barista_shifts')
+        .select('user_id, address, expires_at')
+        .in('user_id', baristaUserIds)
+        .eq('address', shopAddress)
+        .gte('expires_at', new Date().toISOString());
+
+      targetBaristaIds = activeShifts?.map((s: any) => s.user_id) || [];
+    } else if (baristaUserIds.length > 0 && !shopAddress) {
+      // No address specified — notify all baristas (fallback)
+      targetBaristaIds = baristaUserIds;
+    }
+
+    // Combine: partners always + baristas on the right address
+    const staffUserIds = [...new Set([...partnerUserIds, ...targetBaristaIds])];
 
     // Get template for preorder notifications
     const { data: template } = await supabase
@@ -85,17 +105,23 @@ Deno.serve(async (req) => {
     let fcmFailed = 0;
     let inAppCreated = 0;
 
+    console.log(`Preorder notify: shop=${shopId}, address="${shopAddress}", partners=${partnerUserIds.length}, baristas_on_address=${targetBaristaIds.length}, total_staff=${staffUserIds.length}`);
+
+    if (staffUserIds.length === 0) {
+      return new Response(JSON.stringify({ success: true, telegram_sent: 0, fcm_sent: 0, in_app_created: 0, message: 'No staff found for this address' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // 1. Send personal Telegram messages to staff via @subday_lgbot
-    if ((channel === 'telegram' || channel === 'both') && staffUserIds.length > 0) {
+    if (channel === 'telegram' || channel === 'both') {
       const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
       if (telegramBotToken) {
-        // Get staff profiles to find their telegram chat IDs
         const { data: staffProfiles } = await supabase
           .from('profiles')
           .select('user_id, phone')
           .in('user_id', staffUserIds);
 
-        // Extract telegram IDs from phone field (format: +telegram_<id>)
         const telegramChatIds: string[] = [];
         staffProfiles?.forEach((p: any) => {
           if (p.phone?.startsWith('+telegram_')) {
@@ -117,14 +143,8 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        console.warn('TELEGRAM_BOT_TOKEN not configured, skipping personal Telegram notifications');
+        console.warn('TELEGRAM_BOT_TOKEN not configured');
       }
-    }
-
-    if (staffUserIds.length === 0) {
-      return new Response(JSON.stringify({ success: true, telegram_sent: 0, fcm_sent: 0, in_app_created: 0, message: 'No staff found' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     // 2. Create in-app push notifications for staff
@@ -206,7 +226,7 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          console.warn('FCM_SERVICE_ACCOUNT not configured, skipping device push');
+          console.warn('FCM_SERVICE_ACCOUNT not configured');
         }
       }
     }
@@ -217,6 +237,8 @@ Deno.serve(async (req) => {
       fcm_sent: fcmSent,
       fcm_failed: fcmFailed,
       in_app_created: inAppCreated,
+      partners_notified: partnerUserIds.length,
+      baristas_notified: targetBaristaIds.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
