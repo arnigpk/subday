@@ -272,6 +272,7 @@ export default function AdminHistoryPage() {
     if (row.source === 'preorder') {
       const status = row.preorder_status;
       if (status === 'completed') return { text: 'Предзаказ ✓', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' };
+      if (status === 'expired') return { text: 'Закрыт', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
       return { text: 'Предзаказ', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };
     }
     if (row.drink_type === 'coffee') return { text: 'Кофе', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };

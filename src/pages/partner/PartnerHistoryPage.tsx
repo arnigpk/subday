@@ -72,7 +72,7 @@ export default function PartnerHistoryPage() {
         .from('preorders')
         .select('id, coffee_name, syrup, status, created_at, user_id, shop_name, shop_address')
         .eq('shop_id', shopId)
-        .in('status', ['new', 'completed'])
+        .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
         .limit(200);
       if (range.from) pQuery = pQuery.gte('created_at', range.from);
@@ -179,6 +179,7 @@ export default function PartnerHistoryPage() {
   const getStatusBadge = (item: HistoryItem) => {
     if (item.type === 'preorder') {
       if (item.status === 'completed') return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
+      if (item.status === 'expired') return { text: 'Закрыт', className: 'bg-muted text-muted-foreground' };
       return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
     }
     return null;
