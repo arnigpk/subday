@@ -22,6 +22,7 @@ export function PreorderHistoryItem({ preorder, index }: { preorder: Preorder; i
 
   const isCompleted = preorder.status === 'completed';
   const isNew = preorder.status === 'new';
+  const isExpired = preorder.status === 'expired';
 
   const qrData = JSON.stringify({
     type: 'subday_preorder',
@@ -41,16 +42,19 @@ export function PreorderHistoryItem({ preorder, index }: { preorder: Preorder; i
 
   const getStatusBadge = () => {
     if (isCompleted) return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
+    if (isExpired) return { text: 'Закрыт', className: 'bg-muted text-muted-foreground' };
     return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
   };
 
   const getIcon = () => {
     if (isCompleted) return <Check size={24} className="text-accent" />;
+    if (isExpired) return <Clock size={24} className="text-muted-foreground" />;
     return <Coffee size={24} className="text-primary" />;
   };
 
   const getIconBg = () => {
     if (isCompleted) return 'bg-accent/10';
+    if (isExpired) return 'bg-muted';
     return 'bg-primary/10';
   };
 
@@ -94,8 +98,11 @@ export function PreorderHistoryItem({ preorder, index }: { preorder: Preorder; i
               {preorder.shop_address && <p className="text-xs text-muted-foreground">{preorder.shop_address}</p>}
             </div>
             <div className={`text-sm font-medium px-3 py-1 rounded-full ${badge.className}`}>
-              {isCompleted ? 'Выдан' : 'Ожидает выдачи'}
+              {isCompleted ? 'Выдан' : isExpired ? 'Закрыт (не забран)' : 'Ожидает выдачи'}
             </div>
+            {isExpired && (
+              <p className="text-xs text-muted-foreground">Напиток возвращён в подписку</p>
+            )}
             {isNew && (
               <div className="bg-background p-4 rounded-2xl border border-border">
                 <QRCodeSVG value={qrData} size={160} level="M" />

@@ -123,9 +123,14 @@ export default function BaristaShiftHistory() {
         .from('preorders')
         .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by')
         .eq('shop_id', shopId)
-        .in('status', ['new', 'completed'])
+        .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
         .limit(200);
+
+      // Barista: only show preorders for their shift address
+      if (currentShiftAddress) {
+        pQuery = pQuery.eq('shop_address', currentShiftAddress);
+      }
       if (dateFrom) pQuery = pQuery.gte('created_at', dateFrom);
       if (dateTo) pQuery = pQuery.lt('created_at', dateTo);
 
@@ -192,7 +197,7 @@ export default function BaristaShiftHistory() {
     } finally {
       setIsLoading(false);
     }
-  }, [shopId, dateFilter, customDateFrom, customDateTo, addressFilter]);
+  }, [shopId, dateFilter, customDateFrom, customDateTo, addressFilter, currentShiftAddress]);
 
   useEffect(() => {
     if (!shopId || authLoading) return;
@@ -239,6 +244,7 @@ export default function BaristaShiftHistory() {
   const getStatusBadge = (item: HistoryItem) => {
     if (item.type === 'preorder') {
       if (item.status === 'completed') return { text: 'Выдан', className: 'bg-accent/10 text-accent' };
+      if (item.status === 'expired') return { text: 'Закрыт', className: 'bg-muted text-muted-foreground' };
       return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
     }
     return null;

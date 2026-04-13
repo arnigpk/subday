@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Coffee, Check, Bell, Loader2 } from 'lucide-react';
+import { Coffee, Check, Bell, Loader2, MapPin, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -12,9 +12,16 @@ interface Preorder {
   created_at: string;
   customer_name: string | null;
   customer_public_id: string | null;
+  shop_address: string | null;
 }
 
-export function PartnerPreorders({ shopId }: { shopId: string }) {
+interface PartnerPreordersProps {
+  shopId: string;
+  /** If provided, only show preorders for this address (barista mode) */
+  filterAddress?: string | null;
+}
+
+export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProps) {
   const [preorders, setPreorders] = useState<Preorder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -23,17 +30,24 @@ export function PartnerPreorders({ shopId }: { shopId: string }) {
   const fetchPreorders = useCallback(async () => {
     if (!shopId) return;
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, user_id')
+        .select('id, coffee_name, syrup, status, created_at, user_id, shop_address')
         .eq('shop_id', shopId)
+        .in('status', ['new', 'completed'])
         .order('created_at', { ascending: false })
         .limit(50);
+
+      // Filter by address for baristas
+      if (filterAddress) {
+        query = query.eq('shop_address', filterAddress);
+      }
+
+      const { data, error } = await query;
 
       if (error) { console.error(error); return; }
       if (!data) { setPreorders([]); return; }
 
-      // Fetch customer profiles
       const userIds = [...new Set(data.map(p => p.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
@@ -49,9 +63,9 @@ export function PartnerPreorders({ shopId }: { shopId: string }) {
         created_at: p.created_at,
         customer_name: profileMap.get(p.user_id)?.name || null,
         customer_public_id: profileMap.get(p.user_id)?.public_id || null,
+        shop_address: p.shop_address || null,
       }));
 
-      // Play sound if new preorders appeared
       const newCount = mapped.filter(p => p.status === 'new').length;
       if (newCount > prevCountRef.current && prevCountRef.current > 0) {
         playNotificationSound();
@@ -62,7 +76,7 @@ export function PartnerPreorders({ shopId }: { shopId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [shopId]);
+  }, [shopId, filterAddress]);
 
   const playNotificationSound = () => {
     try {
@@ -75,20 +89,13 @@ export function PartnerPreorders({ shopId }: { shopId: string }) {
 
   useEffect(() => {
     fetchPreorders();
-    
-    // Realtime subscription
     const channel = supabase
       .channel(`preorders-${shopId}`)
       .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'preorders',
+        event: '*', schema: 'public', table: 'preorders',
         filter: `shop_id=eq.${shopId}`,
-      }, () => {
-        fetchPreorders();
-      })
+      }, () => fetchPreorders())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [shopId, fetchPreorders]);
 
@@ -151,6 +158,11 @@ function PreorderCard({ preorder, isNew }: { preorder: Preorder; isNew: boolean 
             )}
             <p className="text-sm text-primary font-medium">{preorder.coffee_name}</p>
             {preorder.syrup && <p className="text-xs text-muted-foreground">+ {preorder.syrup}</p>}
+            {preorder.shop_address && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin size={10} />{preorder.shop_address}
+              </p>
+            )}
           </div>
         </div>
         <div className="text-right">
