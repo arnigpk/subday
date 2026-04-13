@@ -74,7 +74,7 @@ export default function HistoryPage() {
         .from('preorders')
         .select('id, shop_name, coffee_name, syrup, status, qr_code, created_at, completed_at, shop_address')
         .eq('user_id', user.id)
-        .in('status', ['new', 'completed'])
+        .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
         .limit(50);
       if (!error && data) setPreorders(data as PreorderItem[]);
