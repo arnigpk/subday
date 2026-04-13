@@ -79,6 +79,12 @@ export default function PartnerScanPage() {
             return;
           }
 
+          if (preorder.status === 'expired') {
+            setResult({ success: false, message: 'Этот предзаказ закрыт (истёк срок)' });
+            setIsProcessing(false);
+            return;
+          }
+
           if (preorder.status === 'completed' || preorder.qr_scanned) {
             setResult({ success: false, message: 'Этот QR-код уже использован' });
             setIsProcessing(false);
