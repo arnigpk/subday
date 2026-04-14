@@ -307,19 +307,19 @@ export default function AdminHistoryPage() {
                       Очистить историю
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
+                      <AlertDialogTitle>Очистить всю историю?</AlertDialogTitle>
                       <AlertDialogDescription>
                         {periodType !== 'all'
-                          ? `Будут удалены списания за период: ${formatPeriodLabel()}`
-                          : 'Будут удалены ВСЕ списания'
-                        }. Это действие нельзя отменить.
+                          ? `Будут удалены все списания и предзаказы за период: ${formatPeriodLabel()}`
+                          : 'Будут удалены ВСЕ списания и предзаказы'
+                        }. История очистится у всех пользователей. Это действие нельзя отменить.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Отмена</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
+                      <AlertDialogAction onClick={handleClearHistory}>Очистить</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
