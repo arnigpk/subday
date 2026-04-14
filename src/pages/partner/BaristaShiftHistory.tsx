@@ -362,6 +362,9 @@ export default function BaristaShiftHistory() {
                       {item.subscriptionName && (
                         <p className="text-xs text-primary">{item.subscriptionName}</p>
                       )}
+                      {item.maxVolume && (
+                        <p className="text-xs text-muted-foreground">Макс. объём: {item.maxVolume}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
