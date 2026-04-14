@@ -221,21 +221,34 @@ export default function AdminHistoryPage() {
     if (value !== 'custom') setDateRange(undefined);
   };
 
-  const handleClearRedemptions = async () => {
+  const handleClearHistory = async () => {
     try {
       const dateFilters = getDateFilters();
-      let query = supabase.from('redemptions').delete();
+
+      // Delete redemptions
+      let rQuery = supabase.from('redemptions').delete();
       if (dateFilters) {
-        query = query.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+        rQuery = rQuery.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
       } else {
-        query = query.gt('redeemed_at', '1970-01-01');
+        rQuery = rQuery.gt('redeemed_at', '1970-01-01');
       }
-      const { error } = await query;
-      if (error) throw error;
-      toast.success('История списаний очищена');
+
+      // Delete preorders
+      let pQuery = supabase.from('preorders').delete();
+      if (dateFilters) {
+        pQuery = pQuery.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+      } else {
+        pQuery = pQuery.gt('created_at', '1970-01-01');
+      }
+
+      const [rResult, pResult] = await Promise.all([rQuery, pQuery]);
+      if (rResult.error) throw rResult.error;
+      if (pResult.error) throw pResult.error;
+
+      toast.success('История полностью очищена');
       fetchData();
     } catch (error) {
-      console.error('Error clearing redemptions:', error);
+      console.error('Error clearing history:', error);
       toast.error('Ошибка очистки');
     }
   };
@@ -294,19 +307,19 @@ export default function AdminHistoryPage() {
                       Очистить историю
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Очистить историю списаний?</AlertDialogTitle>
+                      <AlertDialogTitle>Очистить всю историю?</AlertDialogTitle>
                       <AlertDialogDescription>
                         {periodType !== 'all'
-                          ? `Будут удалены списания за период: ${formatPeriodLabel()}`
-                          : 'Будут удалены ВСЕ списания'
-                        }. Это действие нельзя отменить.
+                          ? `Будут удалены все списания и предзаказы за период: ${formatPeriodLabel()}`
+                          : 'Будут удалены ВСЕ списания и предзаказы'
+                        }. История очистится у всех пользователей. Это действие нельзя отменить.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Отмена</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleClearRedemptions}>Очистить</AlertDialogAction>
+                      <AlertDialogAction onClick={handleClearHistory}>Очистить</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
