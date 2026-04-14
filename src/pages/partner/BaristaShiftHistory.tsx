@@ -165,15 +165,17 @@ export default function BaristaShiftHistory() {
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
+        const sub = userSubMap.get(r.user_id);
         combined.push({
           id: r.id,
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
-          subscriptionName: r.subscription_name,
+          subscriptionName: r.subscription_name || sub?.name || null,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
