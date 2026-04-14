@@ -22,6 +22,7 @@ interface HistoryItem {
   shopAddress: string | null;
   redeemedAt: string;
   status?: string;
+  maxVolume?: string | null;
 }
 
 type DateFilter = 'today' | 'week' | 'month' | 'custom';
