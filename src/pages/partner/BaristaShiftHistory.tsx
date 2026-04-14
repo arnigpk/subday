@@ -183,16 +183,18 @@ export default function BaristaShiftHistory() {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = (p as any).shop_address || null;
         if (addr) addresses.add(addr);
+        const sub = userSubMap.get(p.user_id);
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: null,
+          subscriptionName: sub?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
