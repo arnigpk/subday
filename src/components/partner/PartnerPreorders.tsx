@@ -13,6 +13,8 @@ interface Preorder {
   customer_name: string | null;
   customer_public_id: string | null;
   shop_address: string | null;
+  subscription_name: string | null;
+  max_volume: string | null;
 }
 
 interface PartnerPreordersProps {
@@ -38,7 +40,6 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Filter by address for baristas
       if (filterAddress) {
         query = query.eq('shop_address', filterAddress);
       }
@@ -49,22 +50,38 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
       if (!data) { setPreorders([]); return; }
 
       const userIds = [...new Set(data.map(p => p.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, name, public_id')
-        .in('user_id', userIds);
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      // Fetch profiles and subscriptions in parallel
+      const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+        supabase.from('profiles').select('user_id, name, public_id').in('user_id', userIds),
+        supabase.from('user_subscriptions')
+          .select('user_id, subscription_types(name, max_volume)')
+          .in('user_id', userIds)
+          .eq('is_active', true),
+      ]);
 
-      const mapped = data.map(p => ({
-        id: p.id,
-        coffee_name: p.coffee_name,
-        syrup: p.syrup,
-        status: p.status,
-        created_at: p.created_at,
-        customer_name: profileMap.get(p.user_id)?.name || null,
-        customer_public_id: profileMap.get(p.user_id)?.public_id || null,
-        shop_address: p.shop_address || null,
-      }));
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      const subMap = new Map<string, { name: string; maxVolume: string | null }>();
+      userSubs?.forEach(us => {
+        const st = us.subscription_types as any;
+        if (st) subMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
+      });
+
+      const mapped = data.map(p => {
+        const sub = subMap.get(p.user_id);
+        return {
+          id: p.id,
+          coffee_name: p.coffee_name,
+          syrup: p.syrup,
+          status: p.status,
+          created_at: p.created_at,
+          customer_name: profileMap.get(p.user_id)?.name || null,
+          customer_public_id: profileMap.get(p.user_id)?.public_id || null,
+          shop_address: p.shop_address || null,
+          subscription_name: sub?.name || null,
+          max_volume: sub?.maxVolume || null,
+        };
+      });
 
       const newCount = mapped.filter(p => p.status === 'new').length;
       if (newCount > prevCountRef.current && prevCountRef.current > 0) {
@@ -162,6 +179,12 @@ function PreorderCard({ preorder, isNew }: { preorder: Preorder; isNew: boolean 
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <MapPin size={10} />{preorder.shop_address}
               </p>
+            )}
+            {preorder.subscription_name && (
+              <p className="text-xs text-primary">Тариф: {preorder.subscription_name}</p>
+            )}
+            {preorder.max_volume && (
+              <p className="text-xs text-muted-foreground">Макс. объём: {preorder.max_volume}</p>
             )}
           </div>
         </div>

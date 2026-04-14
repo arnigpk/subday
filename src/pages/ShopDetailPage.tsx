@@ -241,9 +241,19 @@ export default function ShopDetailPage() {
         </div>
 
         <div className="pb-6 pt-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <button onClick={handleRedeem} disabled={!isCurrentlyOpen || stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0} className="btn-accent w-full text-lg disabled:opacity-50">
-            {!isCurrentlyOpen ? t('shops.shopClosed') : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? t('shops.noDrinks') : t('shops.pickupHere')}
-          </button>
+          {!isCurrentlyOpen ? (
+            <button disabled className="btn-accent w-full text-lg disabled:opacity-50">
+              {t('shops.shopClosed')}
+            </button>
+          ) : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? (
+            <button onClick={() => navigate('/packages')} className="btn-accent w-full text-lg">
+              Оформить подписку
+            </button>
+          ) : (
+            <button onClick={handleRedeem} className="btn-accent w-full text-lg">
+              {t('shops.pickupHere')}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ interface HistoryItem {
   shopAddress: string | null;
   redeemedAt: string;
   status?: string;
+  maxVolume?: string | null;
 }
 
 type DateFilter = 'today' | 'week' | 'month' | 'custom';
@@ -141,12 +142,22 @@ export default function BaristaShiftHistory() {
       pData?.forEach(p => userIds.add(p.user_id));
 
       let profileMap = new Map<string, any>();
+      let userSubMap = new Map<string, { name: string; maxVolume: string | null }>();
+
       if (userIds.size > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, name, public_id')
-          .in('user_id', Array.from(userIds));
+        const uids = Array.from(userIds);
+        const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+          supabase.from('profiles').select('user_id, name, public_id').in('user_id', uids),
+          supabase.from('user_subscriptions')
+            .select('user_id, subscription_types(name, max_volume)')
+            .in('user_id', uids)
+            .eq('is_active', true),
+        ]);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        userSubs?.forEach(us => {
+          const st = us.subscription_types as any;
+          if (st) userSubMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
+        });
       }
 
       const addresses = new Set<string>();
@@ -154,15 +165,17 @@ export default function BaristaShiftHistory() {
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
+        const sub = userSubMap.get(r.user_id);
         combined.push({
           id: r.id,
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
-          subscriptionName: r.subscription_name,
+          subscriptionName: r.subscription_name || sub?.name || null,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
@@ -170,16 +183,18 @@ export default function BaristaShiftHistory() {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = (p as any).shop_address || null;
         if (addr) addresses.add(addr);
+        const sub = userSubMap.get(p.user_id);
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: null,
+          subscriptionName: sub?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
@@ -346,6 +361,9 @@ export default function BaristaShiftHistory() {
                       )}
                       {item.subscriptionName && (
                         <p className="text-xs text-primary">{item.subscriptionName}</p>
+                      )}
+                      {item.maxVolume && (
+                        <p className="text-xs text-muted-foreground">Макс. объём: {item.maxVolume}</p>
                       )}
                     </div>
                   </div>

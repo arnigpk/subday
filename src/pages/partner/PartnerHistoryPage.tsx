@@ -4,7 +4,7 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin, Check, ShoppingBag } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, Check, ShoppingBag, TrendingUp } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -21,12 +21,16 @@ interface HistoryItem {
   shopAddress: string | null;
   redeemedAt: string;
   status?: string;
+  subscriptionPrice?: number | null;
+  subscriptionCups?: number | null;
+  maxVolume?: string | null;
 }
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function PartnerHistoryPage() {
-  const { shopId, isLoading: authLoading } = usePartnerAuth();
+  const { shopId, isLoading: authLoading, role } = usePartnerAuth();
+  const isPartner = role === 'partner';
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -85,12 +89,35 @@ export default function PartnerHistoryPage() {
       pData?.forEach(p => userIds.add(p.user_id));
 
       let profileMap = new Map<string, any>();
+      // Fetch subscription info for each user to calculate revenue
+      let userSubMap = new Map<string, { price: number; cups: number; maxVolume: string | null; name: string }>();
+
       if (userIds.size > 0) {
+        const uids = Array.from(userIds);
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, name, public_id')
-          .in('user_id', Array.from(userIds));
+          .in('user_id', uids);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+        // Get active subscriptions for these users
+        const { data: userSubs } = await supabase
+          .from('user_subscriptions')
+          .select('user_id, subscription_type_id, subscription_types(price, cups_count, max_volume, name)')
+          .in('user_id', uids)
+          .eq('is_active', true);
+
+        userSubs?.forEach(us => {
+          const st = us.subscription_types as any;
+          if (st) {
+            userSubMap.set(us.user_id, {
+              price: st.price,
+              cups: st.cups_count,
+              maxVolume: st.max_volume,
+              name: st.name,
+            });
+          }
+        });
       }
 
       const addresses = new Set<string>();
@@ -98,15 +125,19 @@ export default function PartnerHistoryPage() {
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
+        const sub = userSubMap.get(r.user_id);
         combined.push({
           id: r.id,
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
-          subscriptionName: r.subscription_name,
+          subscriptionName: r.subscription_name || sub?.name || null,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
+          subscriptionPrice: sub?.price || null,
+          subscriptionCups: sub?.cups || null,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
@@ -114,16 +145,20 @@ export default function PartnerHistoryPage() {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = (p as any).shop_address || null;
         if (addr) addresses.add(addr);
+        const sub = userSubMap.get(p.user_id);
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: null,
+          subscriptionName: sub?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
+          subscriptionPrice: sub?.price || null,
+          subscriptionCups: sub?.cups || null,
+          maxVolume: sub?.maxVolume || null,
         });
       });
 
@@ -148,7 +183,6 @@ export default function PartnerHistoryPage() {
     fetchHistory();
   }, [shopId, authLoading, fetchHistory]);
 
-  // Realtime
   useEffect(() => {
     if (!shopId) return;
     const channel = supabase
@@ -157,6 +191,18 @@ export default function PartnerHistoryPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [shopId, fetchHistory]);
+
+  // Calculate partner revenue (70%) from completed items only
+  const partnerRevenue = isPartner ? items.reduce((total, item) => {
+    // Only count completed preorders and regular redemptions
+    if (item.type === 'preorder' && item.status !== 'completed') return total;
+    if (item.subscriptionPrice && item.subscriptionCups && item.subscriptionCups > 0) {
+      const pricePerCup = item.subscriptionPrice / item.subscriptionCups;
+      const partnerShare = pricePerCup * 0.7;
+      return total + partnerShare;
+    }
+    return total;
+  }, 0) : 0;
 
   if (authLoading) {
     return (
@@ -193,6 +239,15 @@ export default function PartnerHistoryPage() {
     return <Coffee size={20} className="text-primary" />;
   };
 
+  const getItemRevenue = (item: HistoryItem): number | null => {
+    if (!isPartner) return null;
+    if (item.type === 'preorder' && item.status !== 'completed') return null;
+    if (item.subscriptionPrice && item.subscriptionCups && item.subscriptionCups > 0) {
+      return Math.round(item.subscriptionPrice / item.subscriptionCups * 0.7);
+    }
+    return null;
+  };
+
   return (
     <PartnerLayout>
       <div className="p-4 space-y-4">
@@ -222,6 +277,23 @@ export default function PartnerHistoryPage() {
             </div>
           )}
         </div>
+
+        {/* Partner Revenue Card */}
+        {isPartner && !isLoading && items.length > 0 && (
+          <div className="bg-card p-4 rounded-xl border border-border">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp size={18} className="text-green-600" />
+              <span className="text-sm font-semibold text-foreground">Ваша выручка (70%)</span>
+            </div>
+            <p className="text-2xl font-black text-green-600">
+              {Math.round(partnerRevenue).toLocaleString()} ₸
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {dateFilter === 'all' ? 'За всё время' : dateFilter === 'today' ? 'За сегодня' : dateFilter === 'week' ? 'За неделю' : dateFilter === 'month' ? 'За месяц' : 'За выбранный период'}
+              {' · '}{items.filter(i => i.type === 'redemption' || (i.type === 'preorder' && i.status === 'completed')).length} напитков
+            </p>
+          </div>
+        )}
 
         {availableAddresses.length > 1 && (
           <div className="flex items-center gap-2">
@@ -257,6 +329,7 @@ export default function PartnerHistoryPage() {
           <div className="space-y-3">
             {items.map((item) => {
               const badge = getStatusBadge(item);
+              const revenue = getItemRevenue(item);
               return (
                 <div
                   key={`${item.type}-${item.id}`}
@@ -284,6 +357,9 @@ export default function PartnerHistoryPage() {
                       {item.subscriptionName && (
                         <p className="text-xs text-primary">{item.subscriptionName}</p>
                       )}
+                      {item.maxVolume && (
+                        <p className="text-xs text-muted-foreground">Макс. объём: {item.maxVolume}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -291,6 +367,9 @@ export default function PartnerHistoryPage() {
                       <div className={`text-xs font-medium px-2 py-0.5 rounded-full mb-1 ${badge.className}`}>
                         {badge.text}
                       </div>
+                    )}
+                    {revenue !== null && (
+                      <p className="text-xs font-semibold text-green-600">{revenue} ₸</p>
                     )}
                     <p className="text-sm font-medium text-foreground">
                       {format(new Date(item.redeemedAt), 'HH:mm')}
