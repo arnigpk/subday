@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Coffee, TrendingUp, Clock, Star, Loader2, Store, Save, X, Pencil } from 'lucide-react';
+import { Coffee, TrendingUp, Clock, Loader2, Store, Save, X, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
 import { format, startOfDay, subDays } from 'date-fns';
@@ -18,7 +18,6 @@ import { SimpleAddressesEditor } from '@/components/shop/SimpleAddressesEditor';
 interface Stats {
   today: number;
   week: number;
-  popularDrink: string | null;
   peakHour: string | null;
 }
 
@@ -36,7 +35,6 @@ export default function PartnerDashboard() {
   const [stats, setStats] = useState<Stats>({
     today: 0,
     week: 0,
-    popularDrink: null,
     peakHour: null,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -72,62 +70,46 @@ export default function PartnerDashboard() {
           });
         }
 
-        // Fetch today's redemptions
-        const { count: todayCount } = await supabase
-          .from('redemptions')
-          .select('*', { count: 'exact', head: true })
-          .eq('shop_id', shopId)
-          .gte('redeemed_at', today);
+        // Fetch redemptions + completed preorders for today and week in parallel
+        const [
+          { count: todayRedemptions },
+          { count: weekRedemptions },
+          { count: todayPreorders },
+          { count: weekPreorders },
+          { data: hourlyRedemptions },
+          { data: hourlyPreorders },
+        ] = await Promise.all([
+          supabase.from('redemptions').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).gte('redeemed_at', today),
+          supabase.from('redemptions').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).gte('redeemed_at', weekAgo),
+          supabase.from('preorders').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).eq('status', 'completed').gte('completed_at', today),
+          supabase.from('preorders').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).eq('status', 'completed').gte('completed_at', weekAgo),
+          supabase.from('redemptions').select('redeemed_at').eq('shop_id', shopId).gte('redeemed_at', weekAgo),
+          supabase.from('preorders').select('completed_at').eq('shop_id', shopId).eq('status', 'completed').gte('completed_at', weekAgo),
+        ]);
 
-        // Fetch week's redemptions
-        const { count: weekCount } = await supabase
-          .from('redemptions')
-          .select('*', { count: 'exact', head: true })
-          .eq('shop_id', shopId)
-          .gte('redeemed_at', weekAgo);
-
-        // Fetch popular drink (last 30 days)
-        const { data: drinks } = await supabase
-          .from('redemptions')
-          .select('drink_name')
-          .eq('shop_id', shopId)
-          .gte('redeemed_at', subDays(new Date(), 30).toISOString());
-
-        let popularDrink: string | null = null;
-        if (drinks && drinks.length > 0) {
-          const drinkCounts: Record<string, number> = {};
-          drinks.forEach(d => {
-            drinkCounts[d.drink_name] = (drinkCounts[d.drink_name] || 0) + 1;
-          });
-          const sorted = Object.entries(drinkCounts).sort((a, b) => b[1] - a[1]);
-          popularDrink = sorted[0]?.[0] || null;
-        }
-
-        // Fetch peak hour (last 7 days)
-        const { data: hourlyData } = await supabase
-          .from('redemptions')
-          .select('redeemed_at')
-          .eq('shop_id', shopId)
-          .gte('redeemed_at', weekAgo);
+        // Peak hour from both redemptions and preorders
+        const hourCounts: Record<number, number> = {};
+        hourlyRedemptions?.forEach(r => {
+          const hour = new Date(r.redeemed_at).getHours();
+          hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        });
+        hourlyPreorders?.forEach(p => {
+          if (p.completed_at) {
+            const hour = new Date(p.completed_at).getHours();
+            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+          }
+        });
 
         let peakHour: string | null = null;
-        if (hourlyData && hourlyData.length > 0) {
-          const hourCounts: Record<number, number> = {};
-          hourlyData.forEach(r => {
-            const hour = new Date(r.redeemed_at).getHours();
-            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-          });
-          const sorted = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
-          const peak = sorted[0]?.[0];
-          if (peak !== undefined) {
-            peakHour = `${peak}:00 - ${parseInt(peak) + 1}:00`;
-          }
+        const sorted = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+        const peak = sorted[0]?.[0];
+        if (peak !== undefined) {
+          peakHour = `${peak}:00 - ${parseInt(peak) + 1}:00`;
         }
 
         setStats({
-          today: todayCount || 0,
-          week: weekCount || 0,
-          popularDrink,
+          today: (todayRedemptions || 0) + (todayPreorders || 0),
+          week: (weekRedemptions || 0) + (weekPreorders || 0),
           peakHour,
         });
       } catch (error) {
@@ -153,7 +135,6 @@ export default function PartnerDashboard() {
   const handleSave = async () => {
     if (!shopId || !editedShopData) return;
 
-    // Validate working hours format
     const hoursRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!hoursRegex.test(editedShopData.working_hours)) {
       toast.error('Неверный формат времени работы. Используйте формат ЧЧ:ММ-ЧЧ:ММ');
@@ -212,7 +193,7 @@ export default function PartnerDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-foreground">{stats.today}</p>
-              <p className="text-xs text-muted-foreground">списаний</p>
+              <p className="text-xs text-muted-foreground">продаж</p>
             </CardContent>
           </Card>
 
@@ -225,25 +206,11 @@ export default function PartnerDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-foreground">{stats.week}</p>
-              <p className="text-xs text-muted-foreground">списаний</p>
+              <p className="text-xs text-muted-foreground">продаж</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Star size={16} />
-                Популярный напиток
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-bold text-foreground">
-                {stats.popularDrink || '—'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
+          <Card className="col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Clock size={16} />
@@ -382,8 +349,6 @@ export default function PartnerDashboard() {
             </p>
           </CardContent>
         </Card>
-
-        {/* Preorders are now shown inline in history */}
       </div>
     </PartnerLayout>
   );

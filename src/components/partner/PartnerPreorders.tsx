@@ -19,7 +19,6 @@ interface Preorder {
 
 interface PartnerPreordersProps {
   shopId: string;
-  /** If provided, only show preorders for this address (barista mode) */
   filterAddress?: string | null;
 }
 
@@ -51,18 +50,20 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
 
       const userIds = [...new Set(data.map(p => p.user_id))];
       
-      // Fetch profiles and subscriptions in parallel
+      // Fetch profiles and ALL subscriptions (not just active) in parallel
       const [{ data: profiles }, { data: userSubs }] = await Promise.all([
         supabase.from('profiles').select('user_id, name, public_id').in('user_id', userIds),
         supabase.from('user_subscriptions')
-          .select('user_id, subscription_types(name, max_volume)')
+          .select('user_id, subscription_types(name, max_volume), created_at')
           .in('user_id', userIds)
-          .eq('is_active', true),
+          .order('created_at', { ascending: false }),
       ]);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      // Take the most recent subscription per user (first encountered due to desc order)
       const subMap = new Map<string, { name: string; maxVolume: string | null }>();
       userSubs?.forEach(us => {
+        if (subMap.has(us.user_id)) return; // already have most recent
         const st = us.subscription_types as any;
         if (st) subMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
       });
