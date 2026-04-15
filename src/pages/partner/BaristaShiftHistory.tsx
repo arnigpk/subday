@@ -40,7 +40,6 @@ export default function BaristaShiftHistory() {
   const [shopAddresses, setShopAddresses] = useState<string[]>([]);
   const [currentShiftAddress, setCurrentShiftAddress] = useState<string | null>(null);
 
-  // Check barista shift on mount
   useEffect(() => {
     if (!shopId || authLoading) return;
     checkShiftAddress();
@@ -51,7 +50,6 @@ export default function BaristaShiftHistory() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get shop addresses
       const { data: shop } = await supabase
         .from('shops')
         .select('addresses, address')
@@ -61,7 +59,6 @@ export default function BaristaShiftHistory() {
       const addrs = shop?.addresses?.length ? shop.addresses : (shop?.address ? [shop.address] : []);
       setShopAddresses(addrs);
 
-      // Check existing shift
       const { data: shift } = await supabase
         .from('barista_shifts')
         .select('address, expires_at')
@@ -71,7 +68,6 @@ export default function BaristaShiftHistory() {
       if (shift && new Date(shift.expires_at) > new Date()) {
         setCurrentShiftAddress(shift.address);
       } else {
-        // Need to pick address
         setShowAddressDialog(true);
       }
     } catch (e) {
@@ -128,7 +124,6 @@ export default function BaristaShiftHistory() {
         .order('created_at', { ascending: false })
         .limit(200);
 
-      // Barista: only show preorders for their shift address
       if (currentShiftAddress) {
         pQuery = pQuery.eq('shop_address', currentShiftAddress);
       }
@@ -149,52 +144,65 @@ export default function BaristaShiftHistory() {
         const [{ data: profiles }, { data: userSubs }] = await Promise.all([
           supabase.from('profiles').select('user_id, name, public_id').in('user_id', uids),
           supabase.from('user_subscriptions')
-            .select('user_id, subscription_types(name, max_volume)')
+            .select('user_id, subscription_types(name, max_volume), created_at')
             .in('user_id', uids)
-            .eq('is_active', true),
+            .order('created_at', { ascending: false }),
         ]);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        // Take most recent subscription per user
         userSubs?.forEach(us => {
+          if (userSubMap.has(us.user_id)) return;
           const st = us.subscription_types as any;
           if (st) userSubMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
         });
       }
+
+      // Also fetch subscription_types by name for redemptions that have subscription_name
+      const { data: allSubTypes } = await supabase
+        .from('subscription_types')
+        .select('name, max_volume');
+      const subTypeByName = new Map<string, { maxVolume: string | null }>();
+      allSubTypes?.forEach(st => {
+        subTypeByName.set(st.name, { maxVolume: st.max_volume });
+      });
 
       const addresses = new Set<string>();
       const combined: HistoryItem[] = [];
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
-        const sub = userSubMap.get(r.user_id);
+        const userSub = userSubMap.get(r.user_id);
+        const subName = r.subscription_name || userSub?.name || null;
+        const typeInfo = subName ? subTypeByName.get(subName) : null;
         combined.push({
           id: r.id,
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
-          subscriptionName: r.subscription_name || sub?.name || null,
+          subscriptionName: subName,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
-          maxVolume: sub?.maxVolume || null,
+          maxVolume: typeInfo?.maxVolume ?? userSub?.maxVolume ?? null,
         });
       });
 
       pData?.forEach(p => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
-        const addr = (p as any).shop_address || null;
+        const addr = p.shop_address || null;
         if (addr) addresses.add(addr);
-        const sub = userSubMap.get(p.user_id);
+        const userSub = userSubMap.get(p.user_id);
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: sub?.name || null,
+          subscriptionName: userSub?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
-          maxVolume: sub?.maxVolume || null,
+          maxVolume: userSub?.maxVolume || null,
         });
       });
 
@@ -219,7 +227,6 @@ export default function BaristaShiftHistory() {
     fetchHistory();
   }, [shopId, authLoading, fetchHistory]);
 
-  // Realtime for preorders
   useEffect(() => {
     if (!shopId) return;
     const channel = supabase

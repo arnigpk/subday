@@ -89,25 +89,26 @@ export default function PartnerHistoryPage() {
       pData?.forEach(p => userIds.add(p.user_id));
 
       let profileMap = new Map<string, any>();
-      // Fetch subscription info for each user to calculate revenue
+      // Map: user_id -> { price, cups, maxVolume, name }
       let userSubMap = new Map<string, { price: number; cups: number; maxVolume: string | null; name: string }>();
 
       if (userIds.size > 0) {
         const uids = Array.from(userIds);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, name, public_id')
-          .in('user_id', uids);
+
+        // Fetch profiles and ALL subscriptions (not just active) + subscription_types reference
+        const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+          supabase.from('profiles').select('user_id, name, public_id').in('user_id', uids),
+          supabase.from('user_subscriptions')
+            .select('user_id, subscription_type_id, created_at, subscription_types(price, cups_count, max_volume, name)')
+            .in('user_id', uids)
+            .order('created_at', { ascending: false }),
+        ]);
+
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-        // Get active subscriptions for these users
-        const { data: userSubs } = await supabase
-          .from('user_subscriptions')
-          .select('user_id, subscription_type_id, subscription_types(price, cups_count, max_volume, name)')
-          .in('user_id', uids)
-          .eq('is_active', true);
-
+        // Take the most recent subscription per user
         userSubs?.forEach(us => {
+          if (userSubMap.has(us.user_id)) return;
           const st = us.subscription_types as any;
           if (st) {
             userSubMap.set(us.user_id, {
@@ -118,47 +119,63 @@ export default function PartnerHistoryPage() {
             });
           }
         });
+
+        // Also build a name->type lookup from subscription_types for redemptions that have subscription_name
+        // This handles cases where the user's subscription changed since the redemption
       }
+
+      // Additionally, fetch all subscription_types for name-based lookup (for redemptions with subscription_name)
+      const { data: allSubTypes } = await supabase
+        .from('subscription_types')
+        .select('name, price, cups_count, max_volume');
+      const subTypeByName = new Map<string, { price: number; cups: number; maxVolume: string | null }>();
+      allSubTypes?.forEach(st => {
+        subTypeByName.set(st.name, { price: st.price, cups: st.cups_count, maxVolume: st.max_volume });
+      });
 
       const addresses = new Set<string>();
       const combined: HistoryItem[] = [];
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
-        const sub = userSubMap.get(r.user_id);
+        const userSub = userSubMap.get(r.user_id);
+        // Prefer subscription_name from the redemption record, then fall back to user's most recent sub
+        const subName = r.subscription_name || userSub?.name || null;
+        // Look up price/cups by the actual subscription name used at redemption time
+        const typeInfo = subName ? subTypeByName.get(subName) : null;
         combined.push({
           id: r.id,
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
           drinkName: r.drink_name,
-          subscriptionName: r.subscription_name || sub?.name || null,
+          subscriptionName: subName,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
-          subscriptionPrice: sub?.price || null,
-          subscriptionCups: sub?.cups || null,
-          maxVolume: sub?.maxVolume || null,
+          subscriptionPrice: typeInfo?.price ?? userSub?.price ?? null,
+          subscriptionCups: typeInfo?.cups ?? userSub?.cups ?? null,
+          maxVolume: typeInfo?.maxVolume ?? userSub?.maxVolume ?? null,
         });
       });
 
       pData?.forEach(p => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
-        const addr = (p as any).shop_address || null;
+        const addr = p.shop_address || null;
         if (addr) addresses.add(addr);
-        const sub = userSubMap.get(p.user_id);
+        const userSub = userSubMap.get(p.user_id);
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: sub?.name || null,
+          subscriptionName: userSub?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
-          subscriptionPrice: sub?.price || null,
-          subscriptionCups: sub?.cups || null,
-          maxVolume: sub?.maxVolume || null,
+          subscriptionPrice: userSub?.price ?? null,
+          subscriptionCups: userSub?.cups ?? null,
+          maxVolume: userSub?.maxVolume ?? null,
         });
       });
 
@@ -194,7 +211,6 @@ export default function PartnerHistoryPage() {
 
   // Calculate partner revenue (70%) from completed items only
   const partnerRevenue = isPartner ? items.reduce((total, item) => {
-    // Only count completed preorders and regular redemptions
     if (item.type === 'preorder' && item.status !== 'completed') return total;
     if (item.subscriptionPrice && item.subscriptionCups && item.subscriptionCups > 0) {
       const pricePerCup = item.subscriptionPrice / item.subscriptionCups;
