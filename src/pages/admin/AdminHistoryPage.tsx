@@ -132,13 +132,31 @@ export default function AdminHistoryPage() {
       pData.forEach((p: any) => userIds.add(p.user_id));
 
       let profileMap = new Map<string, any>();
+      // Map user_id -> subscription_type_id (most recent)
+      let userSubTypeId = new Map<string, string>();
+
       if (userIds.size > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, name, phone, public_id, country, city')
-          .in('user_id', Array.from(userIds));
+        const uids = Array.from(userIds);
+        const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+          supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', uids),
+          supabase.from('user_subscriptions')
+            .select('user_id, subscription_type_id, created_at')
+            .in('user_id', uids)
+            .not('subscription_type_id', 'is', null)
+            .order('created_at', { ascending: false }),
+        ]);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        userSubs?.forEach(us => {
+          if (!userSubTypeId.has(us.user_id) && us.subscription_type_id) {
+            userSubTypeId.set(us.user_id, us.subscription_type_id);
+          }
+        });
       }
+
+      // Fetch all subscription types for name lookup
+      const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name');
+      const subTypeById = new Map<string, string>();
+      allSubTypes?.forEach(st => subTypeById.set(st.id, st.name));
 
       let combined: HistoryRow[] = [];
 
@@ -152,7 +170,10 @@ export default function AdminHistoryPage() {
           drink_name: r.drink_name,
           drink_type: r.drink_type,
           redeemed_at: r.redeemed_at,
-          subscription_name: r.subscription_name,
+          subscription_name: r.subscription_name || (() => {
+            const typeId = userSubTypeId.get(r.user_id);
+            return typeId ? subTypeById.get(typeId) || null : null;
+          })(),
           user_name: profileMap.get(r.user_id)?.name || null,
           user_phone: profileMap.get(r.user_id)?.phone || null,
           user_public_id: profileMap.get(r.user_id)?.public_id || null,
@@ -162,6 +183,8 @@ export default function AdminHistoryPage() {
 
       pData.forEach((p: any) => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
+        const typeId = userSubTypeId.get(p.user_id);
+        const subName = typeId ? subTypeById.get(typeId) || null : null;
         combined.push({
           id: p.id,
           source: 'preorder',
@@ -171,7 +194,7 @@ export default function AdminHistoryPage() {
           drink_name: drinkDesc,
           drink_type: 'preorder',
           redeemed_at: p.created_at,
-          subscription_name: null,
+          subscription_name: subName,
           user_name: profileMap.get(p.user_id)?.name || null,
           user_phone: profileMap.get(p.user_id)?.phone || null,
           user_public_id: profileMap.get(p.user_id)?.public_id || null,
