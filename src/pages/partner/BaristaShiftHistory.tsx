@@ -130,50 +130,55 @@ export default function BaristaShiftHistory() {
       if (dateFrom) pQuery = pQuery.gte('created_at', dateFrom);
       if (dateTo) pQuery = pQuery.lt('created_at', dateTo);
 
-      const [{ data: rData }, { data: pData }] = await Promise.all([rQuery, pQuery]);
+      // Fetch all subscription types upfront
+      const [{ data: rData }, { data: pData }, { data: allSubTypes }] = await Promise.all([
+        rQuery,
+        pQuery,
+        supabase.from('subscription_types').select('id, name, max_volume'),
+      ]);
+
+      const subTypeById = new Map<string, { name: string; maxVolume: string | null }>();
+      const subTypeByName = new Map<string, { maxVolume: string | null }>();
+      allSubTypes?.forEach(st => {
+        subTypeById.set(st.id, { name: st.name, maxVolume: st.max_volume });
+        subTypeByName.set(st.name, { maxVolume: st.max_volume });
+      });
 
       const userIds = new Set<string>();
       rData?.forEach(r => userIds.add(r.user_id));
       pData?.forEach(p => userIds.add(p.user_id));
 
       let profileMap = new Map<string, any>();
-      let userSubMap = new Map<string, { name: string; maxVolume: string | null }>();
+      let userSubTypeId = new Map<string, string>();
 
       if (userIds.size > 0) {
         const uids = Array.from(userIds);
         const [{ data: profiles }, { data: userSubs }] = await Promise.all([
           supabase.from('profiles').select('user_id, name, public_id').in('user_id', uids),
           supabase.from('user_subscriptions')
-            .select('user_id, subscription_types(name, max_volume), created_at')
+            .select('user_id, subscription_type_id, created_at')
             .in('user_id', uids)
+            .not('subscription_type_id', 'is', null)
             .order('created_at', { ascending: false }),
         ]);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-        // Take most recent subscription per user
         userSubs?.forEach(us => {
-          if (userSubMap.has(us.user_id)) return;
-          const st = us.subscription_types as any;
-          if (st) userSubMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
+          if (!userSubTypeId.has(us.user_id) && us.subscription_type_id) {
+            userSubTypeId.set(us.user_id, us.subscription_type_id);
+          }
         });
       }
-
-      // Also fetch subscription_types by name for redemptions that have subscription_name
-      const { data: allSubTypes } = await supabase
-        .from('subscription_types')
-        .select('name, max_volume');
-      const subTypeByName = new Map<string, { maxVolume: string | null }>();
-      allSubTypes?.forEach(st => {
-        subTypeByName.set(st.name, { maxVolume: st.max_volume });
-      });
 
       const addresses = new Set<string>();
       const combined: HistoryItem[] = [];
 
       rData?.forEach(r => {
         if (r.shop_address) addresses.add(r.shop_address);
-        const userSub = userSubMap.get(r.user_id);
-        const subName = r.subscription_name || userSub?.name || null;
-        const typeInfo = subName ? subTypeByName.get(subName) : null;
+        const userTypeId = userSubTypeId.get(r.user_id);
+        const userType = userTypeId ? subTypeById.get(userTypeId) : null;
+        const subName = r.subscription_name || userType?.name || null;
+        const typeByName = subName ? subTypeByName.get(subName) : null;
+
         combined.push({
           id: r.id,
           type: 'redemption',
@@ -183,7 +188,7 @@ export default function BaristaShiftHistory() {
           subscriptionName: subName,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
-          maxVolume: typeInfo?.maxVolume ?? userSub?.maxVolume ?? null,
+          maxVolume: typeByName?.maxVolume ?? userType?.maxVolume ?? null,
         });
       });
 
@@ -191,18 +196,20 @@ export default function BaristaShiftHistory() {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = p.shop_address || null;
         if (addr) addresses.add(addr);
-        const userSub = userSubMap.get(p.user_id);
+        const userTypeId = userSubTypeId.get(p.user_id);
+        const userType = userTypeId ? subTypeById.get(userTypeId) : null;
+
         combined.push({
           id: p.id,
           type: 'preorder',
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: userSub?.name || null,
+          subscriptionName: userType?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
-          maxVolume: userSub?.maxVolume || null,
+          maxVolume: userType?.maxVolume || null,
         });
       });
 
