@@ -50,26 +50,36 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
 
       const userIds = [...new Set(data.map(p => p.user_id))];
       
-      // Fetch profiles and ALL subscriptions (not just active) in parallel
-      const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+      // Fetch profiles, user_subscriptions (just IDs), and all subscription_types separately
+      const [{ data: profiles }, { data: userSubs }, { data: allSubTypes }] = await Promise.all([
         supabase.from('profiles').select('user_id, name, public_id').in('user_id', userIds),
         supabase.from('user_subscriptions')
-          .select('user_id, subscription_types(name, max_volume), created_at')
+          .select('user_id, subscription_type_id, created_at')
           .in('user_id', userIds)
+          .not('subscription_type_id', 'is', null)
           .order('created_at', { ascending: false }),
+        supabase.from('subscription_types').select('id, name, max_volume'),
       ]);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      // Take the most recent subscription per user (first encountered due to desc order)
-      const subMap = new Map<string, { name: string; maxVolume: string | null }>();
+      
+      // Build subscription_types lookup by id
+      const subTypeById = new Map<string, { name: string; maxVolume: string | null }>();
+      allSubTypes?.forEach(st => {
+        subTypeById.set(st.id, { name: st.name, maxVolume: st.max_volume });
+      });
+
+      // Take the most recent subscription_type_id per user
+      const userSubTypeId = new Map<string, string>();
       userSubs?.forEach(us => {
-        if (subMap.has(us.user_id)) return; // already have most recent
-        const st = us.subscription_types as any;
-        if (st) subMap.set(us.user_id, { name: st.name, maxVolume: st.max_volume });
+        if (!userSubTypeId.has(us.user_id) && us.subscription_type_id) {
+          userSubTypeId.set(us.user_id, us.subscription_type_id);
+        }
       });
 
       const mapped = data.map(p => {
-        const sub = subMap.get(p.user_id);
+        const typeId = userSubTypeId.get(p.user_id);
+        const subType = typeId ? subTypeById.get(typeId) : null;
         return {
           id: p.id,
           coffee_name: p.coffee_name,
@@ -79,8 +89,8 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
           customer_name: profileMap.get(p.user_id)?.name || null,
           customer_public_id: profileMap.get(p.user_id)?.public_id || null,
           shop_address: p.shop_address || null,
-          subscription_name: sub?.name || null,
-          max_volume: sub?.maxVolume || null,
+          subscription_name: subType?.name || null,
+          max_volume: subType?.maxVolume || null,
         };
       });
 
