@@ -558,12 +558,17 @@ export type Database = {
           completed_by: string | null
           created_at: string
           id: string
+          max_volume: string | null
           qr_code: string
           qr_scanned: boolean
           shop_address: string | null
           shop_id: string
           shop_name: string
           status: string
+          subscription_cups: number | null
+          subscription_name: string | null
+          subscription_price: number | null
+          subscription_type_id: string | null
           syrup: string | null
           user_id: string
         }
@@ -574,12 +579,17 @@ export type Database = {
           completed_by?: string | null
           created_at?: string
           id?: string
+          max_volume?: string | null
           qr_code?: string
           qr_scanned?: boolean
           shop_address?: string | null
           shop_id: string
           shop_name: string
           status?: string
+          subscription_cups?: number | null
+          subscription_name?: string | null
+          subscription_price?: number | null
+          subscription_type_id?: string | null
           syrup?: string | null
           user_id: string
         }
@@ -590,12 +600,17 @@ export type Database = {
           completed_by?: string | null
           created_at?: string
           id?: string
+          max_volume?: string | null
           qr_code?: string
           qr_scanned?: boolean
           shop_address?: string | null
           shop_id?: string
           shop_name?: string
           status?: string
+          subscription_cups?: number | null
+          subscription_name?: string | null
+          subscription_price?: number | null
+          subscription_type_id?: string | null
           syrup?: string | null
           user_id?: string
         }
