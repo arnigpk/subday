@@ -74,7 +74,7 @@ export default function PartnerHistoryPage() {
 
       let pQuery = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, user_id, shop_name, shop_address')
+        .select('id, coffee_name, syrup, status, created_at, user_id, shop_name, shop_address, subscription_name, subscription_price, subscription_cups, max_volume')
         .eq('shop_id', shopId)
         .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
@@ -150,7 +150,7 @@ export default function PartnerHistoryPage() {
         });
       });
 
-      pData?.forEach(p => {
+      pData?.forEach((p: any) => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = p.shop_address || null;
         if (addr) addresses.add(addr);
@@ -163,13 +163,13 @@ export default function PartnerHistoryPage() {
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: userType?.name || null,
+          subscriptionName: p.subscription_name || userType?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
-          subscriptionPrice: userType?.price ?? 0,
-          subscriptionCups: userType?.cups ?? 0,
-          maxVolume: userType?.maxVolume ?? null,
+          subscriptionPrice: p.subscription_price ?? userType?.price ?? 0,
+          subscriptionCups: p.subscription_cups ?? userType?.cups ?? 0,
+          maxVolume: p.max_volume || userType?.maxVolume || null,
         });
       });
 

@@ -33,7 +33,7 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
     try {
       let query = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, user_id, shop_address')
+        .select('id, coffee_name, syrup, status, created_at, user_id, shop_address, subscription_name, max_volume')
         .eq('shop_id', shopId)
         .in('status', ['new', 'completed'])
         .order('created_at', { ascending: false })

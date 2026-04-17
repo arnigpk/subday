@@ -118,7 +118,7 @@ export default function BaristaShiftHistory() {
 
       let pQuery = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by')
+        .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by, subscription_name, max_volume')
         .eq('shop_id', shopId)
         .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
