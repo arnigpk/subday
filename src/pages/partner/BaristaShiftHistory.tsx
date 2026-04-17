@@ -118,7 +118,7 @@ export default function BaristaShiftHistory() {
 
       let pQuery = supabase
         .from('preorders')
-        .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by')
+        .select('id, coffee_name, syrup, status, created_at, completed_at, user_id, shop_address, completed_by, subscription_name, max_volume')
         .eq('shop_id', shopId)
         .in('status', ['new', 'completed', 'expired'])
         .order('created_at', { ascending: false })
@@ -192,7 +192,7 @@ export default function BaristaShiftHistory() {
         });
       });
 
-      pData?.forEach(p => {
+      pData?.forEach((p: any) => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const addr = p.shop_address || null;
         if (addr) addresses.add(addr);
@@ -205,11 +205,11 @@ export default function BaristaShiftHistory() {
           customerName: profileMap.get(p.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(p.user_id)?.public_id || null,
           drinkName: drinkDesc,
-          subscriptionName: userType?.name || null,
+          subscriptionName: p.subscription_name || userType?.name || null,
           shopAddress: addr,
           redeemedAt: p.created_at,
           status: p.status,
-          maxVolume: userType?.maxVolume || null,
+          maxVolume: p.max_volume || userType?.maxVolume || null,
         });
       });
 

@@ -247,7 +247,6 @@ Deno.serve(async (req) => {
       pg_success_url_method: 'GET',
       pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
       pg_failure_url_method: 'GET',
-      pg_testing_mode: '1',
       pg_idempotency_key: orderId,
       pg_user_id: authUser.id,
       pg_payment_route: 'frame',

@@ -184,7 +184,8 @@ export default function AdminHistoryPage() {
       pData.forEach((p: any) => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const typeId = userSubTypeId.get(p.user_id);
-        const subName = typeId ? subTypeById.get(typeId) || null : null;
+        const fallbackName = typeId ? subTypeById.get(typeId) || null : null;
+        const subName = p.subscription_name || fallbackName;
         combined.push({
           id: p.id,
           source: 'preorder',
