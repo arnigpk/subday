@@ -77,7 +77,7 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
         }
       });
 
-      const mapped = data.map(p => {
+      const mapped = data.map((p: any) => {
         const typeId = userSubTypeId.get(p.user_id);
         const subType = typeId ? subTypeById.get(typeId) : null;
         return {
@@ -89,8 +89,8 @@ export function PartnerPreorders({ shopId, filterAddress }: PartnerPreordersProp
           customer_name: profileMap.get(p.user_id)?.name || null,
           customer_public_id: profileMap.get(p.user_id)?.public_id || null,
           shop_address: p.shop_address || null,
-          subscription_name: subType?.name || null,
-          max_volume: subType?.maxVolume || null,
+          subscription_name: p.subscription_name || subType?.name || null,
+          max_volume: p.max_volume || subType?.maxVolume || null,
         };
       });
 
