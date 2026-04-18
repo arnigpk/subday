@@ -36,6 +36,7 @@ const defaultForm = {
   threshold: 0,
   milestones: '',
   cooldown_minutes: 60,
+  in_app_enabled: true,
 };
 
 const triggerLabels: Record<string, string> = {
@@ -165,6 +166,7 @@ export default function AdminAutoNotificationsPage() {
       threshold: config?.threshold || 0,
       milestones: config?.milestones ? config.milestones.join(', ') : '',
       cooldown_minutes: config?.cooldown_minutes || 60,
+      in_app_enabled: config?.in_app_enabled !== false,
     });
     setDialogOpen(true);
   };
@@ -206,6 +208,11 @@ export default function AdminAutoNotificationsPage() {
     }
     if (isSubflowTrigger(form.trigger_type)) {
       triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
+    }
+    // in_app_enabled: only meaningful when channel includes push (push or both)
+    // Telegram-only channels don't have in-app notifications
+    if (form.channel === 'push' || form.channel === 'both') {
+      triggerConfig.in_app_enabled = form.in_app_enabled;
     }
 
     const payload = {
