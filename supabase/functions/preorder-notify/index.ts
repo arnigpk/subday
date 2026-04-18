@@ -85,6 +85,8 @@ Deno.serve(async (req) => {
     // Build message from template or use default
     let notificationMessage: string;
     const channel = template?.channel || 'both';
+    // in_app_enabled defaults to true for backward compatibility; can be disabled per-template in admin
+    const inAppEnabled = (template?.trigger_config as any)?.in_app_enabled !== false;
     if (template?.message_template) {
       notificationMessage = template.message_template;
       for (const [key, value] of Object.entries(variables)) {
@@ -147,8 +149,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Create in-app push notifications for staff
-    if (channel === 'push' || channel === 'both') {
+    // 2. Create in-app push notifications for staff (independent of FCM device push)
+    if ((channel === 'push' || channel === 'both') && inAppEnabled) {
       const pushRows = staffUserIds.map((userId: string) => ({
         title: pushTitle,
         message: pushBody,

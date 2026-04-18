@@ -36,6 +36,7 @@ const defaultForm = {
   threshold: 0,
   milestones: '',
   cooldown_minutes: 60,
+  in_app_enabled: true,
 };
 
 const triggerLabels: Record<string, string> = {
@@ -165,6 +166,7 @@ export default function AdminAutoNotificationsPage() {
       threshold: config?.threshold || 0,
       milestones: config?.milestones ? config.milestones.join(', ') : '',
       cooldown_minutes: config?.cooldown_minutes || 60,
+      in_app_enabled: config?.in_app_enabled !== false,
     });
     setDialogOpen(true);
   };
@@ -206,6 +208,11 @@ export default function AdminAutoNotificationsPage() {
     }
     if (isSubflowTrigger(form.trigger_type)) {
       triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
+    }
+    // in_app_enabled: only meaningful when channel includes push (push or both)
+    // Telegram-only channels don't have in-app notifications
+    if (form.channel === 'push' || form.channel === 'both') {
+      triggerConfig.in_app_enabled = form.in_app_enabled;
     }
 
     const payload = {
@@ -522,6 +529,23 @@ export default function AdminAutoNotificationsPage() {
                 {getVariablesHelp(form.trigger_type)}
               </p>
             </div>
+            {(form.channel === 'push' || form.channel === 'both') && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                <Switch
+                  checked={form.in_app_enabled}
+                  onCheckedChange={v => setForm(f => ({ ...f, in_app_enabled: v }))}
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">In-app уведомление</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isSubflowTrigger(form.trigger_type)
+                      ? 'Показывать в колокольчике #subFlow в приложении'
+                      : 'Показывать в колокольчике уведомлений на главной'}
+                    . FCM push на устройство будет отправляться независимо.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
               <span className="text-sm">Активен</span>
@@ -580,6 +604,11 @@ function TemplateCard({ template: t, onEdit, onDelete, onToggle, getChannelIcon,
             {config?.cooldown_minutes && (
               <span className="px-2 py-1 bg-muted rounded-lg">
                 Кулдаун: {config.cooldown_minutes} мин
+              </span>
+            )}
+            {(t.channel === 'push' || t.channel === 'both') && (
+              <span className={`px-2 py-1 rounded-lg ${config?.in_app_enabled === false ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+                In-app: {config?.in_app_enabled === false ? 'выкл' : 'вкл'}
               </span>
             )}
           </div>

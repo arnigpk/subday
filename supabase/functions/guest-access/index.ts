@@ -70,7 +70,7 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
   try {
     const { data: template } = await supabase
       .from("auto_notification_templates")
-      .select("message_template, channel, is_active")
+      .select("message_template, channel, is_active, trigger_config")
       .eq("trigger_type", "guest_coffee")
       .eq("is_active", true)
       .maybeSingle();
@@ -79,6 +79,7 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
 
     const message = template.message_template;
     const channel: string = template.channel || "both";
+    const inAppEnabled = (template.trigger_config as any)?.in_app_enabled !== false;
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -120,11 +121,14 @@ async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string)
       }
     }
 
-    await supabase.from("push_notifications").insert({
-      user_id: inviteeUserId,
-      title: "Подарок от друга ☕",
-      message: message,
-    });
+    // In-app notification — only if channel includes push AND in_app_enabled
+    if ((channel === "push" || channel === "both") && inAppEnabled) {
+      await supabase.from("push_notifications").insert({
+        user_id: inviteeUserId,
+        title: "Подарок от друга ☕",
+        message: message,
+      });
+    }
   } catch (err) {
     console.error("Guest notification error:", err);
   }
