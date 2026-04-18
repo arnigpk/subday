@@ -5,18 +5,11 @@ import { toast } from 'sonner';
 
 interface UsePaymentResult {
   isProcessing: boolean;
-  paymentUrl: string | null;
-  orderId: string | null;
-  showPaymentFrame: boolean;
-  setShowPaymentFrame: (show: boolean) => void;
   createPayment: (subscriptionTypeId: string) => Promise<void>;
 }
 
 export function usePayment(): UsePaymentResult {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [showPaymentFrame, setShowPaymentFrame] = useState(false);
   const location = useLocation();
 
   const createPayment = async (subscriptionTypeId: string) => {
@@ -27,6 +20,7 @@ export function usePayment(): UsePaymentResult {
 
       if (!session) {
         toast.error('Необходимо авторизоваться');
+        setIsProcessing(false);
         return;
       }
 
@@ -41,31 +35,27 @@ export function usePayment(): UsePaymentResult {
       if (error) {
         console.error('Payment creation error:', error);
         toast.error('Ошибка создания платежа');
+        setIsProcessing(false);
         return;
       }
 
       if (data?.payment_url) {
-        setPaymentUrl(data.payment_url);
-        setOrderId(data.order_id || null);
-        setShowPaymentFrame(true);
+        // Redirect to FreedomPay frame route — acquirer renders its own frame UI
+        window.location.href = data.payment_url;
       } else {
         console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
+        setIsProcessing(false);
       }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Произошла ошибка при создании платежа');
-    } finally {
       setIsProcessing(false);
     }
   };
 
   return {
     isProcessing,
-    paymentUrl,
-    orderId,
-    showPaymentFrame,
-    setShowPaymentFrame,
     createPayment,
   };
 }
