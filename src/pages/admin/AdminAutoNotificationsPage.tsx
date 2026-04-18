@@ -529,6 +529,23 @@ export default function AdminAutoNotificationsPage() {
                 {getVariablesHelp(form.trigger_type)}
               </p>
             </div>
+            {(form.channel === 'push' || form.channel === 'both') && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                <Switch
+                  checked={form.in_app_enabled}
+                  onCheckedChange={v => setForm(f => ({ ...f, in_app_enabled: v }))}
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">In-app уведомление</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isSubflowTrigger(form.trigger_type)
+                      ? 'Показывать в колокольчике #subFlow в приложении'
+                      : 'Показывать в колокольчике уведомлений на главной'}
+                    . FCM push на устройство будет отправляться независимо.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
               <span className="text-sm">Активен</span>
