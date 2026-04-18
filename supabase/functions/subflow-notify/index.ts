@@ -52,6 +52,8 @@ Deno.serve(async (req) => {
     const cooldownMinutes = (template?.trigger_config as any)?.cooldown_minutes || DEFAULT_COOLDOWN_MINUTES;
     const messageTemplate = template?.message_template || null;
     const channel = template?.channel || 'both';
+    // in_app_enabled controls whether subflow_notifications (in-app bell) entries are created
+    const inAppEnabled = (template?.trigger_config as any)?.in_app_enabled !== false;
 
     const { data: actorProfile } = await supabase
       .from('profiles')
@@ -74,13 +76,15 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      await supabase.from('subflow_notifications').insert({
-        user_id: post.user_id,
-        actor_id: actorId,
-        type: 'reaction',
-        post_id: postId,
-        reaction: reaction || null,
-      });
+      if (inAppEnabled) {
+        await supabase.from('subflow_notifications').insert({
+          user_id: post.user_id,
+          actor_id: actorId,
+          type: 'reaction',
+          post_id: postId,
+          reaction: reaction || null,
+        });
+      }
 
       const cooldownCheck = await checkCooldown(supabase, post.user_id, 'reaction', null, cooldownMinutes);
       if (cooldownCheck.shouldSend) {
@@ -140,14 +144,16 @@ Deno.serve(async (req) => {
 
       const contentPreview = post ? post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '') : '';
 
-      // ALWAYS insert in-app notifications for all followers
-      const notifications = followers.map(f => ({
-        user_id: f.follower_id,
-        actor_id: actorId,
-        type: 'new_post',
-        post_id: postId,
-      }));
-      await supabase.from('subflow_notifications').insert(notifications);
+      // Insert in-app notifications for all followers (only if enabled)
+      if (inAppEnabled) {
+        const notifications = followers.map(f => ({
+          user_id: f.follower_id,
+          actor_id: actorId,
+          type: 'new_post',
+          post_id: postId,
+        }));
+        await supabase.from('subflow_notifications').insert(notifications);
+      }
 
       // Telegram/push for all followers
       const message = renderTemplate(messageTemplate || '📝 {{actor_name}} опубликовал(а) новый пост:\n«{{preview}}»', {
@@ -177,13 +183,15 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // ALWAYS insert in-app notification
-      await supabase.from('subflow_notifications').insert({
-        user_id: post.user_id,
-        actor_id: actorId,
-        type: 'comment',
-        post_id: postId,
-      });
+      // Insert in-app notification (only if enabled)
+      if (inAppEnabled) {
+        await supabase.from('subflow_notifications').insert({
+          user_id: post.user_id,
+          actor_id: actorId,
+          type: 'comment',
+          post_id: postId,
+        });
+      }
 
       // Telegram/push: global count across ALL user's posts
       const cooldownCheck = await checkCooldown(supabase, post.user_id, 'comment', null, cooldownMinutes);
@@ -205,12 +213,14 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // ALWAYS insert in-app notification
-      await supabase.from('subflow_notifications').insert({
-        user_id: targetUserId,
-        actor_id: actorId,
-        type: 'follow',
-      });
+      // Insert in-app notification (only if enabled)
+      if (inAppEnabled) {
+        await supabase.from('subflow_notifications').insert({
+          user_id: targetUserId,
+          actor_id: actorId,
+          type: 'follow',
+        });
+      }
 
       // Telegram/push only with cooldown
       const cooldownCheck = await checkCooldown(supabase, targetUserId, 'follow', null, cooldownMinutes);
