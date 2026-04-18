@@ -327,6 +327,7 @@ Deno.serve(async (req) => {
     }
 
     const channel = matchedTemplate?.channel || 'telegram';
+    const inAppEnabled = (matchedTemplate?.trigger_config as any)?.in_app_enabled !== false;
     const title = getNotificationTitle(type);
     let telegramSent = false;
     let pushInAppCreated = false;
@@ -337,22 +338,26 @@ Deno.serve(async (req) => {
       telegramSent = await sendTelegramMessage(telegramId, message, telegramBotToken);
     }
 
-    // Send Push notification if applicable (in-app + FCM device push)
+    // Send Push notification if applicable (in-app + FCM device push are independent)
     if (channel === 'push' || channel === 'both') {
-      // 1. Create in-app notification (visible in notification bell)
-      try {
-        await supabase.from('push_notifications').insert({
-          title,
-          message,
-          user_id: userId,
-        });
-        pushInAppCreated = true;
-        console.log('In-app notification created');
-      } catch (pushErr) {
-        console.error('In-app notification error:', pushErr);
+      // 1. Create in-app notification (visible in notification bell) — only if in_app_enabled
+      if (inAppEnabled) {
+        try {
+          await supabase.from('push_notifications').insert({
+            title,
+            message,
+            user_id: userId,
+          });
+          pushInAppCreated = true;
+          console.log('In-app notification created');
+        } catch (pushErr) {
+          console.error('In-app notification error:', pushErr);
+        }
+      } else {
+        console.log('In-app notification skipped (disabled in template)');
       }
 
-      // 2. Send actual FCM device push notification
+      // 2. Send actual FCM device push notification (always, if channel includes push)
       fcmResult = await sendFcmPushToUser(supabase, userId, title, message);
       console.log('FCM push result:', fcmResult);
     }
