@@ -329,7 +329,9 @@ export function StoryViewer(props: StoryViewerProps) {
       setHasLiked(true);
       setLikesCount(prev => prev + 1);
       try {
-        await supabase.from('subflow_notifications').insert({
+        // In-app notification is now created server-side in subflow-notify
+        // (respects the in_app_enabled toggle in the template)
+        const _placeholder = ({
           user_id: story.user_id,
           actor_id: currentUserId,
           type: 'story_like',

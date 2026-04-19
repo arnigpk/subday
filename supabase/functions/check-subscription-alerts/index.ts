@@ -92,18 +92,23 @@ Deno.serve(async (req) => {
 
             for (const threshold of lowThresholds) {
               if (remaining === threshold) {
-                // Check if we already sent this alert
+                // Check if we already sent this alert (independent of in-app toggle)
                 const alertKey = `low_balance_${st.type}_${threshold}`;
                 const { data: existing } = await supabase
-                  .from('push_notifications')
+                  .from('notification_dedupe_log')
                   .select('id')
                   .eq('user_id', user.user_id)
-                  .like('title', '%Низкий баланс%')
-                  .like('message', `%${threshold}%`)
+                  .eq('alert_key', alertKey)
                   .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
                   .limit(1);
 
                 if (existing && existing.length > 0) continue;
+
+                // Mark as sent (dedupe before fire-and-forget invoke)
+                await supabase.from('notification_dedupe_log').insert({
+                  user_id: user.user_id,
+                  alert_key: alertKey,
+                });
 
                 // Send notification
                 await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
@@ -148,17 +153,23 @@ Deno.serve(async (req) => {
               const st = sub.subscription_types as any;
               if (!st) continue;
 
-              // Check if already sent
+              // Check if already sent (independent of in-app toggle)
+              const alertKey = `expiring_soon_${st.type}_${threshold}`;
               const { data: existing } = await supabase
-                .from('push_notifications')
+                .from('notification_dedupe_log')
                 .select('id')
                 .eq('user_id', sub.user_id)
-                .like('title', '%заканчивается%')
-                .like('message', `%${threshold}%`)
+                .eq('alert_key', alertKey)
                 .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
                 .limit(1);
 
               if (existing && existing.length > 0) continue;
+
+              // Mark as sent
+              await supabase.from('notification_dedupe_log').insert({
+                user_id: sub.user_id,
+                alert_key: alertKey,
+              });
 
               await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
                 method: 'POST',
