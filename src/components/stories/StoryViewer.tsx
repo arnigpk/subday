@@ -328,24 +328,17 @@ export function StoryViewer(props: StoryViewerProps) {
       await supabase.from('story_likes').insert({ story_id: story.id, user_id: currentUserId });
       setHasLiked(true);
       setLikesCount(prev => prev + 1);
-      try {
-        await supabase.from('subflow_notifications').insert({
-          user_id: story.user_id,
-          actor_id: currentUserId,
+      // In-app notification + push/telegram are both created server-side in subflow-notify
+      // (respects the in_app_enabled toggle in the template)
+      supabase.functions.invoke('subflow-notify', {
+        body: {
           type: 'story_like',
-          post_id: story.id,
+          actorId: currentUserId,
+          targetUserId: story.user_id,
+          postId: story.id,
           reaction: '❤️',
-        });
-        // Send push/telegram notification via edge function
-        supabase.functions.invoke('subflow-notify', {
-          body: {
-            type: 'story_like',
-            actorId: currentUserId,
-            targetUserId: story.user_id,
-            postId: story.id,
-          },
-        }).catch(() => {});
-      } catch {}
+        },
+      }).catch(() => {});
     }
   };
 

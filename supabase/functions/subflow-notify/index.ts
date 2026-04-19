@@ -240,7 +240,17 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
       }
 
-      // In-app notification is already inserted from the client
+      // In-app notification: only insert if enabled in template
+      if (inAppEnabled) {
+        await supabase.from('subflow_notifications').insert({
+          user_id: targetUserId,
+          actor_id: actorId,
+          type: 'story_like',
+          post_id: postId || null,
+          reaction: reaction || '❤️',
+        });
+      }
+
       // Send external (Telegram/Push) notification
       const message = renderTemplate(messageTemplate || '❤️ {{actor_name}} понравилась ваша история!', {
         count: '1',
