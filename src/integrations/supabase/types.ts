@@ -473,6 +473,27 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_dedupe_log: {
+        Row: {
+          alert_key: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          alert_key: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          alert_key?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           code: string
