@@ -82,11 +82,11 @@ export function useUserStats() {
 
     let statsData = statsResult.data;
     if (!statsData) {
-      const { data: newStats, error } = await supabase
-        .from('user_stats')
-        .insert({ user_id: user.id, coffee_remaining: 0, coffee_total: 0, drinks_remaining: 0, drinks_total: 0, current_streak: 0, max_streak: 0, total_cups: 0, bonus_points: 0 })
-        .select().single();
-      if (!error && newStats) statsData = newStats;
+      // user_stats мутации запрещены клиенту RLS — используем SECURITY DEFINER функцию
+      await supabase.rpc('ensure_user_stats', { _user_id: user.id });
+      const { data: refetched } = await supabase
+        .from('user_stats').select('*').eq('user_id', user.id).maybeSingle();
+      if (refetched) statsData = refetched;
     }
 
     if (statsData) {
@@ -123,93 +123,16 @@ export function useUserStats() {
     fetchData();
   }, [fetchData]);
 
+  // DEPRECATED: клиентское списание отключено по соображениям безопасности.
+  // Все списания проходят через edge function partner-scan-qr (service role).
   const redeemDrink = async (
-    shopName: string,
-    shopId: string,
-    drinkName: string,
-    drinkType: 'coffee' | 'drinks'
+    _shopName: string,
+    _shopId: string,
+    _drinkName: string,
+    _drinkType: 'coffee' | 'drinks'
   ): Promise<boolean> => {
-    if (!userId) return false;
-
-    // Check if user has remaining drinks
-    const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
-    if (remaining <= 0) return false;
-
-    const today = new Date().toISOString().split('T')[0];
-    const isNewDay = stats.lastRedemptionDate !== today;
-    
-    // Calculate new streak
-    let newStreak = stats.currentStreak;
-    if (isNewDay) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      if (stats.lastRedemptionDate === yesterdayStr) {
-        newStreak = stats.currentStreak + 1;
-      } else if (!stats.lastRedemptionDate) {
-        newStreak = 1;
-      } else {
-        newStreak = 1; // Reset streak if not consecutive
-      }
-    }
-
-    const newMaxStreak = Math.max(newStreak, stats.maxStreak);
-    const bonusForRedemption = 10; // Bonus points per redemption
-
-    // Update stats
-    const newStats = {
-      coffee_remaining: drinkType === 'coffee' ? stats.coffeeRemaining - 1 : stats.coffeeRemaining,
-      drinks_remaining: drinkType === 'drinks' ? stats.drinksRemaining - 1 : stats.drinksRemaining,
-      current_streak: newStreak,
-      max_streak: newMaxStreak,
-      total_cups: stats.totalCups + 1,
-      bonus_points: stats.bonusPoints + bonusForRedemption,
-      last_redemption_date: today,
-    };
-
-    const { error: statsError } = await supabase
-      .from('user_stats')
-      .update(newStats)
-      .eq('user_id', userId);
-
-    if (statsError) {
-      console.error('Error updating stats:', statsError);
-      return false;
-    }
-
-    // Insert redemption record
-    const { error: redemptionError } = await supabase
-      .from('redemptions')
-      .insert({
-        user_id: userId,
-        shop_name: shopName,
-        shop_id: shopId,
-        drink_name: drinkName,
-        drink_type: drinkType,
-      });
-
-    if (redemptionError) {
-      console.error('Error inserting redemption:', redemptionError);
-      return false;
-    }
-
-    // Update local state
-    setStats({
-      ...stats,
-      coffeeRemaining: newStats.coffee_remaining,
-      drinksRemaining: newStats.drinks_remaining,
-      currentStreak: newStreak,
-      maxStreak: newMaxStreak,
-      totalCups: stats.totalCups + 1,
-      bonusPoints: stats.bonusPoints + bonusForRedemption,
-      lastRedemptionDate: today,
-    });
-
-    // Refresh all data
-    await fetchData();
-
-    return true;
+    console.warn('[useUserStats] redeemDrink deprecated — use partner-scan-qr edge function');
+    return false;
   };
 
   const updateAvatar = async (avatarUrl: string): Promise<boolean> => {

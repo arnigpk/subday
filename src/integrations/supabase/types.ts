@@ -1722,6 +1722,17 @@ export type Database = {
         Args: { _invitee_id: string; _invitee_phone: string }
         Returns: Json
       }
+      create_preorder_with_deduction: {
+        Args: {
+          _coffee_name: string
+          _shop_address: string
+          _shop_id: string
+          _shop_name: string
+          _syrup: string
+        }
+        Returns: Json
+      }
+      ensure_user_stats: { Args: { _user_id: string }; Returns: undefined }
       expire_subscriptions: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_banner_analytics: {
@@ -1733,6 +1744,30 @@ export type Database = {
         }[]
       }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
+      get_public_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          avatar_url: string
+          city: string
+          country: string
+          name: string
+          public_id: string
+          subflow_nickname: string
+          user_id: string
+        }[]
+      }
+      get_public_profiles_batch: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          city: string
+          country: string
+          name: string
+          public_id: string
+          subflow_nickname: string
+          user_id: string
+        }[]
+      }
       get_shop_visit_counts: {
         Args: never
         Returns: {
@@ -1768,6 +1803,7 @@ export type Database = {
               views: number
             }[]
           }
+      get_user_phone: { Args: { _user_id: string }; Returns: string }
       grant_guest_access:
         | {
             Args: {

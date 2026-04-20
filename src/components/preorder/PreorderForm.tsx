@@ -45,35 +45,26 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, addresses, onS
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Deduct 1 coffee from subscription
-      const { error: statsError } = await supabase
-        .from('user_stats')
-        .update({ coffee_remaining: coffeeRemaining - 1 })
-        .eq('user_id', user.id);
-
-      if (statsError) throw statsError;
-
       const addr = selectedAddress || addresses[0] || null;
 
-      // Create preorder
-      const { data, error } = await supabase
-        .from('preorders')
-        .insert({
-          user_id: user.id,
-          shop_id: shopId,
-          shop_name: shopName,
-          coffee_name: coffeeName.trim(),
-          syrup: syrup.trim() || null,
-          shop_address: addr,
-        })
-        .select('id, qr_code, created_at')
-        .single();
+      // Атомарное создание предзаказа со списанием на сервере (защита от накрутки)
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'create_preorder_with_deduction',
+        {
+          _shop_id: shopId,
+          _shop_name: shopName,
+          _coffee_name: coffeeName.trim(),
+          _syrup: syrup.trim() || null,
+          _shop_address: addr,
+        }
+      );
 
-      if (error) {
-        // Rollback coffee deduction
-        await supabase.from('user_stats').update({ coffee_remaining: coffeeRemaining }).eq('user_id', user.id);
-        throw error;
+      if (rpcError) throw rpcError;
+      const result = rpcData as { success: boolean; error?: string; id?: string; qr_code?: string; created_at?: string };
+      if (!result?.success) {
+        throw new Error(result?.error || 'preorder_failed');
       }
+      const data = { id: result.id!, qr_code: result.qr_code!, created_at: result.created_at! };
 
       // Notify baristas via edge function (fire-and-forget)
       supabase.functions.invoke('preorder-notify', {
