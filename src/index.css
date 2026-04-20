@@ -70,9 +70,9 @@
     --safe-area-top-base: env(safe-area-inset-top, 0px);
     --safe-area-bottom-base: env(safe-area-inset-bottom, 0px);
     --safe-area-top-offset: 12px;
-    --safe-area-bottom-offset: 16px;
-    --app-nav-height: 76px;
-    --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 8px);
+    --safe-area-bottom-offset: 6px;
+    --app-nav-height: 64px;
+    --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 4px);
     --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 24px);
     --app-floating-clearance: calc(var(--app-nav-total-height) + 12px);
     --app-floating-clearance-compact: calc(var(--app-nav-total-height));
@@ -239,7 +239,7 @@
   }
 
   .app-nav-shell {
-    padding-bottom: calc(var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 8px);
+    padding-bottom: calc(var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 4px);
   }
 
   .app-nav-bar {
@@ -302,23 +302,25 @@
   
   /* Liquid Glass Navigation */
   .liquid-glass-nav {
-    background: hsl(var(--card) / 0.65);
-    backdrop-filter: blur(24px) saturate(1.8);
-    -webkit-backdrop-filter: blur(24px) saturate(1.8);
-    border: 1px solid hsl(var(--border) / 0.4);
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(28px) saturate(2);
+    -webkit-backdrop-filter: blur(28px) saturate(2);
+    border: 0.5px solid hsl(var(--border) / 0.3);
     box-shadow: 
-      0 -1px 0 0 hsl(var(--foreground) / 0.03) inset,
-      0 1px 3px hsl(var(--foreground) / 0.06),
-      0 8px 24px -4px hsl(var(--foreground) / 0.08);
+      0 -1px 0 0 hsl(var(--foreground) / 0.02) inset,
+      0 0 0 0.5px hsl(var(--background) / 0.5) inset,
+      0 2px 8px hsl(var(--foreground) / 0.06),
+      0 8px 32px -8px hsl(var(--foreground) / 0.1);
   }
 
   .dark .liquid-glass-nav {
-    background: hsl(var(--card) / 0.55);
-    border-color: hsl(var(--foreground) / 0.08);
+    background: hsl(var(--card) / 0.5);
+    border-color: hsl(var(--foreground) / 0.06);
     box-shadow: 
-      0 -1px 0 0 hsl(var(--foreground) / 0.06) inset,
-      0 1px 3px hsl(0 0% 0% / 0.3),
-      0 8px 24px -4px hsl(0 0% 0% / 0.4);
+      0 -1px 0 0 hsl(var(--foreground) / 0.04) inset,
+      0 0 0 0.5px hsl(var(--foreground) / 0.03) inset,
+      0 2px 8px hsl(0 0% 0% / 0.3),
+      0 8px 32px -8px hsl(0 0% 0% / 0.5);
   }
 
   .liquid-nav-active {
@@ -330,13 +332,15 @@
   }
 
   .liquid-nav-pill {
-    background: hsl(var(--accent) / 0.1);
-    border: 1px solid hsl(var(--accent) / 0.15);
+    background: linear-gradient(135deg, hsl(var(--accent) / 0.12), hsl(var(--accent) / 0.06));
+    border: 1px solid hsl(var(--accent) / 0.18);
+    box-shadow: 0 0 12px hsl(var(--accent) / 0.08);
   }
 
   .dark .liquid-nav-pill {
-    background: hsl(var(--accent) / 0.12);
-    border-color: hsl(var(--accent) / 0.2);
+    background: linear-gradient(135deg, hsl(var(--accent) / 0.15), hsl(var(--accent) / 0.08));
+    border-color: hsl(var(--accent) / 0.22);
+    box-shadow: 0 0 16px hsl(var(--accent) / 0.1);
   }
 
   /* Liquid Glass Header */
