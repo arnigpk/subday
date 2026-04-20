@@ -117,7 +117,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50 max-w-full overflow-hidden">
         <div className="safe-area-top" />
         <div className="flex items-center justify-between px-4 pb-2 pt-2">
           <div>
@@ -161,10 +161,12 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 md:overflow-auto">
-        <div className="p-4 pb-10 safe-area-bottom admin-mobile-content-safe md:p-8 md:pt-8 md:pb-8">
-          <h2 className="text-2xl font-bold mb-6">{title}</h2>
-          {children}
+      <main className="flex-1 min-w-0 w-full md:overflow-auto overflow-x-hidden">
+        <div className="px-3 sm:px-4 pb-10 safe-area-bottom admin-mobile-content-safe md:p-8 md:pt-8 md:pb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 break-words">{title}</h2>
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 md:overflow-visible">
+            {children}
+          </div>
         </div>
       </main>
     </div>

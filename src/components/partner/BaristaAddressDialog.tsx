@@ -46,28 +46,28 @@ export function BaristaAddressDialog({ open, onSelect, addresses, shopId }: Bari
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-sm mx-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-sm mx-auto w-[calc(100vw-2rem)]" onPointerDownOutside={(e) => e.preventDefault()} aria-describedby="barista-addr-desc">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MapPin size={20} className="text-primary" />
-            Выберите адрес смены
+            <MapPin size={20} className="text-primary shrink-0" />
+            <span>Выберите адрес смены</span>
           </DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground mb-2">
+        <p id="barista-addr-desc" className="text-sm text-muted-foreground mb-2">
           На каком адресе вы сейчас работаете?
         </p>
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           {addresses.map((addr, i) => (
             <Button
               key={i}
               variant="outline"
-              className="w-full justify-start text-left h-auto py-3"
+              className="w-full justify-start text-left h-auto py-3 whitespace-normal"
               disabled={selecting !== null}
               onClick={() => handleSelect(addr)}
             >
               <MapPin size={16} className="mr-2 shrink-0 text-primary" />
-              <span className="truncate">{addr}</span>
-              {selecting === addr && <span className="ml-auto text-xs text-muted-foreground">...</span>}
+              <span className="break-words flex-1 min-w-0">{addr}</span>
+              {selecting === addr && <span className="ml-2 text-xs text-muted-foreground shrink-0">...</span>}
             </Button>
           ))}
         </div>

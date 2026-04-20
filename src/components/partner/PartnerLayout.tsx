@@ -42,57 +42,57 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       ];
 
   return (
-    <div className="min-safe-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="bg-card border-b border-border">
+    <div className="min-safe-screen bg-background flex flex-col overflow-x-hidden">
+      {/* Header — sticky for long lists */}
+      <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="safe-area-top" />
-        <div className="flex items-center justify-between px-4 pb-2 pt-2">
-          <div>
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 pb-2 pt-2">
+          <div className="min-w-0 flex-1">
             <button 
               onClick={handleBackToApp}
-              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-sm mb-1"
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm mb-1"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
               <span>В приложение</span>
             </button>
-            <h1 className="text-lg font-bold text-foreground">
+            <h1 className="text-base sm:text-lg font-bold text-foreground truncate">
               {shopName || 'Партнёрский кабинет'}
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {isPartner ? 'Владелец' : 'Бариста'}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="shrink-0">
             <LogOut size={20} />
           </Button>
         </div>
+
+        {/* Navigation */}
+        <nav className="border-t border-border px-2">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${
+                    isActive
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <item.icon size={16} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-card border-b border-border px-2">
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                  isActive
-                    ? 'text-primary border-b-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
       {/* Main Content */}
-      <main className="flex-1 min-h-0 overflow-auto pb-8 safe-area-bottom">
+      <main className="flex-1 min-h-0 overflow-auto pb-8 safe-area-bottom w-full">
         {children}
       </main>
     </div>

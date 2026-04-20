@@ -281,28 +281,29 @@ export default function BaristaShiftHistory() {
 
   return (
     <PartnerLayout>
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground">Моя смена</h2>
+      <div className="p-3 sm:p-4 space-y-4 max-w-full overflow-x-hidden">
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">Моя смена</h2>
           {currentShiftAddress && (
             <button
               onClick={() => setShowAddressDialog(true)}
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
+              className="text-xs text-primary flex items-center gap-1 hover:underline max-w-[60%] min-w-0"
             >
-              <MapPin size={12} />
-              {currentShiftAddress}
+              <MapPin size={12} className="shrink-0" />
+              <span className="truncate">{currentShiftAddress}</span>
             </button>
           )}
         </div>
 
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" />
             {filterButtons.map((f) => (
               <Button
                 key={f.value}
                 variant={dateFilter === f.value ? 'default' : 'outline'}
                 size="sm"
+                className="text-xs sm:text-sm h-8 px-2.5 sm:px-3"
                 onClick={() => setDateFilter(f.value)}
               >
                 {f.label}
@@ -311,9 +312,9 @@ export default function BaristaShiftHistory() {
           </div>
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2 flex-wrap">
-              <Input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} className="w-36 h-8 text-sm" />
+              <Input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} className="flex-1 min-w-[130px] sm:flex-initial sm:w-36 h-8 text-sm" />
               <span className="text-sm text-muted-foreground">—</span>
-              <Input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} className="w-36 h-8 text-sm" />
+              <Input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} className="flex-1 min-w-[130px] sm:flex-initial sm:w-36 h-8 text-sm" />
             </div>
           )}
         </div>
@@ -353,42 +354,42 @@ export default function BaristaShiftHistory() {
             {items.map((item) => {
               const badge = getStatusBadge(item);
               return (
-                <div key={`${item.type}-${item.id}`} className="bg-card p-4 rounded-xl border border-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                <div key={`${item.type}-${item.id}`} className="bg-card p-3 sm:p-4 rounded-xl border border-border flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full flex items-center justify-center ${
                       item.type === 'preorder'
                         ? item.status === 'completed' ? 'bg-accent/10' : 'bg-amber-500/10'
                         : 'bg-primary/10'
                     }`}>
                       {getItemIcon(item)}
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{item.customerName}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground text-sm sm:text-base truncate">{item.customerName}</p>
                       {item.customerPublicId && (
-                        <p className="text-xs text-muted-foreground font-mono">ID: {item.customerPublicId}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">ID: {item.customerPublicId}</p>
                       )}
-                      <p className="text-sm text-muted-foreground">{item.drinkName}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground break-words">{item.drinkName}</p>
                       {item.shopAddress && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin size={10} />{item.shopAddress}
+                        <p className="text-xs text-muted-foreground flex items-start gap-1">
+                          <MapPin size={10} className="shrink-0 mt-0.5" /><span className="truncate">{item.shopAddress}</span>
                         </p>
                       )}
                       {item.subscriptionName && (
-                        <p className="text-xs text-primary">{item.subscriptionName}</p>
+                        <p className="text-xs text-primary truncate">{item.subscriptionName}</p>
                       )}
                       {item.maxVolume && (
                         <p className="text-xs text-muted-foreground">Макс. объём: {item.maxVolume}</p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     {badge && (
-                      <div className={`text-xs font-medium px-2 py-0.5 rounded-full mb-1 ${badge.className}`}>
+                      <div className={`text-[10px] sm:text-xs font-medium px-2 py-0.5 rounded-full mb-1 whitespace-nowrap ${badge.className}`}>
                         {badge.text}
                       </div>
                     )}
-                    <p className="text-sm font-medium text-foreground">{format(new Date(item.redeemedAt), 'HH:mm')}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(item.redeemedAt), 'd MMM', { locale: ru })}</p>
+                    <p className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">{format(new Date(item.redeemedAt), 'HH:mm')}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">{format(new Date(item.redeemedAt), 'd MMM', { locale: ru })}</p>
                   </div>
                 </div>
               );

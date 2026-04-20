@@ -180,10 +180,10 @@ export default function PartnerDashboard() {
 
   return (
     <PartnerLayout>
-      <div className="p-4 space-y-4">
-        <h2 className="text-xl font-bold text-foreground">Статистика</h2>
+      <div className="p-3 sm:p-4 space-y-4 max-w-full overflow-x-hidden">
+        <h2 className="text-lg sm:text-xl font-bold text-foreground">Статистика</h2>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -227,15 +227,15 @@ export default function PartnerDashboard() {
 
         {/* Shop Settings */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Store size={18} />
-              Моя кофейня
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-2 min-w-0">
+              <Store size={18} className="shrink-0" />
+              <span className="truncate">Моя кофейня</span>
             </CardTitle>
             {!isEditing && (
-              <Button variant="ghost" size="sm" onClick={handleEditStart}>
+              <Button variant="ghost" size="sm" onClick={handleEditStart} className="shrink-0">
                 <Pencil size={16} className="mr-1" />
-                Изменить
+                <span className="hidden sm:inline">Изменить</span>
               </Button>
             )}
           </CardHeader>
