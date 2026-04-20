@@ -212,7 +212,9 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
         ext = getFileExtension(uploadBlob);
       }
 
-      const path = `stories/${user.id}/${Date.now()}.${ext}`;
+      // Path must start with user.id to satisfy storage RLS:
+      // (storage.foldername(name))[1] = auth.uid()::text
+      const path = `${user.id}/stories/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('subflow-images')
