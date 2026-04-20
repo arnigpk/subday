@@ -209,11 +209,9 @@ export default function AdminAutoNotificationsPage() {
     if (isSubflowTrigger(form.trigger_type)) {
       triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
     }
-    // in_app_enabled: only meaningful when channel includes push (push or both)
-    // Telegram-only channels don't have in-app notifications
-    if (form.channel === 'push' || form.channel === 'both') {
-      triggerConfig.in_app_enabled = form.in_app_enabled;
-    }
+    // in_app_enabled: персистим всегда — некоторые триггеры (preorder_new, subflow_*)
+    // создают записи в колокольчике независимо от канала FCM/Telegram.
+    triggerConfig.in_app_enabled = form.in_app_enabled;
 
     const payload = {
       name: form.name,
