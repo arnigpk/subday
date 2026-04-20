@@ -1711,39 +1711,7 @@ export type Database = {
       }
     }
     Views: {
-      public_profiles: {
-        Row: {
-          avatar_url: string | null
-          city: string | null
-          country: string | null
-          created_at: string | null
-          name: string | null
-          public_id: string | null
-          subflow_nickname: string | null
-          user_id: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          city?: string | null
-          country?: string | null
-          created_at?: string | null
-          name?: string | null
-          public_id?: string | null
-          subflow_nickname?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          city?: string | null
-          country?: string | null
-          created_at?: string | null
-          name?: string | null
-          public_id?: string | null
-          subflow_nickname?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       activate_subscription: {
@@ -1776,6 +1744,18 @@ export type Database = {
         }[]
       }
       get_partner_shop_id: { Args: { _user_id: string }; Returns: string }
+      get_public_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          avatar_url: string
+          city: string
+          country: string
+          name: string
+          public_id: string
+          subflow_nickname: string
+          user_id: string
+        }[]
+      }
       get_shop_visit_counts: {
         Args: never
         Returns: {
