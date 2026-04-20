@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
+import { uploadWithProgress } from '@/utils/xhrUpload';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 
 interface StoryCreateDialogProps {
@@ -38,6 +40,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const [file, setFile] = useState<File | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [editingText, setEditingText] = useState(false);
   const [textDraft, setTextDraft] = useState('');
@@ -197,6 +200,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
   const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
+    setUploadProgress(0);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -216,20 +220,24 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       // (storage.foldername(name))[1] = auth.uid()::text
       const path = `${user.id}/stories/${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('subflow-images')
-        .upload(path, uploadBlob, { contentType: uploadBlob.type });
-      if (uploadError) throw uploadError;
+      const { publicUrl } = await uploadWithProgress({
+        bucket: 'subflow-images',
+        path,
+        blob: uploadBlob,
+        contentType: uploadBlob.type,
+        onProgress: (percent) => {
+          // cap at 95% — last 5% reserved for DB insert
+          setUploadProgress(Math.min(95, percent));
+        },
+      });
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('subflow-images')
-        .getPublicUrl(path);
-
+      setUploadProgress(96);
       const { error: insertError } = await supabase
         .from('stories')
         .insert({ user_id: user.id, image_url: publicUrl, media_type: mediaType } as any);
       if (insertError) throw insertError;
 
+      setUploadProgress(100);
       toast.success('Сториз опубликован!');
       resetAndClose();
       onStoryCreated();
@@ -238,6 +246,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
       toast.error('Ошибка загрузки');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -450,6 +459,19 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Upload progress */}
+          {uploading && (
+            <div className="px-4 pt-2 pb-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-white/80 text-xs font-medium">
+                  {mediaType === 'video' ? 'Загрузка видео...' : 'Загрузка фото...'}
+                </span>
+                <span className="text-white/80 text-xs font-medium tabular-nums">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-1.5 bg-white/10" />
             </div>
           )}
 
