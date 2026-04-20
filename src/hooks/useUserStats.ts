@@ -123,93 +123,16 @@ export function useUserStats() {
     fetchData();
   }, [fetchData]);
 
+  // DEPRECATED: клиентское списание отключено по соображениям безопасности.
+  // Все списания проходят через edge function partner-scan-qr (service role).
   const redeemDrink = async (
-    shopName: string,
-    shopId: string,
-    drinkName: string,
-    drinkType: 'coffee' | 'drinks'
+    _shopName: string,
+    _shopId: string,
+    _drinkName: string,
+    _drinkType: 'coffee' | 'drinks'
   ): Promise<boolean> => {
-    if (!userId) return false;
-
-    // Check if user has remaining drinks
-    const remaining = drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining;
-    if (remaining <= 0) return false;
-
-    const today = new Date().toISOString().split('T')[0];
-    const isNewDay = stats.lastRedemptionDate !== today;
-    
-    // Calculate new streak
-    let newStreak = stats.currentStreak;
-    if (isNewDay) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      if (stats.lastRedemptionDate === yesterdayStr) {
-        newStreak = stats.currentStreak + 1;
-      } else if (!stats.lastRedemptionDate) {
-        newStreak = 1;
-      } else {
-        newStreak = 1; // Reset streak if not consecutive
-      }
-    }
-
-    const newMaxStreak = Math.max(newStreak, stats.maxStreak);
-    const bonusForRedemption = 10; // Bonus points per redemption
-
-    // Update stats
-    const newStats = {
-      coffee_remaining: drinkType === 'coffee' ? stats.coffeeRemaining - 1 : stats.coffeeRemaining,
-      drinks_remaining: drinkType === 'drinks' ? stats.drinksRemaining - 1 : stats.drinksRemaining,
-      current_streak: newStreak,
-      max_streak: newMaxStreak,
-      total_cups: stats.totalCups + 1,
-      bonus_points: stats.bonusPoints + bonusForRedemption,
-      last_redemption_date: today,
-    };
-
-    const { error: statsError } = await supabase
-      .from('user_stats')
-      .update(newStats)
-      .eq('user_id', userId);
-
-    if (statsError) {
-      console.error('Error updating stats:', statsError);
-      return false;
-    }
-
-    // Insert redemption record
-    const { error: redemptionError } = await supabase
-      .from('redemptions')
-      .insert({
-        user_id: userId,
-        shop_name: shopName,
-        shop_id: shopId,
-        drink_name: drinkName,
-        drink_type: drinkType,
-      });
-
-    if (redemptionError) {
-      console.error('Error inserting redemption:', redemptionError);
-      return false;
-    }
-
-    // Update local state
-    setStats({
-      ...stats,
-      coffeeRemaining: newStats.coffee_remaining,
-      drinksRemaining: newStats.drinks_remaining,
-      currentStreak: newStreak,
-      maxStreak: newMaxStreak,
-      totalCups: stats.totalCups + 1,
-      bonusPoints: stats.bonusPoints + bonusForRedemption,
-      lastRedemptionDate: today,
-    });
-
-    // Refresh all data
-    await fetchData();
-
-    return true;
+    console.warn('[useUserStats] redeemDrink deprecated — use partner-scan-qr edge function');
+    return false;
   };
 
   const updateAvatar = async (avatarUrl: string): Promise<boolean> => {
