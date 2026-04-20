@@ -469,7 +469,7 @@ export default function ProfilePage() {
             </DialogContent>
           </Dialog>
 
-          <p className="text-center text-[10px] sm:text-xs text-muted-foreground mt-8 px-4 leading-relaxed">
+          <p className="text-center text-[10px] sm:text-xs text-muted-foreground mt-8 mb-4 px-4 leading-relaxed">
             ТОО &ldquo;Subday Group&rdquo;
             <br className="sm:hidden" />
             {' - '}Все права защищены

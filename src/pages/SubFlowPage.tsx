@@ -130,8 +130,8 @@ export default function SubFlowPage() {
               </div>
             </div>
 
-            <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-              <div className="text-center px-8 max-w-sm animate-slide-up">
+            <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm px-6">
+              <div className="text-center w-full max-w-sm animate-slide-up">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Lock size={32} className="text-primary" />
                 </div>
