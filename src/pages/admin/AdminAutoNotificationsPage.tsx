@@ -527,7 +527,7 @@ export default function AdminAutoNotificationsPage() {
                 {getVariablesHelp(form.trigger_type)}
               </p>
             </div>
-            {(form.channel === 'push' || form.channel === 'both') && (
+            {(form.channel === 'push' || form.channel === 'both' || isSubflowTrigger(form.trigger_type) || isPreorderTrigger(form.trigger_type)) && (
               <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
                 <Switch
                   checked={form.in_app_enabled}
@@ -539,7 +539,7 @@ export default function AdminAutoNotificationsPage() {
                     {isSubflowTrigger(form.trigger_type)
                       ? 'Показывать в колокольчике #subFlow в приложении'
                       : 'Показывать в колокольчике уведомлений на главной'}
-                    . FCM push на устройство будет отправляться независимо.
+                    . FCM push и Telegram-сообщения отправляются независимо.
                   </p>
                 </div>
               </div>
