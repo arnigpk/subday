@@ -1754,6 +1754,16 @@ export type Database = {
         Args: { _invitee_id: string; _invitee_phone: string }
         Returns: Json
       }
+      create_preorder_with_deduction: {
+        Args: {
+          _coffee_name: string
+          _shop_address: string
+          _shop_id: string
+          _shop_name: string
+          _syrup: string
+        }
+        Returns: Json
+      }
       ensure_user_stats: { Args: { _user_id: string }; Returns: undefined }
       expire_subscriptions: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
