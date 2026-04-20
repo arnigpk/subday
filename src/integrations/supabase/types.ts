@@ -1711,7 +1711,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          name: string | null
+          public_id: string | null
+          subflow_nickname: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          name?: string | null
+          public_id?: string | null
+          subflow_nickname?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          name?: string | null
+          public_id?: string | null
+          subflow_nickname?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       activate_subscription: {
@@ -1722,6 +1754,7 @@ export type Database = {
         Args: { _invitee_id: string; _invitee_phone: string }
         Returns: Json
       }
+      ensure_user_stats: { Args: { _user_id: string }; Returns: undefined }
       expire_subscriptions: { Args: never; Returns: undefined }
       get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_banner_analytics: {
@@ -1768,6 +1801,7 @@ export type Database = {
               views: number
             }[]
           }
+      get_user_phone: { Args: { _user_id: string }; Returns: string }
       grant_guest_access:
         | {
             Args: {
