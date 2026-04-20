@@ -135,7 +135,7 @@ export function useUserStats() {
     return false;
   };
 
-  const updateAvatar = async (avatarUrl: string): Promise<boolean> => {
+  const updateAvatar = async (avatarUrl: string | null): Promise<boolean> => {
     if (!userId) return false;
 
     const { error } = await supabase

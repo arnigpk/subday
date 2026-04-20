@@ -10,7 +10,7 @@ export function BottomNav() {
   const location = useLocation();
   const { prefetchPage } = usePrefetch();
   const { t } = useLanguage();
-  const { vibrateShort } = useVibration();
+  const { vibrateSelection, vibrateShort } = useVibration();
   
   const navItems = [
     { icon: IconHomeInfinity, labelKey: 'nav.home', path: '/', prefetchKey: 'home' as const },
@@ -28,9 +28,10 @@ export function BottomNav() {
     prefetchPage(prefetchKey);
   }, [prefetchPage]);
 
-  const handleClick = useCallback(() => {
-    vibrateShort();
-  }, [vibrateShort]);
+  const handleClick = useCallback((isActive: boolean) => {
+    if (isActive) vibrateShort();
+    else vibrateSelection();
+  }, [vibrateSelection, vibrateShort]);
   
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 app-nav-shell px-3 pointer-events-none">
@@ -47,9 +48,9 @@ export function BottomNav() {
                   to={item.path}
                   onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
                   onTouchStart={() => handleTouchStart(item.prefetchKey)}
-                  onClick={handleClick}
+                  onClick={() => handleClick(isActive)}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl min-w-0 relative transition-colors duration-200 ${
-                    isActive ? 'text-accent' : 'text-muted-foreground'
+                    isActive ? 'text-accent' : 'text-foreground'
                   }`}
                 >
                   <AnimatePresence>
@@ -74,22 +75,13 @@ export function BottomNav() {
                   >
                     <Icon 
                       size={21} 
-                      stroke={isActive ? 2.4 : 1.6}
+                      stroke={isActive ? 2.4 : 2}
                       className="shrink-0 transition-all duration-200"
                     />
                   </motion.div>
-                  <motion.span 
-                    animate={isActive 
-                      ? { opacity: 1, y: 0, scale: 1.02 } 
-                      : { opacity: 0.6, y: 0, scale: 1 }
-                    }
-                    transition={{ duration: 0.2 }}
-                    className={`text-[9px] sm:text-[10px] leading-tight text-center truncate w-full relative z-10 ${
-                      isActive ? 'font-bold' : 'font-medium'
-                    }`}
-                  >
+                  <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full relative z-10 font-bold">
                     {t(item.labelKey)}
-                  </motion.span>
+                  </span>
                 </Link>
               );
             })}

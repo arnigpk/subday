@@ -182,6 +182,7 @@ const translations: Record<string, Record<Language, string>> = {
   'profile.nameSaved': { ru: 'Имя сохранено!', kz: 'Аты сақталды!', en: 'Name saved!', uz: 'Ism saqlandi!', kg: 'Аты сакталды!' },
   'profile.saveError': { ru: 'Ошибка сохранения', kz: 'Сақтау қатесі', en: 'Save error', uz: 'Saqlash xatosi', kg: 'Сактоо катасы' },
   'profile.changeAvatar': { ru: 'Поменять аватарку', kz: 'Аватарды ауыстыру', en: 'Change avatar', uz: 'Avatarni o\'zgartirish', kg: 'Аватарды алмаштыруу' },
+  'profile.deleteAvatar': { ru: 'Удалить аватарку', kz: 'Аватарды жою', en: 'Delete avatar', uz: 'Avatarni o\'chirish', kg: 'Аватарды өчүрүү' },
   'profile.photoUpdated': { ru: 'Фото обновлено!', kz: 'Фото жаңартылды!', en: 'Photo updated!', uz: 'Surat yangilandi!', kg: 'Сүрөт жаңыланды!' },
   'profile.uploadError': { ru: 'Ошибка загрузки фото', kz: 'Фото жүктеу қатесі', en: 'Photo upload error', uz: 'Surat yuklashda xato', kg: 'Сүрөт жүктөө катасы' },
   'profile.selectImage': { ru: 'Пожалуйста, выберите изображение', kz: 'Сурет таңдаңыз', en: 'Please select an image', uz: 'Iltimos, rasm tanlang', kg: 'Сүрөт тандаңыз' },

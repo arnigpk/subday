@@ -7,7 +7,7 @@ interface UserStatsContextType {
   redemptions: Redemption[];
   isLoading: boolean;
   redeemDrink: (shopName: string, shopId: string, drinkName: string, drinkType: 'coffee' | 'drinks') => Promise<boolean>;
-  updateAvatar: (avatarUrl: string) => Promise<boolean>;
+  updateAvatar: (avatarUrl: string | null) => Promise<boolean>;
   refetch: () => void;
 }
 

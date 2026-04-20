@@ -116,6 +116,34 @@ export default function ProfilePage() {
   const handleCameraClick = () => setShowAvatarMenu(!showAvatarMenu);
   const handleAvatarMenuSelect = () => { setShowAvatarMenu(false); avatarInputRef.current?.click(); };
 
+  const handleAvatarDelete = async () => {
+    setShowAvatarMenu(false);
+    if (!profile?.avatarUrl) return;
+    setIsUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Best-effort: remove all files in user's avatar folder
+      const { data: files } = await supabase.storage.from('avatars').list(user.id);
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `${user.id}/${f.name}`);
+        await supabase.storage.from('avatars').remove(paths);
+      }
+
+      const success = await updateAvatar(null);
+      if (!success) throw new Error('update failed');
+      toast.success(t('profile.photoUpdated'));
+      vibrateShort();
+      refetch();
+    } catch (e) {
+      console.error('Avatar delete error', e);
+      toast.error(t('profile.uploadError'));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     const confirmWord = t('profile.deleteWord');
     if (deleteConfirmText !== confirmWord) return;
@@ -184,12 +212,19 @@ export default function ProfilePage() {
                 {showAvatarMenu && (
                   <>
                     <div className="fixed inset-0 z-[100]" onClick={() => setShowAvatarMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 z-[101] bg-background/75 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] p-1 animate-slide-up">
+                    <div className="absolute left-0 top-full mt-2 z-[101] bg-background/75 backdrop-blur-xl border border-border/40 rounded-xl shadow-[0_8px_32px_hsl(var(--foreground)/0.1),inset_0_1px_0_hsl(var(--background)/0.5)] p-1 animate-slide-up min-w-[180px]">
                       <button onClick={handleAvatarMenuSelect}
-                        className="flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors whitespace-nowrap">
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors whitespace-nowrap">
                         <Camera size={16} className="text-primary flex-shrink-0" />
                         <span className="font-medium">{t('profile.changeAvatar')}</span>
                       </button>
+                      {profile?.avatarUrl && (
+                        <button onClick={handleAvatarDelete} disabled={isUploading}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50">
+                          <Trash2 size={16} className="text-destructive flex-shrink-0" />
+                          <span className="font-medium">{t('profile.deleteAvatar')}</span>
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
