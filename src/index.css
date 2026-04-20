@@ -70,9 +70,9 @@
     --safe-area-top-base: env(safe-area-inset-top, 0px);
     --safe-area-bottom-base: env(safe-area-inset-bottom, 0px);
     --safe-area-top-offset: 12px;
-    --safe-area-bottom-offset: 16px;
-    --app-nav-height: 76px;
-    --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 8px);
+    --safe-area-bottom-offset: 6px;
+    --app-nav-height: 64px;
+    --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 4px);
     --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 24px);
     --app-floating-clearance: calc(var(--app-nav-total-height) + 12px);
     --app-floating-clearance-compact: calc(var(--app-nav-total-height));
