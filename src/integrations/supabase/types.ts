@@ -1756,6 +1756,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_public_profiles_batch: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          city: string
+          country: string
+          name: string
+          public_id: string
+          subflow_nickname: string
+          user_id: string
+        }[]
+      }
       get_shop_visit_counts: {
         Args: never
         Returns: {
