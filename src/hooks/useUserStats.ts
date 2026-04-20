@@ -82,11 +82,11 @@ export function useUserStats() {
 
     let statsData = statsResult.data;
     if (!statsData) {
-      const { data: newStats, error } = await supabase
-        .from('user_stats')
-        .insert({ user_id: user.id, coffee_remaining: 0, coffee_total: 0, drinks_remaining: 0, drinks_total: 0, current_streak: 0, max_streak: 0, total_cups: 0, bonus_points: 0 })
-        .select().single();
-      if (!error && newStats) statsData = newStats;
+      // user_stats мутации запрещены клиенту RLS — используем SECURITY DEFINER функцию
+      await supabase.rpc('ensure_user_stats', { _user_id: user.id });
+      const { data: refetched } = await supabase
+        .from('user_stats').select('*').eq('user_id', user.id).maybeSingle();
+      if (refetched) statsData = refetched;
     }
 
     if (statsData) {
