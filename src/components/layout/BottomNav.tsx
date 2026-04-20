@@ -36,7 +36,7 @@ export function BottomNav() {
     <div className="fixed bottom-0 left-0 right-0 z-50 app-nav-shell px-3 pointer-events-none">
       <nav className="liquid-glass-nav app-nav-bar rounded-2xl max-w-lg mx-auto pointer-events-auto">
         <LayoutGroup>
-          <div className="flex h-full items-center justify-around px-1 py-1.5">
+          <div className="flex h-full items-center justify-around px-1.5 py-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
@@ -48,8 +48,8 @@ export function BottomNav() {
                   onMouseEnter={() => handleMouseEnter(item.prefetchKey)}
                   onTouchStart={() => handleTouchStart(item.prefetchKey)}
                   onClick={handleClick}
-                  className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl min-w-0 relative ${
-                    isActive ? 'text-foreground' : 'text-muted-foreground'
+                  className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl min-w-0 relative transition-colors duration-200 ${
+                    isActive ? 'text-accent' : 'text-muted-foreground'
                   }`}
                 >
                   <AnimatePresence>
@@ -57,29 +57,35 @@ export function BottomNav() {
                       <motion.span
                         layoutId="nav-pill"
                         className="absolute inset-0 rounded-xl liquid-nav-pill"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                       />
                     )}
                   </AnimatePresence>
                   <motion.div
-                    animate={isActive ? { scale: 1.15, y: -1 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                    animate={isActive 
+                      ? { scale: 1.18, y: -2 } 
+                      : { scale: 1, y: 0 }
+                    }
+                    transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                     className="relative z-10"
                   >
                     <Icon 
-                      size={20} 
-                      stroke={isActive ? 2.5 : 1.8}
-                      className="shrink-0 transition-colors duration-200"
+                      size={21} 
+                      stroke={isActive ? 2.4 : 1.6}
+                      className="shrink-0 transition-all duration-200"
                     />
                   </motion.div>
                   <motion.span 
-                    animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
+                    animate={isActive 
+                      ? { opacity: 1, y: 0, scale: 1.02 } 
+                      : { opacity: 0.6, y: 0, scale: 1 }
+                    }
                     transition={{ duration: 0.2 }}
                     className={`text-[9px] sm:text-[10px] leading-tight text-center truncate w-full relative z-10 ${
-                      isActive ? 'font-extrabold' : 'font-medium'
+                      isActive ? 'font-bold' : 'font-medium'
                     }`}
                   >
                     {t(item.labelKey)}
