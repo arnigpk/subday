@@ -5,8 +5,6 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 /**
  * Hook for triggering phone vibration feedback.
  * Priority: 1) Capacitor Haptics (native app) 2) Telegram HapticFeedback (Mini App) 3) navigator.vibrate() (web)
- * 
- * All patterns are tuned for STRONG, noticeable feedback.
  */
 export function useVibration() {
   const isNative = Capacitor.isNativePlatform();
@@ -14,7 +12,6 @@ export function useVibration() {
 
   const vibrate = useCallback((pattern: number | number[] = 500) => {
     if (isNative) {
-      // Triple heavy impact for maximum feel
       Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {}), 100);
       setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {}), 200);
@@ -34,7 +31,6 @@ export function useVibration() {
   const vibrateSuccess = useCallback(() => {
     if (isNative) {
       Haptics.notification({ type: NotificationType.Success }).catch(() => {});
-      // Double tap for emphasis
       setTimeout(() => Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {}), 150);
       return;
     }
@@ -78,10 +74,44 @@ export function useVibration() {
     }
   }, [isNative, tgHaptic]);
 
+  /** Light selection tap - for tab/menu switching */
+  const vibrateSelection = useCallback(() => {
+    if (isNative) {
+      Haptics.selectionStart().catch(() => {
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      });
+      return;
+    }
+    if (tgHaptic) {
+      tgHaptic.selectionChanged?.();
+      return;
+    }
+    if ('vibrate' in navigator) {
+      try { navigator.vibrate(15); } catch {}
+    }
+  }, [isNative, tgHaptic]);
+
+  /** Light impact - subtle feedback */
+  const vibrateLight = useCallback(() => {
+    if (isNative) {
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      return;
+    }
+    if (tgHaptic) {
+      tgHaptic.impactOccurred('light');
+      return;
+    }
+    if ('vibrate' in navigator) {
+      try { navigator.vibrate(25); } catch {}
+    }
+  }, [isNative, tgHaptic]);
+
   return {
     vibrate,
     vibrateSuccess,
     vibrateShort,
     vibrateError,
+    vibrateSelection,
+    vibrateLight,
   };
 }
