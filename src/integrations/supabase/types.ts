@@ -1831,6 +1831,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      realtime_can_access: { Args: { _payload: Json }; Returns: boolean }
     }
     Enums: {
       app_role:
