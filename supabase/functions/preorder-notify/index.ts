@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     // Get template for preorder notifications
     const { data: template } = await supabase
       .from('auto_notification_templates')
-      .select('message_template, is_active, channel')
+      .select('message_template, is_active, channel, trigger_config')
       .eq('trigger_type', 'preorder_new')
       .eq('is_active', true)
       .maybeSingle();
