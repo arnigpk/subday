@@ -98,21 +98,6 @@
     --admin-mobile-header-offset: calc(var(--safe-area-top-base) + var(--safe-area-top-offset) + var(--admin-mobile-extra-top) + 5rem);
     --subflow-feed-bottom-clearance: 84px;
   }
-    /* Telegram сам резервирует место под системные кнопки (Закрыть/свернуть)
-       через safeAreaInset/contentSafeAreaInset — viewport уже сдвинут вниз.
-       --tg-safe-area-top из main.tsx даёт лишь небольшой визуальный «воздух»
-       над контентом. Фолбэк 8px — компактно и аккуратно на всех клиентах. */
-    --tg-safe-area-top: 8px;
-    --safe-area-top-offset: var(--tg-safe-area-top, 8px);
-    --admin-mobile-extra-top: 24px;
-    --safe-area-bottom-offset: 20px;
-    --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 32px);
-    --app-floating-clearance: calc(var(--app-nav-total-height) + 18px);
-    --app-floating-clearance-compact: calc(var(--app-nav-total-height) + 6px);
-    --app-banner-clearance: calc(var(--app-nav-total-height) - 2px);
-    --admin-mobile-header-offset: calc(var(--safe-area-top-base) + var(--safe-area-top-offset) + var(--admin-mobile-extra-top) + 5rem);
-    --subflow-feed-bottom-clearance: 84px;
-  }
 
   .dark {
     /* Тема "Эспрессо" (тёмная) */
