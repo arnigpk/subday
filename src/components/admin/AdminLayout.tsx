@@ -119,7 +119,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-50 max-w-full overflow-hidden">
-        <div className="safe-area-top" />
+        <div className="safe-area-top admin-mobile-header-safe" />
         <div className="flex items-center justify-between px-4 pb-2 pt-2">
           <div>
             <Link to="/" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-xs mb-1">
