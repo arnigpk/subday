@@ -12,11 +12,13 @@ if (tg) {
   // `contentSafeAreaInset` (Telegram UI: close/minimize buttons).
   // We sum them — that's the real top clearance the page needs.
   const applyTmaSafeArea = () => {
+    // Telegram уже сдвигает viewport под системные кнопки (Закрыть/свернуть).
+    // Нам нужен лишь небольшой визуальный «воздух» сверху, не дублируя инсеты.
+    // Фолбэк 8px для старых клиентов; реальные значения капаем до 16px.
     const sysTop = tg.safeAreaInset?.top ?? 0;
     const contentTop = tg.contentSafeAreaInset?.top ?? 0;
     const total = sysTop + contentTop;
-    // Fallback to 40px when API не отдает значения (старые клиенты)
-    const px = total > 0 ? total : 40;
+    const px = total > 0 ? Math.min(total, 16) : 8;
     document.documentElement.style.setProperty('--tg-safe-area-top', `${px}px`);
   };
 
