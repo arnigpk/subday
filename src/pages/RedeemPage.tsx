@@ -433,7 +433,7 @@ export default function RedeemPage() {
                   {selectedShopClosestAddress}
                 </p>
               )}
-              <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50">
+              <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-72 bg-card border border-border shadow-lg z-50 max-h-[70vh] overflow-y-auto overscroll-contain">
                 {shops.map((shop) => (
                   <DropdownMenuItem
                     key={shop.id}
