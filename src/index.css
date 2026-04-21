@@ -77,7 +77,8 @@
     --app-floating-clearance: calc(var(--app-nav-total-height) + 12px);
     --app-floating-clearance-compact: calc(var(--app-nav-total-height));
     --app-banner-clearance: calc(var(--app-nav-total-height) - 8px);
-    --admin-mobile-header-offset: calc(var(--safe-area-top-base) + var(--safe-area-top-offset) + 5rem);
+    --admin-mobile-extra-top: 0px;
+    --admin-mobile-header-offset: calc(var(--safe-area-top-base) + var(--safe-area-top-offset) + var(--admin-mobile-extra-top) + 5rem);
     --subflow-feed-bottom-clearance: 72px;
   }
 
