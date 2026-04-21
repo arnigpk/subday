@@ -67,7 +67,8 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   return (
     <div className="min-safe-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col">
+      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col sticky top-0 h-screen">
+        <div className="safe-area-top" />
         <div className="p-4 border-b border-border">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft className="w-4 h-4" />
@@ -104,7 +105,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border safe-area-bottom">
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
@@ -162,7 +163,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 w-full md:overflow-auto overflow-x-hidden">
-        <div className="px-3 sm:px-4 pb-10 safe-area-bottom admin-mobile-content-safe md:p-8 md:pt-8 md:pb-8">
+        <div className="px-3 sm:px-4 pb-10 safe-area-bottom admin-mobile-content-safe md:px-8 md:pt-10 md:pb-12">
           <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 break-words">{title}</h2>
           <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 md:overflow-visible">
             {children}
