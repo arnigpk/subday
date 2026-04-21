@@ -92,8 +92,10 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 min-h-0 overflow-auto pb-8 safe-area-bottom w-full">
-        {children}
+      <main className="flex-1 min-h-0 overflow-auto w-full">
+        <div className="pt-3 pb-8 safe-area-bottom">
+          {children}
+        </div>
       </main>
     </div>
   );
