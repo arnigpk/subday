@@ -235,6 +235,10 @@
     padding-top: calc(var(--safe-area-top-base) + var(--safe-area-top-offset));
   }
 
+  .admin-mobile-header-safe {
+    padding-top: calc(var(--safe-area-top-base) + var(--safe-area-top-offset) + var(--admin-mobile-extra-top, 0px));
+  }
+
   .app-content-no-nav {
     padding-bottom: calc(var(--safe-area-bottom-base) + 24px);
     scroll-padding-bottom: calc(var(--safe-area-bottom-base) + 24px);
