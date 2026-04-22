@@ -145,10 +145,13 @@ Deno.serve(async (req) => {
     const cooldownHours = cfg.cooldown_hours ?? 12;
     const visitCooldownHours = cfg.visit_cooldown_hours ?? 12;
     const dailyLimit = cfg.daily_limit ?? 2;
-    const maxShops = cfg.max_shops_per_check ?? 3; // до 3 ближайших кофеен в одном уведомлении
+    const maxShops = cfg.max_shops_per_check ?? 3;
+    // Если ближайшая кофейня заметно ближе остальных — показываем только её.
+    // dominant_gap_m: если 2-я по близости дальше 1-й на N метров → показываем только 1-ю (default 150м)
+    const dominantGapM = cfg.dominant_gap_m ?? 150;
     const requireSub = cfg.requires_subscription !== false;
     const respectHours = cfg.respect_working_hours !== false;
-    const pushTitle = cfg.title || 'Кофейни рядом ☕';
+    const pushTitle = cfg.title || 'Кофейня рядом';
 
     // 4. Проверка активной подписки
     if (requireSub) {
@@ -244,21 +247,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 11. Формируем сообщение
+    // 11a. Если ближайшая ЗАМЕТНО ближе остальных — оставляем только её.
+    // Это даёт более релевантное уведомление, не «спамит» список,
+    // когда логично рекомендовать только одну кофейню.
+    if (chosen.length > 1) {
+      const gap = chosen[1].distance_m - chosen[0].distance_m;
+      if (gap >= dominantGapM) {
+        chosen.splice(1); // оставляем только nearest
+      }
+    }
+
+    // 11b. Формируем push-friendly текст:
+    // - без переносов строк (плохо рендерятся в системных push на Android/iOS)
+    // - без тире/длинных символов
+    // - короткие расстояния
     const fmtDist = (m: number) =>
       m < 1000 ? `${Math.round(m)} м` : `${(m / 1000).toFixed(1)} км`;
 
-    const shopsList = chosen
-      .map((c, i) => `${i + 1}. ${(c.shop as any).name} — ${fmtDist(c.distance_m)}`)
-      .join('\n');
+    // Формат: "Coffee Bean 120 м, Starbucks 230 м"
     const shopsInline = chosen
-      .map((c) => `${(c.shop as any).name} (${fmtDist(c.distance_m)})`)
+      .map((c) => `${(c.shop as any).name} ${fmtDist(c.distance_m)}`)
       .join(', ');
+    // Нумерованный (для in-app, если кто-то использует {{shops_list}})
+    const shopsList = chosen
+      .map((c, i) => `${i + 1}) ${(c.shop as any).name} ${fmtDist(c.distance_m)}`)
+      .join(' • ');
 
     const nearest = chosen[0];
     const messageBody = renderTemplate((template as any).message_template, {
       shop_name: (nearest.shop as any).name,
-      distance: String(Math.round(nearest.distance_m)),
+      distance: fmtDist(nearest.distance_m),
       shops_list: shopsList,
       shops_inline: shopsInline,
       count: String(chosen.length),

@@ -106,7 +106,7 @@ const defaultMessages: Record<string, string> = {
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
-  geo_proximity: 'Рядом {{count}} кофейни ☕\n{{shops_list}}\n\nЗабери свой кофе по подписке прямо сейчас!',
+  geo_proximity: 'Загляни на кофе по подписке: {{shops_inline}}',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
@@ -305,7 +305,7 @@ export default function AdminAutoNotificationsPage() {
       return '{{shop_name}} — кофейня, {{coffee_name}} — напиток, {{syrup}} — сироп, {{customer_name}} — клиент, {{time}} — время';
     }
     if (triggerType === 'geo_proximity') {
-      return '{{shops_list}} — нумерованный список кофеен (по строке), {{shops_inline}} — список через запятую, {{count}} — сколько кофеен, {{shop_name}} — ближайшая, {{distance}} — расстояние до ближайшей (м), {{name}} — имя пользователя';
+      return '{{shops_inline}} — список кофеен через запятую (ОПТИМАЛЬНО для push, до 3 штук, авто-урезается до 1, если ближайшая явно ближе остальных), {{shop_name}} — название ближайшей, {{distance}} — расстояние до ближайшей (например «120 м»), {{count}} — кол-во кофеен в уведомлении, {{shops_list}} — список через •, {{name}} — имя пользователя. ⚠️ Push: избегайте \\n и длинных тире, держите длину ≤120 символов.';
     }
     return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
   };
