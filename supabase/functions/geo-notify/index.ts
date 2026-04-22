@@ -145,10 +145,10 @@ Deno.serve(async (req) => {
     const cooldownHours = cfg.cooldown_hours ?? 12;
     const visitCooldownHours = cfg.visit_cooldown_hours ?? 12;
     const dailyLimit = cfg.daily_limit ?? 2;
-    const maxShops = cfg.max_shops_per_check ?? 1; // обычно шлём 1 ближайшую за вызов
+    const maxShops = cfg.max_shops_per_check ?? 3; // до 3 ближайших кофеен в одном уведомлении
     const requireSub = cfg.requires_subscription !== false;
     const respectHours = cfg.respect_working_hours !== false;
-    const pushTitle = cfg.title || 'Забери свой кофе ☕';
+    const pushTitle = cfg.title || 'Кофейни рядом ☕';
 
     // 4. Проверка активной подписки
     if (requireSub) {
@@ -226,31 +226,42 @@ Deno.serve(async (req) => {
       .in('shop_id', shopIds);
     const recentlyVisitedSet = new Set((recentVisits || []).map((r: any) => r.shop_id));
 
-    // 10. Выбираем подходящие кофейни (берём первую подходящую по близости)
-    let chosen: { shop: any; distance_m: number } | null = null;
+    // 10. Выбираем все подходящие кофейни (до maxShops), отсортированные по близости
+    const chosen: Array<{ shop: any; distance_m: number }> = [];
     for (const cand of inRange) {
+      if (chosen.length >= maxShops) break;
       const shop = shops.find((s: any) => s.id === cand.shop_id);
       if (!shop || !(shop as any).is_active) continue;
       if (recentlyNotifiedSet.has(cand.shop_id)) continue;
       if (recentlyVisitedSet.has(cand.shop_id)) continue;
       if (respectHours && !isOpenNow((shop as any).working_hours)) continue;
-      chosen = { shop, distance_m: cand.distance_m };
-      break;
+      chosen.push({ shop, distance_m: cand.distance_m });
     }
 
-    if (!chosen) {
+    if (chosen.length === 0) {
       return new Response(JSON.stringify({ skipped: 'no_eligible_shop' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // 11. Формируем сообщение
-    const distanceStr = chosen.distance_m < 1000
-      ? `${Math.round(chosen.distance_m)}`
-      : `${(chosen.distance_m / 1000).toFixed(1)} км`;
+    const fmtDist = (m: number) =>
+      m < 1000 ? `${Math.round(m)} м` : `${(m / 1000).toFixed(1)} км`;
+
+    const shopsList = chosen
+      .map((c, i) => `${i + 1}. ${(c.shop as any).name} — ${fmtDist(c.distance_m)}`)
+      .join('\n');
+    const shopsInline = chosen
+      .map((c) => `${(c.shop as any).name} (${fmtDist(c.distance_m)})`)
+      .join(', ');
+
+    const nearest = chosen[0];
     const messageBody = renderTemplate((template as any).message_template, {
-      shop_name: (chosen.shop as any).name,
-      distance: distanceStr,
+      shop_name: (nearest.shop as any).name,
+      distance: String(Math.round(nearest.distance_m)),
+      shops_list: shopsList,
+      shops_inline: shopsInline,
+      count: String(chosen.length),
       name: (profile as any).name || '',
     });
 
@@ -261,12 +272,14 @@ Deno.serve(async (req) => {
       user_id: user.id,
     });
 
-    // 13. Логируем для дедупликации
-    await supabase.from('geo_notification_log').insert({
-      user_id: user.id,
-      shop_id: (chosen.shop as any).id,
-      distance_meters: Math.round(chosen.distance_m),
-    });
+    // 13. Логируем для дедупликации (по каждой выбранной кофейне)
+    await supabase.from('geo_notification_log').insert(
+      chosen.map((c) => ({
+        user_id: user.id,
+        shop_id: (c.shop as any).id,
+        distance_meters: Math.round(c.distance_m),
+      }))
+    );
 
     // 14. Шлём FCM push (если есть токены и креды)
     const fcmJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
@@ -296,7 +309,7 @@ Deno.serve(async (req) => {
                       message: {
                         token: (t as any).token,
                         notification: { title: pushTitle, body: messageBody },
-                        data: { route: '/shops', shop_id: (chosen.shop as any).id },
+                        data: { route: '/shops', shop_id: (nearest.shop as any).id },
                         android: {
                           priority: 'high',
                           notification: { sound: 'default', channel_id: 'default', click_action: 'FLUTTER_NOTIFICATION_CLICK' },
@@ -321,9 +334,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      shop_id: (chosen.shop as any).id,
-      shop_name: (chosen.shop as any).name,
-      distance_m: Math.round(chosen.distance_m),
+      count: chosen.length,
+      shops: chosen.map((c) => ({
+        shop_id: (c.shop as any).id,
+        shop_name: (c.shop as any).name,
+        distance_m: Math.round(c.distance_m),
+      })),
       push_sent: pushSent,
       push_failed: pushFailed,
     }), {

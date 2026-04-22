@@ -25,8 +25,8 @@ type: feature
 - `profiles.geo_notifications_enabled boolean` — пользовательский тумблер.
 
 **Конфиг шаблона (trigger_config):**
-radius_meters, cooldown_hours, visit_cooldown_hours, daily_limit, max_shops_per_check, requires_subscription, respect_working_hours, title.
+radius_meters, cooldown_hours, visit_cooldown_hours, daily_limit, max_shops_per_check (по умолч. 3), requires_subscription, respect_working_hours, title.
 
-**Переменные шаблона:** `{{shop_name}}`, `{{distance}}`, `{{name}}`.
+**Переменные шаблона:** `{{shops_list}}` (нумерованный список «N. Название — Xм»), `{{shops_inline}}` (через запятую), `{{count}}`, `{{shop_name}}` (ближайшая), `{{distance}}` (м, ближайшая), `{{name}}`.
 
-**Доставка:** in-app запись в `push_notifications` + FCM push на все device_tokens пользователя с data.route='/shops'. Клик открывает /shops.
+**Доставка:** в одном уведомлении до 3 ближайших подходящих кофеен. In-app запись в `push_notifications` + FCM push на все device_tokens пользователя, data.route='/shops', shop_id = ближайшая. Каждая выбранная кофейня логируется в `geo_notification_log` для индивидуального 12ч кулдауна.
