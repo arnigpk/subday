@@ -106,7 +106,7 @@ const defaultMessages: Record<string, string> = {
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
-  geo_proximity: 'Рядом {{count}} кофейни ☕\n{{shops_list}}\n\nЗабери свой кофе по подписке прямо сейчас!',
+  geo_proximity: 'Загляни на кофе по подписке: {{shops_inline}}',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
