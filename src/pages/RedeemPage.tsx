@@ -558,6 +558,13 @@ export default function RedeemPage() {
                 <p className="text-xs text-muted-foreground mb-3">{t('redeem.lunchNotAvailable')}</p>
               )}
 
+              {!isOnline && (
+                <div className="w-full max-w-[288px] mx-auto mb-3 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                  <WifiOff size={14} />
+                  <span>Офлайн-режим: QR из кеша. Бариста проверит баланс.</span>
+                </div>
+              )}
+
               <div className="w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
                 {qrCodeData ? (
                   <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
