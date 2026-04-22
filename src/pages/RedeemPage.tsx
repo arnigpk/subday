@@ -265,14 +265,14 @@ export default function RedeemPage() {
             isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
           };
         });
-        // Initial sort: open first, then alphabetical (will be re-sorted by distance later)
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
           if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
           return a.name.localeCompare(b.name);
         });
         setShops(shopsWithStatus);
-        // If navigated from ShopDetailPage with a specific shop, use it
+        // Кешируем для оффлайн-показа QR
+        setCache(CACHE_KEYS.shops, data || [], CACHE_TTL.shops);
         if (initialShop?.id) {
           const matchedShop = shopsWithStatus.find(s => s.id === initialShop.id);
           if (matchedShop) {
@@ -280,12 +280,32 @@ export default function RedeemPage() {
             return;
           }
         }
-        // Set temporary selection; will be overridden by distance-based sort
         const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
         setSelectedShop(firstOpen || shopsWithStatus[0] || null);
       } catch (error) {
         console.error('Error fetching shops:', error);
-        toast.error(t('redeem.loadError'));
+        // Оффлайн-фоллбек: восстанавливаем из кеша
+        const cached = getCache<any[]>(CACHE_KEYS.shops);
+        if (cached?.data?.length) {
+          const shopsWithStatus: ShopWithStatus[] = cached.data.map((shop: any) => {
+            const rawCoords = shop.coordinates;
+            let coords: Coordinate[] = [];
+            if (Array.isArray(rawCoords)) coords = rawCoords.filter((c: any) => c?.lat && c?.lng);
+            return {
+              ...shop,
+              addresses: shop.addresses || null,
+              supported_types: shop.supported_types || ['coffee'],
+              coordinates: coords,
+              isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
+            };
+          });
+          setShops(shopsWithStatus);
+          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+          toast.info('Нет сети — данные могут быть устаревшими');
+        } else {
+          toast.error(t('redeem.loadError'));
+        }
       } finally {
         setIsLoadingShops(false);
       }
