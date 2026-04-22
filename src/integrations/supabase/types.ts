@@ -473,33 +473,6 @@ export type Database = {
           },
         ]
       }
-      investor_settings: {
-        Row: {
-          created_at: string
-          id: string
-          note: string | null
-          profit_percent: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          profit_percent?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          note?: string | null
-          profit_percent?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       notification_dedupe_log: {
         Row: {
           alert_key: string
@@ -1834,26 +1807,16 @@ export type Database = {
             }[]
           }
       get_user_phone: { Args: { _user_id: string }; Returns: string }
-      grant_guest_access:
-        | {
-            Args: {
-              _expires_at: string
-              _invitee_id: string
-              _inviter_id: string
-              _month_key: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _expires_at: string
-              _invitee_id: string
-              _inviter_id: string
-              _month_key: string
-              _subscription_type_id?: string
-            }
-            Returns: Json
-          }
+      grant_guest_access: {
+        Args: {
+          _expires_at: string
+          _invitee_id: string
+          _inviter_id: string
+          _month_key: string
+          _subscription_type_id?: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
