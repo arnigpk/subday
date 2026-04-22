@@ -566,9 +566,27 @@ export default function RedeemPage() {
               )}
 
               {!isOnline && (
-                <div className="w-full max-w-[288px] mx-auto mb-3 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                  <WifiOff size={14} />
-                  <span>Офлайн-режим: QR из кеша. Бариста проверит баланс.</span>
+                <div className="w-full max-w-[320px] mx-auto mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left">
+                  <div className="flex items-start gap-2 mb-2">
+                    <WifiOff size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 leading-tight">
+                        Нет интернета — офлайн-режим
+                      </p>
+                      <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-1 leading-snug">
+                        QR показан из локального кеша. Бариста отсканирует код — наш сервер сверит ваш баланс и активную подписку онлайн со своей стороны и спишет напиток. Вам ничего делать не нужно.
+                      </p>
+                      <p className="text-[11px] text-amber-700/70 dark:text-amber-300/70 mt-1.5 leading-snug">
+                        Когда сеть появится, баланс и кнопки автоматически обновятся.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full mt-1 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-semibold text-amber-700 dark:text-amber-300 transition-colors"
+                  >
+                    Повторить попытку
+                  </button>
                 </div>
               )}
 
