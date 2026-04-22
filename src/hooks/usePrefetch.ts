@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
 
 // Query keys for consistent caching
 export const queryKeys = {
@@ -15,12 +16,23 @@ export const queryKeys = {
 
 // Prefetch functions
 export const prefetchShops = async () => {
-  const { data } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('shops')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    const list = data || [];
+    // Кешируем для оффлайн-показа «Кофейни рядом» / страницы «Кофейни»
+    setCache(CACHE_KEYS.shops, list, CACHE_TTL.shops);
+    return list;
+  } catch (err) {
+    // Сеть упала — отдаём кеш, если он есть (даже устаревший — лучше, чем пустой экран)
+    const cached = getCache<any[]>(CACHE_KEYS.shops);
+    if (cached?.data) return cached.data;
+    throw err;
+  }
 };
 
 export const prefetchSubscriptions = async () => {
