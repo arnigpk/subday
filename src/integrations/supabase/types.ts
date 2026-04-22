@@ -1686,29 +1686,41 @@ export type Database = {
         Row: {
           created_at: string
           event_type: string | null
+          function_name: string | null
           id: string
+          level: string | null
+          message: string | null
           order_id: string | null
           payload: Json
           source: string
           status: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           event_type?: string | null
+          function_name?: string | null
           id?: string
+          level?: string | null
+          message?: string | null
           order_id?: string | null
           payload?: Json
           source?: string
           status?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           event_type?: string | null
+          function_name?: string | null
           id?: string
+          level?: string | null
+          message?: string | null
           order_id?: string | null
           payload?: Json
           source?: string
           status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
