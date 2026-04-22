@@ -145,10 +145,13 @@ Deno.serve(async (req) => {
     const cooldownHours = cfg.cooldown_hours ?? 12;
     const visitCooldownHours = cfg.visit_cooldown_hours ?? 12;
     const dailyLimit = cfg.daily_limit ?? 2;
-    const maxShops = cfg.max_shops_per_check ?? 3; // до 3 ближайших кофеен в одном уведомлении
+    const maxShops = cfg.max_shops_per_check ?? 3;
+    // Если ближайшая кофейня заметно ближе остальных — показываем только её.
+    // dominant_gap_m: если 2-я по близости дальше 1-й на N метров → показываем только 1-ю (default 150м)
+    const dominantGapM = cfg.dominant_gap_m ?? 150;
     const requireSub = cfg.requires_subscription !== false;
     const respectHours = cfg.respect_working_hours !== false;
-    const pushTitle = cfg.title || 'Кофейни рядом ☕';
+    const pushTitle = cfg.title || 'Кофейня рядом';
 
     // 4. Проверка активной подписки
     if (requireSub) {
