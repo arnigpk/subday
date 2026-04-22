@@ -14,6 +14,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
 import { usePaymentResult } from "@/hooks/usePaymentResult";
+import { useGeoNotifications } from "@/hooks/useGeoNotifications";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 
@@ -149,6 +150,12 @@ function DeepLinkHandler() {
 
 function PaymentResultHandler() {
   usePaymentResult();
+  return null;
+}
+
+function GeoNotificationsRunner() {
+  // Серверная edge function проверяет все условия (подписка, кулдаун, рабочие часы и т.д.)
+  useGeoNotifications(true);
   return null;
 }
 
@@ -335,6 +342,7 @@ const AppContent = () => {
       <BrowserRouter>
         <PaymentResultHandler />
         <DeepLinkHandler />
+        <GeoNotificationsRunner />
         <Toaster />
         <Sonner />
         <Suspense fallback={<LazyFallback />}>
