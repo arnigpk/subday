@@ -145,10 +145,10 @@ Deno.serve(async (req) => {
     const cooldownHours = cfg.cooldown_hours ?? 12;
     const visitCooldownHours = cfg.visit_cooldown_hours ?? 12;
     const dailyLimit = cfg.daily_limit ?? 2;
-    const maxShops = cfg.max_shops_per_check ?? 1; // обычно шлём 1 ближайшую за вызов
+    const maxShops = cfg.max_shops_per_check ?? 3; // до 3 ближайших кофеен в одном уведомлении
     const requireSub = cfg.requires_subscription !== false;
     const respectHours = cfg.respect_working_hours !== false;
-    const pushTitle = cfg.title || 'Забери свой кофе ☕';
+    const pushTitle = cfg.title || 'Кофейни рядом ☕';
 
     // 4. Проверка активной подписки
     if (requireSub) {
