@@ -83,14 +83,20 @@ export default function RedeemPage() {
   const { t } = useLanguage();
   const isOnline = useOnlineStatus();
   
-  // QR settings and subscription volumes
-  const [qrSettings, setQrSettings] = useState<QRSettings>({
-    qr_title: 'Ваш QR',
-    qr_barista_text: 'Покажите бариста для сканирования',
-    qr_validity_text: 'QR действителен {seconds} сек',
-    qr_remaining_text: 'Осталось {count} {type}',
+  // QR settings and subscription volumes — инициализируем из кеша для оффлайна
+  const [qrSettings, setQrSettings] = useState<QRSettings>(() => {
+    const cached = getCache<QRSettings>(CACHE_KEYS.qrSettings);
+    return cached?.data || {
+      qr_title: 'Ваш QR',
+      qr_barista_text: 'Покажите бариста для сканирования',
+      qr_validity_text: 'QR действителен {seconds} сек',
+      qr_remaining_text: 'Осталось {count} {type}',
+    };
   });
-  const [subTypeVolumes, setSubTypeVolumes] = useState<SubTypeVolume[]>([]);
+  const [subTypeVolumes, setSubTypeVolumes] = useState<SubTypeVolume[]>(() => {
+    const cached = getCache<SubTypeVolume[]>(CACHE_KEYS.subTypeVolumes);
+    return cached?.data || [];
+  });
   
   // Distance-based sorting
   const shopsForDistance = useMemo(() => shops.map(s => ({ id: s.id, coordinates: s.coordinates })), [shops]);
