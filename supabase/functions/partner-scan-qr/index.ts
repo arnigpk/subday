@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createEdgeLogger } from '../_shared/edgeLogger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,11 +57,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const logger = createEdgeLogger('partner-scan-qr', supabase);
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user: authUser }, error: claimsError } = await supabase.auth.getUser(token);
     
     if (claimsError || !authUser) {
+      logger.warn('auth_failed', { reason: claimsError?.message ?? 'no_user' });
       return new Response(JSON.stringify({ error: 'Ошибка авторизации' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -199,6 +202,9 @@ Deno.serve(async (req) => {
       ]);
 
       if (updateResult.error) {
+        await logger.persist('error', 'guest_redeem_failed', {
+          user_id: userId, scanner_id: scannerId, shop_id: shopId,
+        }, updateResult.error);
         return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -207,6 +213,11 @@ Deno.serve(async (req) => {
         supabase.from('guest_grants').update({ status: 'consumed' })
           .eq('invitee_user_id', userId).eq('status', 'active').then(() => {});
       }
+
+      await logger.persist('info', 'guest_redeem_ok', {
+        user_id: userId, scanner_id: scannerId, shop_id: shopId, shop_name: shopName,
+        drink_type: 'coffee', remaining: stats.guest_coffees - 1,
+      });
 
       return new Response(JSON.stringify({
         success: true, customerName: profile?.name || 'Клиент',
@@ -278,6 +289,9 @@ Deno.serve(async (req) => {
     ]);
 
     if (updateResult.error) {
+      await logger.persist('error', 'redeem_failed', {
+        user_id: userId, scanner_id: scannerId, shop_id: shopId, drink_type: drinkType,
+      }, updateResult.error);
       return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -290,12 +304,17 @@ Deno.serve(async (req) => {
         .eq('id', matchingSub.id)
         .then(({ error: deactivateError }) => {
           if (deactivateError) {
-            console.error('Error deactivating subscription:', deactivateError);
+            logger.error('subscription_deactivation_failed', { user_id: userId, subscription_id: matchingSub.id }, deactivateError);
           } else {
-            console.log(`Subscription ${matchingSub.id} deactivated: ${drinkType} remaining = 0`);
+            logger.info('subscription_deactivated', { user_id: userId, subscription_id: matchingSub.id, drink_type: drinkType });
           }
         });
     }
+
+    await logger.persist('info', 'redeem_ok', {
+      user_id: userId, scanner_id: scannerId, shop_id: shopId, shop_name: shopName,
+      drink_type: drinkType, remaining: newRemaining, subscription_name: subscriptionName,
+    });
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',
@@ -303,7 +322,10 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error(JSON.stringify({
+      ts: new Date().toISOString(), fn: 'partner-scan-qr', level: 'error',
+      action: 'unhandled_error', err: error instanceof Error ? error.message : String(error),
+    }));
     return new Response(JSON.stringify({ error: 'Внутренняя ошибка сервера' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

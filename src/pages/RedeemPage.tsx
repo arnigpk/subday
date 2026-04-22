@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed, WifiOff } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,6 +12,8 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
 
 interface QRSettings {
   qr_title: string;
@@ -72,6 +74,7 @@ export default function RedeemPage() {
   const { vibrateSuccess } = useVibration();
   const { activeSubscriptions } = useSubscriptionStatus();
   const { t } = useLanguage();
+  const isOnline = useOnlineStatus();
   
   // QR settings and subscription volumes
   const [qrSettings, setQrSettings] = useState<QRSettings>({
@@ -262,14 +265,14 @@ export default function RedeemPage() {
             isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
           };
         });
-        // Initial sort: open first, then alphabetical (will be re-sorted by distance later)
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
           if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
           return a.name.localeCompare(b.name);
         });
         setShops(shopsWithStatus);
-        // If navigated from ShopDetailPage with a specific shop, use it
+        // Кешируем для оффлайн-показа QR
+        setCache(CACHE_KEYS.shops, data || [], CACHE_TTL.shops);
         if (initialShop?.id) {
           const matchedShop = shopsWithStatus.find(s => s.id === initialShop.id);
           if (matchedShop) {
@@ -277,12 +280,32 @@ export default function RedeemPage() {
             return;
           }
         }
-        // Set temporary selection; will be overridden by distance-based sort
         const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
         setSelectedShop(firstOpen || shopsWithStatus[0] || null);
       } catch (error) {
         console.error('Error fetching shops:', error);
-        toast.error(t('redeem.loadError'));
+        // Оффлайн-фоллбек: восстанавливаем из кеша
+        const cached = getCache<any[]>(CACHE_KEYS.shops);
+        if (cached?.data?.length) {
+          const shopsWithStatus: ShopWithStatus[] = cached.data.map((shop: any) => {
+            const rawCoords = shop.coordinates;
+            let coords: Coordinate[] = [];
+            if (Array.isArray(rawCoords)) coords = rawCoords.filter((c: any) => c?.lat && c?.lng);
+            return {
+              ...shop,
+              addresses: shop.addresses || null,
+              supported_types: shop.supported_types || ['coffee'],
+              coordinates: coords,
+              isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
+            };
+          });
+          setShops(shopsWithStatus);
+          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+          toast.info('Нет сети — данные могут быть устаревшими');
+        } else {
+          toast.error(t('redeem.loadError'));
+        }
       } finally {
         setIsLoadingShops(false);
       }
@@ -363,13 +386,23 @@ export default function RedeemPage() {
 
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
-    return JSON.stringify({
+    const payload = {
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
       shopAddress: selectedShopClosestAddress || '',
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
-    });
+    };
+    // Кешируем последний QR-снимок для оффлайн-показа
+    setCache(CACHE_KEYS.qrSnapshot, { userId, payload }, CACHE_TTL.qrSnapshot);
+    return JSON.stringify(payload);
   }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
+
+  // Восстановление userId из кеша при оффлайне
+  useEffect(() => {
+    if (userId || isOnline) return;
+    const cached = getCache<{ userId: string }>(CACHE_KEYS.qrSnapshot);
+    if (cached?.data?.userId) setUserId(cached.data.userId);
+  }, [userId, isOnline]);
 
   const goHome = () => navigate('/');
 
