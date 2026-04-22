@@ -59,7 +59,14 @@ export default function RedeemPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  // Инициализируем userId синхронно из кеша — иначе при оффлайне QR не построится,
+  // т.к. supabase.auth.getUser() может зависнуть/упасть без сети.
+  const [userId, setUserId] = useState<string | null>(() => {
+    try {
+      const cached = getCache<{ userId: string }>(CACHE_KEYS.qrSnapshot);
+      return cached?.data?.userId || null;
+    } catch { return null; }
+  });
   const [shops, setShops] = useState<ShopWithStatus[]>([]);
   const [isLoadingShops, setIsLoadingShops] = useState(true);
   const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
