@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed, WifiOff } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,6 +12,8 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
 
 interface QRSettings {
   qr_title: string;
