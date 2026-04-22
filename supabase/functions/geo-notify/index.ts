@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
                       message: {
                         token: (t as any).token,
                         notification: { title: pushTitle, body: messageBody },
-                        data: { route: '/shops', shop_id: (chosen.shop as any).id },
+                        data: { route: '/shops', shop_id: (nearest.shop as any).id },
                         android: {
                           priority: 'high',
                           notification: { sound: 'default', channel_id: 'default', click_action: 'FLUTTER_NOTIFICATION_CLICK' },
@@ -334,9 +334,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      shop_id: (chosen.shop as any).id,
-      shop_name: (chosen.shop as any).name,
-      distance_m: Math.round(chosen.distance_m),
+      count: chosen.length,
+      shops: chosen.map((c) => ({
+        shop_id: (c.shop as any).id,
+        shop_name: (c.shop as any).name,
+        distance_m: Math.round(c.distance_m),
+      })),
       push_sent: pushSent,
       push_failed: pushFailed,
     }), {
