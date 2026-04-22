@@ -342,15 +342,25 @@ Deno.serve(async (req) => {
                 else { pushFailed++; await r.text(); }
               } catch (e) {
                 pushFailed++;
-                console.error('FCM send error', e);
+                logger.error('fcm_send_failed', { user_id: user.id }, e);
               }
             }
           }
         }
       } catch (e) {
-        console.error('FCM_SERVICE_ACCOUNT parse error', e);
+        logger.error('fcm_service_account_invalid', { user_id: user.id }, e);
       }
     }
+
+    await logger.persist('info', 'sent', {
+      user_id: user.id,
+      shops_count: chosen.length,
+      nearest_shop_id: (nearest.shop as any).id,
+      nearest_shop_name: (nearest.shop as any).name,
+      nearest_distance_m: Math.round(nearest.distance_m),
+      push_sent: pushSent,
+      push_failed: pushFailed,
+    });
 
     return new Response(JSON.stringify({
       success: true,
@@ -366,7 +376,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('geo-notify error:', err);
+    // logger недоступен здесь, если упали до его создания — пишем сырой console
+    console.error(JSON.stringify({
+      ts: new Date().toISOString(), fn: 'geo-notify', level: 'error',
+      action: 'unhandled_error',
+      err: err instanceof Error ? err.message : String(err),
+    }));
     return new Response(JSON.stringify({
       error: err instanceof Error ? err.message : 'unknown',
     }), {
