@@ -55,10 +55,14 @@ export function clearAllCache(): void {
 export const CACHE_KEYS = {
   shops: 'shops_v1',
   qrSnapshot: 'qr_snapshot_v1', // user + active subs + stats для показа QR офлайн
+  qrSettings: 'qr_settings_v1', // тексты вокруг QR (заголовок/таймер/остаток)
+  subTypeVolumes: 'sub_type_volumes_v1', // max_volume по всем тарифам — для оффлайн
 } as const;
 
 // TTLs
 export const CACHE_TTL = {
   shops: 24 * 60 * 60 * 1000, // 24h
   qrSnapshot: 24 * 60 * 60 * 1000, // 24h
+  qrSettings: 7 * 24 * 60 * 60 * 1000, // 7d — меняется крайне редко
+  subTypeVolumes: 7 * 24 * 60 * 60 * 1000, // 7d — объёмы тарифов меняются редко
 } as const;
