@@ -74,6 +74,7 @@ export default function RedeemPage() {
   const { vibrateSuccess } = useVibration();
   const { activeSubscriptions } = useSubscriptionStatus();
   const { t } = useLanguage();
+  const isOnline = useOnlineStatus();
   
   // QR settings and subscription volumes
   const [qrSettings, setQrSettings] = useState<QRSettings>({
