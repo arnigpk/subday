@@ -154,8 +154,46 @@ function PaymentResultHandler() {
 }
 
 function GeoNotificationsRunner() {
-  // Серверная edge function проверяет все условия (подписка, кулдаун, рабочие часы и т.д.)
-  useGeoNotifications(true);
+  // Тумблер пользователя из профиля. Сервер ТАКЖЕ проверяет это поле,
+  // но отключаем и на клиенте, чтобы не дёргать edge function зря.
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data } = await (supabase as any)
+        .from('profiles')
+        .select('geo_notifications_enabled')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setEnabled(data?.geo_notifications_enabled !== false);
+
+      // Реактивно отслеживаем изменение тумблера
+      channel = supabase
+        .channel(`geo-toggle-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
+          (payload: any) => {
+            const next = payload.new?.geo_notifications_enabled;
+            if (typeof next === 'boolean') setEnabled(next);
+          }
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useGeoNotifications(enabled);
   return null;
 }
 
