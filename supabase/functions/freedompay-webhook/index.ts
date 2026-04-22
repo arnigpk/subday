@@ -321,12 +321,31 @@ Deno.serve(async (req) => {
         });
         if (activationError) {
           console.error('Subscription activation error:', activationError);
+          await supabase.from('webhook_logs').insert({
+            source: 'edge', function_name: 'freedompay-webhook',
+            level: 'error', event_type: 'activation_failed',
+            user_id: paymentOrder.user_id, order_id: orderId,
+            status: 'error',
+            message: activationError.message ?? String(activationError),
+            payload: { subscription_type_id: paymentOrder.subscription_type_id },
+          });
           return await xmlResponse('error', 'Activation failed', secretKey);
         }
         activationResult = data as Record<string, unknown>;
       }
 
       console.log('Subscription activated:', activationResult);
+      await supabase.from('webhook_logs').insert({
+        source: 'edge', function_name: 'freedompay-webhook',
+        level: 'info', event_type: 'activation_ok',
+        user_id: paymentOrder.user_id, order_id: orderId,
+        status: 'ok',
+        payload: {
+          subscription_type_id: paymentOrder.subscription_type_id,
+          is_special_offer: isSpecialOffer,
+          ...activationResult,
+        },
+      });
 
       const { data: subType } = await supabase.from('subscription_types')
         .select('name, cups_count, duration_days').eq('id', paymentOrder.subscription_type_id).single();
