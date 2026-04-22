@@ -386,13 +386,23 @@ export default function RedeemPage() {
 
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
-    return JSON.stringify({
+    const payload = {
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
       shopAddress: selectedShopClosestAddress || '',
       drinkType, drinkName, timestamp: qrTimestamp, remaining,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
-    });
+    };
+    // Кешируем последний QR-снимок для оффлайн-показа
+    setCache(CACHE_KEYS.qrSnapshot, { userId, payload }, CACHE_TTL.qrSnapshot);
+    return JSON.stringify(payload);
   }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
+
+  // Восстановление userId из кеша при оффлайне
+  useEffect(() => {
+    if (userId || isOnline) return;
+    const cached = getCache<{ userId: string }>(CACHE_KEYS.qrSnapshot);
+    if (cached?.data?.userId) setUserId(cached.data.userId);
+  }, [userId, isOnline]);
 
   const goHome = () => navigate('/');
 
