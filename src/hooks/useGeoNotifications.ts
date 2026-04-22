@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useGeolocation } from './useGeolocation';
+import { haversineDistanceMeters } from '@/utils/haversine';
 
 const RADIUS_M = 250; // должен соответствовать конфигу шаблона
 const CHECK_INTERVAL_MS = 60_000; // проверяем не чаще 1 раза в минуту
@@ -11,17 +12,6 @@ interface ShopRow {
   id: string;
   is_active: boolean | null;
   coordinates: any;
-}
-
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 function getLastCall(): number {
@@ -84,7 +74,7 @@ export function useGeoNotifications(enabled: boolean) {
         const lat = Number(c?.lat ?? c?.latitude);
         const lng = Number(c?.lng ?? c?.longitude ?? c?.lon);
         if (!isFinite(lat) || !isFinite(lng)) continue;
-        const d = haversineMeters(latitude, longitude, lat, lng);
+        const d = haversineDistanceMeters(latitude, longitude, lat, lng);
         if (d < minDist) minDist = d;
       }
       if (minDist <= RADIUS_M) {

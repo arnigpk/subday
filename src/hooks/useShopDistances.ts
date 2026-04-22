@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGeolocation } from './useGeolocation';
 import { isShopOpen } from '@/utils/shopHours';
+import { haversineDistanceMeters } from '@/utils/haversine';
 
 export interface ShopDistance {
   distance: number | null;
@@ -29,17 +30,6 @@ interface ShopWithCoords {
   shopWorkingHours?: string | null;
 }
 
-// Haversine formula for straight-line distance
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 function calcHaversineDistances(
   userLat: number, userLng: number, shops: ShopWithCoords[]
 ): Map<string, ShopDistance> {
@@ -50,7 +40,7 @@ function calcHaversineDistances(
     const addressDistances: Array<{ idx: number; dist: number; isOpen: boolean }> = [];
     shop.coordinates.forEach((coord, idx) => {
       if (!coord?.lat || !coord?.lng) return;
-      const d = haversineDistance(userLat, userLng, coord.lat, coord.lng);
+      const d = haversineDistanceMeters(userLat, userLng, coord.lat, coord.lng);
       const hours = coord.working_hours?.trim() || shop.shopWorkingHours || null;
       const open = hours ? isShopOpen(hours) : false;
       addressDistances.push({ idx, dist: d, isOpen: open });
