@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
-import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration } from '@tabler/icons-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -37,8 +37,33 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const { settings: notifSettings, update: updateNotifSettings, togglePush } = useNotificationSettings();
+  const [geoNotifEnabled, setGeoNotifEnabled] = useState<boolean>(true);
   
   const { profile, stats, isLoading, updateAvatar, refetch } = useUserStatsContext();
+
+  // Подгружаем тумблер гео-уведомлений из профиля
+  useEffect(() => {
+    if (profile && (profile as any).geo_notifications_enabled !== undefined) {
+      setGeoNotifEnabled((profile as any).geo_notifications_enabled !== false);
+    }
+  }, [profile]);
+
+  const handleGeoNotifToggle = async (enabled: boolean) => {
+    setGeoNotifEnabled(enabled);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from('profiles') as any)
+        .update({ geo_notifications_enabled: enabled })
+        .eq('user_id', user.id);
+      toast.success(enabled ? 'Гео-уведомления включены' : 'Гео-уведомления отключены');
+      refetch();
+    } catch (e) {
+      console.error('geo toggle error', e);
+      setGeoNotifEnabled(!enabled);
+      toast.error('Не удалось сохранить');
+    }
+  };
   const { hasActiveSubscription, activeSubscriptions, isLoading: isSubLoading, refetch: refetchSubscription } = useSubscriptionStatus();
   const { vibrateShort, vibrateSuccess, vibrate } = useVibration();
   
@@ -463,6 +488,23 @@ export default function ProfilePage() {
                   <Switch
                     checked={notifSettings.vibrationEnabled}
                     onCheckedChange={(v) => updateNotifSettings({ vibrationEnabled: v })}
+                  />
+                </div>
+
+                {/* Geo notifications */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <IconMapPinFilled size={18} className="text-primary" />
+                    </div>
+                    <div className="pr-2">
+                      <p className="text-sm font-semibold text-foreground">Кофейни рядом</p>
+                      <p className="text-xs text-muted-foreground">Push, когда вы рядом с кофейней</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={geoNotifEnabled}
+                    onCheckedChange={handleGeoNotifToggle}
                   />
                 </div>
               </div>

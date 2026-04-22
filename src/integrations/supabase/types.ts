@@ -402,6 +402,33 @@ export type Database = {
         }
         Relationships: []
       }
+      geo_notification_log: {
+        Row: {
+          created_at: string
+          distance_meters: number | null
+          id: string
+          sent_at: string
+          shop_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance_meters?: number | null
+          id?: string
+          sent_at?: string
+          shop_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          distance_meters?: number | null
+          id?: string
+          sent_at?: string
+          shop_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       guest_grants: {
         Row: {
           created_at: string
@@ -652,6 +679,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          geo_notifications_enabled: boolean
           id: string
           is_blocked: boolean | null
           name: string | null
@@ -671,6 +699,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          geo_notifications_enabled?: boolean
           id?: string
           is_blocked?: boolean | null
           name?: string | null
@@ -690,6 +719,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          geo_notifications_enabled?: boolean
           id?: string
           is_blocked?: boolean | null
           name?: string | null

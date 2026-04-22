@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot, Coffee } from 'lucide-react';
+import { Plus, Pencil, Trash2, Bell, Send, Zap, Heart, MessageCircle, UserPlus, FileText, LogIn, CreditCard, Smartphone, Bot, Coffee, MapPin } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +62,7 @@ const triggerLabels: Record<string, string> = {
   admin_payment: 'Новая оплата подписки',
   admin_payment_special: 'Оплата (спецпредложение)',
   guest_coffee: 'Подарок кофе от друга',
+  geo_proximity: '📍 Гео: рядом кофейня',
 };
 
 const channelLabels: Record<string, string> = {
@@ -105,6 +106,7 @@ const defaultMessages: Record<string, string> = {
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
+  geo_proximity: '☕ {{shop_name}} в {{distance}} м от вас. Забери свой кофе по подписке прямо сейчас!',
 };
 
 const isSubflowTrigger = (type: string) => SUBFLOW_TRIGGERS.includes(type);
@@ -257,6 +259,7 @@ export default function AdminAutoNotificationsPage() {
       case 'subflow_new_post': return <FileText className="w-4 h-4 text-purple-500" />;
       case 'subflow_story_like': return <Heart className="w-4 h-4 text-pink-500" />;
       case 'preorder_new': return <Coffee className="w-4 h-4 text-amber-600" />;
+      case 'geo_proximity': return <MapPin className="w-4 h-4 text-primary" />;
       case 'admin_login_sms':
       case 'admin_register_sms': return <Smartphone className="w-4 h-4 text-blue-500" />;
       case 'admin_login_whatsapp':
@@ -300,6 +303,9 @@ export default function AdminAutoNotificationsPage() {
     }
     if (isPreorderTrigger(triggerType)) {
       return '{{shop_name}} — кофейня, {{coffee_name}} — напиток, {{syrup}} — сироп, {{customer_name}} — клиент, {{time}} — время';
+    }
+    if (triggerType === 'geo_proximity') {
+      return '{{shop_name}} — название кофейни, {{distance}} — расстояние в метрах, {{name}} — имя пользователя';
     }
     return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
   };
@@ -464,6 +470,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="admin_register_telegram">🆕 Регистрация через Telegram Bot</SelectItem>
                   <SelectItem value="admin_payment">🎉 Оплата подписки</SelectItem>
                   <SelectItem value="admin_payment_special">🎉 Оплата (спецпредложение)</SelectItem>
+                  <SelectItem value="geo_proximity">📍 Гео: рядом кофейня</SelectItem>
                 </SelectContent>
               </Select>
             </div>
