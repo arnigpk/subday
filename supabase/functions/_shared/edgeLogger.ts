@@ -17,11 +17,7 @@
 
 type Level = 'info' | 'warn' | 'error';
 
-interface SupabaseLike {
-  from: (table: string) => {
-    insert: (rows: any) => Promise<{ error: any }>;
-  };
-}
+type SupabaseLike = any;
 
 interface PersistPayload {
   user_id?: string | null;
