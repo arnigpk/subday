@@ -11,6 +11,15 @@ const tg = (window as any).Telegram?.WebApp;
 if (tg) {
   document.documentElement.classList.add('tg-miniapp');
   document.documentElement.style.setProperty('--tg-safe-area-top', '40px');
+
+  // Раскрываем приложение на весь экран
+  try { tg.expand?.(); } catch (e) { console.warn('tg.expand failed', e); }
+
+  // Отключаем закрытие свайпом вниз (TMA Bot API 7.7+)
+  try { tg.disableVerticalSwipes?.(); } catch (e) { console.warn('tg.disableVerticalSwipes failed', e); }
+
+  // Подтверждение при закрытии: «Вы уверены, что хотите закрыть subday?»
+  try { tg.enableClosingConfirmation?.(); } catch (e) { console.warn('tg.enableClosingConfirmation failed', e); }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
