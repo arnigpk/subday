@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       
       if (grant?.inviter_user_id) {
         fetchPromises.push(
-          supabase.from('profiles').select('public_id').eq('user_id', grant.inviter_user_id).maybeSingle()
+          Promise.resolve(supabase.from('profiles').select('public_id').eq('user_id', grant.inviter_user_id).maybeSingle())
         );
       } else {
         fetchPromises.push(Promise.resolve({ data: null }));
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
       
       if (grant?.subscription_type_id) {
         fetchPromises.push(
-          supabase.from('subscription_types').select('name, max_volume').eq('id', grant.subscription_type_id).single()
+          Promise.resolve(supabase.from('subscription_types').select('name, max_volume').eq('id', grant.subscription_type_id).single())
         );
       } else {
         fetchPromises.push(Promise.resolve({ data: null }));

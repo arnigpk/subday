@@ -160,6 +160,7 @@ Deno.serve(async (req) => {
         recipientCount: 0,
         sentCount: 0,
         failedCount: 0,
+        recipients: [],
       });
 
       return new Response(JSON.stringify({
