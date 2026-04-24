@@ -26,12 +26,23 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
     exp: now + 3600,
   }));
 
-  const pemContents = serviceAccount.private_key
+  // Normalize the private key: secrets pasted as JSON string may keep literal "\n"
+  // sequences instead of real newlines, which would break base64 decoding.
+  const normalizedKey = String(serviceAccount.private_key)
+    .replace(/\\n/g, '\n')
+    .replace(/\r/g, '');
+
+  const pemContents = normalizedKey
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
     .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\n/g, '');
+    .replace(/\s+/g, '');
 
-  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  let binaryKey: Uint8Array;
+  try {
+    binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  } catch (_e) {
+    throw new Error('FCM service account private_key is malformed (base64 decode failed)');
+  }
 
   const cryptoKey = await crypto.subtle.importKey(
     'pkcs8',
