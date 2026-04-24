@@ -269,10 +269,10 @@ export function PermissionsBootstrap() {
       await new Promise((r) => setTimeout(r, 600));
       if (cancelled) return;
 
-      // GEO
-      const geoAsked = localStorage.getItem(GEO_REQUESTED_KEY) === '1';
-      const geoResolved = await geoAlreadyResolved();
-      if (!geoResolved && !geoAsked) {
+      // GEO: всегда переспрашиваем системно, пока разрешение не выдано
+      // (без плашек — браузер/ОС сами покажут диалог)
+      const geoGranted = localStorage.getItem('geolocation_permission') === 'granted';
+      if (!geoGranted) {
         try { localStorage.setItem(GEO_REQUESTED_KEY, '1'); } catch {}
         await handleGeoPermission();
       }
