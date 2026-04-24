@@ -273,53 +273,40 @@ Deno.serve(async (req) => {
     );
 
     // 14. Шлём FCM push (если есть токены и креды)
-    const fcmJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
     let pushSent = 0;
     let pushFailed = 0;
-    if (fcmJson) {
-      try {
-        const sa = JSON.parse(fcmJson);
-        if (sa.client_email && sa.private_key && sa.project_id) {
-          const { data: tokens } = await supabase
-            .from('device_tokens')
-            .select('token')
-            .eq('user_id', user.id);
-          if (tokens && tokens.length > 0) {
-            const accessToken = await getAccessToken(sa);
+    {
+      const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+      if (!serviceAccount) {
+        if (parseError) logger.error('fcm_service_account_invalid', { user_id: user.id, parseError });
+      } else {
+        const { data: tokens } = await supabase
+          .from('device_tokens')
+          .select('token')
+          .eq('user_id', user.id);
+        if (tokens && tokens.length > 0) {
+          try {
+            const accessToken = await getFcmAccessToken(serviceAccount);
             for (const t of tokens) {
-              try {
-                const r = await fetch(
-                  `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      message: {
-                        token: (t as any).token,
-                        notification: { title: pushTitle, body: messageBody },
-                        data: { route: '/shops', shop_id: (nearest.shop as any).id },
-                        android: {
-                          priority: 'high',
-                          notification: { sound: 'default', channel_id: 'default', click_action: 'FLUTTER_NOTIFICATION_CLICK' },
-                        },
-                      },
-                    }),
-                  }
-                );
-                if (r.ok) pushSent++;
-                else { pushFailed++; await r.text(); }
-              } catch (e) {
+              const result = await sendFcmMessage(accessToken, serviceAccount.project_id, (t as any).token, {
+                title: pushTitle,
+                body: messageBody,
+                data: { route: '/shops', shop_id: (nearest.shop as any).id },
+              });
+              if (result.ok) {
+                pushSent++;
+              } else {
                 pushFailed++;
-                logger.error('fcm_send_failed', { user_id: user.id }, e);
+                logger.error('fcm_send_failed', { user_id: user.id, error: result.error });
+                if (isInvalidFcmTokenError(result.error)) {
+                  await supabase.from('device_tokens').delete().eq('token', (t as any).token);
+                }
               }
             }
+          } catch (e) {
+            logger.error('fcm_oauth_failed', { user_id: user.id }, e);
           }
         }
-      } catch (e) {
-        logger.error('fcm_service_account_invalid', { user_id: user.id }, e);
       }
     }
 
