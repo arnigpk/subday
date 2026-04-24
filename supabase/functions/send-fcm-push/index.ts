@@ -148,8 +148,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get FCM tokens from device_tokens table
-    let query = supabase.from('device_tokens').select('token, user_id').eq('platform', 'android');
+    // Get FCM tokens from device_tokens table (all platforms — let FCM
+    // reject unregistered tokens; we clean them up below).
+    let query = supabase.from('device_tokens').select('token, user_id');
     if (filteredUserIds !== null) {
       query = query.in('user_id', filteredUserIds);
     }
@@ -170,56 +171,26 @@ Deno.serve(async (req) => {
     let skippedCount = 0;
     const invalidTokens: string[] = [];
 
-    if (deviceTokens.length > 0 && canSendDevicePush) {
+    if (deviceTokens.length > 0 && canSendDevicePush && serviceAccount && projectId) {
       try {
-        const accessToken = await getAccessToken(serviceAccount);
+        const accessToken = await getFcmAccessToken(serviceAccount);
 
         for (const deviceToken of deviceTokens) {
-          try {
-            const fcmResponse = await fetch(
-              `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: {
-                    token: deviceToken.token,
-                    notification: {
-                      title,
-                      body: message,
-                    },
-                    android: {
-                      priority: 'high',
-                      notification: {
-                        sound: 'default',
-                        channel_id: 'default',
-                      },
-                    },
-                  },
-                }),
-              }
-            );
-
-            if (fcmResponse.ok) {
-              successCount++;
-            } else {
-              const errorData = await fcmResponse.json();
-              failCount++;
-              console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
-
-              if (
-                errorData?.error?.code === 404 ||
-                errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
-              ) {
-                invalidTokens.push(deviceToken.token);
-              }
-            }
-          } catch (err) {
+          const result = await sendFcmMessage(accessToken, projectId, deviceToken.token, {
+            title,
+            body: message,
+          });
+          if (result.ok) {
+            successCount++;
+          } else {
             failCount++;
-            console.error('FCM send error:', err);
+            console.error(
+              `FCM send failed for token ${deviceToken.token.slice(0, 10)}... (status ${result.status}):`,
+              result.error,
+            );
+            if (isInvalidFcmTokenError(result.error)) {
+              invalidTokens.push(deviceToken.token);
+            }
           }
         }
       } catch (err) {
@@ -232,6 +203,7 @@ Deno.serve(async (req) => {
       pushConfigError ||= 'FCM credentials are not configured. Device push skipped; in-app notifications only.';
       console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
+
 
     if (invalidTokens.length > 0) {
       await supabase.from('device_tokens').delete().in('token', invalidTokens);
