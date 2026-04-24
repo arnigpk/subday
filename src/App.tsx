@@ -15,6 +15,7 @@ import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
 import { usePaymentResult } from "@/hooks/usePaymentResult";
 import { useGeoNotifications } from "@/hooks/useGeoNotifications";
+import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootstrap";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 
@@ -381,6 +382,7 @@ const AppContent = () => {
         <PaymentResultHandler />
         <DeepLinkHandler />
         <GeoNotificationsRunner />
+        <PermissionsBootstrap />
         <Toaster />
         <Sonner />
         <Suspense fallback={<LazyFallback />}>
