@@ -1,127 +1,119 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { PermissionsPrePrompt } from './PermissionsPrePrompt';
+import { supabase } from '@/integrations/supabase/client';
+import { getToken } from 'firebase/messaging';
+import { messaging } from '@/lib/firebase';
 
-const SNOOZE_KEY = 'permissions_bootstrap_snoozed_until';
-const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+const VAPID_KEY =
+  'BAxmCxcPMx7w6yFuKKijoeRs1Z9Fo78avizGN6BghC3UQUqx8bglJNLQFzpkyxxHsPIMpx0qASRZmjoer-Pf13o';
 
-type PermStatus = 'granted' | 'denied' | 'prompt' | 'unsupported';
+const PUSH_REQUESTED_KEY = 'permissions_push_requested';
+const GEO_REQUESTED_KEY = 'permissions_geo_requested';
 
-// ---------- STATUS CHECKS (no prompt shown) ----------
+// ---------- DB helpers ----------
 
-async function checkPushStatus(): Promise<PermStatus> {
+async function saveDeviceToken(token: string, platform: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await (supabase.from('device_tokens') as any).upsert(
+      {
+        user_id: user.id,
+        token,
+        platform,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,token' }
+    );
+  } catch (err) {
+    console.error('[Permissions] Failed to save device token:', err);
+  }
+}
+
+async function setGeoEnabledInProfile(enabled: boolean) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await (supabase.from('profiles') as any)
+      .update({ geo_notifications_enabled: enabled })
+      .eq('user_id', user.id);
+  } catch (err) {
+    console.error('[Permissions] Failed to update geo flag:', err);
+  }
+}
+
+// ---------- PUSH ----------
+
+async function handlePushPermission() {
   const tg = (window as any).Telegram?.WebApp;
-  // In Telegram we can't reliably read prior write-access state; treat as 'prompt'
-  // unless we've previously cached a granted result.
+
+  // Telegram WebApp — no FCM, just request write access once
   if (tg?.requestWriteAccess) {
     const cached = localStorage.getItem('tg_write_access');
-    if (cached === 'granted') return 'granted';
-    if (cached === 'denied') return 'denied';
-    return 'prompt';
-  }
-
-  if (Capacitor.isNativePlatform()) {
+    if (cached === 'granted' || cached === 'denied') return;
     try {
-      const status = await PushNotifications.checkPermissions();
-      if (status.receive === 'granted') return 'granted';
-      if (status.receive === 'denied') return 'denied';
-      return 'prompt';
-    } catch {
-      return 'unsupported';
-    }
-  }
-
-  if (typeof Notification !== 'undefined' && 'permission' in Notification) {
-    if (Notification.permission === 'granted') return 'granted';
-    if (Notification.permission === 'denied') return 'denied';
-    return 'prompt';
-  }
-  return 'unsupported';
-}
-
-async function checkGeoStatus(): Promise<PermStatus> {
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const { Geolocation } = await import('@capacitor/geolocation');
-      const status = await Geolocation.checkPermissions();
-      if (status.location === 'granted') return 'granted';
-      if (status.location === 'denied') return 'denied';
-      return 'prompt';
-    } catch {
-      return 'unsupported';
-    }
-  }
-
-  // Web / TMA
-  if (!('geolocation' in navigator)) return 'unsupported';
-  // Permissions API where available
-  try {
-    const anyNav = navigator as any;
-    if (anyNav.permissions?.query) {
-      const res = await anyNav.permissions.query({ name: 'geolocation' });
-      if (res.state === 'granted') return 'granted';
-      if (res.state === 'denied') return 'denied';
-      return 'prompt';
-    }
-  } catch {}
-  // Fallback to our cached flag
-  const cached = localStorage.getItem('geolocation_permission');
-  if (cached === 'granted') return 'granted';
-  if (cached === 'denied') return 'denied';
-  return 'prompt';
-}
-
-// ---------- ACTUAL REQUESTS (system dialogs) ----------
-
-async function requestPushPermission(): Promise<'granted' | 'denied' | 'unsupported'> {
-  const tg = (window as any).Telegram?.WebApp;
-  if (tg?.requestWriteAccess) {
-    try {
-      const result = await new Promise<'granted' | 'denied'>((resolve) => {
-        let done = false;
-        try {
-          tg.requestWriteAccess((ok: boolean) => {
-            if (done) return;
-            done = true;
-            resolve(ok ? 'granted' : 'denied');
-          });
-        } catch { resolve('denied'); }
-        setTimeout(() => { if (!done) { done = true; resolve('denied'); } }, 5000);
+      tg.requestWriteAccess((ok: boolean) => {
+        try { localStorage.setItem('tg_write_access', ok ? 'granted' : 'denied'); } catch {}
       });
-      try { localStorage.setItem('tg_write_access', result); } catch {}
-      return result;
-    } catch { return 'denied'; }
+    } catch {}
+    return;
   }
 
+  // Native (iOS/Android via Capacitor)
   if (Capacitor.isNativePlatform()) {
     try {
-      const status = await PushNotifications.checkPermissions();
+      let status = await PushNotifications.checkPermissions();
+      if (status.receive === 'prompt' || status.receive === 'prompt-with-rationale') {
+        status = await PushNotifications.requestPermissions();
+      }
       if (status.receive === 'granted') {
+        // The token will arrive via the 'registration' listener in useNotificationSettings
         try { await PushNotifications.register(); } catch {}
-        return 'granted';
       }
-      const req = await PushNotifications.requestPermissions();
-      if (req.receive === 'granted') {
-        try { await PushNotifications.register(); } catch {}
-        return 'granted';
-      }
-      return 'denied';
-    } catch { return 'denied'; }
+    } catch (err) {
+      console.error('[Permissions] Native push error:', err);
+    }
+    return;
   }
 
-  if (typeof Notification !== 'undefined' && 'requestPermission' in Notification) {
-    try {
-      if (Notification.permission === 'granted') return 'granted';
-      if (Notification.permission === 'denied') return 'denied';
-      const result = await Notification.requestPermission();
-      return result === 'granted' ? 'granted' : 'denied';
-    } catch { return 'denied'; }
+  // Web (FCM)
+  if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  try {
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== 'granted') return;
+
+    if (!messaging) return;
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+
+    const fcmToken = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg,
+    });
+    if (fcmToken) {
+      await saveDeviceToken(fcmToken, 'web');
+    }
+  } catch (err) {
+    console.error('[Permissions] Web push error:', err);
   }
-  return 'unsupported';
 }
 
-async function requestGeoPermission(): Promise<'granted' | 'denied' | 'unsupported'> {
+// ---------- GEO ----------
+
+function cacheLocation(latitude: number, longitude: number, accuracy: number) {
+  try {
+    localStorage.setItem('geolocation_cache', JSON.stringify({
+      latitude, longitude, accuracy, timestamp: Date.now(),
+    }));
+  } catch {}
+}
+
+async function handleGeoPermission() {
   const tg = (window as any).Telegram?.WebApp;
   if (tg?.LocationManager?.init) {
     try {
@@ -132,133 +124,142 @@ async function requestGeoPermission(): Promise<'granted' | 'denied' | 'unsupport
     } catch {}
   }
 
+  // Native
   if (Capacitor.isNativePlatform()) {
     try {
       const { Geolocation } = await import('@capacitor/geolocation');
-      const status = await Geolocation.checkPermissions();
+      let status = await Geolocation.checkPermissions();
+      if (status.location !== 'granted' && status.location !== 'denied') {
+        status = await Geolocation.requestPermissions();
+      }
       if (status.location === 'granted') {
         try {
           const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000 });
           cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
         } catch {}
         localStorage.setItem('geolocation_permission', 'granted');
-        return 'granted';
+        await setGeoEnabledInProfile(true);
+      } else {
+        localStorage.setItem('geolocation_permission', 'denied');
+        await setGeoEnabledInProfile(false);
       }
-      const req = await Geolocation.requestPermissions();
-      if (req.location === 'granted') {
-        try {
-          const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000 });
-          cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        } catch {}
-        localStorage.setItem('geolocation_permission', 'granted');
-        return 'granted';
-      }
-      localStorage.setItem('geolocation_permission', 'denied');
-      return 'denied';
-    } catch { return 'denied'; }
+    } catch (err) {
+      console.error('[Permissions] Native geo error:', err);
+    }
+    return;
   }
 
-  if (!('geolocation' in navigator)) return 'unsupported';
-  return new Promise((resolve) => {
+  // Web
+  if (!('geolocation' in navigator)) return;
+  await new Promise<void>((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
         localStorage.setItem('geolocation_permission', 'granted');
-        resolve('granted');
+        await setGeoEnabledInProfile(true);
+        resolve();
       },
-      () => {
+      async () => {
         localStorage.setItem('geolocation_permission', 'denied');
-        resolve('denied');
+        await setGeoEnabledInProfile(false);
+        resolve();
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
     );
   });
 }
 
-function cacheLocation(latitude: number, longitude: number, accuracy: number) {
-  try {
-    localStorage.setItem('geolocation_cache', JSON.stringify({
-      latitude, longitude, accuracy, timestamp: Date.now(),
-    }));
-  } catch {}
+// ---------- Status checks (skip if already in a final state) ----------
+
+async function pushAlreadyResolved(): Promise<boolean> {
+  const tg = (window as any).Telegram?.WebApp;
+  if (tg?.requestWriteAccess) {
+    const v = localStorage.getItem('tg_write_access');
+    return v === 'granted' || v === 'denied';
+  }
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const s = await PushNotifications.checkPermissions();
+      return s.receive === 'granted' || s.receive === 'denied';
+    } catch { return true; }
+  }
+  if (typeof Notification === 'undefined') return true;
+  return Notification.permission === 'granted' || Notification.permission === 'denied';
 }
 
-function isSnoozed(): boolean {
+async function geoAlreadyResolved(): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      const s = await Geolocation.checkPermissions();
+      return s.location === 'granted' || s.location === 'denied';
+    } catch { return true; }
+  }
+  if (!('geolocation' in navigator)) return true;
   try {
-    const snoozed = localStorage.getItem(SNOOZE_KEY);
-    if (snoozed && Date.now() < parseInt(snoozed, 10)) return true;
+    const anyNav = navigator as any;
+    if (anyNav.permissions?.query) {
+      const r = await anyNav.permissions.query({ name: 'geolocation' });
+      return r.state === 'granted' || r.state === 'denied';
+    }
   } catch {}
-  return false;
+  const v = localStorage.getItem('geolocation_permission');
+  return v === 'granted' || v === 'denied';
 }
+
+// ---------- Component ----------
 
 export function PermissionsBootstrap() {
-  const [showPrompt, setShowPrompt] = useState(false);
-  // Track which permissions actually need to be requested (status === 'prompt')
-  const [needPush, setNeedPush] = useState(false);
-  const [needGeo, setNeedGeo] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
 
-    const evaluate = async () => {
-      // Always check current status — even if previously snoozed, we still
-      // skip showing the prompt if BOTH are already granted/denied (final states).
-      const [pushStatus, geoStatus] = await Promise.all([
-        checkPushStatus(),
-        checkGeoStatus(),
-      ]);
+    const run = async () => {
+      // Defer slightly so the home page renders first
+      await new Promise((r) => setTimeout(r, 1500));
+      if (cancelled) return;
+
+      // PUSH: only ask if not yet resolved AND we haven't asked in this app before
+      const pushAsked = localStorage.getItem(PUSH_REQUESTED_KEY) === '1';
+      const pushResolved = await pushAlreadyResolved();
+      if (!pushResolved && !pushAsked) {
+        try { localStorage.setItem(PUSH_REQUESTED_KEY, '1'); } catch {}
+        await handlePushPermission();
+      } else if (pushResolved) {
+        // Re-ensure native registration if granted (idempotent — gets us a fresh FCM token)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const s = await PushNotifications.checkPermissions();
+            if (s.receive === 'granted') await PushNotifications.register();
+          } catch {}
+        } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && messaging) {
+          // Refresh web FCM token silently
+          try {
+            const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+            await navigator.serviceWorker.ready;
+            const t = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+            if (t) await saveDeviceToken(t, 'web');
+          } catch {}
+        }
+      }
 
       if (cancelled) return;
 
-      const pushNeedsAsk = pushStatus === 'prompt';
-      const geoNeedsAsk = geoStatus === 'prompt';
+      // Small gap so two system dialogs don't stack
+      await new Promise((r) => setTimeout(r, 600));
+      if (cancelled) return;
 
-      // If BOTH are already in a final state (granted/denied/unsupported) — never ask.
-      if (!pushNeedsAsk && !geoNeedsAsk) {
-        // Auto-register push token on native if granted (idempotent)
-        if (pushStatus === 'granted' && Capacitor.isNativePlatform()) {
-          try { await PushNotifications.register(); } catch {}
-        }
-        return;
+      // GEO
+      const geoAsked = localStorage.getItem(GEO_REQUESTED_KEY) === '1';
+      const geoResolved = await geoAlreadyResolved();
+      if (!geoResolved && !geoAsked) {
+        try { localStorage.setItem(GEO_REQUESTED_KEY, '1'); } catch {}
+        await handleGeoPermission();
       }
-
-      // At least one needs asking — respect snooze before showing pre-prompt.
-      if (isSnoozed()) return;
-
-      setNeedPush(pushNeedsAsk);
-      setNeedGeo(geoNeedsAsk);
-
-      // Defer slightly so the home page has time to render
-      setTimeout(() => {
-        if (!cancelled) setShowPrompt(true);
-      }, 1500);
     };
 
-    evaluate();
+    run();
     return () => { cancelled = true; };
   }, []);
 
-  const handleAllow = async () => {
-    setShowPrompt(false);
-    // Clear snooze — user actively engaged
-    try { localStorage.removeItem(SNOOZE_KEY); } catch {}
-
-    if (needPush) {
-      await requestPushPermission();
-      // Small gap so two system dialogs don't stack
-      if (needGeo) await new Promise((r) => setTimeout(r, 800));
-    }
-    if (needGeo) {
-      await requestGeoPermission();
-    }
-  };
-
-  const handleLater = () => {
-    setShowPrompt(false);
-    try {
-      localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_MS));
-    } catch {}
-  };
-
-  return <PermissionsPrePrompt open={showPrompt} onAllow={handleAllow} onLater={handleLater} />;
+  return null;
 }
