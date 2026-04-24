@@ -33,7 +33,7 @@ export default function HomePage() {
   const { vibrateShort } = useVibration();
   
   const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
-  const { requestPermissionAndToken } = usePushNotifications();
+  const { requestPermissionAndToken, token: fcmToken, error: fcmError } = usePushNotifications();
   
   useEffect(() => {
     prefetchAll();
