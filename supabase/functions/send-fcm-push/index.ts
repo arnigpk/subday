@@ -31,40 +31,13 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
 
-    let serviceAccount: any = null;
-    let pushConfigError: string | null = null;
-    if (fcmServiceAccountJson) {
-      // Tolerate common copy/paste issues:
-      // - Leading/trailing whitespace
-      // - Wrapping single/double quotes around the whole JSON
-      // - BOM character
-      // - Base64-encoded JSON (entire file pasted as one base64 blob)
-      let raw = fcmServiceAccountJson.trim().replace(/^\uFEFF/, '');
-      if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-        raw = raw.slice(1, -1);
-      }
-      // If it doesn't look like JSON, try base64 decode
-      if (!raw.startsWith('{')) {
-        try {
-          const decoded = atob(raw.replace(/\s+/g, ''));
-          if (decoded.trim().startsWith('{')) raw = decoded.trim();
-        } catch (_e) {
-          // fall through to JSON.parse error below
-        }
-      }
-      try {
-        serviceAccount = JSON.parse(raw);
-      } catch (parseError) {
-        console.error('Invalid FCM_SERVICE_ACCOUNT JSON:', parseError, 'first 20 chars:', raw.slice(0, 20));
-        pushConfigError = 'Invalid FCM_SERVICE_ACCOUNT format. Paste the raw service account JSON file content (starting with { and ending with }), without surrounding quotes.';
-      }
-    }
-
-    const canSendDevicePush = Boolean(
-      serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key,
-    );
+    const { serviceAccount, diagnostics, parseError } = parseFcmServiceAccount(fcmServiceAccountJson);
+    let pushConfigError: string | null = parseError;
+    const canSendDevicePush = !!serviceAccount;
     const projectId = serviceAccount?.project_id;
+    console.log('FCM key diagnostics:', diagnostics);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 
     // Verify admin
     const authHeader = req.headers.get('Authorization');
