@@ -13,6 +13,8 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Button } from '@/components/ui/button';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
@@ -31,6 +33,7 @@ export default function HomePage() {
   const { vibrateShort } = useVibration();
   
   const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
+  const { requestPermissionAndToken } = usePushNotifications();
   
   useEffect(() => {
     prefetchAll();
@@ -95,6 +98,13 @@ export default function HomePage() {
           
           {/* Content */}
           <div className="px-4 space-y-5">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => requestPermissionAndToken()}
+            >
+              🔔 Enable Notifications (FCM)
+            </Button>
             <TopShopsCarousel />
             <BalanceCard activeTab={activeTab} onTabChange={setActiveTab} />
             <GetCoffeeButton activeTab={activeTab} />
