@@ -1,4 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  parseFcmServiceAccount,
+  getFcmAccessToken,
+  sendFcmMessage,
+  isInvalidFcmTokenError,
+} from '../_shared/fcm.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -411,11 +417,6 @@ async function sendTelegramNotification(
 
 async function sendPushNotification(supabase: any, userId: string, message: string) {
   try {
-    // Send native FCM push only — do NOT insert into push_notifications table
-    // push_notifications is for admin broadcasts shown on the home page bell
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
     const { data: tokens } = await supabase
       .from('device_tokens')
       .select('token')
@@ -423,18 +424,31 @@ async function sendPushNotification(supabase: any, userId: string, message: stri
 
     if (!tokens || tokens.length === 0) return;
 
-    await fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({
+    const fcmSecret = Deno.env.get('FCM_SERVICE_ACCOUNT');
+    const { serviceAccount, parseError } = parseFcmServiceAccount(fcmSecret);
+    if (!serviceAccount) {
+      console.error('[subflow-notify] FCM not configured:', parseError);
+      return;
+    }
+
+    const accessToken = await getFcmAccessToken(serviceAccount);
+    const invalidTokens: string[] = [];
+
+    for (const t of tokens) {
+      const result = await sendFcmMessage(accessToken, serviceAccount.project_id, (t as any).token, {
         title: '#subFlow',
-        message,
-        targetUserIds: [userId],
-      }),
-    });
+        body: message,
+        androidChannelId: 'subflow',
+      });
+      if (!result.ok) {
+        console.error('[subflow-notify] FCM send failed:', result.status, result.error);
+        if (isInvalidFcmTokenError(result.error)) invalidTokens.push((t as any).token);
+      }
+    }
+
+    if (invalidTokens.length > 0) {
+      await supabase.from('device_tokens').delete().in('token', invalidTokens);
+    }
   } catch (err) {
     console.error('Failed to send FCM push:', err);
   }
