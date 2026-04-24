@@ -211,6 +211,9 @@ async function geoAlreadyResolved(): Promise<boolean> {
 // ---------- Component ----------
 
 export function PermissionsBootstrap() {
+  // Mounts native push listeners (registration + foreground toast) app-wide
+  const { initialize: initNativePush } = useNativePush();
+
   useEffect(() => {
     let cancelled = false;
 
@@ -224,7 +227,11 @@ export function PermissionsBootstrap() {
       const pushResolved = await pushAlreadyResolved();
       if (!pushResolved && !pushAsked) {
         try { localStorage.setItem(PUSH_REQUESTED_KEY, '1'); } catch {}
-        await handlePushPermission();
+        if (Capacitor.isNativePlatform()) {
+          await initNativePush();
+        } else {
+          await handlePushPermission();
+        }
       } else if (pushResolved) {
         // Re-ensure native registration if granted (idempotent — gets us a fresh FCM token)
         if (Capacitor.isNativePlatform()) {
@@ -260,7 +267,7 @@ export function PermissionsBootstrap() {
 
     run();
     return () => { cancelled = true; };
-  }, []);
+  }, [initNativePush]);
 
   return null;
 }
