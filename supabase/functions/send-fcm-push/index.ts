@@ -80,12 +80,36 @@ Deno.serve(async (req) => {
     const message = body.message?.trim();
     const targetUserIds = body.targetUserIds;
 
+    // Diagnostic mode: report what we know about the configured FCM key
+    // (no secret values are returned) and try a real OAuth handshake.
+    if (body.diagnose) {
+      let oauthOk = false;
+      let oauthError: string | null = null;
+      if (serviceAccount) {
+        try {
+          await getFcmAccessToken(serviceAccount);
+          oauthOk = true;
+        } catch (e) {
+          oauthError = e instanceof Error ? e.message : String(e);
+        }
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        mode: 'diagnose',
+        diagnostics,
+        parse_error: parseError,
+        oauth_ok: oauthOk,
+        oauth_error: oauthError,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (!title || !message) {
       return new Response(JSON.stringify({ error: 'Title and message are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
 
     // Resolve audience user IDs
     let filteredUserIds: string[] | null = null;
