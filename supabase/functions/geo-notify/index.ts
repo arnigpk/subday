@@ -7,6 +7,12 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createEdgeLogger } from '../_shared/edgeLogger.ts';
+import {
+  parseFcmServiceAccount,
+  getFcmAccessToken,
+  sendFcmMessage,
+  isInvalidFcmTokenError,
+} from '../_shared/fcm.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,42 +46,7 @@ function isOpenNow(workingHours: string | null | undefined): boolean {
   return cur >= open && cur < close;
 }
 
-async function getAccessToken(serviceAccount: any): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const headerB64 = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const payloadB64 = btoa(JSON.stringify({
-    iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-  const pem = serviceAccount.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const binary = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey(
-    'pkcs8', binary,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key,
-    new TextEncoder().encode(`${headerB64}.${payloadB64}`));
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-  const r = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${headerB64}.${payloadB64}.${sigB64}`,
-  });
-  const data = await r.json();
-  if (!r.ok) throw new Error(`OAuth token error: ${JSON.stringify(data)}`);
-  return data.access_token;
-}
+// (FCM OAuth helpers moved to ../_shared/fcm.ts)
 
 function renderTemplate(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
@@ -302,53 +273,40 @@ Deno.serve(async (req) => {
     );
 
     // 14. Шлём FCM push (если есть токены и креды)
-    const fcmJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
     let pushSent = 0;
     let pushFailed = 0;
-    if (fcmJson) {
-      try {
-        const sa = JSON.parse(fcmJson);
-        if (sa.client_email && sa.private_key && sa.project_id) {
-          const { data: tokens } = await supabase
-            .from('device_tokens')
-            .select('token')
-            .eq('user_id', user.id);
-          if (tokens && tokens.length > 0) {
-            const accessToken = await getAccessToken(sa);
+    {
+      const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+      if (!serviceAccount) {
+        if (parseError) logger.error('fcm_service_account_invalid', { user_id: user.id, parseError });
+      } else {
+        const { data: tokens } = await supabase
+          .from('device_tokens')
+          .select('token')
+          .eq('user_id', user.id);
+        if (tokens && tokens.length > 0) {
+          try {
+            const accessToken = await getFcmAccessToken(serviceAccount);
             for (const t of tokens) {
-              try {
-                const r = await fetch(
-                  `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      message: {
-                        token: (t as any).token,
-                        notification: { title: pushTitle, body: messageBody },
-                        data: { route: '/shops', shop_id: (nearest.shop as any).id },
-                        android: {
-                          priority: 'high',
-                          notification: { sound: 'default', channel_id: 'default', click_action: 'FLUTTER_NOTIFICATION_CLICK' },
-                        },
-                      },
-                    }),
-                  }
-                );
-                if (r.ok) pushSent++;
-                else { pushFailed++; await r.text(); }
-              } catch (e) {
+              const result = await sendFcmMessage(accessToken, serviceAccount.project_id, (t as any).token, {
+                title: pushTitle,
+                body: messageBody,
+                data: { route: '/shops', shop_id: (nearest.shop as any).id },
+              });
+              if (result.ok) {
+                pushSent++;
+              } else {
                 pushFailed++;
-                logger.error('fcm_send_failed', { user_id: user.id }, e);
+                logger.error('fcm_send_failed', { user_id: user.id, error: result.error });
+                if (isInvalidFcmTokenError(result.error)) {
+                  await supabase.from('device_tokens').delete().eq('token', (t as any).token);
+                }
               }
             }
+          } catch (e) {
+            logger.error('fcm_oauth_failed', { user_id: user.id }, e);
           }
         }
-      } catch (e) {
-        logger.error('fcm_service_account_invalid', { user_id: user.id }, e);
       }
     }
 

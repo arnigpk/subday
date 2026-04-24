@@ -1,4 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  parseFcmServiceAccount,
+  getFcmAccessToken,
+  sendFcmMessage,
+  isInvalidFcmTokenError,
+} from '../_shared/fcm.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -173,62 +179,31 @@ Deno.serve(async (req) => {
         .in('user_id', staffUserIds);
 
       if (tokens && tokens.length > 0) {
-        const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
-        if (fcmServiceAccountJson) {
-          let serviceAccount: any;
+        const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+        if (!serviceAccount) {
+          console.error('preorder-notify FCM key error:', parseError);
+        } else {
           try {
-            serviceAccount = JSON.parse(fcmServiceAccountJson);
-          } catch {
-            console.error('Invalid FCM_SERVICE_ACCOUNT JSON');
-          }
-
-          if (serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key) {
-            const accessToken = await getAccessToken(serviceAccount);
-
+            const accessToken = await getFcmAccessToken(serviceAccount);
             for (const deviceToken of tokens) {
-              try {
-                const fcmResponse = await fetch(
-                  `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      message: {
-                        token: deviceToken.token,
-                        notification: { title: pushTitle, body: pushBody },
-                        android: {
-                          priority: 'high',
-                          notification: { sound: 'default', channel_id: 'preorders' },
-                        },
-                        apns: {
-                          payload: { aps: { sound: 'default', badge: 1 } },
-                        },
-                      },
-                    }),
-                  }
-                );
-
-                if (fcmResponse.ok) {
-                  fcmSent++;
-                } else {
-                  fcmFailed++;
-                  const err = await fcmResponse.json();
-                  console.error('FCM error:', err);
-                  if (err?.error?.code === 404 || err?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')) {
-                    await supabase.from('device_tokens').delete().eq('token', deviceToken.token);
-                  }
-                }
-              } catch (err) {
+              const result = await sendFcmMessage(accessToken, serviceAccount.project_id, deviceToken.token, {
+                title: pushTitle,
+                body: pushBody,
+                androidChannelId: 'preorders',
+              });
+              if (result.ok) {
+                fcmSent++;
+              } else {
                 fcmFailed++;
-                console.error('FCM send error:', err);
+                console.error('preorder-notify FCM error:', result.error);
+                if (isInvalidFcmTokenError(result.error)) {
+                  await supabase.from('device_tokens').delete().eq('token', deviceToken.token);
+                }
               }
             }
+          } catch (err) {
+            console.error('preorder-notify OAuth/FCM error:', err);
           }
-        } else {
-          console.warn('FCM_SERVICE_ACCOUNT not configured');
         }
       }
     }
@@ -253,51 +228,3 @@ Deno.serve(async (req) => {
   }
 });
 
-async function getAccessToken(serviceAccount: any): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
-    iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  }));
-
-  const pemContents = serviceAccount.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\n/g, '');
-
-  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signatureInput = new TextEncoder().encode(`${header}.${payload}`);
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, signatureInput);
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-
-  const jwt = `${header.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${payload.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${signatureB64}`;
-
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
-  });
-
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok) {
-    throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`);
-  }
-
-  return tokenData.access_token;
-}
