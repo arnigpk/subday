@@ -105,6 +105,33 @@ export default function HomePage() {
             >
               🔔 Enable Notifications (FCM)
             </Button>
+            {fcmToken && (
+              <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+                <div className="text-xs font-medium text-muted-foreground">FCM Token:</div>
+                <textarea
+                  readOnly
+                  value={fcmToken}
+                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                  className="w-full h-24 text-xs font-mono rounded-md border border-input bg-background p-2 break-all"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(fcmToken);
+                  }}
+                >
+                  📋 Copy Token
+                </Button>
+              </div>
+            )}
+            {fcmError && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive break-words">
+                <div className="font-medium mb-1">FCM Error:</div>
+                {fcmError}
+              </div>
+            )}
             <TopShopsCarousel />
             <BalanceCard activeTab={activeTab} onTabChange={setActiveTab} />
             <GetCoffeeButton activeTab={activeTab} />
