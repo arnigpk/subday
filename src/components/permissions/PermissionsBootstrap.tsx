@@ -114,6 +114,49 @@ function cacheLocation(latitude: number, longitude: number, accuracy: number) {
   } catch {}
 }
 
+async function requestNativeGeoOnce(): Promise<'granted' | 'denied'> {
+  const { Geolocation } = await import('@capacitor/geolocation');
+  let status = await Geolocation.checkPermissions();
+  if (status.location !== 'granted') {
+    // Always re-request system dialog if not granted (even if previously denied)
+    try {
+      status = await Geolocation.requestPermissions();
+    } catch {}
+  }
+  if (status.location === 'granted') {
+    try {
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000 });
+      cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+    } catch {}
+    localStorage.setItem('geolocation_permission', 'granted');
+    await setGeoEnabledInProfile(true);
+    return 'granted';
+  }
+  localStorage.setItem('geolocation_permission', 'denied');
+  await setGeoEnabledInProfile(false);
+  return 'denied';
+}
+
+function requestWebGeoOnce(): Promise<'granted' | 'denied'> {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) { resolve('denied'); return; }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        localStorage.setItem('geolocation_permission', 'granted');
+        await setGeoEnabledInProfile(true);
+        resolve('granted');
+      },
+      async () => {
+        localStorage.setItem('geolocation_permission', 'denied');
+        await setGeoEnabledInProfile(false);
+        resolve('denied');
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+}
+
 async function handleGeoPermission() {
   const tg = (window as any).Telegram?.WebApp;
   if (tg?.LocationManager?.init) {
@@ -125,49 +168,19 @@ async function handleGeoPermission() {
     } catch {}
   }
 
-  // Native
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const { Geolocation } = await import('@capacitor/geolocation');
-      let status = await Geolocation.checkPermissions();
-      if (status.location !== 'granted' && status.location !== 'denied') {
-        status = await Geolocation.requestPermissions();
-      }
-      if (status.location === 'granted') {
-        try {
-          const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000 });
-          cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        } catch {}
-        localStorage.setItem('geolocation_permission', 'granted');
-        await setGeoEnabledInProfile(true);
-      } else {
-        localStorage.setItem('geolocation_permission', 'denied');
-        await setGeoEnabledInProfile(false);
-      }
-    } catch (err) {
-      console.error('[Permissions] Native geo error:', err);
-    }
-    return;
-  }
+  const isNative = Capacitor.isNativePlatform();
+  const requestOnce = isNative ? requestNativeGeoOnce : requestWebGeoOnce;
 
-  // Web
-  if (!('geolocation' in navigator)) return;
-  await new Promise<void>((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        cacheLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        localStorage.setItem('geolocation_permission', 'granted');
-        await setGeoEnabledInProfile(true);
-        resolve();
-      },
-      async () => {
-        localStorage.setItem('geolocation_permission', 'denied');
-        await setGeoEnabledInProfile(false);
-        resolve();
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-    );
-  });
+  try {
+    const first = await requestOnce();
+    if (first === 'granted') return;
+
+    // Если отказали — сразу системно переспрашиваем ещё раз (один retry)
+    await new Promise((r) => setTimeout(r, 400));
+    await requestOnce();
+  } catch (err) {
+    console.error('[Permissions] Geo error:', err);
+  }
 }
 
 // ---------- Status checks (skip if already in a final state) ----------
