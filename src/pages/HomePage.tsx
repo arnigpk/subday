@@ -13,8 +13,6 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { Button } from '@/components/ui/button';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
@@ -33,8 +31,6 @@ export default function HomePage() {
   const { vibrateShort } = useVibration();
   
   const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
-  const { requestPermissionAndToken, token: fcmToken, error: fcmError } = usePushNotifications();
-  
   useEffect(() => {
     prefetchAll();
   }, [prefetchAll]);
@@ -98,40 +94,6 @@ export default function HomePage() {
           
           {/* Content */}
           <div className="px-4 space-y-5">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => requestPermissionAndToken()}
-            >
-              🔔 Enable Notifications (FCM)
-            </Button>
-            {fcmToken && (
-              <div className="space-y-2 rounded-lg border border-border bg-card p-3">
-                <div className="text-xs font-medium text-muted-foreground">FCM Token:</div>
-                <textarea
-                  readOnly
-                  value={fcmToken}
-                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                  className="w-full h-24 text-xs font-mono rounded-md border border-input bg-background p-2 break-all"
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => {
-                    navigator.clipboard.writeText(fcmToken);
-                  }}
-                >
-                  📋 Copy Token
-                </Button>
-              </div>
-            )}
-            {fcmError && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive break-words">
-                <div className="font-medium mb-1">FCM Error:</div>
-                {fcmError}
-              </div>
-            )}
             <TopShopsCarousel />
             <BalanceCard activeTab={activeTab} onTabChange={setActiveTab} />
             <GetCoffeeButton activeTab={activeTab} />
