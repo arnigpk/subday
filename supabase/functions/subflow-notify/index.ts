@@ -1,4 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  parseFcmServiceAccount,
+  getFcmAccessToken,
+  sendFcmMessage,
+  isInvalidFcmTokenError,
+} from '../_shared/fcm.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
