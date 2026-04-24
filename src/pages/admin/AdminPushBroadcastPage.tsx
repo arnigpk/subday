@@ -60,9 +60,17 @@ export default function AdminPushBroadcastPage() {
       setTitle('');
       setMessage('');
       setHistoryRefresh(prev => prev + 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Push broadcast error:', error);
-      toast.error('Ошибка отправки');
+      const detail =
+        error?.context?.error ||
+        error?.message ||
+        'Неизвестная ошибка';
+      if (typeof detail === 'string' && /invalid_grant|JWT Signature|private_key/i.test(detail)) {
+        toast.error('FCM ключ недействителен. Обновите FCM_SERVICE_ACCOUNT (приватный ключ повреждён или отозван).');
+      } else {
+        toast.error(`Ошибка отправки: ${detail}`);
+      }
     } finally {
       setIsLoading(false);
     }
