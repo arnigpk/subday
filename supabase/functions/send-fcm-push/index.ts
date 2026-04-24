@@ -1,4 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  parseFcmServiceAccount,
+  getFcmAccessToken,
+  sendFcmMessage,
+  isInvalidFcmTokenError,
+} from '../_shared/fcm.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,67 +18,7 @@ interface FCMRequest {
   message: string;
   targetUserIds?: string[];
   audienceTypes?: AudienceType[];
-}
-
-// Get OAuth2 access token from service account
-async function getAccessToken(serviceAccount: any): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
-    iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  }));
-
-  // Normalize the private key: secrets pasted as JSON string may keep literal "\n"
-  // sequences instead of real newlines, which would break base64 decoding.
-  const normalizedKey = String(serviceAccount.private_key)
-    .replace(/\\n/g, '\n')
-    .replace(/\r/g, '');
-
-  const pemContents = normalizedKey
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s+/g, '');
-
-  let binaryKey: Uint8Array;
-  try {
-    binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
-  } catch (_e) {
-    throw new Error('FCM service account private_key is malformed (base64 decode failed)');
-  }
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signatureInput = new TextEncoder().encode(`${header}.${payload}`);
-  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, signatureInput);
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-
-  const jwt = `${header.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${payload.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.${signatureB64}`;
-
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
-  });
-
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok) {
-    throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`);
-  }
-
-  return tokenData.access_token;
+  diagnose?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -85,40 +31,13 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
 
-    let serviceAccount: any = null;
-    let pushConfigError: string | null = null;
-    if (fcmServiceAccountJson) {
-      // Tolerate common copy/paste issues:
-      // - Leading/trailing whitespace
-      // - Wrapping single/double quotes around the whole JSON
-      // - BOM character
-      // - Base64-encoded JSON (entire file pasted as one base64 blob)
-      let raw = fcmServiceAccountJson.trim().replace(/^\uFEFF/, '');
-      if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-        raw = raw.slice(1, -1);
-      }
-      // If it doesn't look like JSON, try base64 decode
-      if (!raw.startsWith('{')) {
-        try {
-          const decoded = atob(raw.replace(/\s+/g, ''));
-          if (decoded.trim().startsWith('{')) raw = decoded.trim();
-        } catch (_e) {
-          // fall through to JSON.parse error below
-        }
-      }
-      try {
-        serviceAccount = JSON.parse(raw);
-      } catch (parseError) {
-        console.error('Invalid FCM_SERVICE_ACCOUNT JSON:', parseError, 'first 20 chars:', raw.slice(0, 20));
-        pushConfigError = 'Invalid FCM_SERVICE_ACCOUNT format. Paste the raw service account JSON file content (starting with { and ending with }), without surrounding quotes.';
-      }
-    }
-
-    const canSendDevicePush = Boolean(
-      serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key,
-    );
+    const { serviceAccount, diagnostics, parseError } = parseFcmServiceAccount(fcmServiceAccountJson);
+    let pushConfigError: string | null = parseError;
+    const canSendDevicePush = !!serviceAccount;
     const projectId = serviceAccount?.project_id;
+    console.log('FCM key diagnostics:', diagnostics);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 
     // Verify admin
     const authHeader = req.headers.get('Authorization');
@@ -161,12 +80,36 @@ Deno.serve(async (req) => {
     const message = body.message?.trim();
     const targetUserIds = body.targetUserIds;
 
+    // Diagnostic mode: report what we know about the configured FCM key
+    // (no secret values are returned) and try a real OAuth handshake.
+    if (body.diagnose) {
+      let oauthOk = false;
+      let oauthError: string | null = null;
+      if (serviceAccount) {
+        try {
+          await getFcmAccessToken(serviceAccount);
+          oauthOk = true;
+        } catch (e) {
+          oauthError = e instanceof Error ? e.message : String(e);
+        }
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        mode: 'diagnose',
+        diagnostics,
+        parse_error: parseError,
+        oauth_ok: oauthOk,
+        oauth_error: oauthError,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (!title || !message) {
       return new Response(JSON.stringify({ error: 'Title and message are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
 
     // Resolve audience user IDs
     let filteredUserIds: string[] | null = null;
@@ -205,8 +148,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get FCM tokens from device_tokens table
-    let query = supabase.from('device_tokens').select('token, user_id').eq('platform', 'android');
+    // Get FCM tokens from device_tokens table (all platforms — let FCM
+    // reject unregistered tokens; we clean them up below).
+    let query = supabase.from('device_tokens').select('token, user_id');
     if (filteredUserIds !== null) {
       query = query.in('user_id', filteredUserIds);
     }
@@ -227,56 +171,26 @@ Deno.serve(async (req) => {
     let skippedCount = 0;
     const invalidTokens: string[] = [];
 
-    if (deviceTokens.length > 0 && canSendDevicePush) {
+    if (deviceTokens.length > 0 && canSendDevicePush && serviceAccount && projectId) {
       try {
-        const accessToken = await getAccessToken(serviceAccount);
+        const accessToken = await getFcmAccessToken(serviceAccount);
 
         for (const deviceToken of deviceTokens) {
-          try {
-            const fcmResponse = await fetch(
-              `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: {
-                    token: deviceToken.token,
-                    notification: {
-                      title,
-                      body: message,
-                    },
-                    android: {
-                      priority: 'high',
-                      notification: {
-                        sound: 'default',
-                        channel_id: 'default',
-                      },
-                    },
-                  },
-                }),
-              }
-            );
-
-            if (fcmResponse.ok) {
-              successCount++;
-            } else {
-              const errorData = await fcmResponse.json();
-              failCount++;
-              console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
-
-              if (
-                errorData?.error?.code === 404 ||
-                errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
-              ) {
-                invalidTokens.push(deviceToken.token);
-              }
-            }
-          } catch (err) {
+          const result = await sendFcmMessage(accessToken, projectId, deviceToken.token, {
+            title,
+            body: message,
+          });
+          if (result.ok) {
+            successCount++;
+          } else {
             failCount++;
-            console.error('FCM send error:', err);
+            console.error(
+              `FCM send failed for token ${deviceToken.token.slice(0, 10)}... (status ${result.status}):`,
+              result.error,
+            );
+            if (isInvalidFcmTokenError(result.error)) {
+              invalidTokens.push(deviceToken.token);
+            }
           }
         }
       } catch (err) {
@@ -289,6 +203,7 @@ Deno.serve(async (req) => {
       pushConfigError ||= 'FCM credentials are not configured. Device push skipped; in-app notifications only.';
       console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
+
 
     if (invalidTokens.length > 0) {
       await supabase.from('device_tokens').delete().in('token', invalidTokens);
