@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
     const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
 
     let serviceAccount: any = null;
+    let pushConfigError: string | null = null;
     if (fcmServiceAccountJson) {
       // Tolerate common copy/paste issues:
       // - Leading/trailing whitespace
@@ -109,12 +110,7 @@ Deno.serve(async (req) => {
         serviceAccount = JSON.parse(raw);
       } catch (parseError) {
         console.error('Invalid FCM_SERVICE_ACCOUNT JSON:', parseError, 'first 20 chars:', raw.slice(0, 20));
-        return new Response(JSON.stringify({
-          error: 'Invalid FCM_SERVICE_ACCOUNT format. Paste the raw service account JSON file content (starting with { and ending with }), without surrounding quotes.',
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        pushConfigError = 'Invalid FCM_SERVICE_ACCOUNT format. Paste the raw service account JSON file content (starting with { and ending with }), without surrounding quotes.';
       }
     }
 
@@ -191,6 +187,7 @@ Deno.serve(async (req) => {
         recipientCount: 0,
         sentCount: 0,
         failedCount: 0,
+        recipients: [],
       });
 
       return new Response(JSON.stringify({
@@ -200,7 +197,8 @@ Deno.serve(async (req) => {
         total: 0,
         recipient_count: 0,
         in_app_created: 0,
-        push_enabled: canSendDevicePush,
+        push_enabled: canSendDevicePush && !pushConfigError,
+        push_error: pushConfigError,
         message: 'No users in selected audience',
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -230,58 +228,65 @@ Deno.serve(async (req) => {
     const invalidTokens: string[] = [];
 
     if (deviceTokens.length > 0 && canSendDevicePush) {
-      const accessToken = await getAccessToken(serviceAccount);
+      try {
+        const accessToken = await getAccessToken(serviceAccount);
 
-      for (const deviceToken of deviceTokens) {
-        try {
-          const fcmResponse = await fetch(
-            `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                message: {
-                  token: deviceToken.token,
-                  notification: {
-                    title,
-                    body: message,
-                  },
-                  android: {
-                    priority: 'high',
+        for (const deviceToken of deviceTokens) {
+          try {
+            const fcmResponse = await fetch(
+              `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: {
+                    token: deviceToken.token,
                     notification: {
-                      sound: 'default',
-                      channel_id: 'default',
+                      title,
+                      body: message,
+                    },
+                    android: {
+                      priority: 'high',
+                      notification: {
+                        sound: 'default',
+                        channel_id: 'default',
+                      },
                     },
                   },
-                },
-              }),
-            }
-          );
+                }),
+              }
+            );
 
-          if (fcmResponse.ok) {
-            successCount++;
-          } else {
-            const errorData = await fcmResponse.json();
+            if (fcmResponse.ok) {
+              successCount++;
+            } else {
+              const errorData = await fcmResponse.json();
+              failCount++;
+              console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
+
+              if (
+                errorData?.error?.code === 404 ||
+                errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
+              ) {
+                invalidTokens.push(deviceToken.token);
+              }
+            }
+          } catch (err) {
             failCount++;
-            console.error(`FCM send failed for token ${deviceToken.token.slice(0, 10)}...:`, errorData);
-
-            if (
-              errorData?.error?.code === 404 ||
-              errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
-            ) {
-              invalidTokens.push(deviceToken.token);
-            }
+            console.error('FCM send error:', err);
           }
-        } catch (err) {
-          failCount++;
-          console.error('FCM send error:', err);
         }
+      } catch (err) {
+        pushConfigError = err instanceof Error ? err.message : 'Failed to initialize FCM delivery';
+        skippedCount = deviceTokens.length;
+        console.error('FCM delivery disabled for this request:', err);
       }
     } else if (deviceTokens.length > 0) {
       skippedCount = deviceTokens.length;
+      pushConfigError ||= 'FCM credentials are not configured. Device push skipped; in-app notifications only.';
       console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
 
@@ -319,7 +324,8 @@ Deno.serve(async (req) => {
       total: deviceTokens.length,
       recipient_count: recipientUserIds.length,
       in_app_created: inAppCreated,
-      push_enabled: canSendDevicePush,
+      push_enabled: canSendDevicePush && !pushConfigError,
+      push_error: pushConfigError,
       cleaned: invalidTokens.length,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
