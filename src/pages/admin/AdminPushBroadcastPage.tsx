@@ -46,14 +46,23 @@ export default function AdminPushBroadcastPage() {
         throw new Error(fcmResult?.error || 'Ошибка отправки PUSH');
       }
 
+      const pushError = typeof fcmResult?.push_error === 'string' ? fcmResult.push_error : '';
+
       if ((fcmResult?.recipient_count || 0) === 0) {
         toast.warning('Нет пользователей в выбранной аудитории');
       } else {
-        toast.success(`Отправлено на ${fcmResult.recipient_count} пользователей`);
         if (fcmResult?.push_enabled === false) {
-          toast.warning('FCM не настроен: уведомление отправлено только внутри приложения');
+          toast.success(`Внутренние уведомления созданы для ${fcmResult.recipient_count} пользователей`);
+          if (/invalid_grant|JWT Signature|private_key/i.test(pushError)) {
+            toast.warning('PUSH не отправлен: FCM ключ недействителен. Обновите FCM_SERVICE_ACCOUNT.');
+          } else {
+            toast.warning('PUSH не отправлен: FCM не настроен, поэтому уведомление создано только внутри приложения.');
+          }
         } else if ((fcmResult?.failed || 0) > 0) {
+          toast.success(`Отправлено на ${fcmResult.recipient_count} пользователей`);
           toast.warning(`Не удалось доставить на ${fcmResult.failed} устройств`);
+        } else {
+          toast.success(`Отправлено на ${fcmResult.recipient_count} пользователей`);
         }
       }
 
