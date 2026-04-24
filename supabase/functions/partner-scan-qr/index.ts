@@ -155,7 +155,8 @@ Deno.serve(async (req) => {
       let guestSubscriptionName = 'Гостевой доступ';
       
       // Fetch inviter info and subscription type info in parallel
-      const fetchPromises: Promise<any>[] = [];
+      // Use any[] — PostgrestBuilder is thenable but not a true Promise in newer SDK versions.
+      const fetchPromises: any[] = [];
       
       if (grant?.inviter_user_id) {
         fetchPromises.push(
