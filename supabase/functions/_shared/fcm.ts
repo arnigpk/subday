@@ -153,7 +153,7 @@ export async function getFcmAccessToken(serviceAccount: FcmServiceAccount): Prom
   try {
     cryptoKey = await crypto.subtle.importKey(
       'pkcs8',
-      binaryKey,
+      binaryKey.buffer.slice(binaryKey.byteOffset, binaryKey.byteOffset + binaryKey.byteLength) as ArrayBuffer,
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
       ['sign'],

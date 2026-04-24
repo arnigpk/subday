@@ -61,26 +61,12 @@ async function sendFcmPushToUser(
   title: string,
   body: string,
 ): Promise<{ sent: number; failed: number }> {
-  const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
-  if (!fcmServiceAccountJson) {
-    console.warn('FCM_SERVICE_ACCOUNT not configured, skipping device push');
+  const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+  if (!serviceAccount) {
+    console.warn('FCM key unavailable:', parseError);
     return { sent: 0, failed: 0 };
   }
 
-  let serviceAccount: any;
-  try {
-    serviceAccount = JSON.parse(fcmServiceAccountJson);
-  } catch {
-    console.error('Invalid FCM_SERVICE_ACCOUNT JSON');
-    return { sent: 0, failed: 0 };
-  }
-
-  if (!serviceAccount?.project_id || !serviceAccount?.client_email || !serviceAccount?.private_key) {
-    console.warn('FCM service account incomplete, skipping device push');
-    return { sent: 0, failed: 0 };
-  }
-
-  // Fetch user's device tokens
   const { data: tokens } = await supabase
     .from('device_tokens')
     .select('token')
@@ -91,55 +77,32 @@ async function sendFcmPushToUser(
     return { sent: 0, failed: 0 };
   }
 
-  const accessToken = await getAccessToken(serviceAccount);
-  const projectId = serviceAccount.project_id;
+  let accessToken: string;
+  try {
+    accessToken = await getFcmAccessToken(serviceAccount);
+  } catch (err) {
+    console.error('FCM OAuth failed:', err);
+    return { sent: 0, failed: tokens.length };
+  }
+
   let sent = 0;
   let failed = 0;
   const invalidTokens: string[] = [];
 
   for (const deviceToken of tokens) {
-    try {
-      const fcmResponse = await fetch(
-        `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: {
-              token: deviceToken.token,
-              notification: { title, body },
-              android: {
-                priority: 'high',
-                notification: { sound: 'default', channel_id: 'default' },
-              },
-            },
-          }),
-        }
-      );
-
-      if (fcmResponse.ok) {
-        sent++;
-      } else {
-        const errorData = await fcmResponse.json();
-        failed++;
-        console.error(`FCM send failed:`, errorData);
-        if (
-          errorData?.error?.code === 404 ||
-          errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')
-        ) {
-          invalidTokens.push(deviceToken.token);
-        }
-      }
-    } catch (err) {
+    const result = await sendFcmMessage(accessToken, serviceAccount.project_id, deviceToken.token, {
+      title,
+      body,
+    });
+    if (result.ok) {
+      sent++;
+    } else {
       failed++;
-      console.error('FCM send error:', err);
+      console.error('FCM send failed:', result.error);
+      if (isInvalidFcmTokenError(result.error)) invalidTokens.push(deviceToken.token);
     }
   }
 
-  // Cleanup invalid tokens
   if (invalidTokens.length > 0) {
     await supabase.from('device_tokens').delete().in('token', invalidTokens);
     console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
