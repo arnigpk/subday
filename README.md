@@ -71,3 +71,23 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Native permissions (iOS / Android)
+
+After running `npx cap sync`, add the following entries to the native projects **once**:
+
+### iOS — `ios/App/App/Info.plist`
+```xml
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>subday использует ваше местоположение, чтобы показывать ближайшие кофейни и присылать уведомления, когда вы рядом.</string>
+<key>NSUserNotificationsUsageDescription</key>
+<string>subday отправляет уведомления о статусе подписки, акциях и о ближайших кофейнях.</string>
+```
+
+### Android — `android/app/src/main/AndroidManifest.xml`
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
