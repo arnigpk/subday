@@ -13,8 +13,6 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { Button } from '@/components/ui/button';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
