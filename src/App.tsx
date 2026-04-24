@@ -311,9 +311,18 @@ const AppContent = () => {
         setSession(session);
         setIsAuthLoading(false);
         if (event === 'SIGNED_IN' && session) {
-          supabase.functions.invoke('guest-access', {
-            body: { action: 'claim' },
-          }).then(({ data }) => {
+          const tryClaim = async (attempt = 0): Promise<any> => {
+            const { data, error } = await supabase.functions.invoke('guest-access', {
+              body: { action: 'claim' },
+            });
+            // Retry once on transient edge runtime cold-start errors
+            if (error && attempt < 1) {
+              await new Promise((r) => setTimeout(r, 1500));
+              return tryClaim(attempt + 1);
+            }
+            return data;
+          };
+          tryClaim().then((data) => {
             if (data?.success) {
               setTimeout(() => {
                 import('sonner').then(({ toast }) => {
