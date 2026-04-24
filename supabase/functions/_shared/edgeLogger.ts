@@ -17,19 +17,17 @@
 
 type Level = 'info' | 'warn' | 'error';
 
-interface SupabaseLike {
-  from: (table: string) => {
-    insert: (rows: any) => Promise<{ error: any }>;
-  };
-}
-
+// Use `any` for the Supabase client to stay compatible with multiple
+// @supabase/supabase-js versions across edge functions. The PostgrestBuilder
+// type is no longer assignable to Promise in newer SDK versions, which would
+// otherwise break call sites passing `createClient(...)` here.
 interface PersistPayload {
   user_id?: string | null;
   order_id?: string | null;
   [k: string]: any;
 }
 
-export function createEdgeLogger(functionName: string, supabase?: SupabaseLike) {
+export function createEdgeLogger(functionName: string, supabase?: any) {
   const log = (level: Level, action: string, payload?: Record<string, any>, err?: unknown) => {
     const entry = {
       ts: new Date().toISOString(),
