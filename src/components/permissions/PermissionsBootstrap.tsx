@@ -4,6 +4,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase';
+import { useNativePush } from '@/hooks/useNativePush';
 
 const VAPID_KEY =
   'BAxmCxcPMx7w6yFuKKijoeRs1Z9Fo78avizGN6BghC3UQUqx8bglJNLQFzpkyxxHsPIMpx0qASRZmjoer-Pf13o';
