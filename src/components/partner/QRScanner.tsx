@@ -94,6 +94,16 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     setError(null);
     lastScannedRef.current = null;
 
+    // 1) Native permission gate (iOS/Android via Capacitor)
+    const nativePerm = await ensureNativeCameraPermission();
+    if (nativePerm === 'denied') {
+      if (!mountedRef.current) return;
+      localStorage.removeItem(CAMERA_GRANTED_KEY);
+      setError('Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.');
+      setIsStarting(false);
+      return;
+    }
+
     // Wait for DOM
     await new Promise(r => setTimeout(r, 150));
     if (!mountedRef.current) return;
