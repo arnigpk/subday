@@ -2,8 +2,28 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Loader2, RefreshCw, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Capacitor } from '@capacitor/core';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
+
+/**
+ * Request native camera permission on iOS/Android (Capacitor).
+ * Returns 'granted' | 'denied' | 'unavailable' (web/PWA fallback).
+ */
+async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'unavailable'> {
+  if (!Capacitor.isNativePlatform()) return 'unavailable';
+  try {
+    const { Camera: NativeCamera } = await import('@capacitor/camera');
+    let status = await NativeCamera.checkPermissions();
+    if (status.camera !== 'granted') {
+      status = await NativeCamera.requestPermissions({ permissions: ['camera'] });
+    }
+    return status.camera === 'granted' ? 'granted' : 'denied';
+  } catch (err) {
+    console.error('[QRScanner] Native camera permission error:', err);
+    return 'denied';
+  }
+}
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -74,6 +94,16 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     setError(null);
     lastScannedRef.current = null;
 
+    // 1) Native permission gate (iOS/Android via Capacitor)
+    const nativePerm = await ensureNativeCameraPermission();
+    if (nativePerm === 'denied') {
+      if (!mountedRef.current) return;
+      localStorage.removeItem(CAMERA_GRANTED_KEY);
+      setError('Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.');
+      setIsStarting(false);
+      return;
+    }
+
     // Wait for DOM
     await new Promise(r => setTimeout(r, 150));
     if (!mountedRef.current) return;
@@ -124,7 +154,12 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       const errMsg = String(err?.message || err || '');
       if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission') || errMsg.includes('denied')) {
         localStorage.removeItem(CAMERA_GRANTED_KEY);
-        setError('Доступ к камере запрещён. Разрешите в настройках браузера.');
+        const isNative = Capacitor.isNativePlatform();
+        setError(
+          isNative
+            ? 'Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.'
+            : 'Доступ к камере запрещён. Разрешите доступ в настройках вашего устройства.'
+        );
       } else if (errMsg.includes('NotFoundError') || errMsg.includes('device not found')) {
         setError('Камера не найдена на устройстве.');
       } else if (errMsg.includes('NotReadableError') || errMsg.includes('Could not start')) {
