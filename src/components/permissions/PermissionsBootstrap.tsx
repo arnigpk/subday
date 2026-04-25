@@ -295,6 +295,19 @@ export function PermissionsBootstrap() {
         try { localStorage.setItem(GEO_REQUESTED_KEY, '1'); } catch {}
         await handleGeoPermission();
       }
+
+      if (cancelled) return;
+
+      // CAMERA (native only): запрашиваем один раз, чтобы у бариста сразу был доступ к QR-сканеру
+      if (Capacitor.isNativePlatform()) {
+        const cameraAsked = localStorage.getItem(CAMERA_REQUESTED_KEY) === '1';
+        if (!cameraAsked) {
+          await new Promise((r) => setTimeout(r, 600));
+          if (cancelled) return;
+          try { localStorage.setItem(CAMERA_REQUESTED_KEY, '1'); } catch {}
+          await handleCameraPermission();
+        }
+      }
     };
 
     run();
