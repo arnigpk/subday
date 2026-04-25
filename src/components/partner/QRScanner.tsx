@@ -2,8 +2,28 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Loader2, RefreshCw, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Capacitor } from '@capacitor/core';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
+
+/**
+ * Request native camera permission on iOS/Android (Capacitor).
+ * Returns 'granted' | 'denied' | 'unavailable' (web/PWA fallback).
+ */
+async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'unavailable'> {
+  if (!Capacitor.isNativePlatform()) return 'unavailable';
+  try {
+    const { Camera: NativeCamera } = await import('@capacitor/camera');
+    let status = await NativeCamera.checkPermissions();
+    if (status.camera !== 'granted') {
+      status = await NativeCamera.requestPermissions({ permissions: ['camera'] });
+    }
+    return status.camera === 'granted' ? 'granted' : 'denied';
+  } catch (err) {
+    console.error('[QRScanner] Native camera permission error:', err);
+    return 'denied';
+  }
+}
 
 interface QRScannerProps {
   onScan: (data: string) => void;
