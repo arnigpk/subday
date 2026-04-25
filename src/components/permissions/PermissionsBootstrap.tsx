@@ -11,6 +11,7 @@ const VAPID_KEY =
 
 const PUSH_REQUESTED_KEY = 'permissions_push_requested';
 const GEO_REQUESTED_KEY = 'permissions_geo_requested';
+const CAMERA_REQUESTED_KEY = 'permissions_camera_requested';
 
 // ---------- DB helpers ----------
 
