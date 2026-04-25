@@ -184,6 +184,24 @@ async function handleGeoPermission() {
   }
 }
 
+// ---------- CAMERA (native only — pre-grants permission for QR scanner) ----------
+
+async function handleCameraPermission() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { Camera } = await import('@capacitor/camera');
+    let status = await Camera.checkPermissions();
+    if (status.camera === 'prompt' || status.camera === 'prompt-with-rationale') {
+      status = await Camera.requestPermissions({ permissions: ['camera'] });
+    }
+    if (status.camera === 'granted') {
+      try { localStorage.setItem('qr_camera_granted', 'true'); } catch {}
+    }
+  } catch (err) {
+    console.error('[Permissions] Camera error:', err);
+  }
+}
+
 // ---------- Status checks (skip if already in a final state) ----------
 
 async function pushAlreadyResolved(): Promise<boolean> {
