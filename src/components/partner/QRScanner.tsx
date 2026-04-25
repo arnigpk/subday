@@ -154,7 +154,12 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       const errMsg = String(err?.message || err || '');
       if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission') || errMsg.includes('denied')) {
         localStorage.removeItem(CAMERA_GRANTED_KEY);
-        setError('Доступ к камере запрещён. Разрешите в настройках браузера.');
+        const isNative = Capacitor.isNativePlatform();
+        setError(
+          isNative
+            ? 'Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.'
+            : 'Доступ к камере запрещён. Разрешите доступ в настройках вашего устройства.'
+        );
       } else if (errMsg.includes('NotFoundError') || errMsg.includes('device not found')) {
         setError('Камера не найдена на устройстве.');
       } else if (errMsg.includes('NotReadableError') || errMsg.includes('Could not start')) {
