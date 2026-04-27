@@ -165,6 +165,7 @@ export function useUserStats() {
     stats,
     profile,
     redemptions,
+    completedPreordersCount,
     isLoading,
     redeemDrink,
     updateAvatar,
