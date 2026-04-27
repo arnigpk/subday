@@ -5,6 +5,7 @@ interface UserStatsContextType {
   stats: UserStats;
   profile: UserProfile | null;
   redemptions: Redemption[];
+  completedPreordersCount: number;
   isLoading: boolean;
   redeemDrink: (shopName: string, shopId: string, drinkName: string, drinkType: 'coffee' | 'drinks') => Promise<boolean>;
   updateAvatar: (avatarUrl: string | null) => Promise<boolean>;
