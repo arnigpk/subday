@@ -67,7 +67,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   return (
     <div className="min-safe-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col sticky top-0 h-screen">
+      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col sticky top-0 h-screen overflow-y-auto overscroll-contain">
         <div className="safe-area-top" />
         <div className="p-4 border-b border-border">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
