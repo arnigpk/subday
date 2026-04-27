@@ -199,6 +199,7 @@ Deno.serve(async (req) => {
           shop_address: shopAddress || null,
           drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
           drink_type: 'coffee', subscription_name: guestSubscriptionName,
+          scanned_by: scannerId,
         }),
       ]);
 
