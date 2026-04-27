@@ -287,6 +287,7 @@ Deno.serve(async (req) => {
         user_id: userId, shop_name: shopName, shop_id: shopId,
         shop_address: shopAddress || null,
         drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
+        scanned_by: scannerId,
       }),
     ]);
 
