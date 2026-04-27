@@ -53,6 +53,7 @@ export function useUserStats() {
   const [stats, setStats] = useState<UserStats>(defaultStats);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [completedPreordersCount, setCompletedPreordersCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -61,12 +62,15 @@ export function useUserStats() {
     if (!user) { setIsLoading(false); return; }
     setUserId(user.id);
 
-    // Fetch profile, stats, and redemptions in parallel for speed
-    const [profileResult, statsResult, redemptionsResult] = await Promise.all([
+    // Fetch profile, stats, redemptions, and completed preorders in parallel
+    const [profileResult, statsResult, redemptionsResult, preordersCountResult] = await Promise.all([
       supabase.from('profiles').select('name, phone, city, country, avatar_url, subflow_nickname, public_id').eq('user_id', user.id).maybeSingle(),
       supabase.from('user_stats').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('redemptions').select('*').eq('user_id', user.id).order('redeemed_at', { ascending: false }).limit(50),
+      supabase.from('preorders').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'completed'),
     ]);
+
+    setCompletedPreordersCount(preordersCountResult.count ?? 0);
 
     if (profileResult.data) {
       setProfile({
@@ -161,6 +165,7 @@ export function useUserStats() {
     stats,
     profile,
     redemptions,
+    completedPreordersCount,
     isLoading,
     redeemDrink,
     updateAvatar,
