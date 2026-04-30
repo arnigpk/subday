@@ -1,25 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Lottie from 'lottie-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, Trash2, Loader2, Eye, Clock, Power, Play } from 'lucide-react';
-import defaultPreloader from '@/assets/preloader.gif';
+import defaultPreloaderAnimation from '@/assets/preloader.json';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 const BUCKET = 'app-assets';
-const FILE_PATH = 'preloader.gif';
+const FILE_PATH = 'preloader.json';
 const CONFIG_PATH = 'preloader-config.json';
 
 export default function AdminPreloaderPage() {
   const { canManage } = useAdminAuth();
-  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [customAnimation, setCustomAnimation] = useState<any>(null);
   const [isCustom, setIsCustom] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previewAnimation, setPreviewAnimation] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,16 +60,17 @@ export default function AdminPreloaderPage() {
     setLoading(true);
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(FILE_PATH);
     try {
-      const res = await fetch(data.publicUrl, { method: 'HEAD' });
+      const res = await fetch(data.publicUrl + '?t=' + Date.now());
       if (res.ok) {
-        setCurrentUrl(data.publicUrl + '?t=' + Date.now());
+        const json = await res.json();
+        setCustomAnimation(json);
         setIsCustom(true);
       } else {
-        setCurrentUrl(null);
+        setCustomAnimation(null);
         setIsCustom(false);
       }
     } catch {
-      setCurrentUrl(null);
+      setCustomAnimation(null);
       setIsCustom(false);
     }
     setLoading(false);
@@ -110,15 +112,27 @@ export default function AdminPreloaderPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith('image/')) {
-      toast.error('Выберите файл изображения (GIF, PNG, WEBP)');
+    const isJson = f.type === 'application/json' || f.name.toLowerCase().endsWith('.json');
+    if (!isJson) {
+      toast.error('Можно загрузить только Lottie-анимацию (.json)');
       return;
     }
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    try {
+      const text = await f.text();
+      const json = JSON.parse(text);
+      // Минимальная валидация Lottie
+      if (!json || typeof json !== 'object' || !('layers' in json) || !('v' in json)) {
+        toast.error('Файл не похож на Lottie-анимацию');
+        return;
+      }
+      setFile(f);
+      setPreviewAnimation(json);
+    } catch {
+      toast.error('Невалидный JSON-файл');
+    }
   };
 
   const handleUpload = async () => {
@@ -127,11 +141,15 @@ export default function AdminPreloaderPage() {
     try {
       const { error } = await supabase.storage
         .from(BUCKET)
-        .upload(FILE_PATH, file, { upsert: true, cacheControl: '0' });
+        .upload(FILE_PATH, file, {
+          upsert: true,
+          cacheControl: '0',
+          contentType: 'application/json',
+        });
       if (error) throw error;
       toast.success('Прелоадер успешно обновлён');
       setFile(null);
-      setPreview(null);
+      setPreviewAnimation(null);
       await loadCurrent();
     } catch (err: any) {
       toast.error('Ошибка загрузки: ' + err.message);
@@ -147,7 +165,7 @@ export default function AdminPreloaderPage() {
       const { error } = await supabase.storage.from(BUCKET).remove([FILE_PATH]);
       if (error) throw error;
       toast.success('Кастомный прелоадер удалён');
-      setCurrentUrl(null);
+      setCustomAnimation(null);
       setIsCustom(false);
     } catch (err: any) {
       toast.error('Ошибка: ' + err.message);
@@ -156,7 +174,7 @@ export default function AdminPreloaderPage() {
     }
   };
 
-  const displayUrl = isCustom ? currentUrl : defaultPreloader;
+  const displayAnimation = isCustom && customAnimation ? customAnimation : defaultPreloaderAnimation;
 
   return (
     <AdminLayout title="Прелоадер">
@@ -203,17 +221,14 @@ export default function AdminPreloaderPage() {
             <div className="flex items-center justify-center h-48">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : displayUrl ? (
-            <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
-              <img
-                src={displayUrl}
-                alt="Current preloader"
-                className="max-h-[300px] max-w-full object-contain"
-              />
-            </div>
           ) : (
-            <div className="bg-muted rounded-lg flex items-center justify-center h-48 text-muted-foreground text-sm">
-              Не удалось загрузить
+            <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+              <Lottie
+                animationData={displayAnimation}
+                loop
+                autoplay
+                className="max-h-[300px] max-w-full"
+              />
             </div>
           )}
           {isCustom && canManage && (
@@ -277,10 +292,11 @@ export default function AdminPreloaderPage() {
           {isDemoing ? (
             <div className="space-y-4">
               <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden">
-                <img
-                  src={displayUrl || defaultPreloader}
-                  alt="Demo preloader"
-                  className="w-full h-full object-contain max-h-[300px]"
+                <Lottie
+                  animationData={displayAnimation}
+                  loop
+                  autoplay
+                  className="w-full h-full max-h-[300px]"
                 />
               </div>
               <Progress value={demoProgress} className="h-2" />
@@ -304,13 +320,13 @@ export default function AdminPreloaderPage() {
               Загрузить новый прелоадер
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Рекомендуется GIF-анимация. Поддерживаются форматы: GIF, PNG, WEBP.
+              Поддерживается <strong>только формат Lottie (.json)</strong>. Экспортируйте анимацию из After Effects через плагин Bodymovin или скачайте с LottieFiles.
             </p>
 
             <input
               ref={inputRef}
               type="file"
-              accept="image/*"
+              accept="application/json,.json"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -320,17 +336,18 @@ export default function AdminPreloaderPage() {
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
             >
-              Выбрать файл
+              Выбрать .json файл
             </Button>
 
-            {preview && (
+            {previewAnimation && (
               <div className="mt-4 space-y-3">
                 <p className="text-sm font-medium">Предпросмотр:</p>
                 <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="max-h-[300px] max-w-full object-contain"
+                  <Lottie
+                    animationData={previewAnimation}
+                    loop
+                    autoplay
+                    className="max-h-[300px] max-w-full"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -348,7 +365,7 @@ export default function AdminPreloaderPage() {
                     variant="ghost"
                     onClick={() => {
                       setFile(null);
-                      setPreview(null);
+                      setPreviewAnimation(null);
                     }}
                     disabled={uploading}
                   >
