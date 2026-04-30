@@ -222,12 +222,12 @@ export default function AdminPreloaderPage() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+            <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4 min-h-[200px]">
               <Lottie
                 animationData={displayAnimation}
                 loop
                 autoplay
-                className="max-h-[300px] max-w-full"
+                style={{ width: 240, height: 240 }}
               />
             </div>
           )}
@@ -291,12 +291,12 @@ export default function AdminPreloaderPage() {
 
           {isDemoing ? (
             <div className="space-y-4">
-              <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden">
+              <div className="preloader-preview-bg rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden p-4">
                 <Lottie
                   animationData={displayAnimation}
                   loop
                   autoplay
-                  className="w-full h-full max-h-[300px]"
+                  style={{ width: 260, height: 260 }}
                 />
               </div>
               <Progress value={demoProgress} className="h-2" />
@@ -342,12 +342,12 @@ export default function AdminPreloaderPage() {
             {previewAnimation && (
               <div className="mt-4 space-y-3">
                 <p className="text-sm font-medium">Предпросмотр:</p>
-                <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+                <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4 min-h-[200px]">
                   <Lottie
                     animationData={previewAnimation}
                     loop
                     autoplay
-                    className="max-h-[300px] max-w-full"
+                    style={{ width: 220, height: 220 }}
                   />
                 </div>
                 <div className="flex gap-2">
