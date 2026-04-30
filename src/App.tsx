@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
-import defaultPreloader from '@/assets/preloader.gif';
+import Lottie from 'lottie-react';
+import defaultPreloaderAnimation from '@/assets/preloader.json';
 import logo from '@/assets/logo.png';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -202,8 +203,7 @@ const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
-  const [gifFailed, setGifFailed] = useState(false);
-  const [preloaderSrc, setPreloaderSrc] = useState(defaultPreloader);
+  const [animationData, setAnimationData] = useState<any>(defaultPreloaderAnimation);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
   
   const { vibrateShort } = useVibration();
@@ -250,15 +250,18 @@ const AppContent = () => {
     };
   }, []);
 
-  // Load custom preloader from storage if available
+  // Load custom Lottie preloader (JSON) from storage if available
   useEffect(() => {
-    const { data } = supabase.storage.from('app-assets').getPublicUrl('preloader.gif');
-    if (data?.publicUrl) {
-      const img = new Image();
-      img.onload = () => setPreloaderSrc(data.publicUrl + '?t=' + Date.now());
-      img.onerror = () => {}; // keep default
-      img.src = data.publicUrl;
-    }
+    let cancelled = false;
+    const { data } = supabase.storage.from('app-assets').getPublicUrl('preloader.json');
+    if (!data?.publicUrl) return;
+    fetch(data.publicUrl + '?t=' + Date.now())
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && json) setAnimationData(json);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
 
@@ -358,18 +361,18 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-        {gifFailed ? (
-          <img 
-            src={logo} 
-            alt="Loading" 
-            className="w-24 h-24 animate-pulse"
+        {animationData ? (
+          <Lottie
+            animationData={animationData}
+            loop
+            autoplay
+            className="w-full h-full max-w-screen max-h-screen object-contain"
           />
         ) : (
-          <img 
-            src={preloaderSrc} 
-            alt="Loading" 
-            className="w-full h-full object-contain max-w-screen max-h-screen"
-            onError={() => setGifFailed(true)}
+          <img
+            src={logo}
+            alt="Loading"
+            className="w-24 h-24 animate-pulse"
           />
         )}
       </div>
