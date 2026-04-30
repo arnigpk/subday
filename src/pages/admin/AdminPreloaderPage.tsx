@@ -342,12 +342,12 @@ export default function AdminPreloaderPage() {
             {previewAnimation && (
               <div className="mt-4 space-y-3">
                 <p className="text-sm font-medium">Предпросмотр:</p>
-                <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+                <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4 min-h-[200px]">
                   <Lottie
                     animationData={previewAnimation}
                     loop
                     autoplay
-                    className="max-h-[300px] max-w-full"
+                    style={{ width: 220, height: 220 }}
                   />
                 </div>
                 <div className="flex gap-2">
