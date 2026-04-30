@@ -222,12 +222,12 @@ export default function AdminPreloaderPage() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="bg-[#FAF9F6] rounded-lg flex items-center justify-center p-4 min-h-[200px]">
+            <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4 min-h-[200px]">
               <Lottie
                 animationData={displayAnimation}
                 loop
                 autoplay
-                className="max-h-[300px] max-w-full"
+                style={{ width: 240, height: 240 }}
               />
             </div>
           )}
