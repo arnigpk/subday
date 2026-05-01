@@ -351,20 +351,14 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-        {animationData ? (
+        {animationReady && animationData ? (
           <Lottie
             animationData={animationData}
             loop
             autoplay
             className="w-full h-full max-w-screen max-h-screen object-contain"
           />
-        ) : (
-          <img
-            src={logo}
-            alt="Loading"
-            className="w-24 h-24 animate-pulse"
-          />
-        )}
+        ) : null}
       </div>
     );
   }
