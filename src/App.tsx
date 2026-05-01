@@ -213,10 +213,13 @@ const AppContent = () => {
 
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
 
-  // Load preloader config + animation in parallel BEFORE showing anything
+  // Load preloader animation + config in parallel. The preloader is shown
+  // for the EXACT duration set in admin, while the rest of the app
+  // (auth, Telegram init, etc.) loads in the background.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    const startTime = Date.now();
 
     const cacheBust = `?t=${Date.now()}`;
     const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
@@ -244,8 +247,14 @@ const AppContent = () => {
         setIsPreloaderDone(true);
         return;
       }
-      const dur = config?.duration ?? 2;
-      timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
+
+      // Show preloader for the FULL configured duration, measured from app
+      // start. If config fetch took some time, subtract elapsed so total
+      // visible time matches admin setting exactly.
+      const dur = (config?.duration ?? 2) * 1000;
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, dur - elapsed);
+      timer = setTimeout(() => setIsPreloaderDone(true), remaining);
     });
 
     return () => {
