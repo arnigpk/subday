@@ -346,7 +346,13 @@ const AppContent = () => {
   }, []);
   
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
-  const isLoading = isAuthLoading || !isPreloaderDone || !isTelegramReady || isTelegramAuthPending;
+  // Preloader is shown for the EXACT admin-configured duration.
+  // Auth + Telegram init happen in the background during this time.
+  // After the preloader finishes, we still wait briefly for auth/telegram
+  // to settle (almost always already done) before rendering the app.
+  const isPreloaderVisible = !isPreloaderDone;
+  const isBackgroundLoading = isAuthLoading || !isTelegramReady || isTelegramAuthPending;
+  const isLoading = isPreloaderVisible || isBackgroundLoading;
 
   // Vibrate when loading completes
   useEffect(() => {
