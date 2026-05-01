@@ -294,13 +294,16 @@ export default function AdminPreloaderPage() {
 
           {isDemoing ? (
             <div className="space-y-4">
-              <div className="preloader-preview-bg rounded-lg flex items-center justify-center min-h-[300px] relative overflow-hidden p-4">
-                <Lottie
-                  animationData={displayAnimation}
-                  loop
-                  autoplay
-                  style={{ width: 260, height: 260 }}
-                />
+              <div className="preloader-preview-bg rounded-lg flex items-center justify-center relative overflow-hidden p-4">
+                <div className="w-full max-w-[320px] aspect-square mx-auto">
+                  <Lottie
+                    animationData={displayAnimation}
+                    loop
+                    autoplay
+                    rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
               </div>
               <Progress value={demoProgress} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
