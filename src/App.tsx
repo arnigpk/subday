@@ -203,65 +203,55 @@ const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
-  const [animationData, setAnimationData] = useState<any>(defaultPreloaderAnimation);
+  // Start as null — do NOT show bundled animation immediately, otherwise old
+  // preloader flashes for a moment before custom one loads from storage.
+  const [animationData, setAnimationData] = useState<any>(null);
+  const [animationReady, setAnimationReady] = useState(false);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
-  
+
   const { vibrateShort } = useVibration();
-  
+
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
-  
+
+  // Load preloader config + animation in parallel BEFORE showing anything
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
 
-    const loadConfig = async () => {
-      try {
-        const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
-        const res = await fetch(configData.publicUrl + '?t=' + Date.now());
-        if (cancelled) return;
-        
-        if (res.ok) {
-          const config = await res.json();
-          if (cancelled) return;
-          
-          const isEnabled = config?.enabled !== false;
-          if (!isEnabled) {
-            setIsPreloaderDone(true);
-            return;
-          }
-          const dur = config?.duration ?? 2;
-          timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
-        } else {
-          // No config file yet — use default 2s
-          timer = setTimeout(() => setIsPreloaderDone(true), 2000);
-        }
-      } catch {
-        if (!cancelled) {
-          timer = setTimeout(() => setIsPreloaderDone(true), 2000);
-        }
-      }
-    };
+    const cacheBust = `?t=${Date.now()}`;
+    const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
+    const { data: animData } = supabase.storage.from('app-assets').getPublicUrl('preloader.json');
 
-    loadConfig();
+    const fetchOpts: RequestInit = { cache: 'no-store' };
+
+    const configPromise = fetch(configData.publicUrl + cacheBust, fetchOpts)
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+
+    const animPromise = fetch(animData.publicUrl + cacheBust, fetchOpts)
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+
+    Promise.all([configPromise, animPromise]).then(([config, customAnim]) => {
+      if (cancelled) return;
+
+      // Pick custom anim if present, else fall back to bundled default.
+      setAnimationData(customAnim || defaultPreloaderAnimation);
+      setAnimationReady(true);
+
+      const isEnabled = config?.enabled !== false;
+      if (!isEnabled) {
+        setIsPreloaderDone(true);
+        return;
+      }
+      const dur = config?.duration ?? 2;
+      timer = setTimeout(() => setIsPreloaderDone(true), dur * 1000);
+    });
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, []);
-
-  // Load custom Lottie preloader (JSON) from storage if available
-  useEffect(() => {
-    let cancelled = false;
-    const { data } = supabase.storage.from('app-assets').getPublicUrl('preloader.json');
-    if (!data?.publicUrl) return;
-    fetch(data.publicUrl + '?t=' + Date.now())
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (!cancelled && json) setAnimationData(json);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
   }, []);
 
 
