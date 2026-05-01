@@ -222,13 +222,16 @@ export default function AdminPreloaderPage() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4 min-h-[200px]">
-              <Lottie
-                animationData={displayAnimation}
-                loop
-                autoplay
-                style={{ width: 240, height: 240 }}
-              />
+            <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4">
+              <div className="w-full max-w-[280px] aspect-square mx-auto">
+                <Lottie
+                  animationData={displayAnimation}
+                  loop
+                  autoplay
+                  rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
             </div>
           )}
           {isCustom && canManage && (
