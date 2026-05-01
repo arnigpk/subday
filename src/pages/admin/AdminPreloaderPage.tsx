@@ -223,13 +223,16 @@ export default function AdminPreloaderPage() {
             </div>
           ) : (
             <div className="preloader-preview-bg rounded-lg flex items-center justify-center p-4">
-              <div className="w-full max-w-[280px] aspect-square mx-auto">
+              <div
+                className="mx-auto overflow-hidden rounded-md bg-[#FAF9F6]"
+                style={{ width: 200, aspectRatio: '9 / 16' }}
+              >
                 <Lottie
                   animationData={displayAnimation}
                   loop
                   autoplay
-                  rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
-                  style={{ width: '100%', height: '100%' }}
+                  rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
+                  style={{ width: '100%', height: '100%', display: 'block' }}
                 />
               </div>
             </div>
