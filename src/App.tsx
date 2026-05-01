@@ -366,7 +366,9 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center p-6">
-        {animationReady && animationData ? (
+        {/* Show Lottie ONLY while the preloader timer is active. After it
+            ends, keep a clean background while background tasks finish. */}
+        {isPreloaderVisible && animationReady && animationData ? (
           <div
             className="aspect-square mx-auto"
             style={{ width: 'min(80vw, 80vh, 480px)' }}
