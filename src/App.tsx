@@ -365,20 +365,30 @@ const AppContent = () => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center p-6">
+      <div className="fixed inset-0 bg-[#FAF9F6] overflow-hidden">
         {/* Show Lottie ONLY while the preloader timer is active. After it
-            ends, keep a clean background while background tasks finish. */}
+            ends, keep a clean background while background tasks finish.
+
+            Lottie fills the screen in 9:16 (1080x1920) portrait. The
+            container is sized so the 9:16 frame either matches viewport
+            height (tall screens / mobile / tablet) or viewport width
+            (very wide / desktop), always centered, no letterboxing. */}
         {isPreloaderVisible && animationReady && animationData ? (
           <div
-            className="aspect-square mx-auto"
-            style={{ width: 'min(80vw, 80vh, 480px)' }}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              // Use the smaller of (full height) and (full width / 9*16)
+              // so the 9:16 box always fits without overflow.
+              height: 'min(100vh, 100dvh, calc(100vw * 16 / 9))',
+              aspectRatio: '9 / 16',
+            }}
           >
             <Lottie
               animationData={animationData}
               loop
               autoplay
-              rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
-              style={{ width: '100%', height: '100%' }}
+              rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
+              style={{ width: '100%', height: '100%', display: 'block' }}
             />
           </div>
         ) : null}
