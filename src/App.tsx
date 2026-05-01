@@ -350,14 +350,20 @@ const AppContent = () => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center p-6">
         {animationReady && animationData ? (
-          <Lottie
-            animationData={animationData}
-            loop
-            autoplay
-            className="w-full h-full max-w-screen max-h-screen object-contain"
-          />
+          <div
+            className="aspect-square mx-auto"
+            style={{ width: 'min(80vw, 80vh, 480px)' }}
+          >
+            <Lottie
+              animationData={animationData}
+              loop
+              autoplay
+              rendererSettings={{ preserveAspectRatio: 'xMidYMid meet' }}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
         ) : null}
       </div>
     );
