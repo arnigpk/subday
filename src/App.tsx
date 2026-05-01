@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import Lottie from 'lottie-react';
 import defaultPreloaderAnimation from '@/assets/preloader.json';
-import logo from '@/assets/logo.png';
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
