@@ -59,6 +59,3 @@ verify_jwt = false
 
 [functions.subflow-ai-caption]
 verify_jwt = false
-
-[functions.migrate-helper]
-verify_jwt = false
