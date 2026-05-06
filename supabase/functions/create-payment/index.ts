@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const FREEDOMPAY_API_URL = 'https://api.freedompay.kz';
-const DEFAULT_RETURN_ORIGIN = 'https://vhod.lovable.app';
+const DEFAULT_RETURN_ORIGIN = 'https://web.subday.app';
 
 type JsonRecord = Record<string, unknown>;
 
