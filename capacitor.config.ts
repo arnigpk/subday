@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'app.subday.app',
   appName: 'subday',
-  webDir: 'web.subday.app',
+  webDir: 'dist',
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
