@@ -302,8 +302,21 @@ export default function AdminSubscriptionsPage() {
         .delete()
         .eq('id', deleteSubId);
 
-      if (error) throw error;
-      toast({ title: 'Подписка удалена' });
+      if (error) {
+        // FK constraint — есть связанные данные, деактивируем вместо удаления
+        if (error.code === '23503') {
+          const { error: deactivateError } = await supabase
+            .from('subscription_types')
+            .update({ is_active: false })
+            .eq('id', deleteSubId);
+          if (deactivateError) throw deactivateError;
+          toast({ title: 'Подписка деактивирована', description: 'Есть связанные покупки — полное удаление невозможно' });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({ title: 'Подписка удалена' });
+      }
       setDeleteSubId(null);
       fetchSubscriptions();
     } catch (error) {

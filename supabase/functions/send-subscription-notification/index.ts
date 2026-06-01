@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon' | 'guest_coffee';
+  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon' | 'guest_coffee' | 'subscription_expired';
   userId: string;
   cupsCount?: number;
   daysCount?: number;
@@ -138,6 +138,7 @@ function getNotificationTitle(type: string): string {
     case 'activated': return '🎉 Подписка активирована';
     case 'low_balance': return '⚠️ Низкий баланс';
     case 'expiring_soon': return '⚠️ Подписка заканчивается';
+    case 'subscription_expired': return '❌ Подписка закончилась';
     case 'guest_coffee': return '🎁 Подарок кофе';
     default: return '📢 Уведомление';
   }
@@ -237,6 +238,8 @@ Deno.serve(async (req) => {
         message = `⚠️ У вас осталось ${count} ${unit} по подписке ${subName}`;
       } else if (type === 'expiring_soon') {
         message = `⚠️ У вас осталось ${count} ${unit} до окончания подписки ${subName}`;
+      } else if (type === 'subscription_expired') {
+        message = `❌ Ваша подписка ${subName} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕`;
       } else if (type === 'guest_coffee') {
         message = `🎁 Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚`;
       } else {

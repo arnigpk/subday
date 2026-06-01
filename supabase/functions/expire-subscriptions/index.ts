@@ -19,6 +19,14 @@ Deno.serve(async (req) => {
 
     console.log('Running subscription expiration check...');
 
+    // Fetch subscriptions about to be expired BEFORE the RPC runs
+    const { data: toExpire } = await supabase
+      .from('user_subscriptions')
+      .select('user_id, subscription_types(name, type)')
+      .eq('is_active', true)
+      .not('expires_at', 'is', null)
+      .lte('expires_at', new Date().toISOString());
+
     // Call the expire_subscriptions function
     const { error } = await supabase.rpc('expire_subscriptions');
 
@@ -26,14 +34,29 @@ Deno.serve(async (req) => {
       console.error('Error expiring subscriptions:', error);
       return new Response(
         JSON.stringify({ success: false, error: error.message }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    console.log('Subscription expiration check completed successfully');
+    // Send "subscription_expired" notifications for those that just expired
+    for (const sub of (toExpire || [])) {
+      const st = sub.subscription_types as any;
+      fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+        body: JSON.stringify({
+          type: 'subscription_expired',
+          userId: sub.user_id,
+          subscriptionName: st?.name || 'Подписка',
+          drinkType: st?.type,
+        }),
+      }).catch(err => console.error('Expired notification error:', err));
+    }
+
+    console.log(`Subscription expiration check completed. Notified ${(toExpire || []).length} users.`);
 
     return new Response(
       JSON.stringify({ 

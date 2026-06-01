@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -180,6 +180,7 @@ export default function AdminUsersPage() {
     ai_access: false,
   });
   const [selectedSubscription, setSelectedSubscription] = useState<string>('');
+  const [partnerShopIds, setPartnerShopIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchUsers();
@@ -349,7 +350,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const openEditDialog = (user: UserWithStats) => {
+  const openEditDialog = async (user: UserWithStats) => {
     setEditingUser(user);
     setFormData({
       name: user.name || '',
@@ -365,6 +366,17 @@ export default function AdminUsersPage() {
       ai_access: user.ai_access || false,
     });
     setSelectedSubscription('');
+
+    if (user.role === 'partner') {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('shop_id')
+        .eq('user_id', user.user_id)
+        .eq('role', 'partner');
+      setPartnerShopIds((data?.map(r => r.shop_id).filter(Boolean) as string[]) || []);
+    } else {
+      setPartnerShopIds([]);
+    }
   };
 
   const handleSave = async () => {
@@ -415,31 +427,51 @@ export default function AdminUsersPage() {
         if (statsError) throw statsError;
       }
 
-      if (previousRole !== newRole) {
-        if (previousRole !== 'user' && editingUser.role_id) {
-          await supabase
-            .from('user_roles')
-            .delete()
-            .eq('id', editingUser.role_id);
-        }
+      if (newRole === 'partner' && previousRole === 'partner') {
+        // Diff existing shops vs selected shops
+        const { data: currentRoles } = await supabase
+          .from('user_roles')
+          .select('id, shop_id')
+          .eq('user_id', editingUser.user_id)
+          .eq('role', 'partner');
+        const currentShopIds = (currentRoles?.map(r => r.shop_id).filter(Boolean) as string[]) || [];
 
+        // Remove deselected shops
+        for (const r of currentRoles || []) {
+          if (r.shop_id && !partnerShopIds.includes(r.shop_id)) {
+            await supabase.from('user_roles').delete().eq('id', r.id);
+          }
+        }
+        // Add new shops
+        for (const shopId of partnerShopIds) {
+          if (!currentShopIds.includes(shopId)) {
+            await supabase.from('user_roles').insert({ user_id: editingUser.user_id, role: 'partner', shop_id: shopId });
+          }
+        }
+      } else if (newRole === 'partner' && previousRole !== 'partner') {
+        // Remove old non-partner role
+        if (previousRole !== 'user' && editingUser.role_id) {
+          await supabase.from('user_roles').delete().eq('id', editingUser.role_id);
+        }
+        // Insert a row per selected shop
+        for (const shopId of partnerShopIds) {
+          await supabase.from('user_roles').insert({ user_id: editingUser.user_id, role: 'partner', shop_id: shopId });
+        }
+      } else if (newRole !== 'partner' && previousRole === 'partner') {
+        // Remove ALL partner role rows
+        await supabase.from('user_roles').delete().eq('user_id', editingUser.user_id).eq('role', 'partner');
+        if (newRole !== 'user') {
+          await supabase.from('user_roles').insert({ user_id: editingUser.user_id, role: newRole, shop_id: null });
+        }
+      } else if (previousRole !== newRole) {
+        if (previousRole !== 'user' && editingUser.role_id) {
+          await supabase.from('user_roles').delete().eq('id', editingUser.role_id);
+        }
         if (newRole !== 'user') {
           const { error: roleError } = await supabase
             .from('user_roles')
-            .insert({
-              user_id: editingUser.user_id,
-              role: newRole,
-              shop_id: newRole === 'partner' ? formData.shop_id || null : null,
-            });
-
+            .insert({ user_id: editingUser.user_id, role: newRole, shop_id: null });
           if (roleError) throw roleError;
-        }
-      } else if (newRole === 'partner' && formData.shop_id !== editingUser.shop_id) {
-        if (editingUser.role_id) {
-          await supabase
-            .from('user_roles')
-            .update({ shop_id: formData.shop_id || null })
-            .eq('id', editingUser.role_id);
         }
       }
 
@@ -930,23 +962,51 @@ export default function AdminUsersPage() {
               )}
               
               {formData.role === 'partner' && (
-                <div className="mt-3">
-                  <Label>Привязка к кофейне</Label>
-                  <Select 
-                    value={formData.shop_id} 
-                    onValueChange={(v) => setFormData({ ...formData, shop_id: v })}
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Выберите кофейню" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {shops.map(shop => (
-                        <SelectItem key={shop.id} value={shop.id}>
-                          {shop.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="mt-3 space-y-2">
+                  <Label>Привязка к кофейням</Label>
+
+                  {/* Assigned shops list */}
+                  {partnerShopIds.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {partnerShopIds.map(shopId => {
+                        const shop = shops.find(s => s.id === shopId);
+                        return (
+                          <div key={shopId} className="flex items-center justify-between px-3 py-2 bg-secondary rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <Store size={14} className="text-primary shrink-0" />
+                              <span className="text-sm font-medium">{shop?.name || shopId}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPartnerShopIds(ids => ids.filter(id => id !== shopId))}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Кофейни не привязаны</p>
+                  )}
+
+                  {/* Add shop selector */}
+                  {shops.filter(s => !partnerShopIds.includes(s.id)).length > 0 && (
+                    <Select onValueChange={(v) => setPartnerShopIds(ids => [...ids, v])}>
+                      <SelectTrigger className="mt-1">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Plus size={14} />
+                          <span>Добавить кофейню</span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shops.filter(s => !partnerShopIds.includes(s.id)).map(shop => (
+                          <SelectItem key={shop.id} value={shop.id}>{shop.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               )}
             </div>

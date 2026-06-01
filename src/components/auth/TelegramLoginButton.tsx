@@ -16,8 +16,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
   const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenTelegram = () => {
-    const telegramUrl = `https://t.me/${botName}?start=login`;
-    window.open(telegramUrl, '_blank');
+    window.open(`tg://resolve?domain=${botName}&start=login`, '_blank');
     setStep('code');
   };
 
@@ -110,7 +109,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
           <button
             onClick={() => {
               setCode('');
-              window.open(`https://t.me/${botName}?start=login`, '_blank');
+              window.open(`tg://resolve?domain=${botName}&start=login`, '_blank');
             }}
             className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
           >

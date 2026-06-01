@@ -62,7 +62,8 @@ export function useSubscriptionStatus() {
             subscription_types (name, type, cups_count, duration_days, features)
           `)
           .eq('user_id', user.id)
-          .eq('is_active', true),
+          .eq('is_active', true)
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
         supabase
           .from('profiles')
           .select('subflow_access')

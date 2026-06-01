@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -25,6 +25,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { useSwipeBack } from '@/hooks/useSwipeBack';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -59,6 +62,31 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
     await supabase.auth.signOut();
     navigate('/');
   };
+
+  const handleBackToApp = () => navigate('/');
+
+  useSwipeBack(handleBackToApp);
+
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(handleBackToApp);
+    }
+
+    let capListener: { remove: () => void } | null = null;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('backButton', handleBackToApp).then(l => { capListener = l; });
+    }
+
+    return () => {
+      if (tg?.BackButton) {
+        tg.BackButton.offClick(handleBackToApp);
+        tg.BackButton.hide();
+      }
+      if (capListener) capListener.remove();
+    };
+  }, []);
 
   const filteredNavItems = navItems.filter(item => 
     role && item.roles.includes(role)

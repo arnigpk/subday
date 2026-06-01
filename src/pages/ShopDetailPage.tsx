@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { ArrowLeft, Clock, MapPin, Coffee, Droplets, Loader2, Navigation, ExternalLink, ShoppingBag } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAddressAwareShopStatus } from '@/utils/shopHours';
@@ -147,14 +148,25 @@ export default function ShopDetailPage() {
                 const coords = parseCoordinates(shop.coordinates);
                 const idx = shopDistance.closestAddressIndex;
                 const coord = coords[idx] || coords[0];
-                if (coord) {
-                  const twogisLink = (coord as any).twogis_link;
-                  if (twogisLink) {
-                    window.open(twogisLink, '_blank');
-                  } else if (coord.lat && coord.lng) {
-                    const url = `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`;
-                    window.open(url, '_blank');
+                if (!coord) return;
+                const twogisLink = (coord as any).twogis_link;
+                const webUrl = twogisLink || (coord.lat && coord.lng
+                  ? `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`
+                  : null);
+                if (!webUrl) return;
+                if (coord.lat && coord.lng) {
+                  const dgisDeepLink = `dgis://2gis.ru/routeSearch/rsType/car/to/${coord.lng},${coord.lat}`;
+                  if (Capacitor.isNativePlatform()) {
+                    window.open(dgisDeepLink, '_system');
+                  } else {
+                    // Try deep link — opens 2GIS app directly without browser overlay
+                    window.location.href = dgisDeepLink;
+                    // Fallback to web if 2GIS app not installed (window stays visible)
+                    const fallback = setTimeout(() => window.open(webUrl, '_blank'), 1500);
+                    window.addEventListener('blur', () => clearTimeout(fallback), { once: true });
                   }
+                } else {
+                  window.open(webUrl, '_blank');
                 }
               }}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"

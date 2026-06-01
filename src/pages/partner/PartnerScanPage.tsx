@@ -188,7 +188,7 @@ export default function PartnerScanPage() {
 
         {/* Scanner is ALWAYS mounted — never unmounted/remounted */}
         <div className="px-4 relative">
-          <QRScanner onScan={handleScan} isProcessing={isProcessing} />
+          <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
 
           {/* Result overlay on top of scanner */}
           {result && (

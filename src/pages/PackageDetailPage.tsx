@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
+import { KaspiPaymentModal } from '@/components/KaspiPaymentModal';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -41,6 +42,8 @@ export default function PackageDetailPage() {
   const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessing, createPayment } = usePayment();
+  const [kaspiData, setKaspiData] = useState<{ qrToken: string; amount: number; expireDate?: string; orderId?: string } | null>(null);
+  const [isKaspiProcessing, setIsKaspiProcessing] = useState(false);
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
@@ -52,10 +55,57 @@ export default function PackageDetailPage() {
     if (id) fetchSubscription();
   }, [id]);
 
+  // Poll Kaspi payment status while QR modal is open
+  useEffect(() => {
+    if (!kaspiData?.orderId) return;
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('payment_orders')
+          .select('status')
+          .eq('order_id', kaspiData.orderId)
+          .single();
+        if (data?.status === 'paid' || data?.status === 'completed' || data?.status === 'success') {
+          clearInterval(interval);
+          setKaspiData(null);
+          const { toast } = await import('sonner');
+          toast.success('🎉 Подписка успешно активирована!', {
+            duration: 5000,
+            description: 'Спасибо за покупку! Наслаждайтесь кофе.',
+          });
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch { /* ignore polling errors */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [kaspiData?.orderId]);
+
   const handlePurchase = () => {
     if (subscription) {
       vibrateSuccess();
       createPayment(subscription.id);
+    }
+  };
+
+  const handleKaspiPurchase = async () => {
+    if (!subscription) return;
+    setIsKaspiProcessing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await supabase.functions.invoke('kaspi-create-payment', {
+        body: { subscription_type_id: subscription.id },
+      });
+      if (res.data?.success && res.data?.qr_token) {
+        setKaspiData({ qrToken: res.data.qr_token, amount: res.data.amount, expireDate: res.data.expire_date, orderId: res.data.order_id });
+      } else if (res.data?.error || res.error) {
+        const { toast } = await import('sonner');
+        toast.error(res.data?.error || 'Ошибка создания платежа');
+      }
+    } catch (e) {
+      console.error('Kaspi payment error:', e);
+    } finally {
+      setIsKaspiProcessing(false);
     }
   };
 
@@ -146,6 +196,15 @@ export default function PackageDetailPage() {
   const formatPrice = (price: number) => formatPriceNum(price) + ' ' + currencySymbol;
 
   return (
+    <>
+{kaspiData && (
+      <KaspiPaymentModal
+        qrToken={kaspiData.qrToken}
+        amount={kaspiData.amount}
+        expireDate={kaspiData.expireDate}
+        onClose={() => setKaspiData(null)}
+      />
+    )}
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4 flex items-center gap-3">
@@ -278,34 +337,52 @@ export default function PackageDetailPage() {
             </div>
           </div>
 
-          <div className="pb-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="pb-6 animate-slide-up space-y-3" style={{ animationDelay: '0.2s' }}>
             {isActive ? (
               <div className="w-full h-14 flex items-center justify-center text-lg font-bold bg-muted text-muted-foreground rounded-xl cursor-not-allowed">
                 {t('packages.yourActive')}
               </div>
             ) : (
-              <Button 
-                onClick={handlePurchase}
-                disabled={isProcessing}
-                className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    {t('packageDetail.creating')}
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    {t('packageDetail.subscribeFor')} {formatPrice(displayPrice)}
-                  </>
-                )}
-              </Button>
+              <>
+                <Button
+                  onClick={handleKaspiPurchase}
+                  disabled={isKaspiProcessing}
+                  variant="outline"
+                  className="w-full h-14 text-base font-bold border-2 border-[#F14635] text-[#F14635] hover:bg-[#F14635]/10"
+                >
+                  {isKaspiProcessing ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      Оплатить Kaspi {formatPrice(displayPrice)}
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handlePurchase}
+                  disabled={isProcessing}
+                  className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      {t('packageDetail.creating')}
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Оплатить картой {formatPrice(displayPrice)}
+                    </>
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </div>
       </div>
 
     </AppLayout>
+    </>
   );
 }

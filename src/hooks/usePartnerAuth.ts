@@ -1,15 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+export interface PartnerShop {
+  id: string;
+  name: string;
+  address: string | null;
+  logo_url: string | null;
+}
 
 interface PartnerAuthState {
   isLoading: boolean;
   isPartner: boolean;
   isBarista: boolean;
   hasAccess: boolean;
+  shops: PartnerShop[];
+  selectedShopId: string | null;
   shopId: string | null;
   shopName: string | null;
+  selectedShop: PartnerShop | null;
   role: 'partner' | 'barista' | null;
 }
+
+const STORAGE_KEY = 'partner_selected_shop_id';
 
 export function usePartnerAuth() {
   const [state, setState] = useState<PartnerAuthState>({
@@ -17,8 +29,11 @@ export function usePartnerAuth() {
     isPartner: false,
     isBarista: false,
     hasAccess: false,
+    shops: [],
+    selectedShopId: null,
     shopId: null,
     shopName: null,
+    selectedShop: null,
     role: null,
   });
 
@@ -26,55 +41,48 @@ export function usePartnerAuth() {
     const checkPartnerAuth = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          setState(prev => ({ ...prev, isLoading: false }));
-          return;
-        }
+        if (!user) { setState(prev => ({ ...prev, isLoading: false })); return; }
 
-        // Check user roles for partner or barista
         const { data: roles, error } = await supabase
           .from('user_roles')
           .select('role, shop_id')
           .eq('user_id', user.id)
           .in('role', ['partner', 'barista']);
 
-        if (error) {
-          console.error('Error fetching user roles:', error);
+        if (error || !roles || roles.length === 0) {
           setState(prev => ({ ...prev, isLoading: false }));
           return;
         }
 
-        if (!roles || roles.length === 0) {
-          setState(prev => ({ ...prev, isLoading: false }));
-          return;
-        }
+        const partnerRoles = roles.filter(r => r.role === 'partner');
+        const baristaRoles = roles.filter(r => r.role === 'barista');
+        const hasPartner = partnerRoles.length > 0;
 
-        // Prefer partner role if user has both
-        const partnerRole = roles.find(r => r.role === 'partner');
-        const baristaRole = roles.find(r => r.role === 'barista');
-        const activeRole = partnerRole || baristaRole;
+        const shopIds = [...new Set(roles.map(r => r.shop_id).filter(Boolean) as string[])];
+        if (shopIds.length === 0) { setState(prev => ({ ...prev, isLoading: false })); return; }
 
-        if (!activeRole || !activeRole.shop_id) {
-          setState(prev => ({ ...prev, isLoading: false }));
-          return;
-        }
-
-        // Get shop name
-        const { data: shop } = await supabase
+        const { data: shopsData } = await supabase
           .from('shops')
-          .select('name')
-          .eq('id', activeRole.shop_id)
-          .maybeSingle();
+          .select('id, name, address, logo_url')
+          .in('id', shopIds);
+
+        const shops: PartnerShop[] = shopsData || [];
+
+        const savedId = localStorage.getItem(STORAGE_KEY);
+        const selectedShopId = (savedId && shops.some(s => s.id === savedId)) ? savedId : shops[0]?.id || null;
+        const selectedShop = shops.find(s => s.id === selectedShopId) || null;
 
         setState({
           isLoading: false,
-          isPartner: !!partnerRole,
-          isBarista: !!baristaRole && !partnerRole,
+          isPartner: hasPartner,
+          isBarista: !hasPartner && baristaRoles.length > 0,
           hasAccess: true,
-          shopId: activeRole.shop_id,
-          shopName: shop?.name || null,
-          role: partnerRole ? 'partner' : 'barista',
+          shops,
+          selectedShopId,
+          shopId: selectedShopId,
+          shopName: selectedShop?.name || null,
+          selectedShop,
+          role: hasPartner ? 'partner' : 'barista',
         });
       } catch (error) {
         console.error('Partner auth check error:', error);
@@ -83,13 +91,14 @@ export function usePartnerAuth() {
     };
 
     checkPartnerAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkPartnerAuth();
-    });
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => checkPartnerAuth());
     return () => subscription.unsubscribe();
   }, []);
 
-  return state;
+  const setSelectedShopId = useCallback((id: string) => {
+    localStorage.setItem(STORAGE_KEY, id);
+    window.location.reload();
+  }, []);
+
+  return { ...state, setSelectedShopId };
 }

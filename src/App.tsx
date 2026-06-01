@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, ReactNode } from 'react';
 import Lottie from 'lottie-react';
 import defaultPreloaderAnimation from '@/assets/preloader.json';
 
@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
@@ -197,6 +197,46 @@ function GeoNotificationsRunner() {
 
   useGeoNotifications(enabled);
   return null;
+}
+
+// Установи true чтобы заблокировать доступ из обычного браузера
+const BLOCK_BROWSER_ACCESS = false;
+
+function WebBlockedScreen() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-8 text-center gap-6">
+      <img src="/icon-192.png" alt="subday" className="w-20 h-20 rounded-2xl" />
+      <div>
+        <h1 className="text-2xl font-black text-foreground mb-2">Откройте в приложении</h1>
+        <p className="text-muted-foreground text-sm">
+          Это приложение доступно только через Telegram или мобильное приложение subday.
+        </p>
+      </div>
+      <a
+        href="tg://resolve?domain=subday_lgbot&start=login"
+        className="w-full max-w-xs h-12 rounded-2xl bg-[#0088cc] text-white font-bold flex items-center justify-center gap-2 text-sm"
+      >
+        Открыть в Telegram
+      </a>
+      <div className="flex gap-4 text-xs text-muted-foreground/50">
+        <a href="/admin" className="hover:underline">Панель администратора</a>
+        <a href="/partner" className="hover:underline">Панель партнёра</a>
+      </div>
+    </div>
+  );
+}
+
+function PlatformGuard({ children, isTelegramMiniApp }: { children: ReactNode; isTelegramMiniApp: boolean }) {
+  const location = useLocation();
+  const isNative = Capacitor.isNativePlatform();
+  const isBrowser = !isTelegramMiniApp && !isNative;
+  const isAllowed = location.pathname.startsWith('/admin') || location.pathname.startsWith('/partner');
+
+  if (BLOCK_BROWSER_ACCESS && isBrowser && !isAllowed) {
+    return <WebBlockedScreen />;
+  }
+
+  return <>{children}</>;
 }
 
 const AppContent = () => {
@@ -414,6 +454,7 @@ const AppContent = () => {
         <PermissionsBootstrap />
         <Toaster />
         <Sonner />
+        <PlatformGuard isTelegramMiniApp={isTelegramMiniApp}>
         <Suspense fallback={<LazyFallback />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -457,6 +498,7 @@ const AppContent = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        </PlatformGuard>
       </BrowserRouter>
     </UserStatsProvider>
   );

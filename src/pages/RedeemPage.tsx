@@ -412,6 +412,8 @@ export default function RedeemPage() {
 
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
+    const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
+    if (!hasActiveSub || remaining <= 0) return null;
     const payload = {
       type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
       shopAddress: selectedShopClosestAddress || '',
@@ -609,19 +611,40 @@ export default function RedeemPage() {
                 </div>
               )}
 
-              <div className="w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-accent p-3">
-                {qrCodeData ? (
-                  <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
-                ) : selectedShop && !selectedShop.isCurrentlyOpen ? (
-                  <div className="text-center p-4">
-                    <Clock size={48} className="text-destructive mx-auto mb-3" />
-                    <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
-                    <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
+              {(() => {
+                const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
+                const shopClosed = selectedShop && !selectedShop.isCurrentlyOpen;
+                const noSub = !hasActiveSub;
+                const noCups = hasActiveSub && remaining <= 0;
+                const borderColor = (noSub || noCups) ? 'border-muted' : shopClosed ? 'border-destructive/40' : 'border-accent';
+                return (
+                  <div className={`w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-3`}>
+                    {qrCodeData ? (
+                      <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
+                    ) : shopClosed ? (
+                      <div className="text-center p-4">
+                        <Clock size={48} className="text-destructive mx-auto mb-3" />
+                        <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
+                        <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
+                      </div>
+                    ) : noSub ? (
+                      <div className="text-center p-4">
+                        <span className="text-5xl mb-3 block">☕</span>
+                        <p className="text-sm font-semibold text-foreground">Нет активной подписки</p>
+                        <p className="text-xs text-muted-foreground mt-1">Оформите подписку чтобы получить QR</p>
+                      </div>
+                    ) : noCups ? (
+                      <div className="text-center p-4">
+                        <span className="text-5xl mb-3 block">🫙</span>
+                        <p className="text-sm font-semibold text-foreground">{drinkType === 'coffee' ? 'Кофе закончился' : 'Ланчи закончились'}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Оформите новую подписку</p>
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
                   </div>
-                ) : (
-                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                )}
-              </div>
+                );
+              })()}
               <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
               {/* Current plan name */}
               {(() => {

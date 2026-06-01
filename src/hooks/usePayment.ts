@@ -14,48 +14,36 @@ export function usePayment(): UsePaymentResult {
 
   const createPayment = async (subscriptionTypeId: string) => {
     setIsProcessing(true);
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
-
       if (!session) {
         toast.error('Необходимо авторизоваться');
-        setIsProcessing(false);
         return;
       }
 
       const returnPath = `${location.pathname}${location.search}${location.hash}`;
       const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          subscription_type_id: subscriptionTypeId,
-          return_path: returnPath,
-        },
+        body: { subscription_type_id: subscriptionTypeId, return_path: returnPath },
       });
 
       if (error) {
         console.error('Payment creation error:', error);
         toast.error('Ошибка создания платежа');
-        setIsProcessing(false);
         return;
       }
 
       if (data?.payment_url) {
-        // Redirect to FreedomPay frame route — acquirer renders its own frame UI
         window.location.href = data.payment_url;
       } else {
-        console.error('No payment URL in response:', data);
         toast.error('Ошибка: не получена ссылка на оплату');
-        setIsProcessing(false);
       }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Произошла ошибка при создании платежа');
+    } finally {
       setIsProcessing(false);
     }
   };
 
-  return {
-    isProcessing,
-    createPayment,
-  };
+  return { isProcessing, createPayment };
 }

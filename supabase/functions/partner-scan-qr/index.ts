@@ -243,11 +243,19 @@ Deno.serve(async (req) => {
       .eq('user_id', userId).eq('is_active', true);
 
     interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
-    
+
+    const now = new Date();
     const matchingSub = subscriptions?.find(s => {
       const st = s.subscription_types as unknown as SubTypeInfo | null;
-      return st && st.type === drinkType;
+      const notExpired = !s.expires_at || new Date(s.expires_at) > now;
+      return st && st.type === drinkType && notExpired;
     });
+
+    // Block if no valid active subscription found (expired by date even if cups remain)
+    if (!matchingSub) {
+      return new Response(JSON.stringify({ error: 'Подписка истекла или не активна' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const subTypes = matchingSub?.subscription_types as unknown as SubTypeInfo | null;
     
     const effectiveDailyLimit = (matchingSub as any)?.daily_limit_override ?? subTypes?.daily_limit;
@@ -310,6 +318,19 @@ Deno.serve(async (req) => {
             logger.error('subscription_deactivation_failed', { user_id: userId, subscription_id: matchingSub.id }, deactivateError);
           } else {
             logger.info('subscription_deactivated', { user_id: userId, subscription_id: matchingSub.id, drink_type: drinkType });
+            // Notify user that subscription ran out of cups
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+            fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({
+                type: 'subscription_expired',
+                userId,
+                subscriptionName: subTypes?.name || 'Подписка',
+                drinkType,
+              }),
+            }).catch(err => console.error('Cups-expired notification error:', err));
           }
         });
     }

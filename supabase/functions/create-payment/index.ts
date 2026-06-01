@@ -1,6 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { crypto as stdCrypto } from "https://deno.land/std@0.224.0/crypto/mod.ts";
-import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,8 +7,6 @@ const corsHeaders = {
 
 const FREEDOMPAY_API_URL = 'https://api.freedompay.kz';
 const DEFAULT_RETURN_ORIGIN = 'https://web.subday.app';
-
-type JsonRecord = Record<string, unknown>;
 
 function decodeXmlEntities(value: string) {
   return value
@@ -52,23 +48,85 @@ function getClientIp(req: Request) {
   return forwardedFor.split(',')[0]?.trim() || undefined;
 }
 
+// Pure JS MD5 — no WASM, works in Deno edge runtime
+function hexMd5(str: string): string {
+  // Convert to UTF-8 bytes so Cyrillic chars hash correctly
+  const utf8 = Array.from(new TextEncoder().encode(str), b => String.fromCharCode(b)).join('');
+
+  function safeAdd(x: number, y: number) {
+    const lsw = (x & 0xffff) + (y & 0xffff);
+    return ((x >> 16) + (y >> 16) + (lsw >> 16)) << 16 | (lsw & 0xffff);
+  }
+  function rol(n: number, c: number) { return n << c | n >>> (32 - c); }
+  function cmn(q: number, a: number, b: number, x: number, s: number, t: number) {
+    return safeAdd(rol(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b);
+  }
+  function ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & c | ~b & d, a, b, x, s, t); }
+  function gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & d | c & ~d, a, b, x, s, t); }
+  function hh(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+  function ii(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(c ^ (b | ~d), a, b, x, s, t); }
+
+  const nblk = ((utf8.length + 8) >> 6) + 1;
+  const blks: number[] = new Array(nblk * 16).fill(0);
+  for (let i = 0; i < utf8.length; i++) blks[i >> 2] |= utf8.charCodeAt(i) << (i % 4) * 8;
+  blks[utf8.length >> 2] |= 0x80 << (utf8.length % 4) * 8;
+  blks[nblk * 16 - 2] = utf8.length * 8;
+
+  let a = 1732584193, b = -271733879, c = -1732584194, d = 271733878;
+  for (let i = 0; i < blks.length; i += 16) {
+    const aa = a, bb = b, cc = c, dd = d;
+    a = ff(a,b,c,d,blks[i+0],7,-680876936); d = ff(d,a,b,c,blks[i+1],12,-389564586);
+    c = ff(c,d,a,b,blks[i+2],17,606105819); b = ff(b,c,d,a,blks[i+3],22,-1044525330);
+    a = ff(a,b,c,d,blks[i+4],7,-176418897); d = ff(d,a,b,c,blks[i+5],12,1200080426);
+    c = ff(c,d,a,b,blks[i+6],17,-1473231341); b = ff(b,c,d,a,blks[i+7],22,-45705983);
+    a = ff(a,b,c,d,blks[i+8],7,1770035416); d = ff(d,a,b,c,blks[i+9],12,-1958414417);
+    c = ff(c,d,a,b,blks[i+10],17,-42063); b = ff(b,c,d,a,blks[i+11],22,-1990404162);
+    a = ff(a,b,c,d,blks[i+12],7,1804603682); d = ff(d,a,b,c,blks[i+13],12,-40341101);
+    c = ff(c,d,a,b,blks[i+14],17,-1502002290); b = ff(b,c,d,a,blks[i+15],22,1236535329);
+    a = gg(a,b,c,d,blks[i+1],5,-165796510); d = gg(d,a,b,c,blks[i+6],9,-1069501632);
+    c = gg(c,d,a,b,blks[i+11],14,643717713); b = gg(b,c,d,a,blks[i+0],20,-373897302);
+    a = gg(a,b,c,d,blks[i+5],5,-701558691); d = gg(d,a,b,c,blks[i+10],9,38016083);
+    c = gg(c,d,a,b,blks[i+15],14,-660478335); b = gg(b,c,d,a,blks[i+4],20,-405537848);
+    a = gg(a,b,c,d,blks[i+9],5,568446438); d = gg(d,a,b,c,blks[i+14],9,-1019803690);
+    c = gg(c,d,a,b,blks[i+3],14,-187363961); b = gg(b,c,d,a,blks[i+8],20,1163531501);
+    a = gg(a,b,c,d,blks[i+13],5,-1444681467); d = gg(d,a,b,c,blks[i+2],9,-51403784);
+    c = gg(c,d,a,b,blks[i+7],14,1735328473); b = gg(b,c,d,a,blks[i+12],20,-1926607734);
+    a = hh(a,b,c,d,blks[i+5],4,-378558); d = hh(d,a,b,c,blks[i+8],11,-2022574463);
+    c = hh(c,d,a,b,blks[i+11],16,1839030562); b = hh(b,c,d,a,blks[i+14],23,-35309556);
+    a = hh(a,b,c,d,blks[i+1],4,-1530992060); d = hh(d,a,b,c,blks[i+4],11,1272893353);
+    c = hh(c,d,a,b,blks[i+7],16,-155497632); b = hh(b,c,d,a,blks[i+10],23,-1094730640);
+    a = hh(a,b,c,d,blks[i+13],4,681279174); d = hh(d,a,b,c,blks[i+0],11,-358537222);
+    c = hh(c,d,a,b,blks[i+3],16,-722521979); b = hh(b,c,d,a,blks[i+6],23,76029189);
+    a = hh(a,b,c,d,blks[i+9],4,-640364487); d = hh(d,a,b,c,blks[i+12],11,-421815835);
+    c = hh(c,d,a,b,blks[i+15],16,530742520); b = hh(b,c,d,a,blks[i+2],23,-995338651);
+    a = ii(a,b,c,d,blks[i+0],6,-198630844); d = ii(d,a,b,c,blks[i+7],10,1126891415);
+    c = ii(c,d,a,b,blks[i+14],15,-1416354905); b = ii(b,c,d,a,blks[i+5],21,-57434055);
+    a = ii(a,b,c,d,blks[i+12],6,1700485571); d = ii(d,a,b,c,blks[i+3],10,-1894986606);
+    c = ii(c,d,a,b,blks[i+10],15,-1051523); b = ii(b,c,d,a,blks[i+1],21,-2054922799);
+    a = ii(a,b,c,d,blks[i+8],6,1873313359); d = ii(d,a,b,c,blks[i+15],10,-30611744);
+    c = ii(c,d,a,b,blks[i+6],15,-1560198380); b = ii(b,c,d,a,blks[i+13],21,1309151649);
+    a = ii(a,b,c,d,blks[i+4],6,-145523070); d = ii(d,a,b,c,blks[i+11],10,-1120210379);
+    c = ii(c,d,a,b,blks[i+2],15,718787259); b = ii(b,c,d,a,blks[i+9],21,-343485551);
+    a = safeAdd(a, aa); b = safeAdd(b, bb); c = safeAdd(c, cc); d = safeAdd(d, dd);
+  }
+  const le = (n: number) =>
+    ('0' + (n & 0xff).toString(16)).slice(-2) +
+    ('0' + (n >>> 8 & 0xff).toString(16)).slice(-2) +
+    ('0' + (n >>> 16 & 0xff).toString(16)).slice(-2) +
+    ('0' + (n >>> 24 & 0xff).toString(16)).slice(-2);
+  return le(a) + le(b) + le(c) + le(d);
+}
+
 /**
  * Generate FreedomPay signature.
  * Signature = md5(scriptName;sorted_param_values;secretKey)
- * Params sorted alphabetically by key name, values joined with ;
  */
-async function generateSignature(scriptName: string, params: Record<string, string>, secretKey: string): Promise<string> {
+function generateSignature(scriptName: string, params: Record<string, string>, secretKey: string): string {
   const sortedKeys = Object.keys(params).sort();
   const parts = [scriptName];
-  for (const key of sortedKeys) {
-    parts.push(params[key]);
-  }
+  for (const key of sortedKeys) parts.push(params[key]);
   parts.push(secretKey);
-  const signString = parts.join(';');
-  const encoder = new TextEncoder();
-  const data = encoder.encode(signString);
-  const hashBuffer = await stdCrypto.subtle.digest('MD5', data);
-  return encodeHex(new Uint8Array(hashBuffer));
+  return hexMd5(parts.join(';'));
 }
 
 /**
@@ -89,11 +147,15 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let workerEnv: Record<string, string> = {};
+  try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID');
-    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabasePublicUrl = Deno.env.get('SUPABASE_PUBLIC_URL') || workerEnv['SUPABASE_PUBLIC_URL'] || 'https://api.subday.app';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID') || workerEnv['FREEDOMPAY_MERCHANT_ID'];
+    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY') || workerEnv['FREEDOMPAY_SECRET_KEY'];
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return jsonResponse({ error: 'Backend not configured' }, 500);
@@ -137,6 +199,7 @@ Deno.serve(async (req) => {
     let finalCups = subscriptionType.cups_count;
     let finalDays = subscriptionType.duration_days;
     let isSpecialOffer = false;
+    let appliedOfferId: string | null = null;
 
     // Check special offers
     const { data: offers } = await supabaseClient
@@ -188,6 +251,7 @@ Deno.serve(async (req) => {
           finalCups = offer.offer_cups_count;
           finalDays = offer.offer_duration_days;
           isSpecialOffer = true;
+          appliedOfferId = offer.id;
           break;
         }
       }
@@ -210,6 +274,7 @@ Deno.serve(async (req) => {
           cups_count: finalCups,
           duration_days: finalDays,
           is_special_offer: isSpecialOffer,
+          applied_offer_id: appliedOfferId,
         },
       })
       .select()
@@ -242,36 +307,24 @@ Deno.serve(async (req) => {
       pg_salt: pgSalt,
       pg_language: 'ru',
       pg_request_method: 'POST',
-      pg_result_url: `${supabaseUrl}/functions/v1/freedompay-webhook`,
+      pg_result_url: `${supabasePublicUrl}/functions/v1/freedompay-webhook`,
       pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
       pg_success_url_method: 'GET',
       pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
       pg_failure_url_method: 'GET',
-      pg_idempotency_key: orderId,
       pg_user_id: authUser.id,
       pg_payment_route: 'frame',
     };
 
-    if (cleanPhone) {
-      pgParams.pg_user_phone = cleanPhone;
-    }
-    if (authUser.email) {
-      pgParams.pg_user_contact_email = authUser.email;
-    }
+    if (cleanPhone) pgParams.pg_user_phone = cleanPhone;
+    if (authUser.email) pgParams.pg_user_contact_email = authUser.email;
     const clientIp = getClientIp(req);
-    if (clientIp) {
-      pgParams.pg_user_ip = clientIp;
-    }
+    if (clientIp) pgParams.pg_user_ip = clientIp;
 
-    // Generate signature
-    const scriptName = 'init_payment.php';
-    pgParams.pg_sig = await generateSignature(scriptName, pgParams, secretKey);
+    pgParams.pg_sig = generateSignature('init_payment.php', pgParams, secretKey);
 
-    // Send request to FreedomPay using multipart/form-data as per docs
     const formData = new FormData();
-    for (const [key, value] of Object.entries(pgParams)) {
-      formData.append(key, value);
-    }
+    for (const [key, value] of Object.entries(pgParams)) formData.append(key, value);
 
     console.log('Sending init_payment to FreedomPay, order:', orderId, 'merchant:', merchantId);
 
@@ -306,13 +359,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'No payment URL received' }, 500);
     }
 
-    // Update payment order with FreedomPay payment_id
     await supabaseClient
       .from('payment_orders')
-      .update({
-        payment_url: paymentUrl,
-        payment_id: paymentId || null,
-      })
+      .update({ payment_url: paymentUrl, payment_id: paymentId || null })
       .eq('id', paymentOrder.id);
 
     return jsonResponse({
@@ -320,6 +369,7 @@ Deno.serve(async (req) => {
       payment_url: paymentUrl,
       payment_id: paymentId,
       order_id: orderId,
+      redirect_url_type: parsed.pg_redirect_url_type || 'redirect',
     });
   } catch (error: unknown) {
     console.error('create-payment error:', error);

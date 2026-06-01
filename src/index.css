@@ -176,6 +176,13 @@
   #root {
     min-height: 100dvh;
   }
+
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer utilities {
