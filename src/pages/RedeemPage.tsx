@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, ChevronDown, MapPin, Loader2, Clock, Info, Coffee, UtensilsCrossed, WifiOff } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -715,10 +715,6 @@ export default function RedeemPage() {
               </div>
               <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
               <p className="text-sm text-muted-foreground mb-2 px-2 break-words">{t('redeem.enjoy')}, {selectedShop?.name}!</p>
-              <div className="inline-flex items-center gap-2 bg-accent/20 text-accent font-bold px-4 py-2 rounded-xl mt-4">
-                <Sparkles size={16} />
-                +10 {t('bonuses.points')}
-              </div>
               <div className="mt-8">
                 <button onClick={goHome} className="btn-primary">{t('redeem.goHome')}</button>
               </div>

@@ -47,6 +47,10 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
 
   useEffect(() => {
     mountedRef.current = true;
+    // Auto-start if camera was previously granted
+    if (localStorage.getItem(CAMERA_GRANTED_KEY)) {
+      startScanner();
+    }
     return () => {
       mountedRef.current = false;
       stopScannerCleanup();
