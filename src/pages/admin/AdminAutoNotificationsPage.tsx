@@ -62,6 +62,7 @@ const triggerLabels: Record<string, string> = {
   admin_payment: 'Новая оплата подписки',
   admin_payment_special: 'Оплата (спецпредложение)',
   guest_coffee: 'Подарок кофе от друга',
+  subscription_expired: 'Подписка закончилась',
   geo_proximity: '📍 Гео: рядом кофейня',
 };
 
@@ -105,6 +106,7 @@ const defaultMessages: Record<string, string> = {
   admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
+  subscription_expired: '❌ Ваша подписка {{subscription_name}} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
   geo_proximity: 'Загляни на кофе по подписке: {{shops_inline}}',
 };
@@ -470,6 +472,8 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="admin_register_telegram">🆕 Регистрация через Telegram Bot</SelectItem>
                   <SelectItem value="admin_payment">🎉 Оплата подписки</SelectItem>
                   <SelectItem value="admin_payment_special">🎉 Оплата (спецпредложение)</SelectItem>
+                  <SelectItem value="guest_coffee">🎁 Подарок кофе от друга</SelectItem>
+                  <SelectItem value="subscription_expired">❌ Подписка закончилась</SelectItem>
                   <SelectItem value="geo_proximity">📍 Гео: рядом кофейня</SelectItem>
                 </SelectContent>
               </Select>
