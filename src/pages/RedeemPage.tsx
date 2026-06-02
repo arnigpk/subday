@@ -472,12 +472,12 @@ export default function RedeemPage() {
           <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
             <ArrowLeft size={20} className="text-foreground" />
           </Link>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-muted-foreground">{t('redeem.pickingUp')}</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 font-bold text-foreground hover:text-primary transition-colors min-w-0 w-full">
-                  <span className="truncate min-w-0 flex-1">{selectedShop?.name || t('redeem.selectShop')}</span>
+                <button className="flex items-center gap-1.5 font-bold text-foreground hover:text-primary transition-colors w-full min-w-0 overflow-hidden">
+                  <span className="truncate min-w-0 flex-1 text-left">{selectedShop?.name || t('redeem.selectShop')}</span>
                   {selectedShop && (
                     <span className={`text-xs font-medium shrink-0 ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
                       · {selectedShop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
