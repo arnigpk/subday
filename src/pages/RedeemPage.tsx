@@ -476,15 +476,13 @@ export default function RedeemPage() {
             <p className="text-sm text-muted-foreground">{t('redeem.pickingUp')}</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors max-w-full">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="truncate">{selectedShop?.name || t('redeem.selectShop')}</span>
-                    {selectedShop && (
-                      <span className={`text-xs font-medium shrink-0 ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
-                        · {selectedShop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
-                      </span>
-                    )}
-                  </span>
+                <button className="flex items-center gap-1.5 font-bold text-foreground hover:text-primary transition-colors min-w-0 w-full">
+                  <span className="truncate min-w-0 flex-1">{selectedShop?.name || t('redeem.selectShop')}</span>
+                  {selectedShop && (
+                    <span className={`text-xs font-medium shrink-0 ${selectedShop.isCurrentlyOpen ? 'text-accent' : 'text-destructive'}`}>
+                      · {selectedShop.isCurrentlyOpen ? t('shops.open') : t('shops.closed')}
+                    </span>
+                  )}
                   <ChevronDown size={16} className="shrink-0" />
                 </button>
               </DropdownMenuTrigger>
