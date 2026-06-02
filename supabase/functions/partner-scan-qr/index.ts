@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       }
       
       if (subTypeResult?.data?.name) {
-        guestSubscriptionName = `Гостевой доступ (${subTypeResult.data.name})`;
+        guestSubscriptionName = subTypeResult.data.name;
       }
 
       const { newStreak, newMaxStreak } = calculateStreak(stats, today);
