@@ -127,14 +127,10 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
-      const containerWidth = containerRef.current?.offsetWidth || 300;
-      const qrboxSize = Math.floor(containerWidth * 0.88);
-
       await scanner.start(
         { facingMode: 'environment' },
         {
-          fps: 15,
-          qrbox: { width: qrboxSize, height: qrboxSize },
+          fps: 25,
           aspectRatio: 1,
         },
         handleScan,
