@@ -66,69 +66,15 @@ function getMonthKey(): string {
   return `${year}-${month}-01`;
 }
 
-async function sendGuestCoffeeNotification(supabase: any, inviteeUserId: string) {
+async function sendGuestCoffeeNotification(_supabase: any, inviteeUserId: string) {
   try {
-    const { data: template } = await supabase
-      .from("auto_notification_templates")
-      .select("message_template, channel, is_active, trigger_config")
-      .eq("trigger_type", "guest_coffee")
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!template) return;
-
-    const message = template.message_template;
-    const channel: string = template.channel || "both";
-    const inAppEnabled = (template.trigger_config as any)?.in_app_enabled !== false;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("phone, name")
-      .eq("user_id", inviteeUserId)
-      .single();
-
-    if (channel === "telegram" || channel === "both") {
-      const telegramId = profile?.phone ? extractTelegramId(profile.phone) : null;
-      if (telegramId) {
-        const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
-        if (botToken) {
-          sendTelegramMessage(telegramId, message, botToken).catch(e => console.error("TG error:", e));
-        }
-      }
-    }
-
-    if (channel === "push" || channel === "both") {
-      const { data: tokens } = await supabase
-        .from("device_tokens")
-        .select("token")
-        .eq("user_id", inviteeUserId);
-
-      if (tokens && tokens.length > 0) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        fetch(`${supabaseUrl}/functions/v1/send-fcm-push`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            tokens: tokens.map((t: any) => t.token),
-            title: "Подарок от друга ☕",
-            body: message,
-          }),
-        }).catch(e => console.error("Push error:", e));
-      }
-    }
-
-    // In-app notification — only if channel includes push AND in_app_enabled
-    if ((channel === "push" || channel === "both") && inAppEnabled) {
-      await supabase.from("push_notifications").insert({
-        user_id: inviteeUserId,
-        title: "Подарок от друга ☕",
-        message: message,
-      });
-    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId }),
+    });
   } catch (err) {
     console.error("Guest notification error:", err);
   }
@@ -198,21 +144,7 @@ async function getInviterSubscriptionTypeId(supabase: any, inviterId: string): P
 async function handleGrant(supabase: any, inviterId: string, mode: string, value: string) {
   if (!mode || !value) return jsonRes({ error: "Некорректные данные" }, 400);
 
-  const monthKey = getMonthKey();
-
-  // 1. Check monthly limit
-  const { data: existingGrant } = await supabase
-    .from("guest_grants")
-    .select("id")
-    .eq("inviter_user_id", inviterId)
-    .eq("month_key", monthKey)
-    .maybeSingle();
-
-  if (existingGrant) {
-    return jsonRes({ error: "В этом месяце вы уже выдали гостевой доступ." }, 400);
-  }
-
-  // 2. Check inviter has coffee + get subscription type in parallel
+  // 1. Check inviter has coffee + get subscription type in parallel
   const [inviterStatsResult, subscriptionTypeId] = await Promise.all([
     supabase.from("user_stats").select("coffee_remaining").eq("user_id", inviterId).single(),
     getInviterSubscriptionTypeId(supabase, inviterId),
@@ -369,7 +301,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     const errorMap: Record<string, string> = {
       insufficient_coffee: "Недостаточно кофе в подписке для приглашения друга.",
       already_received: "Пользователь уже попробовал subday",
-      monthly_limit: "В этом месяце вы уже выдали гостевой доступ.",
     };
     return jsonRes({ error: errorMap[result.error] || "Ошибка" }, 400);
   }

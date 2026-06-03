@@ -618,7 +618,7 @@ export default function RedeemPage() {
                 return (
                   <div className={`w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-3`}>
                     {qrCodeData ? (
-                      <QRCodeSVG value={qrCodeData} size={256} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
+                      <QRCodeSVG value={qrCodeData} size={256} level="M" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
                     ) : shopClosed ? (
                       <div className="text-center p-4">
                         <Clock size={48} className="text-destructive mx-auto mb-3" />

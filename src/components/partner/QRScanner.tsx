@@ -128,7 +128,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       scannerRef.current = scanner;
 
       const containerWidth = containerRef.current?.offsetWidth || 300;
-      const qrboxSize = Math.floor(containerWidth * 0.75);
+      const qrboxSize = Math.floor(containerWidth * 0.88);
 
       await scanner.start(
         { facingMode: 'environment' },
