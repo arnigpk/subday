@@ -163,8 +163,14 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
       .from("profiles")
       .select("user_id, public_id")
       .eq("public_id", value.trim())
-      .single();
+      .maybeSingle();
     inviteeProfile = data;
+    if (!inviteeProfile) {
+      return jsonRes({ error: "Пользователь не найден. Попросите друга открыть приложение и найти свой ID в профиле." }, 400);
+    }
+    if (inviteeProfile.user_id === inviterId) {
+      return jsonRes({ error: "Нельзя подарить кофе самому себе" }, 400);
+    }
   } else if (mode === "phone") {
     let phone = value.replace(/\D/g, "");
     if (phone.length === 10) phone = "7" + phone;
@@ -197,7 +203,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         if (subType) subName = `Гостевой доступ (${subType.name})`;
       }
 
-      const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString();
       const { error: insertError } = await supabase
         .from("guest_grants")
         .insert({
@@ -283,7 +289,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
   }
 
   // 6. Atomic grant via DB function (now with subscription_type_id)
-  const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString();
   const { data: result, error: rpcError } = await supabase.rpc("grant_guest_access", {
     _inviter_id: inviterId,
     _invitee_id: inviteeProfile.user_id,

@@ -144,8 +144,7 @@ Deno.serve(async (req) => {
     const bonusForRedemption = 10;
 
     // Determine if this is a guest coffee redemption
-    const useGuestCoffee = isGuestCoffee && stats.guest_coffees > 0 && 
-      stats.guest_expires_at && new Date(stats.guest_expires_at) > new Date();
+    const useGuestCoffee = isGuestCoffee && stats.guest_coffees > 0;
 
     if (useGuestCoffee) {
       // ===== GUEST COFFEE REDEMPTION =====
