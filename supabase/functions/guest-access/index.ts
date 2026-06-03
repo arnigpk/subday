@@ -31,10 +31,12 @@ Deno.serve(async (req) => {
     }
     const user = { id: authUser.id };
 
-    const { action, mode, value } = await req.json();
+    const reqBody = await req.json();
+    const { action, mode, value } = reqBody;
 
     if (action === "grant") {
-      return await handleGrant(supabase, user.id, mode, value);
+      const message = typeof reqBody.message === "string" ? reqBody.message.slice(0, 50) : undefined;
+      return await handleGrant(supabase, user.id, mode, value, message);
     } else if (action === "claim") {
       return await handleClaim(supabase, user.id);
     } else if (action === "status") {
@@ -66,14 +68,14 @@ function getMonthKey(): string {
   return `${year}-${month}-01`;
 }
 
-async function sendGuestCoffeeNotification(_supabase: any, inviteeUserId: string) {
+async function sendGuestCoffeeNotification(_supabase: any, inviteeUserId: string, message?: string) {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId }),
+      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId, giftMessage: message }),
     });
   } catch (err) {
     console.error("Guest notification error:", err);
@@ -141,7 +143,7 @@ async function getInviterSubscriptionTypeId(supabase: any, inviterId: string): P
   return coffeeSub?.subscription_type_id || null;
 }
 
-async function handleGrant(supabase: any, inviterId: string, mode: string, value: string) {
+async function handleGrant(supabase: any, inviterId: string, mode: string, value: string, message?: string) {
   if (!mode || !value) return jsonRes({ error: "Некорректные данные" }, 400);
 
   // 1. Check inviter has coffee + get subscription type in parallel
@@ -331,7 +333,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
   });
 
   // Send notification to invitee (fire-and-forget)
-  sendGuestCoffeeNotification(supabase, inviteeProfile.user_id).catch(e => console.error("Notification error:", e));
+  sendGuestCoffeeNotification(supabase, inviteeProfile.user_id, message).catch(e => console.error("Notification error:", e));
 
   return jsonRes({ status: "active", expires_at: result.expires_at });
 }

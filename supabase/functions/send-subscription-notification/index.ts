@@ -18,6 +18,7 @@ interface NotificationRequest {
   daysCount?: number;
   subscriptionName?: string;
   drinkType?: 'coffee' | 'drinks';
+  giftMessage?: string;
 }
 
 function extractTelegramId(phone: string): string | null {
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
 
   try {
     const body: NotificationRequest = await req.json();
-    const { type, userId, cupsCount, daysCount, subscriptionName, drinkType } = body;
+    const { type, userId, cupsCount, daysCount, subscriptionName, drinkType, giftMessage } = body;
 
     console.log('Processing notification:', { type, userId, cupsCount, daysCount, subscriptionName });
 
@@ -241,7 +242,8 @@ Deno.serve(async (req) => {
       } else if (type === 'subscription_expired') {
         message = `❌ Ваша подписка ${subName} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕`;
       } else if (type === 'guest_coffee') {
-        message = `🎁 Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚`;
+        message = `🎁 Вам подарили кофе! Попробуйте subday ☕`;
+        if (giftMessage) message += `\n💬 «${giftMessage}»`;
       } else {
         return new Response(
           JSON.stringify({ error: 'Invalid notification type' }),

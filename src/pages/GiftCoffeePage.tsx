@@ -12,6 +12,7 @@ export default function GiftCoffeePage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [publicId, setPublicId] = useState('');
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { vibrateSuccess, vibrateError } = useVibration();
   const { activeSubscriptions, isLoading: subLoading } = useSubscriptionStatus();
@@ -35,7 +36,7 @@ export default function GiftCoffeePage() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('guest-access', {
-        body: { action: 'grant', mode: 'public_id', value },
+        body: { action: 'grant', mode: 'public_id', value, message: message.trim() || undefined },
       });
 
       if (error) {
@@ -120,6 +121,21 @@ export default function GiftCoffeePage() {
                 inputMode="numeric"
                 maxLength={6}
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                Сообщение другу <span className="text-muted-foreground/60">(необязательно)</span>
+              </label>
+              <textarea
+                placeholder="Угощаю кофе! ☕"
+                value={message}
+                onChange={(e) => setMessage(e.target.value.slice(0, 50))}
+                className="input-field w-full resize-none text-sm"
+                rows={2}
+                maxLength={50}
+              />
+              <p className="text-xs text-muted-foreground text-right mt-1">{message.length}/50</p>
             </div>
 
             <button
