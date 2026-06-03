@@ -616,9 +616,9 @@ export default function RedeemPage() {
                 const noCups = hasActiveSub && remaining <= 0;
                 const borderColor = (noSub || noCups) ? 'border-muted' : shopClosed ? 'border-destructive/40' : 'border-accent';
                 return (
-                  <div className={`w-full max-w-[288px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-3`}>
+                  <div className={`w-full max-w-[360px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-1.5`}>
                     {qrCodeData ? (
-                      <QRCodeSVG value={qrCodeData} size={256} level="M" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
+                      <QRCodeSVG value={qrCodeData} size={320} level="M" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
                     ) : shopClosed ? (
                       <div className="text-center p-4">
                         <Clock size={48} className="text-destructive mx-auto mb-3" />
