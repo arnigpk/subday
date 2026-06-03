@@ -82,9 +82,9 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { userId, shopId, shopName, shopAddress, drinkType, drinkName, isGuestCoffee } = body;
+    const { userId, shopId, drinkType, isGuestCoffee } = body;
 
-    if (scannerRole.shop_id !== shopId) {
+    if (!allowedShopIds.includes(shopId)) {
       return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -93,8 +93,13 @@ Deno.serve(async (req) => {
     const [statsResult, profileResult, shopResult] = await Promise.all([
       supabase.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('profiles').select('name, phone').eq('user_id', userId).maybeSingle(),
-      supabase.from('shops').select('supported_types, working_hours').eq('id', shopId).maybeSingle(),
+      supabase.from('shops').select('name, address, addresses, supported_types, working_hours').eq('id', shopId).maybeSingle(),
     ]);
+
+    // Derive shopName, shopAddress, drinkName from DB — no longer in QR payload
+    const shopName = shopResult.data?.name || 'Кофейня';
+    const shopAddress = shopResult.data?.addresses?.[0] || shopResult.data?.address || null;
+    const drinkName = drinkType === 'coffee' ? 'Кофе' : 'Ланч';
 
     const stats = statsResult.data;
     if (!stats) {

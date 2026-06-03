@@ -415,9 +415,8 @@ export default function RedeemPage() {
     const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
     if (!hasActiveSub || remaining <= 0) return null;
     const payload = {
-      type: 'subday_redeem', userId, shopId: selectedShop.id, shopName: selectedShop.name,
-      shopAddress: selectedShopClosestAddress || '',
-      drinkType, drinkName, timestamp: qrTimestamp, remaining,
+      type: 'subday_redeem', userId, shopId: selectedShop.id,
+      drinkType, timestamp: qrTimestamp,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
     };
     // Кешируем последний QR-снимок для оффлайн-показа
