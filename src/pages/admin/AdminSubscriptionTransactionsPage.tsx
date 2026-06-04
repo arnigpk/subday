@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText, Download } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText, Download, Loader2 } from 'lucide-react';
 import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -71,6 +71,7 @@ const PAGE_SIZE = 20;
 export default function AdminSubscriptionTransactionsPage() {
   const { canManage } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('payments');
+  const [isExporting, setIsExporting] = useState(false);
   
   // Transactions state
   const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
@@ -398,6 +399,51 @@ export default function AdminSubscriptionTransactionsPage() {
   const pmTotalPages = Math.ceil(pmTotal / PAGE_SIZE);
   const txTotalPages = Math.ceil(txTotal / PAGE_SIZE);
 
+  const exportAll = async () => {
+    setIsExporting(true);
+    try {
+      const dateFilters = getDateFilters();
+
+      if (activeTab === 'payments') {
+        let q = supabase.from('payment_orders').select('*').order('created_at', { ascending: false }).limit(5000);
+        if (dateFilters) { q = q.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString()); }
+        if (statusFilter !== 'all') q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (!data?.length) return;
+        const userIds = [...new Set(data.map(t => t.user_id))];
+        const subTypeIds = [...new Set(data.map(t => t.subscription_type_id))];
+        const [pr, sr] = await Promise.all([
+          supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds),
+          supabase.from('subscription_types').select('id, name').in('id', subTypeIds),
+        ]);
+        const pm = new Map(pr.data?.map(p => [p.user_id, p]) || []);
+        const sm = new Map(sr.data?.map(s => [s.id, s]) || []);
+        let rows = data.map(t => ({ ...t, _p: pm.get(t.user_id), _s: sm.get(t.subscription_type_id) }));
+        if (countryFilter !== 'all') rows = rows.filter(r => r._p?.country === countryFilter);
+        downloadCSV(`все_платежи_${new Date().toISOString().slice(0,10)}.csv`,
+          ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Сумма (₸)', 'Статус', 'Order ID', 'Payment ID'],
+          rows.map(r => [formatDateRu(r.created_at), r._p?.name||'', r._p?.public_id||'', r._p?.phone||'', r._p?.country||'',
+            r._s?.name||(r.metadata as any)?.subscription_name||'', r.amount, r.status, r.order_id||'', r.payment_id||''])
+        );
+      } else {
+        let q = supabase.from('subscription_transactions').select('*').order('created_at', { ascending: false }).limit(5000);
+        if (dateFilters) { q = q.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString()); }
+        const { data } = await q;
+        if (!data?.length) return;
+        const userIds = [...new Set(data.map(t => t.user_id))];
+        const { data: profiles } = await supabase.from('profiles').select('user_id, name, phone, public_id, country').in('user_id', userIds);
+        const pm = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        let rows = data.map(t => ({ ...t, _p: pm.get(t.user_id) }));
+        if (countryFilter !== 'all') rows = rows.filter(r => r._p?.country === countryFilter);
+        downloadCSV(`все_транзакции_${new Date().toISOString().slice(0,10)}.csv`,
+          ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Тип', 'Сумма (₸)', 'Способ оплаты'],
+          rows.map(r => [formatDateRu(r.created_at), r._p?.name||'', r._p?.public_id||'', r._p?.phone||'', r._p?.country||'',
+            (r as any).subscription_name||'', r.transaction_type, (r as any).amount??'', (r as any).payment_method||''])
+        );
+      }
+    } finally { setIsExporting(false); }
+  };
+
   const FiltersRow = () => (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
       <CountryCityFilter
@@ -492,29 +538,9 @@ export default function AdminSubscriptionTransactionsPage() {
                 <CardTitle>
                   {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={() => {
-                  if (activeTab === 'transactions' && transactions.length > 0) {
-                    downloadCSV(`транзакции_${new Date().toISOString().slice(0,10)}.csv`,
-                      ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Тип', 'Сумма (₸)', 'Способ оплаты'],
-                      transactions.map(t => [
-                        formatDateRu(t.created_at), t.user_name || '', t.user_public_id || '',
-                        t.user_phone || '', t.user_country || '', t.subscription_name || '',
-                        t.transaction_type, t.amount ?? '', t.payment_method || '',
-                      ])
-                    );
-                  } else if (activeTab === 'payments' && payments.length > 0) {
-                    downloadCSV(`платежи_${new Date().toISOString().slice(0,10)}.csv`,
-                      ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Сумма (₸)', 'Статус', 'Order ID'],
-                      payments.map(p => [
-                        formatDateRu(p.created_at), p.user_name || '', p.user_public_id || '',
-                        p.user_phone || '', p.user_country || '', p.subscription_name || '',
-                        p.amount, p.status, p.order_id,
-                      ])
-                    );
-                  }
-                }}>
-                  <Download size={14} className="mr-1" />
-                  CSV
+                <Button variant="outline" size="sm" disabled={isExporting} onClick={exportAll}>
+                  {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
+                  {isExporting ? 'Загрузка...' : 'CSV (все)'}
                 </Button>
               </div>
               {canManage && (activeTab === 'transactions' ? (
