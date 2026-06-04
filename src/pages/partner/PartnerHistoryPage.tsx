@@ -30,7 +30,7 @@ interface HistoryItem {
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function PartnerHistoryPage() {
-  const { shopId, isLoading: authLoading, role } = usePartnerAuth();
+  const { shopId, shopName, isLoading: authLoading, role } = usePartnerAuth();
   const isPartner = role === 'partner';
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
