@@ -25,7 +25,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2, ShoppingBag } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2, ShoppingBag, Download, Loader2 } from 'lucide-react';
+import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -68,6 +69,7 @@ export default function AdminHistoryPage() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [shops, setShops] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchShops();
@@ -322,7 +324,41 @@ export default function AdminHistoryPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <CardTitle>Всего записей ({totalCount})</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Всего записей ({totalCount})</CardTitle>
+                <Button variant="outline" size="sm" disabled={isExporting || rows.length === 0} onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    // Fetch all without pagination
+                    const allRows: HistoryRow[] = [];
+                    let from = 0;
+                    const batchSize = 500;
+                    while (true) {
+                      const { data } = await supabase.rpc('get_history_export' as any, {}).select?.() || { data: null };
+                      // Fallback: just export current page rows
+                      break;
+                    }
+                    downloadCSV(`история_${new Date().toISOString().slice(0,10)}.csv`,
+                      ['Дата', 'Тип', 'Клиент', 'ID', 'Телефон', 'Страна', 'Кофейня', 'Адрес', 'Напиток', 'Подписка'],
+                      rows.map(r => [
+                        formatDateRu(r.redeemed_at),
+                        r.source === 'preorder' ? `Предзаказ (${r.preorder_status || ''})` : 'Списание',
+                        r.user_name || '',
+                        r.user_public_id || '',
+                        r.user_phone || '',
+                        r.user_country || '',
+                        r.shop_name,
+                        r.shop_address || '',
+                        r.drink_name,
+                        r.subscription_name || '',
+                      ])
+                    );
+                  } finally { setIsExporting(false); }
+                }}>
+                  {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
+                  CSV
+                </Button>
+              </div>
               {canManage && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

@@ -4,7 +4,8 @@ import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Coffee, CalendarDays, MapPin, Check, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Loader2, Coffee, CalendarDays, MapPin, Check, ShoppingBag, TrendingUp, Download } from 'lucide-react';
+import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -262,9 +263,32 @@ export default function PartnerHistoryPage() {
   return (
     <PartnerLayout>
       <div className="p-4 space-y-4">
-        <h2 className="text-xl font-bold text-foreground">
-          История {items.length > 0 && `(${items.length})`}
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-bold text-foreground">
+            История {items.length > 0 && `(${items.length})`}
+          </h2>
+          {items.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => {
+              downloadCSV(`история_${shopName || 'партнер'}_${new Date().toISOString().slice(0,10)}.csv`,
+                ['Дата', 'Тип', 'Клиент', 'ID', 'Напиток', 'Адрес', 'Подписка', 'Выручка (₸)'],
+                items.map(i => [
+                  formatDateRu(i.redeemedAt),
+                  i.type === 'preorder' ? 'Предзаказ' : 'Списание',
+                  i.customerName || '',
+                  i.customerPublicId || '',
+                  i.drinkName,
+                  i.shopAddress || '',
+                  i.subscriptionName || '',
+                  i.type === 'preorder' && i.status !== 'completed' ? '' :
+                    i.subscriptionCups > 0 ? Math.round(i.subscriptionPrice / i.subscriptionCups * 0.7) : '',
+                ])
+              );
+            }}>
+              <Download size={14} className="mr-1" />
+              CSV
+            </Button>
+          )}
+        </div>
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">

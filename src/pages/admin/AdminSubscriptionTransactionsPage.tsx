@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText, Download } from 'lucide-react';
+import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -487,9 +488,35 @@ export default function AdminSubscriptionTransactionsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <CardTitle>
-                {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
-              </CardTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle>
+                  {activeTab === 'payments' ? `Все переходы на оплату (${pmTotal})` : `Успешные транзакции (${txTotal})`}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (activeTab === 'transactions' && transactions.length > 0) {
+                    downloadCSV(`транзакции_${new Date().toISOString().slice(0,10)}.csv`,
+                      ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Тип', 'Сумма (₸)', 'Способ оплаты'],
+                      transactions.map(t => [
+                        formatDateRu(t.created_at), t.user_name || '', t.user_public_id || '',
+                        t.user_phone || '', t.user_country || '', t.subscription_name || '',
+                        t.transaction_type, t.amount ?? '', t.payment_method || '',
+                      ])
+                    );
+                  } else if (activeTab === 'payments' && payments.length > 0) {
+                    downloadCSV(`платежи_${new Date().toISOString().slice(0,10)}.csv`,
+                      ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Сумма (₸)', 'Статус', 'Order ID'],
+                      payments.map(p => [
+                        formatDateRu(p.created_at), p.user_name || '', p.user_public_id || '',
+                        p.user_phone || '', p.user_country || '', p.subscription_name || '',
+                        p.amount, p.status, p.order_id,
+                      ])
+                    );
+                  }
+                }}>
+                  <Download size={14} className="mr-1" />
+                  CSV
+                </Button>
+              </div>
               {canManage && (activeTab === 'transactions' ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
