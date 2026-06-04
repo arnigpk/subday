@@ -241,6 +241,80 @@ export default function AdminHistoryPage() {
     }
   };
 
+  const exportAll = async () => {
+    setIsExporting(true);
+    try {
+      const dateFilters = getDateFilters();
+      const skipR = typeFilter === 'preorder';
+      const skipP = typeFilter === 'coffee' || typeFilter === 'drinks';
+
+      let rQ = supabase.from('redemptions').select('*');
+      if (shopFilter !== 'all') rQ = rQ.eq('shop_name', shopFilter);
+      if (typeFilter !== 'all' && !skipR) rQ = rQ.eq('drink_type', typeFilter);
+      if (dateFilters) rQ = rQ.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+
+      let pQ = supabase.from('preorders').select('*');
+      if (shopFilter !== 'all') pQ = pQ.eq('shop_name', shopFilter);
+      if (dateFilters) pQ = pQ.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+
+      const [{ data: rData = [] }, { data: pData = [] }] = await Promise.all([
+        skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
+        skipP ? Promise.resolve({ data: [] }) : pQ.order('created_at', { ascending: false }).limit(5000),
+      ]);
+
+      const allData = [...(rData || []), ...(pData || [])];
+      const userIds = [...new Set(allData.map((r: any) => r.user_id))];
+      let profileMap = new Map<string, any>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds);
+        profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      }
+
+      let combined: HistoryRow[] = [
+        ...(rData || []).map((r: any) => ({
+          id: r.id, source: 'redemption' as const, user_id: r.user_id,
+          shop_name: r.shop_name, shop_address: r.shop_address || null,
+          drink_name: r.drink_name, drink_type: r.drink_type, redeemed_at: r.redeemed_at,
+          subscription_name: r.subscription_name || null,
+          user_name: profileMap.get(r.user_id)?.name || null,
+          user_phone: profileMap.get(r.user_id)?.phone || null,
+          user_public_id: profileMap.get(r.user_id)?.public_id || null,
+          user_country: profileMap.get(r.user_id)?.country || null,
+        })),
+        ...(pData || []).map((p: any) => ({
+          id: p.id, source: 'preorder' as const, user_id: p.user_id,
+          shop_name: p.shop_name, shop_address: p.shop_address || null,
+          drink_name: p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name,
+          drink_type: 'preorder', redeemed_at: p.created_at,
+          subscription_name: p.subscription_name || null,
+          user_name: profileMap.get(p.user_id)?.name || null,
+          user_phone: profileMap.get(p.user_id)?.phone || null,
+          user_public_id: profileMap.get(p.user_id)?.public_id || null,
+          user_country: profileMap.get(p.user_id)?.country || null,
+          preorder_status: p.status,
+        })),
+      ];
+
+      if (countryFilter !== 'all') combined = combined.filter(r => r.user_country === countryFilter);
+      if (search) {
+        const sl = search.toLowerCase();
+        combined = combined.filter(r => r.user_name?.toLowerCase().includes(sl) || r.user_phone?.includes(search) || r.shop_name.toLowerCase().includes(sl));
+      }
+      combined.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
+
+      downloadCSV(`история_${new Date().toISOString().slice(0,10)}.csv`,
+        ['Дата', 'Тип', 'Клиент', 'ID', 'Телефон', 'Страна', 'Кофейня', 'Адрес', 'Напиток', 'Подписка', 'Статус'],
+        combined.map(r => [
+          formatDateRu(r.redeemed_at),
+          r.source === 'preorder' ? 'Предзаказ' : 'Списание',
+          r.user_name || '', r.user_public_id || '', r.user_phone || '', r.user_country || '',
+          r.shop_name, r.shop_address || '', r.drink_name, r.subscription_name || '',
+          r.preorder_status || '',
+        ])
+      );
+    } finally { setIsExporting(false); }
+  };
+
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
     setPage(0);
@@ -326,37 +400,9 @@ export default function AdminHistoryPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CardTitle>Всего записей ({totalCount})</CardTitle>
-                <Button variant="outline" size="sm" disabled={isExporting || rows.length === 0} onClick={async () => {
-                  setIsExporting(true);
-                  try {
-                    // Fetch all without pagination
-                    const allRows: HistoryRow[] = [];
-                    let from = 0;
-                    const batchSize = 500;
-                    while (true) {
-                      const { data } = await supabase.rpc('get_history_export' as any, {}).select?.() || { data: null };
-                      // Fallback: just export current page rows
-                      break;
-                    }
-                    downloadCSV(`история_${new Date().toISOString().slice(0,10)}.csv`,
-                      ['Дата', 'Тип', 'Клиент', 'ID', 'Телефон', 'Страна', 'Кофейня', 'Адрес', 'Напиток', 'Подписка'],
-                      rows.map(r => [
-                        formatDateRu(r.redeemed_at),
-                        r.source === 'preorder' ? `Предзаказ (${r.preorder_status || ''})` : 'Списание',
-                        r.user_name || '',
-                        r.user_public_id || '',
-                        r.user_phone || '',
-                        r.user_country || '',
-                        r.shop_name,
-                        r.shop_address || '',
-                        r.drink_name,
-                        r.subscription_name || '',
-                      ])
-                    );
-                  } finally { setIsExporting(false); }
-                }}>
+                <Button variant="outline" size="sm" disabled={isExporting} onClick={exportAll}>
                   {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
-                  CSV
+                  {isExporting ? 'Загрузка...' : 'CSV (все)'}
                 </Button>
               </div>
               {canManage && (
