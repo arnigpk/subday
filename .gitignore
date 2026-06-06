@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .vercel
 .lovable
+
+# Environment variables
+.env
+.env.local
+.env.*.local
