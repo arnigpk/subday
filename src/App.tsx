@@ -10,6 +10,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-ro
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
@@ -401,7 +403,11 @@ const AppContent = () => {
     }
   }, [isLoading, vibrateShort]);
   
-  const handleAuthComplete = () => {};
+  const { showOnboarding, maybeShowOnboarding, completeOnboarding } = useOnboarding();
+
+  const handleAuthComplete = (isNewUser?: boolean) => {
+    maybeShowOnboarding(!!isNewUser);
+  };
   
   if (isLoading) {
     return (
@@ -409,19 +415,16 @@ const AppContent = () => {
         {/* Show Lottie ONLY while the preloader timer is active. After it
             ends, keep a clean background while background tasks finish.
 
-            Lottie fills the screen in 9:16 (1080x1920) portrait. The
-            container is sized so the 9:16 frame either matches viewport
-            height (tall screens / mobile / tablet) or viewport width
-            (very wide / desktop), always centered, no letterboxing. */}
+            The container fills the actual viewport of the current device
+            (no fixed 9:16 box), so the animation always covers the full
+            screen edge-to-edge — phones, tablets and desktops each get
+            their own fit instead of letterboxing around a fixed ratio.
+            `xMidYMid slice` scales the animation uniformly and crops the
+            overflow, so it stretches to fill without distorting. */}
         {isPreloaderVisible && animationReady && animationData ? (
           <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{
-              // Use the smaller of (full height) and (full width / 9*16)
-              // so the 9:16 box always fits without overflow.
-              height: 'min(100vh, 100dvh, calc(100vw * 16 / 9))',
-              aspectRatio: '9 / 16',
-            }}
+            className="absolute inset-0"
+            style={{ width: '100vw', height: '100dvh' }}
           >
             <Lottie
               animationData={animationData}
@@ -454,6 +457,7 @@ const AppContent = () => {
         <PermissionsBootstrap />
         <Toaster />
         <Sonner />
+        {showOnboarding && <OnboardingTutorial onComplete={completeOnboarding} />}
         <PlatformGuard isTelegramMiniApp={isTelegramMiniApp}>
         <Suspense fallback={<LazyFallback />}>
           <Routes>

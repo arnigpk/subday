@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Clock } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface KaspiPaymentModalProps {
   qrToken: string;
@@ -73,13 +74,14 @@ export function KaspiPaymentModal({ qrToken, amount, expireDate, onClose }: Kasp
             </div>
           )}
 
-          {/* Open button */}
-          <a
-            href={qrToken}
+          {/* Open button — on native Android/iOS use _system so the OS
+              handles the intent and opens the Kaspi app; on web use _blank. */}
+          <button
+            onClick={() => window.open(qrToken, Capacitor.isNativePlatform() ? '_system' : '_blank')}
             className="block w-full rounded-2xl bg-[#F14635] text-white text-center font-bold text-sm mb-2 py-3.5"
           >
             Нажмите, чтобы открыть Kaspi и оплатить
-          </a>
+          </button>
 
           <p className="text-center text-xs text-muted-foreground mb-3">
             Работает только на мобильном с приложением Kaspi

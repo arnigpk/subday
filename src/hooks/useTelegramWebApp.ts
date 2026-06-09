@@ -22,6 +22,9 @@ interface TelegramWebApp {
   expand: () => void;
   close: () => void;
   isExpanded: boolean;
+  isFullscreen?: boolean;
+  requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
   viewportHeight: number;
   viewportStableHeight: number;
   platform: string;
@@ -89,6 +92,9 @@ export function useTelegramWebApp() {
       setIsTelegramMiniApp(true);
       tg.ready();
       tg.expand();
+      // Bot API 7.7+ — true fullscreen (hides Telegram chrome completely).
+      // Falls back silently on older clients that don't have this method.
+      tg.requestFullscreen?.();
     }
     setIsReady(true);
   }, []);

@@ -6,6 +6,21 @@ import { Capacitor } from '@capacitor/core';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
 
+// Wait until the #qr-reader element has non-zero dimensions — ensures
+// Html5Qrcode gets a properly-sized container and doesn't start "blind".
+function waitForElementReady(id: string, timeout = 3000): Promise<boolean> {
+  return new Promise(resolve => {
+    const start = Date.now();
+    const check = () => {
+      const el = document.getElementById(id);
+      if (el && el.offsetWidth > 0 && el.offsetHeight > 0) { resolve(true); return; }
+      if (Date.now() - start > timeout) { resolve(false); return; }
+      requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
 /**
  * Request native camera permission on iOS/Android (Capacitor).
  * Returns 'granted' | 'denied' | 'unavailable' (web/PWA fallback).
@@ -108,13 +123,19 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       return;
     }
 
-    // Wait for DOM
-    await new Promise(r => setTimeout(r, 150));
+    // Wait for the container to have real dimensions AND a minimum 500ms
+    // for page-entry animations to settle. Without the minimum, rAF can
+    // resolve in ~16ms while the page is still transitioning — the video
+    // element ends up 0×0 and QR codes are never detected until Restart.
+    const [ready] = await Promise.all([
+      waitForElementReady('qr-reader'),
+      new Promise<boolean>(r => setTimeout(() => r(true), 500)),
+    ]);
     if (!mountedRef.current) return;
 
     const el = document.getElementById('qr-reader');
-    if (!el) {
-      console.error('qr-reader element not found');
+    if (!el || !ready) {
+      console.error('qr-reader element not found or not visible');
       setError('Ошибка инициализации сканера');
       setIsStarting(false);
       return;
@@ -263,30 +284,24 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       {isScanning && !isProcessing && (
         <div className="flex items-center gap-3 w-full">
           <Button
-            variant="outline"
-            size="sm"
+            size="lg"
             onClick={handleRestartClick}
-            className="flex-1"
+            className="w-full"
           >
-            <RefreshCw size={16} className="mr-1.5" />
-            Перезапустить
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleStopClick}
-            className="flex-1 text-muted-foreground"
-          >
-            <VideoOff size={16} className="mr-1.5" />
-            Выключить
+            ✅ Сканировать QR
           </Button>
         </div>
       )}
 
       {isScanning && !isProcessing && (
-        <p className="text-sm text-muted-foreground text-center">
-          Наведите камеру на QR-код клиента
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-sm text-muted-foreground text-center">
+            Наведите камеру на QR-код клиента
+          </p>
+          <p className="text-xs text-red-500 text-center font-medium">
+            Нажмите ✅ Сканировать QR если код не сканируется!
+          </p>
+        </div>
       )}
     </div>
   );

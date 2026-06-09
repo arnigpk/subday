@@ -82,11 +82,11 @@ async function sendAdminNotification(
       message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     }
 
-    fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
-    }).catch(e => console.error('Notification failed:', e));
+    });
   } catch (e) {
     console.error('Admin notification error:', e);
   }
@@ -392,7 +392,7 @@ Deno.serve(async (req) => {
       .from('profiles').select('name, phone').eq('user_id', authUser.id).maybeSingle();
 
     const triggerType = isSpecialOffer ? 'admin_payment_special' : 'admin_payment';
-    sendAdminNotification(supabase, triggerType, {
+    await sendAdminNotification(supabase, triggerType, {
       name: buyerProfile?.name || buyerProfile?.phone || 'Неизвестный',
       subscription_name: subType?.name || 'Unknown',
       amount: String(pendingOrder.amount),

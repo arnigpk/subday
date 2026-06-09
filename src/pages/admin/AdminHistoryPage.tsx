@@ -44,11 +44,19 @@ interface HistoryRow {
   drink_type: string;
   redeemed_at: string;
   subscription_name: string | null;
+  subscription_price: number | null;
+  subscription_cups: number | null;
   user_name: string | null;
   user_phone: string | null;
   user_public_id: string | null;
   user_country: string | null;
   preorder_status?: string;
+}
+
+function calcPayout(row: HistoryRow): number {
+  if (row.source !== 'redemption') return 0;
+  if (!row.subscription_price || !row.subscription_cups || row.subscription_cups === 0) return 0;
+  return Math.round(row.subscription_price / row.subscription_cups * 0.7);
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -70,6 +78,7 @@ export default function AdminHistoryPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [shops, setShops] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [totalPayout, setTotalPayout] = useState(0);
 
   useEffect(() => {
     fetchShops();
@@ -156,13 +165,21 @@ export default function AdminHistoryPage() {
       }
 
       // Fetch all subscription types for name lookup
-      const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name');
-      const subTypeById = new Map<string, string>();
-      allSubTypes?.forEach(st => subTypeById.set(st.id, st.name));
+      const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name, price, cups_count');
+      const subTypeById = new Map<string, { name: string; price: number; cups: number }>();
+      const subTypeByName = new Map<string, { price: number; cups: number }>();
+      allSubTypes?.forEach(st => {
+        subTypeById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
+        subTypeByName.set(st.name, { price: st.price, cups: st.cups_count });
+      });
 
       let combined: HistoryRow[] = [];
 
       rData.forEach((r: any) => {
+        const userTypeId = userSubTypeId.get(r.user_id);
+        const userType = userTypeId ? subTypeById.get(userTypeId) : null;
+        const subName = r.subscription_name || userType?.name || null;
+        const typeInfo = subName ? subTypeByName.get(subName) : null;
         combined.push({
           id: r.id,
           source: 'redemption',
@@ -172,10 +189,9 @@ export default function AdminHistoryPage() {
           drink_name: r.drink_name,
           drink_type: r.drink_type,
           redeemed_at: r.redeemed_at,
-          subscription_name: r.subscription_name || (() => {
-            const typeId = userSubTypeId.get(r.user_id);
-            return typeId ? subTypeById.get(typeId) || null : null;
-          })(),
+          subscription_name: subName,
+          subscription_price: typeInfo?.price ?? userType?.price ?? null,
+          subscription_cups: typeInfo?.cups ?? userType?.cups ?? null,
           user_name: profileMap.get(r.user_id)?.name || null,
           user_phone: profileMap.get(r.user_id)?.phone || null,
           user_public_id: profileMap.get(r.user_id)?.public_id || null,
@@ -186,8 +202,8 @@ export default function AdminHistoryPage() {
       pData.forEach((p: any) => {
         const drinkDesc = p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name;
         const typeId = userSubTypeId.get(p.user_id);
-        const fallbackName = typeId ? subTypeById.get(typeId) || null : null;
-        const subName = p.subscription_name || fallbackName;
+        const fallbackType = typeId ? subTypeById.get(typeId) || null : null;
+        const subName = p.subscription_name || fallbackType?.name || null;
         combined.push({
           id: p.id,
           source: 'preorder',
@@ -198,6 +214,8 @@ export default function AdminHistoryPage() {
           drink_type: 'preorder',
           redeemed_at: p.created_at,
           subscription_name: subName,
+          subscription_price: null,
+          subscription_cups: null,
           user_name: profileMap.get(p.user_id)?.name || null,
           user_phone: profileMap.get(p.user_id)?.phone || null,
           user_public_id: profileMap.get(p.user_id)?.public_id || null,
@@ -230,6 +248,7 @@ export default function AdminHistoryPage() {
       combined.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
 
       setTotalCount(combined.length);
+      setTotalPayout(combined.reduce((sum, r) => sum + calcPayout(r), 0));
 
       // Paginate
       const start = page * PAGE_SIZE;
@@ -257,36 +276,62 @@ export default function AdminHistoryPage() {
       if (shopFilter !== 'all') pQ = pQ.eq('shop_name', shopFilter);
       if (dateFilters) pQ = pQ.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
 
-      const [{ data: rData = [] }, { data: pData = [] }] = await Promise.all([
+      const [{ data: rData = [] }, { data: pData = [] }, { data: exportSubTypes }] = await Promise.all([
         skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
         skipP ? Promise.resolve({ data: [] }) : pQ.order('created_at', { ascending: false }).limit(5000),
+        supabase.from('subscription_types').select('id, name, price, cups_count'),
       ]);
+
+      const expSubById = new Map<string, { name: string; price: number; cups: number }>();
+      const expSubByName = new Map<string, { price: number; cups: number }>();
+      exportSubTypes?.forEach((st: any) => {
+        expSubById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
+        expSubByName.set(st.name, { price: st.price, cups: st.cups_count });
+      });
 
       const allData = [...(rData || []), ...(pData || [])];
       const userIds = [...new Set(allData.map((r: any) => r.user_id))];
       let profileMap = new Map<string, any>();
+      let expUserSubTypeId = new Map<string, string>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds);
+        const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+          supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
+          supabase.from('user_subscriptions').select('user_id, subscription_type_id, created_at')
+            .in('user_id', userIds).not('subscription_type_id', 'is', null).order('created_at', { ascending: false }),
+        ]);
         profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        userSubs?.forEach((us: any) => {
+          if (!expUserSubTypeId.has(us.user_id) && us.subscription_type_id) expUserSubTypeId.set(us.user_id, us.subscription_type_id);
+        });
       }
 
       let combined: HistoryRow[] = [
-        ...(rData || []).map((r: any) => ({
-          id: r.id, source: 'redemption' as const, user_id: r.user_id,
-          shop_name: r.shop_name, shop_address: r.shop_address || null,
-          drink_name: r.drink_name, drink_type: r.drink_type, redeemed_at: r.redeemed_at,
-          subscription_name: r.subscription_name || null,
-          user_name: profileMap.get(r.user_id)?.name || null,
-          user_phone: profileMap.get(r.user_id)?.phone || null,
-          user_public_id: profileMap.get(r.user_id)?.public_id || null,
-          user_country: profileMap.get(r.user_id)?.country || null,
-        })),
+        ...(rData || []).map((r: any) => {
+          const userTypeId = expUserSubTypeId.get(r.user_id);
+          const userType = userTypeId ? expSubById.get(userTypeId) : null;
+          const subName = r.subscription_name || userType?.name || null;
+          const typeInfo = subName ? expSubByName.get(subName) : null;
+          return {
+            id: r.id, source: 'redemption' as const, user_id: r.user_id,
+            shop_name: r.shop_name, shop_address: r.shop_address || null,
+            drink_name: r.drink_name, drink_type: r.drink_type, redeemed_at: r.redeemed_at,
+            subscription_name: subName,
+            subscription_price: typeInfo?.price ?? userType?.price ?? null,
+            subscription_cups: typeInfo?.cups ?? userType?.cups ?? null,
+            user_name: profileMap.get(r.user_id)?.name || null,
+            user_phone: profileMap.get(r.user_id)?.phone || null,
+            user_public_id: profileMap.get(r.user_id)?.public_id || null,
+            user_country: profileMap.get(r.user_id)?.country || null,
+          };
+        }),
         ...(pData || []).map((p: any) => ({
           id: p.id, source: 'preorder' as const, user_id: p.user_id,
           shop_name: p.shop_name, shop_address: p.shop_address || null,
           drink_name: p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name,
           drink_type: 'preorder', redeemed_at: p.created_at,
           subscription_name: p.subscription_name || null,
+          subscription_price: null,
+          subscription_cups: null,
           user_name: profileMap.get(p.user_id)?.name || null,
           user_phone: profileMap.get(p.user_id)?.phone || null,
           user_public_id: profileMap.get(p.user_id)?.public_id || null,
@@ -303,12 +348,13 @@ export default function AdminHistoryPage() {
       combined.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
 
       downloadCSV(`история_${new Date().toISOString().slice(0,10)}.csv`,
-        ['Дата', 'Тип', 'Клиент', 'ID', 'Телефон', 'Страна', 'Кофейня', 'Адрес', 'Напиток', 'Подписка', 'Статус'],
+        ['Дата', 'Тип', 'Клиент', 'ID', 'Телефон', 'Страна', 'Кофейня', 'Адрес', 'Напиток', 'Подписка', 'Выплата партнёру (₸)', 'Статус'],
         combined.map(r => [
           formatDateRu(r.redeemed_at),
           r.source === 'preorder' ? 'Предзаказ' : 'Списание',
           r.user_name || '', r.user_public_id || '', r.user_phone || '', r.user_country || '',
           r.shop_name, r.shop_address || '', r.drink_name, r.subscription_name || '',
+          calcPayout(r) || '',
           r.preorder_status || '',
         ])
       );
@@ -398,11 +444,16 @@ export default function AdminHistoryPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <CardTitle>Всего записей ({totalCount})</CardTitle>
+                {totalPayout > 0 && (
+                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    К выплате партнёрам: {totalPayout.toLocaleString('ru-RU')} ₸
+                  </span>
+                )}
                 <Button variant="outline" size="sm" disabled={isExporting} onClick={exportAll}>
                   {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
-                  {isExporting ? 'Загрузка...' : 'CSV (все)'}
+                  {isExporting ? 'Загрузка...' : 'Скачать отчёт (CSV)'}
                 </Button>
               </div>
               {canManage && (
@@ -538,6 +589,7 @@ export default function AdminHistoryPage() {
                       <TableHead>Кофейня</TableHead>
                       <TableHead>Напиток</TableHead>
                       <TableHead>Подписка</TableHead>
+                      <TableHead>Выплата партнёру</TableHead>
                       <TableHead>Тип</TableHead>
                       <TableHead>Дата</TableHead>
                       <TableHead className="w-10"></TableHead>
@@ -564,6 +616,15 @@ export default function AdminHistoryPage() {
                           </TableCell>
                           <TableCell>{r.drink_name}</TableCell>
                           <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
+                          <TableCell>
+                            {calcPayout(r) > 0 ? (
+                              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                {calcPayout(r).toLocaleString('ru-RU')} ₸
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded text-xs ${badge.className}`}>
                               {badge.text}

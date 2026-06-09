@@ -11,7 +11,7 @@ import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RegisterScreenProps {
-  onComplete: () => void;
+  onComplete: (isNewUser?: boolean) => void;
   onSwitchToLogin: () => void;
   initialPhone?: string;
   initialCountry?: Country;
@@ -121,7 +121,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
         } else {
           toast.success('Регистрация успешна!');
         }
-        onComplete();
+        onComplete(true);
       } else {
         toast.error('Ошибка регистрации');
       }

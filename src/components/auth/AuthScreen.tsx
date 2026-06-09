@@ -4,7 +4,7 @@ import { RegisterScreen } from './RegisterScreen';
 import { Country } from './CountryCodePicker';
 
 interface AuthScreenProps {
-  onComplete: () => void;
+  onComplete: (isNewUser?: boolean) => void;
 }
 
 export function AuthScreen({ onComplete }: AuthScreenProps) {

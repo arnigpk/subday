@@ -396,6 +396,10 @@ export default function AdminSubscriptionTransactionsPage() {
     return method || '—';
   };
 
+  const getSimplePaymentMethod = (metadata: any | null): string => {
+    return (metadata as any)?.payment_method === 'kaspi' ? 'Kaspi' : 'Freedom Pay';
+  };
+
   const pmTotalPages = Math.ceil(pmTotal / PAGE_SIZE);
   const txTotalPages = Math.ceil(txTotal / PAGE_SIZE);
 
@@ -421,9 +425,9 @@ export default function AdminSubscriptionTransactionsPage() {
         let rows = data.map(t => ({ ...t, _p: pm.get(t.user_id), _s: sm.get(t.subscription_type_id) }));
         if (countryFilter !== 'all') rows = rows.filter(r => r._p?.country === countryFilter);
         downloadCSV(`все_платежи_${new Date().toISOString().slice(0,10)}.csv`,
-          ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Сумма (₸)', 'Статус', 'Order ID', 'Payment ID'],
+          ['Дата', 'Клиент', 'ID', 'Телефон', 'Страна', 'Подписка', 'Способ оплаты', 'Сумма (₸)', 'Статус', 'Order ID', 'Payment ID'],
           rows.map(r => [formatDateRu(r.created_at), r._p?.name||'', r._p?.public_id||'', r._p?.phone||'', r._p?.country||'',
-            r._s?.name||(r.metadata as any)?.subscription_name||'', r.amount, r.status, r.order_id||'', r.payment_id||''])
+            r._s?.name||(r.metadata as any)?.subscription_name||'', getSimplePaymentMethod(r.metadata), r.amount, r.status, r.order_id||'', r.payment_id||''])
         );
       } else {
         let q = supabase.from('subscription_transactions').select('*').order('created_at', { ascending: false }).limit(5000);
@@ -618,6 +622,7 @@ export default function AdminSubscriptionTransactionsPage() {
                         <TableHead>Пользователь</TableHead>
                         <TableHead>ID</TableHead>
                         <TableHead>Подписка</TableHead>
+                        <TableHead>Способ оплаты</TableHead>
                         <TableHead>Сумма</TableHead>
                         <TableHead>Статус</TableHead>
                         <TableHead>Payment ID</TableHead>
@@ -648,6 +653,7 @@ export default function AdminSubscriptionTransactionsPage() {
                               )}
                             </div>
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{getSimplePaymentMethod(p.metadata)}</TableCell>
                           <TableCell>
                             <span className="font-semibold">{p.amount.toLocaleString()} ₸</span>
                           </TableCell>
