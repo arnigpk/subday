@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.subday.vhod',
-  appName: 'SubDay',
+  appId: 'app.subday.app',
+  appName: 'subday',
   webDir: 'dist',
   plugins: {
     SplashScreen: {
