@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export function usePaymentResult() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
@@ -16,25 +17,21 @@ export function usePaymentResult() {
 
       verifyPayment(orderId).then((result) => {
         if (result.success) {
-          toast.success('🎉 Подписка успешно активирована!', {
-            duration: 5000,
-            description: 'Спасибо за покупку! Наслаждайтесь кофе.',
-          });
+          setShowSuccessAnimation(true);
         } else {
           toast.info('Платёж обрабатывается...', {
             duration: 5000,
             description: 'Подписка будет активирована сразу после подтверждения оплаты.',
           });
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         }
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('payment');
         nextParams.delete('order');
         setSearchParams(nextParams, { replace: true });
-
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
       }).finally(() => {
         setIsVerifying(false);
       });
@@ -50,6 +47,13 @@ export function usePaymentResult() {
       setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams, isVerifying]);
+
+  const dismissSuccessAnimation = () => {
+    setShowSuccessAnimation(false);
+    window.location.reload();
+  };
+
+  return { showSuccessAnimation, dismissSuccessAnimation };
 }
 
 async function verifyPayment(orderId: string | null): Promise<{ success: boolean }> {

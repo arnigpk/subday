@@ -146,6 +146,8 @@ async function getInviterSubscriptionTypeId(supabase: any, inviterId: string): P
 async function handleGrant(supabase: any, inviterId: string, mode: string, value: string, message?: string) {
   if (!mode || !value) return jsonRes({ error: "Некорректные данные" }, 400);
 
+  const monthKey = getMonthKey();
+
   // 1. Check inviter has coffee + get subscription type in parallel
   const [inviterStatsResult, subscriptionTypeId] = await Promise.all([
     supabase.from("user_stats").select("coffee_remaining").eq("user_id", inviterId).single(),

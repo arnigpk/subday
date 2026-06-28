@@ -7,6 +7,7 @@ import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
 import { KaspiPaymentModal } from '@/components/KaspiPaymentModal';
+import { PaymentSuccessAnimation } from '@/components/payment/PaymentSuccessAnimation';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -44,6 +45,7 @@ export default function PackageDetailPage() {
   const { isProcessing, createPayment } = usePayment();
   const [kaspiData, setKaspiData] = useState<{ qrToken: string; amount: number; expireDate?: string; orderId?: string } | null>(null);
   const [isKaspiProcessing, setIsKaspiProcessing] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
@@ -68,12 +70,7 @@ export default function PackageDetailPage() {
         if (data?.status === 'paid' || data?.status === 'completed' || data?.status === 'success') {
           clearInterval(interval);
           setKaspiData(null);
-          const { toast } = await import('sonner');
-          toast.success('🎉 Подписка успешно активирована!', {
-            duration: 5000,
-            description: 'Спасибо за покупку! Наслаждайтесь кофе.',
-          });
-          setTimeout(() => window.location.reload(), 1500);
+          setShowSuccessAnimation(true);
         }
       } catch { /* ignore polling errors */ }
     }, 3000);
@@ -205,6 +202,10 @@ export default function PackageDetailPage() {
         onClose={() => setKaspiData(null)}
       />
     )}
+    <PaymentSuccessAnimation
+      show={showSuccessAnimation}
+      onComplete={() => window.location.reload()}
+    />
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4 flex items-center gap-3">

@@ -6,6 +6,7 @@ export interface PartnerShop {
   name: string;
   address: string | null;
   logo_url: string | null;
+  revenue_share_percent: number;
 }
 
 interface PartnerAuthState {
@@ -63,7 +64,7 @@ export function usePartnerAuth() {
 
         const { data: shopsData } = await supabase
           .from('shops')
-          .select('id, name, address, logo_url')
+          .select('id, name, address, logo_url, revenue_share_percent')
           .in('id', shopIds);
 
         const shops: PartnerShop[] = shopsData || [];

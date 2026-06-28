@@ -73,17 +73,18 @@ Deno.serve(async (req) => {
     const bodyPromise = req.json() as Promise<ScanRequest>;
     const rolePromise = supabase
       .from('user_roles').select('role, shop_id')
-      .eq('user_id', scannerId).in('role', ['partner', 'barista']).maybeSingle();
+      .eq('user_id', scannerId).in('role', ['partner', 'barista']);
 
-    const [body, { data: scannerRole }] = await Promise.all([bodyPromise, rolePromise]);
-    
-    if (!scannerRole) {
+    const [body, { data: scannerRoles }] = await Promise.all([bodyPromise, rolePromise]);
+
+    if (!scannerRoles || scannerRoles.length === 0) {
       return new Response(JSON.stringify({ error: 'У вас нет прав на сканирование' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { userId, shopId, drinkType, isGuestCoffee } = body;
 
+    const allowedShopIds = scannerRoles.map((r: any) => r.shop_id).filter(Boolean);
     if (!allowedShopIds.includes(shopId)) {
       return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

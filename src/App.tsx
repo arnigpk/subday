@@ -17,6 +17,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
 import { usePaymentResult } from "@/hooks/usePaymentResult";
+import { PaymentSuccessAnimation } from "@/components/payment/PaymentSuccessAnimation";
 import { useGeoNotifications } from "@/hooks/useGeoNotifications";
 import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootstrap";
 import { Capacitor } from "@capacitor/core";
@@ -153,8 +154,8 @@ function DeepLinkHandler() {
 }
 
 function PaymentResultHandler() {
-  usePaymentResult();
-  return null;
+  const { showSuccessAnimation, dismissSuccessAnimation } = usePaymentResult();
+  return <PaymentSuccessAnimation show={showSuccessAnimation} onComplete={dismissSuccessAnimation} />;
 }
 
 function GeoNotificationsRunner() {

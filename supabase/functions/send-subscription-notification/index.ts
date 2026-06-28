@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
             matchedTemplate = tmpl;
             break;
           }
-        } else if (type === 'activated' || type === 'activated_special' || type === 'guest_coffee') {
+        } else if (type === 'activated' || type === 'activated_special' || type === 'guest_coffee' || type === 'subscription_expired') {
           matchedTemplate = tmpl;
           break;
         }
@@ -252,7 +252,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    const channel = matchedTemplate?.channel || 'telegram';
+    // Guest coffee gifts always go out on both Telegram and push,
+    // regardless of the template's configured channel — this is the
+    // moment a new/returning user needs to notice the app the most.
+    const channel = type === 'guest_coffee' ? 'both' : (matchedTemplate?.channel || 'telegram');
     const inAppEnabled = (matchedTemplate?.trigger_config as any)?.in_app_enabled !== false;
     const title = getNotificationTitle(type);
     let telegramSent = false;

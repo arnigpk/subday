@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store, Gift } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -55,6 +55,8 @@ interface UserWithStats {
   ai_access: boolean;
   coffee_remaining: number;
   drinks_remaining: number;
+  guest_coffees: number;
+  guest_expires_at: string | null;
   total_cups: number;
   current_streak: number;
   role?: UserRole;
@@ -88,6 +90,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
   barista: 'Бариста',
 };
 
+function formatExpiryLabel(expiresAt: string | null): string {
+  if (!expiresAt) return '—';
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'Истёк';
+  const daysWord = days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20) ? 'дня' : 'дней';
+  return `~${days} ${daysWord} (до ${new Date(expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+}
+
 function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
   sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null };
   icon: React.ReactNode;
@@ -107,13 +117,7 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {sub.expires_at 
-              ? (() => {
-                  const days = Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  if (days <= 0) return 'Истёк';
-                  return `~${days} ${days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20) ? 'дня' : 'дней'} (до ${new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })})`;
-                })()
-              : '—'}
+            {formatExpiryLabel(sub.expires_at)}
           </span>
           {canManage && (
             <Button
@@ -287,7 +291,7 @@ export default function AdminUsersPage() {
       const [statsResult, rolesResult, subsResult] = await Promise.all([
         supabase
           .from('user_stats')
-          .select('user_id, coffee_remaining, drinks_remaining, total_cups, current_streak')
+          .select('user_id, coffee_remaining, drinks_remaining, guest_coffees, guest_expires_at, total_cups, current_streak')
           .in('user_id', userIds),
         supabase
           .from('user_roles')
@@ -332,6 +336,8 @@ export default function AdminUsersPage() {
           ai_access: (profile as any).ai_access || false,
           coffee_remaining: statsMap.get(profile.user_id)?.coffee_remaining || 0,
           drinks_remaining: statsMap.get(profile.user_id)?.drinks_remaining || 0,
+          guest_coffees: statsMap.get(profile.user_id)?.guest_coffees || 0,
+          guest_expires_at: statsMap.get(profile.user_id)?.guest_expires_at || null,
           total_cups: statsMap.get(profile.user_id)?.total_cups || 0,
           current_streak: statsMap.get(profile.user_id)?.current_streak || 0,
           role: (roleData?.role as UserRole) || 'user',
@@ -586,6 +592,23 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (error) {
       console.error('Error resetting subscription:', error);
+      toast({ title: 'Ошибка обнуления', variant: 'destructive' });
+    }
+  };
+
+  const handleResetGuestCoffee = async () => {
+    if (!editingUser) return;
+    try {
+      const { error } = await supabase
+        .from('user_stats')
+        .update({ guest_coffees: 0, guest_expires_at: null })
+        .eq('user_id', editingUser.user_id);
+      if (error) throw error;
+      setEditingUser(prev => prev ? { ...prev, guest_coffees: 0, guest_expires_at: null } : prev);
+      toast({ title: 'Гостевой кофе обнулён' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error resetting guest coffee:', error);
       toast({ title: 'Ошибка обнуления', variant: 'destructive' });
     }
   };
@@ -1068,6 +1091,34 @@ export default function AdminUsersPage() {
                         onResetDailyLimit={() => handleResetDailyLimit(editingUser.lunch_subscription!.sub_id)}
                       />
                     )}
+                  </div>
+                )}
+
+                {/* Guest coffee balance */}
+                {!!editingUser?.guest_coffees && editingUser.guest_coffees > 0 && (
+                  <div className="border-t pt-4 space-y-2">
+                    <Label>Гостевой кофе</Label>
+                    <div className="bg-secondary/50 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-4 h-4 text-pink-600" />
+                        <span className="text-sm font-medium">{editingUser.guest_coffees} шт.</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {formatExpiryLabel(editingUser.guest_expires_at)}
+                        </span>
+                        {canManage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={handleResetGuestCoffee}
+                          >
+                            Обнулить
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 

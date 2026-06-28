@@ -19,6 +19,17 @@ Deno.serve(async (req) => {
 
     console.log('Running subscription expiration check...');
 
+    // Only send "subscription_expired" notifications if an active template
+    // is configured in Admin → Автоуведомления — otherwise this would fire
+    // a hardcoded message with no way to disable it from the admin panel.
+    const { data: expiredTemplates } = await supabase
+      .from('auto_notification_templates')
+      .select('id')
+      .eq('trigger_type', 'subscription_expired')
+      .eq('is_active', true)
+      .limit(1);
+    const notifyOnExpire = (expiredTemplates || []).length > 0;
+
     // Fetch subscriptions about to be expired BEFORE the RPC runs
     const { data: toExpire } = await supabase
       .from('user_subscriptions')
@@ -42,21 +53,25 @@ Deno.serve(async (req) => {
     }
 
     // Send "subscription_expired" notifications for those that just expired
-    for (const sub of (toExpire || [])) {
-      const st = sub.subscription_types as any;
-      fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({
-          type: 'subscription_expired',
-          userId: sub.user_id,
-          subscriptionName: st?.name || 'Подписка',
-          drinkType: st?.type,
-        }),
-      }).catch(err => console.error('Expired notification error:', err));
+    let notifiedCount = 0;
+    if (notifyOnExpire) {
+      for (const sub of (toExpire || [])) {
+        const st = sub.subscription_types as any;
+        fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+          body: JSON.stringify({
+            type: 'subscription_expired',
+            userId: sub.user_id,
+            subscriptionName: st?.name || 'Подписка',
+            drinkType: st?.type,
+          }),
+        }).catch(err => console.error('Expired notification error:', err));
+        notifiedCount++;
+      }
     }
 
-    console.log(`Subscription expiration check completed. Notified ${(toExpire || []).length} users.`);
+    console.log(`Subscription expiration check completed. Notified ${notifiedCount} users.`);
 
     return new Response(
       JSON.stringify({ 

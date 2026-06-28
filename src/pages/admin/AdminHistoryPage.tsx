@@ -53,10 +53,21 @@ interface HistoryRow {
   preorder_status?: string;
 }
 
-function calcPayout(row: HistoryRow): number {
+function calcPayout(
+  row: HistoryRow,
+  shopPercentMap: Map<string, number>,
+  subTypePercentMap: Map<string, number | null>,
+): number {
   if (row.source !== 'redemption') return 0;
+  // Выдача гостевого доступа другу ("Гостевой доступ → ...") — не реальная продажа в кофейне,
+  // фактический напиток считается отдельной записью при сканировании ("Гостевой кофе от ID...").
+  // Без этого исключения сумма гостевого кофе задваивалась бы (выдача + погашение).
+  if (row.drink_name.startsWith('Гостевой доступ')) return 0;
   if (!row.subscription_price || !row.subscription_cups || row.subscription_cups === 0) return 0;
-  return Math.round(row.subscription_price / row.subscription_cups * 0.7);
+  // Subscription type percent overrides shop percent when explicitly set (70 or 80)
+  const subTypePct = row.subscription_name ? subTypePercentMap.get(row.subscription_name) : undefined;
+  const percent = subTypePct ?? shopPercentMap.get(row.shop_name) ?? 70;
+  return Math.round(row.subscription_price / row.subscription_cups * (percent / 100));
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -77,6 +88,8 @@ export default function AdminHistoryPage() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [shops, setShops] = useState<string[]>([]);
+  const [shopPercentMap, setShopPercentMap] = useState<Map<string, number>>(new Map());
+  const [subTypePercentMap, setSubTypePercentMap] = useState<Map<string, number | null>>(new Map());
   const [isExporting, setIsExporting] = useState(false);
   const [totalPayout, setTotalPayout] = useState(0);
 
@@ -86,11 +99,14 @@ export default function AdminHistoryPage() {
 
   useEffect(() => {
     fetchData();
-  }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange]);
+  }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange, shopPercentMap]);
 
   const fetchShops = async () => {
-    const { data } = await supabase.from('shops').select('name').eq('is_active', true);
-    if (data) setShops(data.map(s => s.name));
+    const { data } = await supabase.from('shops').select('name, is_active, revenue_share_percent');
+    if (data) {
+      setShops(data.filter(s => s.is_active).map(s => s.name));
+      setShopPercentMap(new Map(data.map(s => [s.name, s.revenue_share_percent ?? 70])));
+    }
   };
 
   const getDateFilters = () => {
@@ -165,13 +181,16 @@ export default function AdminHistoryPage() {
       }
 
       // Fetch all subscription types for name lookup
-      const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name, price, cups_count');
+      const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name, price, cups_count, revenue_share_percent');
       const subTypeById = new Map<string, { name: string; price: number; cups: number }>();
       const subTypeByName = new Map<string, { price: number; cups: number }>();
+      const newSubTypePercentMap = new Map<string, number | null>();
       allSubTypes?.forEach(st => {
         subTypeById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
         subTypeByName.set(st.name, { price: st.price, cups: st.cups_count });
+        newSubTypePercentMap.set(st.name, (st as any).revenue_share_percent ?? null);
       });
+      setSubTypePercentMap(newSubTypePercentMap);
 
       let combined: HistoryRow[] = [];
 
@@ -248,7 +267,7 @@ export default function AdminHistoryPage() {
       combined.sort((a, b) => new Date(b.redeemed_at).getTime() - new Date(a.redeemed_at).getTime());
 
       setTotalCount(combined.length);
-      setTotalPayout(combined.reduce((sum, r) => sum + calcPayout(r), 0));
+      setTotalPayout(combined.reduce((sum, r) => sum + calcPayout(r, shopPercentMap, newSubTypePercentMap), 0));
 
       // Paginate
       const start = page * PAGE_SIZE;
@@ -279,14 +298,16 @@ export default function AdminHistoryPage() {
       const [{ data: rData = [] }, { data: pData = [] }, { data: exportSubTypes }] = await Promise.all([
         skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
         skipP ? Promise.resolve({ data: [] }) : pQ.order('created_at', { ascending: false }).limit(5000),
-        supabase.from('subscription_types').select('id, name, price, cups_count'),
+        supabase.from('subscription_types').select('id, name, price, cups_count, revenue_share_percent'),
       ]);
 
       const expSubById = new Map<string, { name: string; price: number; cups: number }>();
       const expSubByName = new Map<string, { price: number; cups: number }>();
+      const expSubTypePercentMap = new Map<string, number | null>();
       exportSubTypes?.forEach((st: any) => {
         expSubById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
         expSubByName.set(st.name, { price: st.price, cups: st.cups_count });
+        expSubTypePercentMap.set(st.name, st.revenue_share_percent ?? null);
       });
 
       const allData = [...(rData || []), ...(pData || [])];
@@ -354,7 +375,7 @@ export default function AdminHistoryPage() {
           r.source === 'preorder' ? 'Предзаказ' : 'Списание',
           r.user_name || '', r.user_public_id || '', r.user_phone || '', r.user_country || '',
           r.shop_name, r.shop_address || '', r.drink_name, r.subscription_name || '',
-          calcPayout(r) || '',
+          calcPayout(r, shopPercentMap, expSubTypePercentMap) || '',
           r.preorder_status || '',
         ])
       );
@@ -617,9 +638,9 @@ export default function AdminHistoryPage() {
                           <TableCell>{r.drink_name}</TableCell>
                           <TableCell><span className="text-xs text-muted-foreground">{r.subscription_name || '—'}</span></TableCell>
                           <TableCell>
-                            {calcPayout(r) > 0 ? (
+                            {calcPayout(r, shopPercentMap, subTypePercentMap) > 0 ? (
                               <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                {calcPayout(r).toLocaleString('ru-RU')} ₸
+                                {calcPayout(r, shopPercentMap, subTypePercentMap).toLocaleString('ru-RU')} ₸
                               </span>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>

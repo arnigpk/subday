@@ -30,8 +30,10 @@ interface HistoryItem {
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function PartnerHistoryPage() {
-  const { shopId, shopName, isLoading: authLoading, role } = usePartnerAuth();
+  const { shopId, shopName, selectedShop, isLoading: authLoading, role } = usePartnerAuth();
   const isPartner = role === 'partner';
+  const revenueSharePercent = selectedShop?.revenue_share_percent ?? 70;
+  const revenueShareRatio = revenueSharePercent / 100;
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -39,6 +41,7 @@ export default function PartnerHistoryPage() {
   const [customDateTo, setCustomDateTo] = useState('');
   const [addressFilter, setAddressFilter] = useState('all');
   const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+  const [subTypePercentMap, setSubTypePercentMap] = useState<Map<string, number | null>>(new Map());
 
   const getDateRange = () => {
     const now = new Date();
@@ -87,15 +90,18 @@ export default function PartnerHistoryPage() {
       const [{ data: rData }, { data: pData }, { data: allSubTypes }] = await Promise.all([
         rQuery,
         pQuery,
-        supabase.from('subscription_types').select('id, name, price, cups_count, max_volume'),
+        supabase.from('subscription_types').select('id, name, price, cups_count, max_volume, revenue_share_percent'),
       ]);
 
       const subTypeById = new Map<string, { name: string; price: number; cups: number; maxVolume: string | null }>();
       const subTypeByName = new Map<string, { price: number; cups: number; maxVolume: string | null }>();
+      const newSubTypePercentMap = new Map<string, number | null>();
       allSubTypes?.forEach(st => {
         subTypeById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count, maxVolume: st.max_volume });
         subTypeByName.set(st.name, { price: st.price, cups: st.cups_count, maxVolume: st.max_volume });
+        newSubTypePercentMap.set(st.name, (st as any).revenue_share_percent ?? null);
       });
+      setSubTypePercentMap(newSubTypePercentMap);
 
       // Collect user IDs
       const userIds = new Set<string>();
@@ -204,12 +210,21 @@ export default function PartnerHistoryPage() {
     return () => { supabase.removeChannel(channel); };
   }, [shopId, fetchHistory]);
 
-  // Calculate partner revenue (70%) - count ALL redemptions + completed preorders
+  // Subscription type percent overrides shop percent when explicitly set
+  const getEffectiveRatio = (subscriptionName: string | null): number => {
+    if (subscriptionName) {
+      const subPct = subTypePercentMap.get(subscriptionName);
+      if (subPct !== null && subPct !== undefined) return subPct / 100;
+    }
+    return revenueShareRatio;
+  };
+
+  // Calculate partner revenue - count ALL redemptions + completed preorders
   const partnerRevenue = isPartner ? items.reduce((total, item) => {
     if (item.type === 'preorder' && item.status !== 'completed') return total;
     if (item.subscriptionCups > 0) {
       const pricePerCup = item.subscriptionPrice / item.subscriptionCups;
-      return total + pricePerCup * 0.7;
+      return total + pricePerCup * getEffectiveRatio(item.subscriptionName);
     }
     return total;
   }, 0) : 0;
@@ -255,7 +270,7 @@ export default function PartnerHistoryPage() {
     if (!isPartner) return null;
     if (item.type === 'preorder' && item.status !== 'completed') return null;
     if (item.subscriptionCups > 0) {
-      return Math.round(item.subscriptionPrice / item.subscriptionCups * 0.7);
+      return Math.round(item.subscriptionPrice / item.subscriptionCups * getEffectiveRatio(item.subscriptionName));
     }
     return null;
   };
@@ -280,7 +295,7 @@ export default function PartnerHistoryPage() {
                   i.shopAddress || '',
                   i.subscriptionName || '',
                   i.type === 'preorder' && i.status !== 'completed' ? '' :
-                    i.subscriptionCups > 0 ? Math.round(i.subscriptionPrice / i.subscriptionCups * 0.7) : '',
+                    i.subscriptionCups > 0 ? Math.round(i.subscriptionPrice / i.subscriptionCups * getEffectiveRatio(i.subscriptionName)) : '',
                 ])
               );
             }}>
@@ -318,7 +333,7 @@ export default function PartnerHistoryPage() {
           <div className="bg-card p-4 rounded-xl border border-border">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp size={18} className="text-green-600" />
-              <span className="text-sm font-semibold text-foreground">Ваша выручка (70%)</span>
+              <span className="text-sm font-semibold text-foreground">Ваша выручка ({revenueSharePercent}%)</span>
             </div>
             <p className="text-2xl font-black text-green-600">
               {Math.round(partnerRevenue).toLocaleString()} ₸

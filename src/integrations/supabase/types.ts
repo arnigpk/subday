@@ -819,6 +819,7 @@ export type Database = {
           logo_url: string | null
           name: string
           preorders_enabled: boolean
+          revenue_share_percent: number
           sort_order: number | null
           supported_types: string[]
           updated_at: string | null
@@ -841,6 +842,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           preorders_enabled?: boolean
+          revenue_share_percent?: number
           sort_order?: number | null
           supported_types?: string[]
           updated_at?: string | null
@@ -863,6 +865,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           preorders_enabled?: boolean
+          revenue_share_percent?: number
           sort_order?: number | null
           supported_types?: string[]
           updated_at?: string | null
@@ -1437,6 +1440,7 @@ export type Database = {
           max_volume: string | null
           name: string
           price: number
+          revenue_share_percent: number | null
           sort_order: number | null
           type: string
           updated_at: string | null
@@ -1460,6 +1464,7 @@ export type Database = {
           max_volume?: string | null
           name: string
           price: number
+          revenue_share_percent?: number | null
           sort_order?: number | null
           type: string
           updated_at?: string | null
@@ -1483,6 +1488,7 @@ export type Database = {
           max_volume?: string | null
           name?: string
           price?: number
+          revenue_share_percent?: number | null
           sort_order?: number | null
           type?: string
           updated_at?: string | null

@@ -154,6 +154,17 @@ export default function ShopDetailPage() {
                   ? `https://2gis.kz/atyrau/directions/points/%7C${coord.lng}%2C${coord.lat}`
                   : null);
                 if (!webUrl) return;
+
+                // In Telegram Mini App, custom URL schemes (dgis://) are sandboxed and
+                // location.href navigation is unreliable (works "every other time" or not
+                // at all). openLink() routes through Telegram's native layer, which lets
+                // the OS App Links mechanism launch the 2GIS app from the https URL.
+                const tgWebApp = window.Telegram?.WebApp as { initData?: string; openLink?: (url: string) => void } | undefined;
+                if (tgWebApp?.initData && tgWebApp?.openLink) {
+                  tgWebApp.openLink(webUrl);
+                  return;
+                }
+
                 if (coord.lat && coord.lng) {
                   const dgisDeepLink = `dgis://2gis.ru/routeSearch/rsType/car/to/${coord.lng},${coord.lat}`;
                   if (Capacitor.isNativePlatform()) {

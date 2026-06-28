@@ -74,6 +74,7 @@ interface SubscriptionType {
   daily_limit: number | null;
   country: string | null;
   currency: string | null;
+  revenue_share_percent: number | null;
 }
 
 const DEFAULT_FEATURES = [
@@ -108,6 +109,7 @@ export default function AdminSubscriptionsPage() {
     country: 'KZ',
     currency: '₸',
     how_it_works: '',
+    revenue_share_percent: null as number | null,
   });
 
   const sensors = useSensors(
@@ -195,6 +197,7 @@ export default function AdminSubscriptionsPage() {
       country: 'KZ',
       currency: '₸',
       how_it_works: '',
+      revenue_share_percent: null,
     });
     setIsDialogOpen(true);
   };
@@ -218,6 +221,9 @@ export default function AdminSubscriptionsPage() {
       country: sub.country || 'KZ',
       currency: sub.currency || '₸',
       how_it_works: (sub as any).how_it_works || '',
+      revenue_share_percent: (sub as any).revenue_share_percent === 70 || (sub as any).revenue_share_percent === 80
+        ? (sub as any).revenue_share_percent
+        : null,
     });
     setIsDialogOpen(true);
   };
@@ -249,6 +255,7 @@ export default function AdminSubscriptionsPage() {
             country: formData.country,
             currency: formData.currency,
             how_it_works: formData.how_it_works.trim() || null,
+            revenue_share_percent: formData.revenue_share_percent,
           } as any)
           .eq('id', editingSub.id);
 
@@ -279,6 +286,7 @@ export default function AdminSubscriptionsPage() {
             country: formData.country,
             currency: formData.currency,
             how_it_works: formData.how_it_works.trim() || null,
+            revenue_share_percent: formData.revenue_share_percent,
           } as any);
 
         if (error) throw error;
@@ -352,6 +360,7 @@ export default function AdminSubscriptionsPage() {
           currency: sub.currency || '₸',
           how_it_works: (sub as any).how_it_works || null,
           max_volume: (sub as any).max_volume || null,
+          revenue_share_percent: (sub as any).revenue_share_percent ?? null,
         } as any);
 
       if (error) throw error;
@@ -649,7 +658,42 @@ export default function AdminSubscriptionsPage() {
               />
               <Label htmlFor="is_active">Активна</Label>
             </div>
-            
+            {canManage && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="revenue_override_enabled"
+                    checked={formData.revenue_share_percent !== null}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, revenue_share_percent: checked ? 70 : null })
+                    }
+                  />
+                  <Label htmlFor="revenue_override_enabled">
+                    Своя доля для этого тарифа
+                  </Label>
+                </div>
+                {formData.revenue_share_percent !== null && (
+                  <div className="flex items-center gap-2 ml-6">
+                    <Switch
+                      id="revenue_share_percent_sub"
+                      checked={formData.revenue_share_percent === 80}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, revenue_share_percent: checked ? 80 : 70 })
+                      }
+                    />
+                    <Label htmlFor="revenue_share_percent_sub">
+                      Доля кофейни: {formData.revenue_share_percent}%
+                    </Label>
+                  </div>
+                )}
+                {formData.revenue_share_percent === null && (
+                  <p className="text-xs text-muted-foreground ml-6">
+                    Будет использоваться доля кофейни (70% или 80%)
+                  </p>
+                )}
+              </div>
+            )}
+
             <SortableFeaturesEditor
               features={formData.features}
               onChange={(features) => setFormData({ ...formData, features })}

@@ -130,8 +130,10 @@ export default function PartnerScanPage() {
         return;
       }
 
+      // 120s tolerance (vs. the 60s client refresh interval) to absorb clock
+      // skew between the customer's and partner's devices plus scan latency.
       const now = Date.now();
-      if (now - data.timestamp > 60_000) {
+      if (now - data.timestamp > 120_000) {
         setResult({ success: false, message: 'QR-код просрочен, попросите обновить' });
         setIsProcessing(false);
         return;

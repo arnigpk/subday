@@ -76,10 +76,10 @@ export default function RedeemPage() {
   const [guestSubName, setGuestSubName] = useState<string | null>(null);
   const [guestSubVolume, setGuestSubVolume] = useState<string | null>(null);
   
-  const { stats, refetch } = useUserStatsContext();
+  const { stats, refetch, isLoading: statsLoading } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
   const { vibrateSuccess } = useVibration();
-  const { activeSubscriptions } = useSubscriptionStatus();
+  const { activeSubscriptions, isLoading: subsLoading } = useSubscriptionStatus();
   const { t } = useLanguage();
   const isOnline = useOnlineStatus();
   
@@ -184,6 +184,11 @@ export default function RedeemPage() {
   
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
   const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
+  const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
+  // While stats/subscriptions are still loading, coffeeRemaining/activeSubscriptions
+  // default to 0/[] — without this flag the QR area briefly flashes "no subscription"
+  // or "out of cups" for users who actually have an active subscription.
+  const isLoadingUserData = statsLoading || subsLoading;
 
   const handleRealtimeRedemption = useCallback(() => {
     setStatus('scanning');
@@ -412,7 +417,6 @@ export default function RedeemPage() {
 
   const qrCodeData = useMemo(() => {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
-    const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
     if (!hasActiveSub || remaining <= 0) return null;
     const payload = {
       type: 'subday_redeem', userId, shopId: selectedShop.id,
@@ -422,7 +426,10 @@ export default function RedeemPage() {
     // Кешируем последний QR-снимок для оффлайн-показа
     setCache(CACHE_KEYS.qrSnapshot, { userId, payload }, CACHE_TTL.qrSnapshot);
     return JSON.stringify(payload);
-  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee]);
+    // hasActiveSub depends on activeSubscriptions (useSubscriptionStatus), which can
+    // resolve asynchronously after the initial render — it must be a dep so the QR
+    // recomputes once subscriptions load, instead of staying stuck at null.
+  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee, hasActiveSub]);
 
   // Восстановление userId из кеша при оффлайне
   useEffect(() => {
@@ -552,6 +559,18 @@ export default function RedeemPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
             <div className="text-center animate-slide-up">
+              {isLoadingUserData ? (
+                // Render a single stable placeholder while subscription/stats data
+                // is still loading, instead of progressively popping in the type
+                // toggle, hints and QR box one by one — that's what made the QR
+                // area look like it was "jumping" and shoving the buttons around.
+                <div className="w-full max-w-[360px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-muted p-1.5">
+                  <div className="w-full h-full rounded-2xl bg-muted/30 flex items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </div>
+              ) : (
+                <>
               {/* Type toggle */}
               {showTypeToggle && (
                 <div className="flex gap-2 justify-center mb-2">
@@ -609,11 +628,10 @@ export default function RedeemPage() {
               )}
 
               {(() => {
-                const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
                 const shopClosed = selectedShop && !selectedShop.isCurrentlyOpen;
                 const noSub = !hasActiveSub;
                 const noCups = hasActiveSub && remaining <= 0;
-                const borderColor = (noSub || noCups) ? 'border-muted' : shopClosed ? 'border-destructive/40' : 'border-accent';
+                const borderColor = (isLoadingUserData || noSub || noCups) ? 'border-muted' : shopClosed ? 'border-destructive/40' : 'border-accent';
                 return (
                   <div className={`w-full max-w-[360px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-1.5`}>
                     {qrCodeData ? (
@@ -623,6 +641,12 @@ export default function RedeemPage() {
                         <Clock size={48} className="text-destructive mx-auto mb-3" />
                         <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
                         <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
+                      </div>
+                    ) : isLoadingUserData ? (
+                      // Fills the same w-full/h-full footprint the QR will take once loaded,
+                      // so the box doesn't appear to "grow" from a small spinner to a full QR.
+                      <div className="w-full h-full rounded-2xl bg-muted/30 flex items-center justify-center">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                       </div>
                     ) : noSub ? (
                       <div className="text-center p-4">
@@ -637,7 +661,9 @@ export default function RedeemPage() {
                         <p className="text-xs text-muted-foreground mt-1">Оформите новую подписку</p>
                       </div>
                     ) : (
-                      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                      <div className="w-full h-full rounded-2xl bg-muted/30 flex items-center justify-center">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
                     )}
                   </div>
                 );
@@ -680,9 +706,11 @@ export default function RedeemPage() {
               {selectedShop && !selectedShop.isCurrentlyOpen && (
                 <p className="text-sm text-destructive mb-4">{t('redeem.shopClosed')}</p>
               )}
+                </>
+              )}
             </div>
           )}
-          
+
           {status === 'scanning' && (
             <div className="text-center animate-pop">
               <div className="w-full max-w-[256px] aspect-square bg-card rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 border-primary">

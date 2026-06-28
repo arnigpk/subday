@@ -75,6 +75,7 @@ interface Shop {
   coordinates: unknown;
   description: string | null;
   supported_types: string[];
+  revenue_share_percent: number;
 }
 
 interface Coordinate {
@@ -116,6 +117,7 @@ export default function AdminShopsPage() {
     description: '',
     supported_types: ['coffee'] as string[],
     preorders_enabled: false,
+    revenue_share_percent: 70,
   });
 
   const sensors = useSensors(
@@ -198,6 +200,7 @@ export default function AdminShopsPage() {
       description: '',
       supported_types: ['coffee'],
       preorders_enabled: false,
+      revenue_share_percent: 70,
     });
     setIsDialogOpen(true);
   };
@@ -239,6 +242,7 @@ export default function AdminShopsPage() {
       description: (shop as any).description || '',
       supported_types: shop.supported_types || ['coffee'],
       preorders_enabled: (shop as any).preorders_enabled || false,
+      revenue_share_percent: (shop as any).revenue_share_percent === 80 ? 80 : 70,
     });
     setIsDialogOpen(true);
   };
@@ -279,6 +283,7 @@ export default function AdminShopsPage() {
             description: formData.description.trim() || null,
             supported_types: formData.supported_types,
             preorders_enabled: formData.preorders_enabled,
+            revenue_share_percent: formData.revenue_share_percent,
           } as any)
           .eq('id', editingShop.id);
 
@@ -309,6 +314,7 @@ export default function AdminShopsPage() {
             sort_order: maxOrder + 1,
             supported_types: formData.supported_types,
             preorders_enabled: formData.preorders_enabled,
+            revenue_share_percent: formData.revenue_share_percent,
           } as any]);
 
         if (error) throw error;
@@ -601,6 +607,18 @@ export default function AdminShopsPage() {
                   onCheckedChange={(checked) => setFormData({ ...formData, preorders_enabled: checked })}
                 />
                 <Label htmlFor="preorders_enabled">Принимать предзаказы</Label>
+              </div>
+            )}
+            {canManage && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="revenue_share_percent"
+                  checked={formData.revenue_share_percent === 80}
+                  onCheckedChange={(checked) => setFormData({ ...formData, revenue_share_percent: checked ? 80 : 70 })}
+                />
+                <Label htmlFor="revenue_share_percent">
+                  Доля кофейни от стоимости чашки: {formData.revenue_share_percent}%
+                </Label>
               </div>
             )}
             <div className="flex justify-end gap-2">
