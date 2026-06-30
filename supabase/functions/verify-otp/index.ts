@@ -15,6 +15,7 @@ function formatPhone(phone: string): string {
 
 async function sendAdminNotification(
   supabase: any,
+  env: Record<string, string>,
   triggerType: string,
   variables: Record<string, string>
 ): Promise<void> {
@@ -28,8 +29,8 @@ async function sendAdminNotification(
 
     if (!template) return
 
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN')
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID')
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN']
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID']
     if (!notificationBotToken || !chatId) return
 
     let message = template.message_template
@@ -68,12 +69,59 @@ Deno.serve(async (req) => {
     }
 
     const formattedPhone = formatPhone(phone)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    let workerEnv: Record<string, string> = {}
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}') } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL']
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY']
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
+
+    // Store-review test account: fixed phone + fixed code, bypasses the real OTP
+    // check so Google/Apple reviewers can sign in without a real SMS. Creates the
+    // account on first use (with a demo coffee subscription) and signs in.
+    if (formattedPhone === '+77000000000' && code === '1234') {
+      const email = phoneToEmail(formattedPhone)
+      const tempPassword = crypto.randomUUID()
+
+      const { data: existing } = await supabase
+        .from('profiles').select('user_id').eq('phone', formattedPhone).maybeSingle()
+
+      if (existing?.user_id) {
+        await supabase.auth.admin.updateUserById(existing.user_id, { password: tempPassword })
+      } else {
+        const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+          email, phone: formattedPhone, password: tempPassword, email_confirm: true, phone_confirm: true,
+        })
+        if (signUpError || !signUpData.user) {
+          return new Response(JSON.stringify({ error: 'Ошибка тестового входа' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        await supabase.from('profiles').insert({
+          user_id: signUpData.user.id, phone: formattedPhone, name: 'Google Review', city: 'Атырау', country: 'KZ',
+        })
+        // Best-effort: give the review account an active coffee subscription so the
+        // reviewer can see the core QR-redeem flow.
+        try {
+          const { data: coffeeType } = await supabase
+            .from('subscription_types').select('id').eq('type', 'coffee').eq('is_active', true).limit(1).maybeSingle()
+          if (coffeeType?.id) {
+            await supabase.rpc('activate_subscription', { _user_id: signUpData.user.id, _subscription_type_id: coffeeType.id })
+          }
+        } catch { /* non-fatal */ }
+      }
+
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password: tempPassword })
+      if (loginError || !loginData.session) {
+        return new Response(JSON.stringify({ error: 'Ошибка тестового входа' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      return new Response(
+        JSON.stringify({ success: true, session: loginData.session, user: { id: loginData.user?.id, phone: formattedPhone } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Verify OTP
     const { data: otpData, error: otpError } = await supabase
@@ -143,7 +191,7 @@ Deno.serve(async (req) => {
       })
 
       // Fire-and-forget: notification + cleanup
-      sendAdminNotification(supabase, `admin_register_${channelLabel}`, {
+      sendAdminNotification(supabase, workerEnv, `admin_register_${channelLabel}`, {
         name: name || 'не указано',
         phone: formattedPhone,
         time: timeStr,
@@ -204,7 +252,7 @@ Deno.serve(async (req) => {
       const session = loginData.session
 
       // Fire-and-forget
-      sendAdminNotification(supabase, `admin_login_${channelLabel}`, {
+      sendAdminNotification(supabase, workerEnv, `admin_login_${channelLabel}`, {
         name: profileData.name || 'не указано',
         phone: formattedPhone,
         time: timeStr,

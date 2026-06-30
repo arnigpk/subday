@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SubDay</string>
-    <string name="title_activity_main">SubDay</string>
+    <string name="app_name">subday</string>
+    <string name="title_activity_main">subday</string>
     <string name="package_name">app.subday.vhod</string>
     <string name="custom_url_scheme">app.subday.vhod</string>
 </resources>

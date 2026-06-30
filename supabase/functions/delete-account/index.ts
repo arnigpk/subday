@@ -20,11 +20,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get("x-worker-env") || "{}"); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || workerEnv["SUPABASE_URL"];
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || workerEnv["SUPABASE_SERVICE_ROLE_KEY"];
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || workerEnv["SUPABASE_ANON_KEY"];
 
     // Verify the user with anon client
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const anonClient = createClient(supabaseUrl!, anonKey!, {
       global: { headers: { Authorization: authHeader } },
     });
 
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
     const userId = user.id;
 
     // Use service role client for deletions
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const adminClient = createClient(supabaseUrl!, serviceRoleKey!);
 
     // Delete user data from all tables in order
     const tables = [

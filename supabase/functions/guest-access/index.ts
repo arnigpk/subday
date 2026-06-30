@@ -11,9 +11,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get("x-worker-env") || "{}"); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || workerEnv["SUPABASE_URL"];
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || workerEnv["SUPABASE_SERVICE_ROLE_KEY"];
+    const supabase = createClient(supabaseUrl!, serviceKey!);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -36,9 +38,11 @@ Deno.serve(async (req) => {
 
     if (action === "grant") {
       const message = typeof reqBody.message === "string" ? reqBody.message.slice(0, 50) : undefined;
-      return await handleGrant(supabase, user.id, mode, value, message);
+      const rawCount = Number(reqBody.count);
+      const count = Number.isFinite(rawCount) ? Math.min(50, Math.max(1, Math.floor(rawCount))) : 1;
+      return await handleGrant(supabase, supabaseUrl!, serviceKey!, user.id, mode, value, message, count);
     } else if (action === "claim") {
-      return await handleClaim(supabase, user.id);
+      return await handleClaim(supabase, supabaseUrl!, serviceKey!, user.id);
     } else if (action === "status") {
       return await handleStatus(supabase, user.id);
     }
@@ -68,14 +72,12 @@ function getMonthKey(): string {
   return `${year}-${month}-01`;
 }
 
-async function sendGuestCoffeeNotification(_supabase: any, inviteeUserId: string, message?: string) {
+async function sendGuestCoffeeNotification(supabaseUrl: string, serviceKey: string, inviteeUserId: string, message?: string, count: number = 1) {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId, giftMessage: message }),
+      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId, giftMessage: message, cupsCount: count }),
     });
   } catch (err) {
     console.error("Guest notification error:", err);
@@ -143,7 +145,7 @@ async function getInviterSubscriptionTypeId(supabase: any, inviterId: string): P
   return coffeeSub?.subscription_type_id || null;
 }
 
-async function handleGrant(supabase: any, inviterId: string, mode: string, value: string, message?: string) {
+async function handleGrant(supabase: any, supabaseUrl: string, serviceKey: string, inviterId: string, mode: string, value: string, message?: string, count: number = 1) {
   if (!mode || !value) return jsonRes({ error: "Некорректные данные" }, 400);
 
   const monthKey = getMonthKey();
@@ -155,8 +157,8 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
   ]);
 
   const inviterStats = inviterStatsResult.data;
-  if (!inviterStats || inviterStats.coffee_remaining < 1) {
-    return jsonRes({ error: "Недостаточно кофе в подписке для приглашения друга." }, 400);
+  if (!inviterStats || inviterStats.coffee_remaining < count) {
+    return jsonRes({ error: "Недостаточно кофе в подписке для выдачи." }, 400);
   }
 
   // 3. Find invitee
@@ -189,16 +191,6 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     inviteeProfile = data;
 
     if (!inviteeProfile) {
-      const { data: existingPhoneGrant } = await supabase
-        .from("guest_grants")
-        .select("id, status")
-        .eq("invitee_phone", phone)
-        .maybeSingle();
-
-      if (existingPhoneGrant) {
-        return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
-      }
-
       // Get subscription name for history record
       let subName = "Гостевой доступ";
       if (subscriptionTypeId) {
@@ -207,7 +199,7 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
         if (subType) subName = `Гостевой доступ (${subType.name})`;
       }
 
-      const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString();
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
       const { error: insertError } = await supabase
         .from("guest_grants")
         .insert({
@@ -250,56 +242,17 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
     return jsonRes({ error: "Нельзя выдать гостевой доступ самому себе." }, 400);
   }
 
-  const { data: inviteeStats } = await supabase
-    .from("user_stats")
-    .select("guest_ever_received")
-    .eq("user_id", inviteeProfile.user_id)
-    .maybeSingle();
-
-  if (inviteeStats?.guest_ever_received) {
-    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
-  }
-
-  const { data: existingSub } = await supabase
-    .from("user_subscriptions")
-    .select("id")
-    .eq("user_id", inviteeProfile.user_id)
-    .limit(1)
-    .maybeSingle();
-
-  if (existingSub) {
-    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
-  }
-
-  const { data: existingTx } = await supabase
-    .from("subscription_transactions")
-    .select("id")
-    .eq("user_id", inviteeProfile.user_id)
-    .limit(1)
-    .maybeSingle();
-
-  if (existingTx) {
-    return jsonRes({ error: "Твой друг уже пробовал наш сервис, попробуй другой ID" }, 400);
-  }
-
-  const { data: existingInviteeGrant } = await supabase
-    .from("guest_grants")
-    .select("id")
-    .eq("invitee_user_id", inviteeProfile.user_id)
-    .maybeSingle();
-
-  if (existingInviteeGrant) {
-    return jsonRes({ error: "Пользователь уже попробовал subday" }, 400);
-  }
-
-  // 6. Atomic grant via DB function (now with subscription_type_id)
-  const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString();
+  // No limits: any user can receive guest coffee, any number of times.
+  // 6. Atomic grant via DB function — deducts `count` cups from the inviter,
+  //    grant valid for 14 days.
+  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const { data: result, error: rpcError } = await supabase.rpc("grant_guest_access", {
     _inviter_id: inviterId,
     _invitee_id: inviteeProfile.user_id,
     _month_key: monthKey,
     _expires_at: expiresAt,
     _subscription_type_id: subscriptionTypeId,
+    _count: count,
   });
 
   if (rpcError) {
@@ -335,12 +288,12 @@ async function handleGrant(supabase: any, inviterId: string, mode: string, value
   });
 
   // Send notification to invitee (fire-and-forget)
-  sendGuestCoffeeNotification(supabase, inviteeProfile.user_id, message).catch(e => console.error("Notification error:", e));
+  sendGuestCoffeeNotification(supabaseUrl, serviceKey, inviteeProfile.user_id, message, count).catch(e => console.error("Notification error:", e));
 
   return jsonRes({ status: "active", expires_at: result.expires_at });
 }
 
-async function handleClaim(supabase: any, inviteeId: string) {
+async function handleClaim(supabase: any, supabaseUrl: string, serviceKey: string, inviteeId: string) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("phone")
@@ -362,7 +315,7 @@ async function handleClaim(supabase: any, inviteeId: string) {
   }
 
   if (result?.success) {
-    sendGuestCoffeeNotification(supabase, inviteeId).catch(e => console.error("Claim notification error:", e));
+    sendGuestCoffeeNotification(supabaseUrl, serviceKey, inviteeId).catch(e => console.error("Claim notification error:", e));
   }
 
   return jsonRes(result);

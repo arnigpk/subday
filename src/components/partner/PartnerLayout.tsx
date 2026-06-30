@@ -109,8 +109,11 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
                       onClick={() => setShopDropdownOpen(false)}
                     />
                     {/* Dropdown */}
-                    <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-2xl shadow-xl min-w-[220px] overflow-hidden">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 pt-3 pb-1.5">
+                    <div
+                      className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-2xl shadow-xl min-w-[220px] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-hide"
+                      style={{ WebkitOverflowScrolling: 'touch' }}
+                    >
+                      <p className="sticky top-0 bg-card text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 pt-3 pb-1.5">
                         Мои кофейни
                       </p>
                       {shops.map(shop => (

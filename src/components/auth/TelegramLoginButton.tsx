@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { Send, Loader2, ArrowLeft } from 'lucide-react';
@@ -16,7 +17,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
   const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenTelegram = () => {
-    window.open(`tg://resolve?domain=${botName}&start=login`, '_blank');
+    window.open(`tg://resolve?domain=${botName}&start=login`, Capacitor.isNativePlatform() ? '_system' : '_blank');
     setStep('code');
   };
 
@@ -109,7 +110,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
           <button
             onClick={() => {
               setCode('');
-              window.open(`tg://resolve?domain=${botName}&start=login`, '_blank');
+              window.open(`tg://resolve?domain=${botName}&start=login`, Capacitor.isNativePlatform() ? '_system' : '_blank');
             }}
             className="flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-medium transition-colors"
           >

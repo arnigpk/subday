@@ -11,19 +11,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+
     const { shopName, time } = await req.json();
 
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || workerEnv['SUPABASE_ANON_KEY'];
+    const supabaseClient = createClient(supabaseUrl!, supabaseKey!);
 
     let userId: string | null = null;
     let shopId: string | null = null;
 
     if (authHeader) {
-      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const anonClient = createClient(supabaseUrl!, supabaseAnonKey!);
       const token = authHeader.replace('Bearer ', '');
       const { data: { user } } = await anonClient.auth.getUser(token);
       if (user) {

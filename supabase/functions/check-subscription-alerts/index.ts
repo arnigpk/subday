@@ -19,9 +19,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     console.log('Running subscription alerts check...');
 
@@ -39,6 +41,15 @@ Deno.serve(async (req) => {
       .eq('trigger_type', 'expiring_soon')
       .eq('is_active', true);
 
+    // 2b. Fetch guest_coffee_expiring template (fires when guest coffee has 1 day left)
+    const { data: guestExpiringTemplates } = await supabase
+      .from('auto_notification_templates')
+      .select('id')
+      .eq('trigger_type', 'guest_coffee_expiring')
+      .eq('is_active', true)
+      .limit(1);
+    const guestExpiringActive = (guestExpiringTemplates || []).length > 0;
+
     const lowThresholds = (lowBalanceTemplates || [])
       .map(t => (t.trigger_config as any)?.threshold)
       .filter(Boolean) as number[];
@@ -47,7 +58,7 @@ Deno.serve(async (req) => {
       .map(t => (t.trigger_config as any)?.threshold)
       .filter(Boolean) as number[];
 
-    if (lowThresholds.length === 0 && expiryThresholds.length === 0) {
+    if (lowThresholds.length === 0 && expiryThresholds.length === 0 && !guestExpiringActive) {
       return new Response(JSON.stringify({ success: true, message: 'No active alert templates' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -185,6 +196,45 @@ Deno.serve(async (req) => {
             }
           }
         }
+      }
+    }
+
+    // 5. Guest coffee expiring — 1 day left
+    if (guestExpiringActive) {
+      const now = new Date();
+      const within2Days = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: guestUsers } = await supabase
+        .from('user_stats')
+        .select('user_id, guest_coffees, guest_expires_at')
+        .gt('guest_coffees', 0)
+        .not('guest_expires_at', 'is', null)
+        .gt('guest_expires_at', now.toISOString())
+        .lte('guest_expires_at', within2Days);
+
+      for (const u of (guestUsers || [])) {
+        const daysLeft = Math.ceil((new Date(u.guest_expires_at).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        if (daysLeft !== 1) continue;
+
+        const alertKey = 'guest_coffee_expiring';
+        const { data: existing } = await supabase
+          .from('notification_dedupe_log')
+          .select('id')
+          .eq('user_id', u.user_id)
+          .eq('alert_key', alertKey)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        await supabase.from('notification_dedupe_log').insert({ user_id: u.user_id, alert_key: alertKey });
+
+        await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+          body: JSON.stringify({ type: 'guest_coffee_expiring', userId: u.user_id }),
+        }).catch(err => console.error('Guest coffee expiry notification error:', err));
+        sentCount++;
       }
     }
 

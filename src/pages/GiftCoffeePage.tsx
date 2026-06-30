@@ -13,6 +13,7 @@ export default function GiftCoffeePage() {
   const { t } = useLanguage();
   const [publicId, setPublicId] = useState('');
   const [message, setMessage] = useState('');
+  const [count, setCount] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const { vibrateSuccess, vibrateError } = useVibration();
   const { activeSubscriptions, isLoading: subLoading } = useSubscriptionStatus();
@@ -36,7 +37,7 @@ export default function GiftCoffeePage() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('guest-access', {
-        body: { action: 'grant', mode: 'public_id', value, message: message.trim() || undefined },
+        body: { action: 'grant', mode: 'public_id', value, message: message.trim() || undefined, count },
       });
 
       if (error) {
@@ -125,17 +126,52 @@ export default function GiftCoffeePage() {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                Сколько кофе выдать другу/подруге?
+              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCount(c => Math.max(1, c - 1))}
+                  className="w-12 h-12 rounded-xl bg-muted text-foreground text-xl font-bold active:scale-95 transition disabled:opacity-40"
+                  disabled={count <= 1}
+                  aria-label="Меньше"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  value={count}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setCount(Number.isFinite(v) && v >= 1 ? v : 1);
+                  }}
+                  className="input-field flex-1 text-lg text-center"
+                  inputMode="numeric"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCount(c => c + 1)}
+                  className="w-12 h-12 rounded-xl bg-muted text-foreground text-xl font-bold active:scale-95 transition"
+                  aria-label="Больше"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">
                 Сообщение другу <span className="text-muted-foreground/60">(необязательно)</span>
               </label>
               <textarea
                 placeholder="Угощаю кофе! ☕"
                 value={message}
-                onChange={(e) => setMessage(e.target.value.slice(0, 50))}
+                onChange={(e) => setMessage(e.target.value.slice(0, 38))}
                 className="input-field w-full resize-none text-sm"
-                rows={2}
-                maxLength={50}
+                rows={1}
+                maxLength={38}
               />
-              <p className="text-xs text-muted-foreground text-right mt-1">{message.length}/50</p>
             </div>
 
             <button

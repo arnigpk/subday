@@ -60,6 +60,7 @@ function parseXmlResponse(xml: string): Record<string, string> {
 
 async function sendAdminNotification(
   supabase: any,
+  env: Record<string, string>,
   triggerType: string,
   variables: Record<string, string>
 ): Promise<void> {
@@ -73,8 +74,8 @@ async function sendAdminNotification(
 
     if (!template) return;
 
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN'];
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID'];
     if (!notificationBotToken || !chatId) return;
 
     let message = template.message_template;
@@ -98,10 +99,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID');
-    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY');
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const merchantId = Deno.env.get('FREEDOMPAY_MERCHANT_ID') || workerEnv['FREEDOMPAY_MERCHANT_ID'];
+    const secretKey = Deno.env.get('FREEDOMPAY_SECRET_KEY') || workerEnv['FREEDOMPAY_SECRET_KEY'];
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return jsonResponse({ error: 'Backend not configured' }, 500);
@@ -392,7 +395,7 @@ Deno.serve(async (req) => {
       .from('profiles').select('name, phone').eq('user_id', authUser.id).maybeSingle();
 
     const triggerType = isSpecialOffer ? 'admin_payment_special' : 'admin_payment';
-    await sendAdminNotification(supabase, triggerType, {
+    await sendAdminNotification(supabase, workerEnv, triggerType, {
       name: buyerProfile?.name || buyerProfile?.phone || 'Неизвестный',
       subscription_name: subType?.name || 'Unknown',
       amount: String(pendingOrder.amount),

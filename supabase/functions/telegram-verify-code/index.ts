@@ -7,6 +7,7 @@ const corsHeaders = {
 
 async function sendAdminNotification(
   supabase: any,
+  env: Record<string, string>,
   triggerType: string,
   variables: Record<string, string>
 ): Promise<void> {
@@ -20,8 +21,8 @@ async function sendAdminNotification(
 
     if (!template) return;
 
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN'];
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID'];
     if (!notificationBotToken || !chatId) return;
 
     let message = template.message_template;
@@ -70,12 +71,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const supabaseUrl = (Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'])!;
+    const supabaseServiceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'])!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
+    const botToken = (Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'])!;
 
     // Find the code
     const { data: authCode, error: findError } = await supabase
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
       console.log('User signed in via Telegram code:', telegramId);
       
       // Fire-and-forget background work
-      sendAdminNotification(supabase, 'admin_login_telegram', {
+      sendAdminNotification(supabase, workerEnv, 'admin_login_telegram', {
         name: displayName,
         telegram: telegramText,
         time: timeStr,
@@ -178,7 +181,7 @@ Deno.serve(async (req) => {
       }
 
       // Fire-and-forget
-      sendAdminNotification(supabase, 'admin_register_telegram', {
+      sendAdminNotification(supabase, workerEnv, 'admin_register_telegram', {
         name: displayName,
         telegram: telegramText,
         time: timeStr,

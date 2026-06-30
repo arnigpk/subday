@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2, RefreshCw, VideoOff } from 'lucide-react';
+import { Camera, Loader2, Usb, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { useSerialScanner } from '@/hooks/useSerialScanner';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
+const SCANNER_MODE_KEY = 'qr_scanner_mode'; // 'camera' | 'usb'
 
-// Wait until the #qr-reader element has non-zero dimensions — ensures
-// Html5Qrcode gets a properly-sized container and doesn't start "blind".
 function waitForElementReady(id: string, timeout = 3000): Promise<boolean> {
   return new Promise(resolve => {
     const start = Date.now();
@@ -21,10 +21,6 @@ function waitForElementReady(id: string, timeout = 3000): Promise<boolean> {
   });
 }
 
-/**
- * Request native camera permission on iOS/Android (Capacitor).
- * Returns 'granted' | 'denied' | 'unavailable' (web/PWA fallback).
- */
 async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'unavailable'> {
   if (!Capacitor.isNativePlatform()) return 'unavailable';
   try {
@@ -46,24 +42,69 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
+  const savedMode = (localStorage.getItem(SCANNER_MODE_KEY) as 'camera' | 'usb') || 'camera';
+  const [mode, setMode] = useState<'camera' | 'usb'>(savedMode);
+
+  // ─── Камера ───────────────────────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScannedRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(isProcessing);
+  const lastSerialScannedRef = useRef<string | null>(null);
+  const serialScanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
+  const didAutoRestartRef = useRef(false);
 
-  useEffect(() => {
-    isProcessingRef.current = isProcessing;
-  }, [isProcessing]);
+  useEffect(() => { isProcessingRef.current = isProcessing; }, [isProcessing]);
 
+  // ─── USB-сканер ───────────────────────────────────────────────────────────
+  const handleSerialScan = useCallback((raw: string) => {
+  if (isProcessingRef.current) return;
+  // Защита от двойного срабатывания на один QR
+  if (lastSerialScannedRef.current === raw) return;
+  try {
+    const data = JSON.parse(raw);
+    if (data.type === 'subday_redeem') {
+      lastSerialScannedRef.current = raw;
+      // Сбрасываем через 3 секунды чтобы тот же QR можно было снова использовать
+      if (serialScanTimeoutRef.current) clearTimeout(serialScanTimeoutRef.current);
+      serialScanTimeoutRef.current = setTimeout(() => {
+        lastSerialScannedRef.current = null;
+      }, 3000);
+      onScan(raw);
+    }
+  } catch {
+    console.warn('[SerialScanner] Невалидный QR:', raw);
+  }
+}, [onScan]);
+
+  const { status: serialStatus, errorMsg: serialError, connect, disconnect, isSupported } =
+    useSerialScanner({ onScan: handleSerialScan });
+
+  // ─── Переключение режима ──────────────────────────────────────────────────
+  const switchMode = useCallback((newMode: 'camera' | 'usb') => {
+    // Останавливаем камеру если переключаемся
+    if (newMode === 'usb') {
+      stopScannerCleanup();
+      setIsScanning(false);
+    }
+    // Отключаем USB если переключаемся
+    if (newMode === 'camera') {
+      disconnect();
+    }
+    setMode(newMode);
+    localStorage.setItem(SCANNER_MODE_KEY, newMode);
+  }, [disconnect]);
+
+  // ─── Жизненный цикл ──────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    // Auto-start if camera was previously granted
-    if (localStorage.getItem(CAMERA_GRANTED_KEY)) {
+    if (mode === 'camera' && localStorage.getItem(CAMERA_GRANTED_KEY)) {
       startScanner();
     }
     return () => {
@@ -73,17 +114,10 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   }, []);
 
   const stopScannerCleanup = () => {
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
+    if (scanTimeoutRef.current) { clearTimeout(scanTimeoutRef.current); scanTimeoutRef.current = null; }
     if (scannerRef.current) {
-      try {
-        scannerRef.current.stop().catch(() => {});
-      } catch {}
-      try {
-        scannerRef.current.clear();
-      } catch {}
+      try { scannerRef.current.stop().catch(() => {}); } catch {}
+      try { scannerRef.current.clear(); } catch {}
       scannerRef.current = null;
     }
   };
@@ -91,42 +125,31 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   const handleScan = useCallback((decodedText: string) => {
     if (isProcessingRef.current) return;
     if (lastScannedRef.current === decodedText) return;
-
     lastScannedRef.current = decodedText;
-    console.log('QR Code scanned:', decodedText);
     onScan(decodedText);
-
     if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
-    scanTimeoutRef.current = setTimeout(() => {
-      lastScannedRef.current = null;
-    }, 1500);
+    scanTimeoutRef.current = setTimeout(() => { lastScannedRef.current = null; }, 1500);
   }, [onScan]);
 
+  const startScannerRef = useRef<(() => void) | null>(null);
+
   const startScanner = useCallback(async () => {
-    // Stop any existing scanner first
     stopScannerCleanup();
-
     if (!mountedRef.current) return;
-
     setIsStarting(true);
     setIsScanning(false);
     setError(null);
     lastScannedRef.current = null;
 
-    // 1) Native permission gate (iOS/Android via Capacitor)
     const nativePerm = await ensureNativeCameraPermission();
     if (nativePerm === 'denied') {
       if (!mountedRef.current) return;
       localStorage.removeItem(CAMERA_GRANTED_KEY);
-      setError('Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.');
+      setError('Доступ к камере запрещён. Откройте настройки и включите камеру.');
       setIsStarting(false);
       return;
     }
 
-    // Wait for the container to have real dimensions AND a minimum 500ms
-    // for page-entry animations to settle. Without the minimum, rAF can
-    // resolve in ~16ms while the page is still transitioning — the video
-    // element ends up 0×0 and QR codes are never detected until Restart.
     const [ready] = await Promise.all([
       waitForElementReady('qr-reader'),
       new Promise<boolean>(r => setTimeout(() => r(true), 500)),
@@ -135,56 +158,43 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
 
     const el = document.getElementById('qr-reader');
     if (!el || !ready) {
-      console.error('qr-reader element not found or not visible');
       setError('Ошибка инициализации сканера');
       setIsStarting(false);
       return;
     }
-
-    // Clear any leftover content from previous scanner instance
     el.innerHTML = '';
 
     try {
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 25,
-          aspectRatio: 1,
-        },
-        handleScan,
-        () => {}
-      );
-
-      if (!mountedRef.current) {
-        scanner.stop().catch(() => {});
-        return;
-      }
-
+      await scanner.start({ facingMode: 'environment' }, { fps: 25, aspectRatio: 1 }, handleScan, () => {});
+      if (!mountedRef.current) { scanner.stop().catch(() => {}); return; }
       setIsScanning(true);
       setError(null);
       localStorage.setItem(CAMERA_GRANTED_KEY, 'true');
-      console.log('Scanner started successfully');
+
+      // html5-qrcode часто не начинает распознавание с первого старта —
+      // видео идёт, а декодер молчит. Ручной перезапуск это чинит, поэтому
+      // делаем один автоматический перезапуск сразу после первого старта.
+      if (!didAutoRestartRef.current) {
+        didAutoRestartRef.current = true;
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          if (mode !== 'camera') return;
+          startScannerRef.current?.();
+        }, 800);
+      }
     } catch (err: any) {
-      console.error('Failed to start scanner:', err);
       scannerRef.current = null;
       if (!mountedRef.current) return;
-
       const errMsg = String(err?.message || err || '');
       if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission') || errMsg.includes('denied')) {
         localStorage.removeItem(CAMERA_GRANTED_KEY);
-        const isNative = Capacitor.isNativePlatform();
-        setError(
-          isNative
-            ? 'Доступ к камере запрещён. Откройте настройки телефона → разрешения приложения и включите камеру.'
-            : 'Доступ к камере запрещён. Разрешите доступ в настройках вашего устройства.'
-        );
-      } else if (errMsg.includes('NotFoundError') || errMsg.includes('device not found')) {
+        setError('Доступ к камере запрещён.');
+      } else if (errMsg.includes('NotFoundError')) {
         setError('Камера не найдена на устройстве.');
-      } else if (errMsg.includes('NotReadableError') || errMsg.includes('Could not start')) {
-        setError('Камера занята другим приложением. Закройте его и попробуйте снова.');
+      } else if (errMsg.includes('NotReadableError')) {
+        setError('Камера занята другим приложением.');
       } else {
         setError('Не удалось запустить камеру. Нажмите «Перезапустить».');
       }
@@ -192,116 +202,188 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       if (mountedRef.current) setIsStarting(false);
     }
   }, [handleScan]);
-
-  const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {}
-      try {
-        scannerRef.current.clear();
-      } catch {}
-      scannerRef.current = null;
-    }
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
-    lastScannedRef.current = null;
-    setIsScanning(false);
-    setError(null);
-  }, []);
-
-  const handleRestartClick = useCallback(() => {
-    startScanner();
+useEffect(() => {
+    startScannerRef.current = startScanner;
   }, [startScanner]);
+  // ─── Рендер ──────────────────────────────────────────────────────────────
 
-  const handleStopClick = useCallback(() => {
-    stopScanner();
-  }, [stopScanner]);
-
-  const handleStartClick = useCallback(() => {
-    startScanner();
-  }, [startScanner]);
+  const serialConnected = serialStatus === 'connected';
+  const serialConnecting = serialStatus === 'connecting';
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div
-        ref={containerRef}
-        className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container rounded-xl"
-      >
-        <div id="qr-reader" className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&>img]:hidden" />
 
-        {/* Scan frame overlay */}
-        {isScanning && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-[8%] border-2 border-white/80 rounded-lg">
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-lg" />
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-lg" />
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-lg" />
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-lg" />
-              {!isProcessing && (
-                <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-scan-line shadow-[0_0_8px_hsl(var(--accent))]" />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Processing overlay */}
-        {isProcessing && isScanning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/50 pointer-events-none">
-            <Loader2 size={40} className="text-white animate-spin" />
-            <p className="text-white font-medium">Обрабатываем...</p>
-          </div>
-        )}
-
-        {/* Initial state / error state — show start button */}
-        {!isScanning && !isStarting && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-secondary px-6">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Camera size={40} className="text-muted-foreground" />
-            </div>
-            <p className="text-muted-foreground text-center text-sm">
-              {error || 'Нажмите кнопку для запуска камеры'}
-            </p>
-            <Button size="lg" onClick={handleStartClick} className="w-full max-w-[220px]">
-              <Camera size={20} className="mr-2" />
-              {error ? 'Попробовать снова' : 'Открыть камеру'}
-            </Button>
-          </div>
-        )}
-
-        {/* Starting state */}
-        {isStarting && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
-            <Loader2 size={40} className="text-muted-foreground animate-spin" />
-            <p className="text-muted-foreground text-center px-4">Запускаем камеру...</p>
-          </div>
-        )}
-      </div>
-
-      {/* Control buttons when scanning */}
-      {isScanning && !isProcessing && (
-        <div className="flex items-center gap-3 w-full">
-          <Button
-            size="lg"
-            onClick={handleRestartClick}
-            className="w-full"
+      {/* Переключатель режимов — показываем только если Web Serial поддерживается */}
+      {isSupported && (
+        <div className="flex w-full rounded-lg border border-border overflow-hidden">
+          <button
+            onClick={() => switchMode('camera')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors
+              ${mode === 'camera'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-secondary text-muted-foreground hover:bg-muted'}`}
           >
-            ✅ Сканировать QR
-          </Button>
+            <Camera size={16} />
+            Камера
+          </button>
+          <button
+            onClick={() => switchMode('usb')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors
+              ${mode === 'usb'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-secondary text-muted-foreground hover:bg-muted'}`}
+          >
+            <Usb size={16} />
+            USB-сканер
+          </button>
         </div>
       )}
 
-      {isScanning && !isProcessing && (
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-sm text-muted-foreground text-center">
-            Наведите камеру на QR-код клиента
-          </p>
-          <p className="text-xs text-red-500 text-center font-medium">
-            Нажмите ✅ Сканировать QR если код не сканируется!
-          </p>
+      {/* ── Режим USB-сканера ─────────────────────────────────────────────── */}
+      {mode === 'usb' && (
+        <div className="w-full flex flex-col items-center gap-4">
+          <div className="w-full aspect-square bg-secondary rounded-xl flex flex-col items-center justify-center gap-5 px-6">
+
+            {/* Статус подключения */}
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center
+              ${serialConnected ? 'bg-green-500/20' : 'bg-muted'}`}>
+              {serialConnected
+                ? <Wifi size={40} className="text-green-500" />
+                : <WifiOff size={40} className="text-muted-foreground" />}
+            </div>
+
+            <div className="text-center">
+              {serialStatus === 'disconnected' && (
+                <p className="text-muted-foreground text-sm">Сканер не подключён</p>
+              )}
+              {serialConnecting && (
+                <p className="text-muted-foreground text-sm">Подключение...</p>
+              )}
+              {serialConnected && (
+                <>
+                  <p className="text-green-500 font-semibold">Сканер подключён ✓</p>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Поднесите QR-код клиента к сканеру
+                  </p>
+                </>
+              )}
+              {serialStatus === 'error' && (
+                <p className="text-destructive text-sm">{serialError}</p>
+              )}
+            </div>
+
+            {/* Processing overlay */}
+            {isProcessing && serialConnected && (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 size={32} className="text-accent animate-spin" />
+                <p className="text-sm font-medium">Обрабатываем...</p>
+              </div>
+            )}
+          </div>
+
+          {/* Кнопки управления USB */}
+          {!serialConnected ? (
+            <Button
+              size="lg"
+              onClick={connect}
+              disabled={serialConnecting}
+              className="w-full"
+            >
+              {serialConnecting
+                ? <><Loader2 size={18} className="mr-2 animate-spin" />Подключение...</>
+                : <><Usb size={18} className="mr-2" />Подключить сканер</>}
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={disconnect}
+              className="w-full"
+            >
+              Отключить сканер
+            </Button>
+          )}
+
+          {!isSupported && (
+            <p className="text-xs text-muted-foreground text-center">
+              Web Serial API не поддерживается. Используйте Chrome или Edge.
+            </p>
+          )}
         </div>
+      )}
+
+      {/* ── Режим камеры (оригинальный код) ──────────────────────────────── */}
+      {mode === 'camera' && (
+        <>
+          <div
+            ref={containerRef}
+            className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container rounded-xl"
+          >
+            <div id="qr-reader" className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&>img]:hidden" />
+
+            {isScanning && (
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-[8%] border-2 border-white/80 rounded-lg">
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-lg" />
+                  {!isProcessing && (
+                    <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-scan-line shadow-[0_0_8px_hsl(var(--accent))]" />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isProcessing && isScanning && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/50 pointer-events-none">
+                <Loader2 size={40} className="text-white animate-spin" />
+                <p className="text-white font-medium">Обрабатываем...</p>
+              </div>
+            )}
+
+            {!isScanning && !isStarting && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-secondary px-6">
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                  <Camera size={40} className="text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-center text-sm">
+                  {error || 'Нажмите кнопку для запуска камеры'}
+                </p>
+                <Button size="lg" onClick={startScanner} className="w-full max-w-[220px]">
+                  <Camera size={20} className="mr-2" />
+                  {error ? 'Попробовать снова' : 'Открыть камеру'}
+                </Button>
+              </div>
+            )}
+
+            {isStarting && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary">
+                <Loader2 size={40} className="text-muted-foreground animate-spin" />
+                <p className="text-muted-foreground text-center px-4">Запускаем камеру...</p>
+              </div>
+            )}
+          </div>
+
+          {isScanning && !isProcessing && (
+            <div className="flex items-center gap-3 w-full">
+              <Button size="lg" onClick={startScanner} className="w-full">
+                ✅ Сканировать QR
+              </Button>
+            </div>
+          )}
+
+          {isScanning && !isProcessing && (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-sm text-muted-foreground text-center">
+                Наведите камеру на QR-код клиента
+              </p>
+              <p className="text-xs text-red-500 text-center font-medium">
+                Нажмите ✅ Сканировать QR если код не сканируется!
+              </p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

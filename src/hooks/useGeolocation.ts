@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 const LOCATION_CACHE_KEY = 'geolocation_cache';
 const PERMISSION_KEY = 'geolocation_permission';
@@ -80,18 +81,20 @@ export function useGeolocation(options?: PositionOptions) {
     setState({ latitude, longitude, accuracy, loading: false, error: null, permissionDenied: false });
   }, []);
 
-  const handleError = useCallback((error: GeolocationPositionError) => {
+  const handleError = useCallback((error: any) => {
     if (!isMountedRef.current) return;
-    const isDenied = error.code === error.PERMISSION_DENIED;
+    const message = error?.message || 'Ошибка геолокации';
+    // code 1 === PERMISSION_DENIED (web). Native plugin reports denial via message.
+    const isDenied = error?.code === 1 || /denied|permission/i.test(message);
     if (isDenied) setStoredPermissionState('denied');
-    setState(prev => ({ ...prev, loading: false, error: error.message, permissionDenied: isDenied }));
+    setState(prev => ({ ...prev, loading: false, error: message, permissionDenied: isDenied }));
   }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
-    
-    if (getStoredPermissionState() === 'denied' || !navigator.geolocation) {
-      setState(prev => ({ ...prev, loading: false, error: !navigator.geolocation ? 'Геолокация не поддерживается' : prev.error, permissionDenied: getStoredPermissionState() === 'denied' }));
+
+    if (getStoredPermissionState() === 'denied') {
+      setState(prev => ({ ...prev, loading: false, permissionDenied: true }));
       return;
     }
 
@@ -102,7 +105,46 @@ export function useGeolocation(options?: PositionOptions) {
       ...options,
     };
 
-    // Start watching position immediately for real-time updates every 2-4s
+    // Native (iOS + Android): use the Capacitor Geolocation plugin.
+    // navigator.geolocation does NOT work in iOS WKWebView, and the plugin is
+    // the reliable native path on Android too.
+    if (Capacitor.isNativePlatform()) {
+      let nativeWatchId: string | null = null;
+      let cancelled = false;
+      (async () => {
+        try {
+          const { Geolocation } = await import('@capacitor/geolocation');
+          const id = await Geolocation.watchPosition(positionOptions, (position, err) => {
+            if (err) { handleError(err); return; }
+            if (position) updatePosition(position as unknown as GeolocationPosition);
+          });
+          if (cancelled) {
+            Geolocation.clearWatch({ id });
+          } else {
+            nativeWatchId = id;
+          }
+        } catch (e) {
+          handleError(e);
+        }
+      })();
+
+      return () => {
+        isMountedRef.current = false;
+        cancelled = true;
+        if (nativeWatchId) {
+          import('@capacitor/geolocation').then(({ Geolocation }) =>
+            Geolocation.clearWatch({ id: nativeWatchId! })
+          ).catch(() => {});
+        }
+      };
+    }
+
+    // Web: browser geolocation
+    if (!navigator.geolocation) {
+      setState(prev => ({ ...prev, loading: false, error: 'Геолокация не поддерживается' }));
+      return;
+    }
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       updatePosition,
       handleError,

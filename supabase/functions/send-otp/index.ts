@@ -57,10 +57,21 @@ Deno.serve(async (req) => {
       )
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const smscLogin = Deno.env.get('SMSC_LOGIN')
-    const smscPassword = Deno.env.get('SMSC_PASSWORD')
+    // Store-review test account: never sends a real SMS. The code is fixed and
+    // accepted in verify-otp, so Google/Apple reviewers can sign in.
+    if (formattedPhone === '+77000000000') {
+      return new Response(
+        JSON.stringify({ success: true, message: 'Код отправлен', phone: formattedPhone }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    let workerEnv: Record<string, string> = {}
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}') } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL']
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY']
+    const smscLogin = Deno.env.get('SMSC_LOGIN') || workerEnv['SMSC_LOGIN']
+    const smscPassword = Deno.env.get('SMSC_PASSWORD') || workerEnv['SMSC_PASSWORD']
 
     if (!smscLogin || !smscPassword) {
       console.error('SMSC credentials not configured!')
@@ -115,9 +126,9 @@ Deno.serve(async (req) => {
 
     if (channel === 'whatsapp') {
       // Send via Infobip WhatsApp
-      const infobipApiKey = Deno.env.get('INFOBIP_API_KEY')
-      const infobipBaseUrl = Deno.env.get('INFOBIP_BASE_URL')
-      const infobipSender = Deno.env.get('INFOBIP_WHATSAPP_SENDER')
+      const infobipApiKey = Deno.env.get('INFOBIP_API_KEY') || workerEnv['INFOBIP_API_KEY']
+      const infobipBaseUrl = Deno.env.get('INFOBIP_BASE_URL') || workerEnv['INFOBIP_BASE_URL']
+      const infobipSender = Deno.env.get('INFOBIP_WHATSAPP_SENDER') || workerEnv['INFOBIP_WHATSAPP_SENDER']
 
       if (!infobipApiKey || !infobipBaseUrl || !infobipSender) {
         console.error('Infobip credentials not configured!')

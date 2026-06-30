@@ -212,7 +212,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
           ) : (
             <>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('auth.smsCode')}</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{channel === 'whatsapp' ? t('auth.whatsappCode') : t('auth.smsCode')}</label>
                 <input
                   type="text" inputMode="numeric" placeholder="0000" value={code}
                   onChange={e => {

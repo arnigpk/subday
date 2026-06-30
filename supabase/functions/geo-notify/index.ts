@@ -58,9 +58,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const supabase = createClient(supabaseUrl!, serviceKey!);
     const logger = createEdgeLogger('geo-notify', supabase);
 
     // 1. Auth user
@@ -276,7 +278,7 @@ Deno.serve(async (req) => {
     let pushSent = 0;
     let pushFailed = 0;
     {
-      const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+      const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT') || workerEnv['FCM_SERVICE_ACCOUNT']);
       if (!serviceAccount) {
         if (parseError) logger.error('fcm_service_account_invalid', { user_id: user.id, parseError });
       } else {

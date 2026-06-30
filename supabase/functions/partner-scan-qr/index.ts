@@ -54,9 +54,11 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
     const logger = createEdgeLogger('partner-scan-qr', supabase);
 
     const token = authHeader.replace('Bearer ', '');
@@ -244,21 +246,27 @@ Deno.serve(async (req) => {
     // Check daily limit + get subscription info
     const { data: subscriptions } = await supabase
       .from('user_subscriptions')
-      .select(`id, expires_at, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name )`)
+      .select(`id, expires_at, is_frozen, freeze_until, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name )`)
       .eq('user_id', userId).eq('is_active', true);
 
     interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
 
     const now = new Date();
+    const isFrozenNow = (s: any) => s.is_frozen && s.freeze_until && new Date(s.freeze_until) > now;
     const matchingSub = subscriptions?.find(s => {
       const st = s.subscription_types as unknown as SubTypeInfo | null;
       const notExpired = !s.expires_at || new Date(s.expires_at) > now;
-      return st && st.type === drinkType && notExpired;
+      return st && st.type === drinkType && notExpired && !isFrozenNow(s);
     });
 
     // Block if no valid active subscription found (expired by date even if cups remain)
     if (!matchingSub) {
-      return new Response(JSON.stringify({ error: 'Подписка истекла или не активна' }),
+      // Distinguish a frozen subscription for a clearer message.
+      const frozenSub = subscriptions?.find(s => {
+        const st = s.subscription_types as unknown as SubTypeInfo | null;
+        return st && st.type === drinkType && isFrozenNow(s);
+      });
+      return new Response(JSON.stringify({ error: frozenSub ? 'Подписка заморожена' : 'Подписка истекла или не активна' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const subTypes = matchingSub?.subscription_types as unknown as SubTypeInfo | null;
@@ -324,8 +332,6 @@ Deno.serve(async (req) => {
           } else {
             logger.info('subscription_deactivated', { user_id: userId, subscription_id: matchingSub.id, drink_type: drinkType });
             // Notify user that subscription ran out of cups
-            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-            const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
             fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },

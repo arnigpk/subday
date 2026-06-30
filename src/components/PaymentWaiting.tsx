@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Loader2, X, ExternalLink } from 'lucide-react';
 
 interface PaymentWaitingProps {
@@ -28,7 +29,7 @@ export function PaymentWaiting({ paymentUrl, onClose }: PaymentWaitingProps) {
 
         {paymentUrl && (
           <button
-            onClick={() => window.open(paymentUrl, '_blank')}
+            onClick={() => window.open(paymentUrl, Capacitor.isNativePlatform() ? '_system' : '_blank')}
             className="flex items-center gap-2 text-sm text-accent font-medium"
           >
             <ExternalLink size={14} />

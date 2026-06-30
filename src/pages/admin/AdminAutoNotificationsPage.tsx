@@ -62,6 +62,7 @@ const triggerLabels: Record<string, string> = {
   admin_payment: 'Новая оплата подписки',
   admin_payment_special: 'Оплата (спецпредложение)',
   guest_coffee: 'Подарок кофе от друга',
+  guest_coffee_expiring: '⏰ Гостевой кофе заканчивается (1 день)',
   subscription_expired: 'Подписка закончилась',
   geo_proximity: '📍 Гео: рядом кофейня',
 };
@@ -105,7 +106,8 @@ const defaultMessages: Record<string, string> = {
   admin_register_telegram: '🆕 Новая регистрация через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
   admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
-  guest_coffee: 'Поздравляем, ваш друг подарил вам 1 кофе на 10 дней, попробуйте subday 💚',
+  guest_coffee: 'Поздравляем, друг подарил вам гостевой кофе на 14 дней, попробуйте subday 💚',
+  guest_coffee_expiring: 'Успейте воспользоваться Гостевым кофе, завтра закончится!',
   subscription_expired: '❌ Ваша подписка {{subscription_name}} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
   geo_proximity: 'Загляни на кофе по подписке: {{shops_inline}}',
@@ -177,7 +179,7 @@ export default function AdminAutoNotificationsPage() {
 
   const handleTriggerTypeChange = (v: string) => {
     const updates: any = { trigger_type: v };
-    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v)) && !editingTemplate) {
+    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v) || v === 'guest_coffee_expiring') && !editingTemplate) {
       updates.message_template = defaultMessages[v] || '';
       if (!form.name) {
         updates.name = triggerLabels[v] || '';
@@ -473,6 +475,7 @@ export default function AdminAutoNotificationsPage() {
                   <SelectItem value="admin_payment">🎉 Оплата подписки</SelectItem>
                   <SelectItem value="admin_payment_special">🎉 Оплата (спецпредложение)</SelectItem>
                   <SelectItem value="guest_coffee">🎁 Подарок кофе от друга</SelectItem>
+                  <SelectItem value="guest_coffee_expiring">⏰ Гостевой кофе заканчивается (1 день)</SelectItem>
                   <SelectItem value="subscription_expired">❌ Подписка закончилась</SelectItem>
                   <SelectItem value="geo_proximity">📍 Гео: рядом кофейня</SelectItem>
                 </SelectContent>

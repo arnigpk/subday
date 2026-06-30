@@ -86,7 +86,9 @@ serve(async (req) => {
       );
     }
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'];
     if (!botToken) {
       console.error('TELEGRAM_BOT_TOKEN not set');
       return new Response(
@@ -106,8 +108,8 @@ serve(async (req) => {
     }
 
     // Create Supabase admin client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = (Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'])!;
+    const supabaseServiceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'])!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const telegramId = authData.id.toString();

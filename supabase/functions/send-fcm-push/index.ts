@@ -27,9 +27,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
+    // Self-hosted edge runtime delivers secrets via the `x-worker-env` header,
+    // not always through Deno.env. Read both — same pattern as the payment
+    // webhooks — otherwise createClient() throws "supabaseUrl is required".
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT') || workerEnv['FCM_SERVICE_ACCOUNT'];
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(JSON.stringify({ error: 'Backend not configured (missing SUPABASE_URL / service role key)' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { serviceAccount, diagnostics, parseError } = parseFcmServiceAccount(fcmServiceAccountJson);
     let pushConfigError: string | null = parseError;
@@ -150,21 +163,38 @@ Deno.serve(async (req) => {
 
     // Get FCM tokens from device_tokens table (all platforms — let FCM
     // reject unregistered tokens; we clean them up below).
-    let query = supabase.from('device_tokens').select('token, user_id');
-    if (filteredUserIds !== null) {
-      query = query.in('user_id', filteredUserIds);
-    }
-
-    const { data: tokens, error: tokensError } = await query;
-    if (tokensError) {
+    // NOTE: when an audience filter is applied we must NOT pass the whole
+    // user-id list to a single .in() — a large list overflows the request
+    // URL length limit and the query fails with a 500. Fetch in chunks,
+    // same as createInAppNotifications / fetchRecipientsMeta do.
+    let deviceTokens: { token: string; user_id: string }[] = [];
+    try {
+      if (filteredUserIds === null) {
+        // 'all' audience — no filter, single query for every token.
+        const { data, error } = await supabase
+          .from('device_tokens')
+          .select('token, user_id');
+        if (error) throw error;
+        deviceTokens = data || [];
+      } else {
+        const CHUNK = 100;
+        for (let i = 0; i < filteredUserIds.length; i += CHUNK) {
+          const batch = filteredUserIds.slice(i, i + CHUNK);
+          const { data, error } = await supabase
+            .from('device_tokens')
+            .select('token, user_id')
+            .in('user_id', batch);
+          if (error) throw error;
+          if (data) deviceTokens.push(...data);
+        }
+      }
+    } catch (tokensError) {
       console.error('Error fetching tokens:', tokensError);
       return new Response(JSON.stringify({ error: 'Failed to fetch device tokens' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const deviceTokens = tokens || [];
 
     let successCount = 0;
     let failCount = 0;

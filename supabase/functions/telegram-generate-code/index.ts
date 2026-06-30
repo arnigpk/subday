@@ -12,8 +12,10 @@ Deno.serve(async (req) => {
 
   try {
     const { telegram_id, first_name, last_name, username, photo_url, bot_token } = await req.json();
-    
-    const expectedToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const expectedToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'];
     if (!expectedToken || bot_token !== expectedToken) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -28,8 +30,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = (Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'])!;
+    const supabaseServiceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'])!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });

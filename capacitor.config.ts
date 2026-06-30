@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.subday.app',
+  appId: 'app.subday.vhod',
   appName: 'subday',
   webDir: 'dist',
   plugins: {

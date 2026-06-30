@@ -17,18 +17,24 @@ interface ScanResult {
 
 export default function PartnerScanPage() {
   const { shopId } = usePartnerAuth();
+const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  && !(window as any).Capacitor?.isNativePlatform?.()
+  && !(window as any).Telegram?.WebApp?.initData;
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const { playSuccessSound } = useSuccessSound();
   const { vibrateSuccess } = useVibration();
   const autoResetRef = useRef<NodeJS.Timeout | null>(null);
+  const isProcessingRef = useRef(false);
+  const processingStartRef = useRef<number>(0);
 
-  // Auto-reset result after 2.5 seconds
   useEffect(() => {
     if (result) {
       autoResetRef.current = setTimeout(() => {
         setResult(null);
+        isProcessingRef.current = false;
+        setIsProcessing(false);
       }, 2500);
     }
     return () => {
@@ -36,9 +42,34 @@ export default function PartnerScanPage() {
     };
   }, [result]);
 
-  const handleScan = async (qrData: string) => {
-    if (isProcessing || !shopId) return;
+  // Принудительный сброс зависшего состояния при возврате на вкладку
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Если вкладка снова активна, а обработка висит без результата — сбрасываем
+        if (isProcessingRef.current && !result) {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [result]);
 
+  const resetProcessing = () => {
+    isProcessingRef.current = false;
+    setIsProcessing(false);
+  };
+
+  const handleScan = async (qrData: string) => {
+    if (isProcessingRef.current) {
+      const stuck = Date.now() - processingStartRef.current > 10_000;
+      if (!stuck) return;
+    }
+    if (!shopId) return;
+    isProcessingRef.current = true;
+    processingStartRef.current = Date.now();
     setIsProcessing(true);
     setResult(null);
 
@@ -48,11 +79,10 @@ export default function PartnerScanPage() {
         data = JSON.parse(qrData);
       } catch {
         setResult({ success: false, message: 'Неверный формат QR-кода' });
-        setIsProcessing(false);
+        resetProcessing();
         return;
       }
 
-      // Handle preorder QR
       if (data.type === 'subday_preorder') {
         try {
           const { data: preorder, error: fetchErr } = await supabase
@@ -63,48 +93,51 @@ export default function PartnerScanPage() {
 
           if (fetchErr || !preorder) {
             setResult({ success: false, message: 'Предзаказ не найден' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
-
           if (preorder.shop_id !== shopId) {
             setResult({ success: false, message: 'Этот предзаказ для другой кофейни' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
-
           if (preorder.status === 'cancelled') {
             setResult({ success: false, message: 'Этот предзаказ отменён' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
-
           if (preorder.status === 'expired') {
             setResult({ success: false, message: 'Этот предзаказ закрыт (истёк срок)' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
-
           if (preorder.status === 'completed' || preorder.qr_scanned) {
             setResult({ success: false, message: 'Этот QR-код уже использован' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
 
           const { data: { user } } = await supabase.auth.getUser();
           const { error: updateErr } = await supabase
             .from('preorders')
-            .update({ status: 'completed', completed_by: user?.id, completed_at: new Date().toISOString(), qr_scanned: true })
+            .update({
+              status: 'completed',
+              completed_by: user?.id,
+              completed_at: new Date().toISOString(),
+              qr_scanned: true,
+            })
             .eq('id', preorder.id)
             .eq('qr_scanned', false);
 
           if (updateErr) {
             setResult({ success: false, message: 'Ошибка при обновлении предзаказа' });
-            setIsProcessing(false);
+            resetProcessing();
             return;
           }
 
-          const drinkDesc = preorder.syrup ? `${preorder.coffee_name} + ${preorder.syrup}` : preorder.coffee_name;
+          const drinkDesc = preorder.syrup
+            ? `${preorder.coffee_name} + ${preorder.syrup}`
+            : preorder.coffee_name;
           setResult({ success: true, message: 'Предзаказ выдан!', drinkName: drinkDesc });
           setShowConfetti(true);
           playSuccessSound();
@@ -114,30 +147,30 @@ export default function PartnerScanPage() {
           console.error('Preorder scan error:', err);
           setResult({ success: false, message: 'Ошибка обработки предзаказа' });
         }
-        setIsProcessing(false);
+        resetProcessing();
         return;
       }
 
       if (data.type !== 'subday_redeem') {
         setResult({ success: false, message: 'Это не QR-код SubDay' });
-        setIsProcessing(false);
+        resetProcessing();
         return;
       }
 
       if (data.shopId !== shopId) {
         setResult({ success: false, message: 'Этот QR принадлежит другой кофейне' });
-        setIsProcessing(false);
+        resetProcessing();
         return;
       }
 
-      // 120s tolerance (vs. the 60s client refresh interval) to absorb clock
-      // skew between the customer's and partner's devices plus scan latency.
-      const now = Date.now();
-      if (now - data.timestamp > 120_000) {
-        setResult({ success: false, message: 'QR-код просрочен, попросите обновить' });
-        setIsProcessing(false);
-        return;
-      }
+      // No client-clock expiry check here. The QR timestamp is set by the customer's
+      // device and was previously compared against the partner's device clock — any
+      // skew between the two phones produced false "QR expired" errors even for a
+      // freshly refreshed code (intermittently, depending on where in the 60s cycle
+      // the scan landed). The server (partner-scan-qr) already validates role, shop,
+      // balance, daily limit and frozen state, and the cup is always deducted from the
+      // customer's own paid balance — so the timestamp added no real protection.
+      // Redemption is now reliable regardless of the two devices' clocks.
 
       const { data: response, error } = await supabase.functions.invoke('partner-scan-qr', {
         body: {
@@ -151,13 +184,21 @@ export default function PartnerScanPage() {
       if (error) {
         console.error('Edge function error:', error);
         setResult({ success: false, message: 'Ошибка при обработке. Попробуйте ещё раз.' });
-        setIsProcessing(false);
+        resetProcessing();
+        return;
+      }
+
+      // Жёсткая проверка ответа: успехом считаем ТОЛЬКО явный success: true
+      if (!response || typeof response !== 'object') {
+        console.error('Empty/invalid response:', response);
+        setResult({ success: false, message: 'Нет ответа от сервера. Попробуйте ещё раз.' });
+        resetProcessing();
         return;
       }
 
       if (response.error) {
         setResult({ success: false, message: response.error });
-      } else {
+      } else if (response.success === true) {
         setResult({
           success: true,
           message: 'Успешно списано!',
@@ -169,27 +210,38 @@ export default function PartnerScanPage() {
         playSuccessSound();
         vibrateSuccess();
         setTimeout(() => setShowConfetti(false), 2000);
+      } else {
+        // Сервер ответил, но без явного успеха — НЕ показываем ложный успех
+        console.error('Unexpected response shape:', response);
+        setResult({ success: false, message: 'Списание не подтверждено. Попробуйте ещё раз.' });
       }
     } catch (error) {
       console.error('Scan processing error:', error);
       setResult({ success: false, message: 'Произошла ошибка. Попробуйте ещё раз.' });
     } finally {
-      setIsProcessing(false);
+      resetProcessing();
     }
   };
 
   return (
     <PartnerLayout>
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-foreground text-center px-4 pt-4">
-          Сканер QR-кодов
-        </h2>
-
-        {/* Scanner is ALWAYS mounted — never unmounted/remounted */}
+        <div className="flex items-center justify-center gap-3 px-4 pt-4">
+  <h2 className="text-xl font-bold text-foreground text-center">
+    Сканер QR-кодов
+  </h2>
+  {isDesktop && (
+    <button
+      onClick={() => window.location.reload()}
+      className="p-2 rounded-lg bg-secondary hover:bg-muted transition-colors"
+      title="Обновить страницу"
+    >
+      Обновить сканер!
+    </button>
+  )}
+</div>
         <div className="px-4 relative">
           <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
-
-          {/* Result overlay on top of scanner */}
           {result && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="bg-background/95 backdrop-blur-sm rounded-2xl p-6 mx-4 w-full max-w-sm shadow-xl animate-scale-in">
@@ -202,7 +254,6 @@ export default function PartnerScanPage() {
             </div>
           )}
         </div>
-
         <div className="flex items-start gap-3 p-4 mx-4 bg-amber-500/10 rounded-xl">
           <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
@@ -238,11 +289,9 @@ function SuccessResult({ result, showConfetti }: { result: ScanResult; showConfe
           ))}
         </div>
       )}
-
       <div className="w-20 h-20 rounded-full bg-accent flex items-center justify-center shadow-glow animate-pop">
         <Check size={40} strokeWidth={3} className="text-accent-foreground" />
       </div>
-
       <div className="text-center space-y-1">
         <p className="text-xl font-black text-accent">Успешно!</p>
         {result.customerName && (

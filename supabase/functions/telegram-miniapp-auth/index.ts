@@ -40,6 +40,7 @@ async function validateTelegramWebAppData(initData: string, botToken: string): P
 
 async function sendAdminNotification(
   supabase: any,
+  env: Record<string, string>,
   triggerType: string,
   variables: Record<string, string>
 ): Promise<void> {
@@ -53,8 +54,8 @@ async function sendAdminNotification(
 
     if (!template) return;
 
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN'];
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID'];
     if (!notificationBotToken || !chatId) return;
 
     let message = template.message_template;
@@ -95,9 +96,11 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    const botToken = (Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'])!;
+    const supabaseUrl = (Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'])!;
+    const supabaseServiceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'])!;
     
     const isValid = await validateTelegramWebAppData(initData, botToken);
     if (!isValid) {
@@ -138,7 +141,7 @@ Deno.serve(async (req) => {
     });
 
     if (signInData?.session) {
-      sendAdminNotification(supabase, 'admin_login_miniapp', {
+      sendAdminNotification(supabase, workerEnv, 'admin_login_miniapp', {
         name: displayName,
         telegram: telegramText,
         time: timeStr,
@@ -184,7 +187,7 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      sendAdminNotification(supabase, 'admin_register_miniapp', {
+      sendAdminNotification(supabase, workerEnv, 'admin_register_miniapp', {
         name: displayName,
         telegram: telegramText,
         time: timeStr,

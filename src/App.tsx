@@ -130,6 +130,15 @@ function DeepLinkHandler() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
+    // Native status bar: dark icons on the light theme + matching background.
+    // (Only style/color — no overlay change, so layout is untouched.)
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+      if (Capacitor.getPlatform() === 'android') {
+        StatusBar.setBackgroundColor({ color: '#f5f0e8' }).catch(() => {});
+      }
+    }).catch(() => {});
+
     // Handle deep link when app is opened via URL
     const handleAppUrlOpen = (data: { url: string }) => {
       try {
@@ -409,7 +418,17 @@ const AppContent = () => {
   const handleAuthComplete = (isNewUser?: boolean) => {
     maybeShowOnboarding(!!isNewUser);
   };
-  
+
+  // Privacy policy must be reachable WITHOUT login — it's a public URL requirement
+  // for Google Play / App Store review. Render it before the auth gate & preloader.
+  if (typeof window !== 'undefined' && window.location.pathname === '/privacy') {
+    return (
+      <BrowserRouter>
+        <PrivacyPolicyPage />
+      </BrowserRouter>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-[#FAF9F6] overflow-hidden">

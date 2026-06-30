@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "77776210321",
+    "project_id": "subday-group",
+    "storage_bucket": "subday-group.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:77776210321:android:9ede10c61fee0683f83230",
+        "android_client_info": {
+          "package_name": "app.subday.vhod"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqth8IVeZqD9aGlqIQKoO7amaXO47D67c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

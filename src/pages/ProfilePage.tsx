@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Link } from 'react-router-dom';
 import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
-import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled } from '@tabler/icons-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled, IconSnowflake } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -33,6 +34,10 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCityDialog, setShowCityDialog] = useState(false);
+  const [showFreezeDialog, setShowFreezeDialog] = useState(false);
+  const [showUnfreezeDialog, setShowUnfreezeDialog] = useState(false);
+  const [freezeDays, setFreezeDays] = useState(7);
+  const [freezeLoading, setFreezeLoading] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
@@ -110,7 +115,57 @@ export default function ProfilePage() {
     }
   };
   
-  const handleSupportClick = () => window.open('https://api.whatsapp.com/send/?phone=77077000994', '_blank');
+  const handleSupportClick = () => window.open('https://api.whatsapp.com/send/?phone=77077000994', Capacitor.isNativePlatform() ? '_system' : '_blank');
+
+  const isFrozen = activeSubscriptions.some(s => s.is_frozen);
+  const freezeUsed = activeSubscriptions.some(s => s.freeze_used);
+
+  const handleFreeze = async () => {
+    setFreezeLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('freeze_subscription', { _days: freezeDays });
+      const ok = !error && (data as any)?.success;
+      if (!ok) {
+        const code = (data as any)?.error;
+        const map: Record<string, string> = {
+          already_frozen: 'Подписка уже заморожена',
+          freeze_already_used: 'Заморозку можно использовать один раз за подписку',
+          no_active_subscription: 'Нет активной подписки',
+          invalid_days: 'Некорректный срок заморозки',
+        };
+        toast.error(map[code] || 'Не удалось заморозить подписку');
+        return;
+      }
+      toast.success(`Подписка заморожена на ${freezeDays} дней`);
+      setShowFreezeDialog(false);
+      await refetchSubscription();
+    } catch (e) {
+      console.error('Freeze error:', e);
+      toast.error('Ошибка');
+    } finally {
+      setFreezeLoading(false);
+    }
+  };
+
+  const handleUnfreeze = async () => {
+    setFreezeLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('unfreeze_subscription');
+      const ok = !error && (data as any)?.success;
+      if (!ok) {
+        toast.error('Не удалось разморозить подписку');
+        return;
+      }
+      toast.success('Подписка разморожена');
+      setShowUnfreezeDialog(false);
+      await refetchSubscription();
+    } catch (e) {
+      console.error('Unfreeze error:', e);
+      toast.error('Ошибка');
+    } finally {
+      setFreezeLoading(false);
+    }
+  };
   
   const toggleTheme = () => { setIsDark(!isDark); document.documentElement.classList.toggle('dark'); };
   
@@ -203,6 +258,9 @@ export default function ProfilePage() {
     { icon: IconMapPin, label: t('profile.city'), value: `${getCountryFlag(profile?.country)} ${profile?.city || 'Атырау'}`, type: 'city' as const },
     { icon: IconBell, label: t('profile.notifications'), type: 'notification' as const },
     { icon: IconMessageCircleUser, label: t('profile.support'), type: 'support' as const },
+    ...(activeSubscriptions.length > 0 && (isFrozen || !freezeUsed)
+      ? [{ icon: IconSnowflake, label: isFrozen ? 'Разморозить подписку' : 'Заморозить подписку', type: 'freeze' as const }]
+      : []),
     { icon: IconFileText, label: t('profile.rules'), type: 'rules' as const },
   ];
   
@@ -334,6 +392,15 @@ export default function ProfilePage() {
                 return (
                   <button key={item.label} onClick={handleSupportClick} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
+                    <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
+                    <IconChevronRight size={18} className="text-muted-foreground" />
+                  </button>
+                );
+              }
+              if (item.type === 'freeze') {
+                return (
+                  <button key={item.label} onClick={() => (isFrozen ? setShowUnfreezeDialog(true) : setShowFreezeDialog(true))} className="w-full card-interactive flex items-center gap-3">
+                    <Icon size={20} className={isFrozen ? 'text-primary' : 'text-muted-foreground'} />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     <IconChevronRight size={18} className="text-muted-foreground" />
                   </button>
@@ -506,6 +573,72 @@ export default function ProfilePage() {
                     checked={geoNotifEnabled}
                     onCheckedChange={handleGeoNotifToggle}
                   />
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Freeze subscription dialog */}
+          <Dialog open={showFreezeDialog} onOpenChange={setShowFreezeDialog}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <IconSnowflake size={20} className="text-primary" /> Заморозить подписку
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  На время заморозки подписка приостановлена, а срок её действия продлевается на выбранное количество дней.
+                </p>
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">Срок заморозки</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[7, 10, 14].map(d => (
+                      <button
+                        key={d}
+                        onClick={() => setFreezeDays(d)}
+                        className={`py-3 rounded-xl font-bold transition border ${freezeDays === d ? 'bg-primary/10 border-primary text-primary' : 'bg-muted border-transparent text-foreground'}`}
+                      >
+                        {d} дней
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={handleFreeze}
+                  disabled={freezeLoading}
+                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-50"
+                >
+                  {freezeLoading ? 'Замораживаем…' : 'Заморозить'}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Unfreeze confirmation dialog */}
+          <Dialog open={showUnfreezeDialog} onOpenChange={setShowUnfreezeDialog}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">Разморозить подписку прямо сейчас?</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Подписка снова станет активной ровно на тот срок, что оставался на момент заморозки.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowUnfreezeDialog(false)}
+                    className="flex-1 py-3 rounded-xl bg-muted font-bold text-foreground"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleUnfreeze}
+                    disabled={freezeLoading}
+                    className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-50"
+                  >
+                    {freezeLoading ? '…' : 'Да'}
+                  </button>
                 </div>
               </div>
             </DialogContent>

@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 interface NotificationRequest {
-  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon' | 'guest_coffee' | 'subscription_expired';
+  type: 'activated' | 'activated_special' | 'low_balance' | 'expiring_soon' | 'guest_coffee' | 'subscription_expired' | 'guest_coffee_expiring';
   userId: string;
   cupsCount?: number;
   daysCount?: number;
@@ -61,8 +61,9 @@ async function sendFcmPushToUser(
   userId: string,
   title: string,
   body: string,
+  fcmServiceAccountJson: string | undefined,
 ): Promise<{ sent: number; failed: number }> {
-  const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+  const { serviceAccount, parseError } = parseFcmServiceAccount(fcmServiceAccountJson);
   if (!serviceAccount) {
     console.warn('FCM key unavailable:', parseError);
     return { sent: 0, failed: 0 };
@@ -140,6 +141,7 @@ function getNotificationTitle(type: string): string {
     case 'low_balance': return '⚠️ Низкий баланс';
     case 'expiring_soon': return '⚠️ Подписка заканчивается';
     case 'subscription_expired': return '❌ Подписка закончилась';
+    case 'guest_coffee_expiring': return '⏰ Гостевой кофе заканчивается';
     case 'guest_coffee': return '🎁 Подарок кофе';
     default: return '📢 Уведомление';
   }
@@ -163,9 +165,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+    // Self-hosted edge runtime delivers secrets via the `x-worker-env` header,
+    // not always through Deno.env — read both, same as the payment webhooks.
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+    const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'];
+    const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT') || workerEnv['FCM_SERVICE_ACCOUNT'];
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ error: 'Backend not configured (missing SUPABASE_URL / service role key)' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -191,7 +206,7 @@ Deno.serve(async (req) => {
             matchedTemplate = tmpl;
             break;
           }
-        } else if (type === 'activated' || type === 'activated_special' || type === 'guest_coffee' || type === 'subscription_expired') {
+        } else if (type === 'activated' || type === 'activated_special' || type === 'guest_coffee' || type === 'subscription_expired' || type === 'guest_coffee_expiring') {
           matchedTemplate = tmpl;
           break;
         }
@@ -218,7 +233,9 @@ Deno.serve(async (req) => {
 
     // Build message - use template if available, otherwise use defaults
     let message: string;
-    const count = type === 'low_balance' ? (cupsCount || 5) : (daysCount || 5);
+    const count = type === 'low_balance' ? (cupsCount || 5)
+      : type === 'guest_coffee' ? (cupsCount || 1)
+      : (daysCount || 5);
     const unit = type === 'low_balance' 
       ? getUnitWord(count, drinkType)
       : getDaysWord(count);
@@ -240,7 +257,9 @@ Deno.serve(async (req) => {
       } else if (type === 'expiring_soon') {
         message = `⚠️ У вас осталось ${count} ${unit} до окончания подписки ${subName}`;
       } else if (type === 'subscription_expired') {
-        message = `❌ Ваша подписка ${subName} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕`;
+        message = `🥺 Ваша подписка ${subName} закончилась. Оформите новую подписку, чтобы продолжить пользоваться subday ☕`;
+      } else if (type === 'guest_coffee_expiring') {
+        message = `Успейте воспользоваться Гостевым кофе, завтра закончится!`;
       } else if (type === 'guest_coffee') {
         message = `🎁 Вам подарили кофе! Попробуйте subday ☕`;
         if (giftMessage) message += `\n💬 «${giftMessage}»`;
@@ -287,7 +306,7 @@ Deno.serve(async (req) => {
       }
 
       // 2. Send actual FCM device push notification (always, if channel includes push)
-      fcmResult = await sendFcmPushToUser(supabase, userId, title, message);
+      fcmResult = await sendFcmPushToUser(supabase, userId, title, message, fcmServiceAccountJson);
       console.log('FCM push result:', fcmResult);
     }
 
