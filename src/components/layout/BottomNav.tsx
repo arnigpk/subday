@@ -1,10 +1,12 @@
 import { IconHomeInfinity, IconRosetteDiscountCheck, IconLiveView, IconUsersGroup, IconUserScan } from '@tabler/icons-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePrefetch } from '@/hooks/usePrefetch';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useVibration } from '@/hooks/useVibration';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 
 export function BottomNav() {
   const location = useLocation();
@@ -32,7 +34,27 @@ export function BottomNav() {
     if (isActive) vibrateShort();
     else vibrateSelection();
   }, [vibrateSelection, vibrateShort]);
-  
+
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      
+      const showP = Keyboard.addListener('keyboardWillShow', () => setKeyboardOpen(true));
+      const hideP = Keyboard.addListener('keyboardWillHide', () => setKeyboardOpen(false));
+      return () => {
+        showP.then((h) => h.remove());
+        hideP.then((h) => h.remove());
+      };
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setKeyboardOpen(window.innerHeight - vv.height > 150);
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+
+  if (keyboardOpen) return null;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 app-nav-shell px-3 pointer-events-none">
       <nav className="liquid-glass-nav app-nav-bar rounded-2xl max-w-lg mx-auto pointer-events-auto">
@@ -53,18 +75,14 @@ export function BottomNav() {
                     isActive ? 'text-accent' : 'text-foreground'
                   }`}
                 >
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.span
-                        layoutId="nav-pill"
-                        className="absolute inset-0 rounded-xl liquid-nav-pill"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                      />
-                    )}
-                  </AnimatePresence>
+                  {isActive && (
+                    <motion.span
+                      className="absolute inset-0 rounded-xl liquid-nav-pill"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                    />
+                  )}
                   <motion.div
                     animate={isActive 
                       ? { scale: 1.18, y: -2 } 

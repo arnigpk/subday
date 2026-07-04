@@ -98,7 +98,7 @@ export function useAllActiveStories(currentUserId: string | null) {
   // Realtime
   useEffect(() => {
     const channel = supabase
-      .channel('stories-realtime')
+      .channel(`stories-realtime-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'stories' },

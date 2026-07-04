@@ -128,24 +128,24 @@ export function PartnerActiveAds({ shopId }: PartnerActiveAdsProps) {
 
     const channels = [
       supabase
-        .channel('partner-banner-events-rt')
+        .channel('partner-banner-events-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, invalidateBannerAnalytics)
         .subscribe(),
       supabase
-        .channel('partner-banners-rt')
+        .channel('partner-banners-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
           queryClient.invalidateQueries({ queryKey: ['partner-all-banners'] });
           invalidateBannerAnalytics();
         })
         .subscribe(),
       supabase
-        .channel('partner-subflow-events-rt')
+        .channel('partner-subflow-events-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, invalidateSubflowAnalytics)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_reactions' }, invalidateSubflowAnalytics)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_comments' }, invalidateSubflowAnalytics)
         .subscribe(),
       supabase
-        .channel('partner-subflow-ads-rt')
+        .channel('partner-subflow-ads-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, () => {
           queryClient.invalidateQueries({ queryKey: ['partner-all-subflow-ads'] });
           invalidateSubflowAnalytics();

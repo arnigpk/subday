@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      autoHideTimeout: 2000,
+      launchShowDuration: 2000,
       backgroundColor: '#FAF9F6',
     },
     PushNotifications: {

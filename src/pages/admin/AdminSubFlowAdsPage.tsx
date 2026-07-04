@@ -151,17 +151,17 @@ export default function AdminSubFlowAdsPage() {
 
     const channels = [
       supabase
-        .channel('admin-subflow-ads-rt')
+        .channel('admin-subflow-ads-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ads' }, refresh)
         .subscribe(),
       supabase
-        .channel('admin-subflow-ad-analytics-rt')
+        .channel('admin-subflow-ad-analytics-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_events' }, refresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_reactions' }, refresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'subflow_ad_comments' }, refresh)
         .subscribe(),
       supabase
-        .channel('admin-ad-requests-rt')
+        .channel('admin-ad-requests-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_requests' }, refresh)
         .subscribe(),
     ];

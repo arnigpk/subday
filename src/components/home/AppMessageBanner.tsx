@@ -26,7 +26,7 @@ export function AppMessageBanner() {
 
     // Realtime: remove deleted/deactivated messages instantly
     const channel = supabase
-      .channel('app_messages_user')
+      .channel('app_messages_user-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'app_messages' }, (payload) => {
         const deletedId = (payload.old as any)?.id;
         if (deletedId) {

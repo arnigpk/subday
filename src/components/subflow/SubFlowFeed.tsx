@@ -291,7 +291,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   // Realtime
   useEffect(() => {
     const channel = supabase
-      .channel('subflow-realtime')
+      .channel('subflow-realtime-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, (payload) => {
         const newPost = payload.new as any;
         supabase.from('profiles').select('user_id, name, avatar_url, subflow_nickname').eq('user_id', newPost.user_id).single()

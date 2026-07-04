@@ -28,7 +28,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>app.subday.vhod</string>
+			<string>kz.subday.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>subday</string>
@@ -73,6 +73,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>remote-notification</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Микрофон используется при записи видео для постов #subFlow.</string>

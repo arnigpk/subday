@@ -128,7 +128,7 @@ export default function AdminBannersPage() {
 
   useEffect(() => {
     const bannersChannel = supabase
-      .channel('ad_banners_realtime')
+      .channel('ad_banners_realtime-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banners' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
         queryClient.invalidateQueries({ queryKey: ['admin-banner-stats'] });
@@ -136,7 +136,7 @@ export default function AdminBannersPage() {
       .subscribe();
 
     const eventsChannel = supabase
-      .channel('ad_banner_events_realtime')
+      .channel('ad_banner_events_realtime-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_banner_events' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-banner-stats'] });
       })

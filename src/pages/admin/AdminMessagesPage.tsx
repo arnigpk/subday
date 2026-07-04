@@ -55,7 +55,7 @@ export default function AdminMessagesPage() {
   useEffect(() => {
     fetchMessages();
     const channel = supabase
-      .channel('app_messages_admin')
+      .channel('app_messages_admin-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_messages' }, () => fetchMessages())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
