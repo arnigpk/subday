@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff, Snowflake } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
+import { haversineDistanceMeters } from '@/utils/haversine';
 
 interface QRSettings {
   qr_title: string;
@@ -54,6 +55,97 @@ interface ShopWithStatus extends Shop {
   isCurrentlyOpen: boolean;
 }
 
+// Единый маппинг строки кофейни из БД/кэша в ShopWithStatus.
+// Используется и для мгновенной инициализации из кэша, и после fetch.
+function mapShopRow(shop: any): ShopWithStatus {
+  const rawCoords = shop.coordinates;
+  let coords: Coordinate[] = [];
+  if (Array.isArray(rawCoords)) coords = rawCoords.filter((c: any) => c?.lat && c?.lng);
+  else if (rawCoords?.lat && rawCoords?.lng) coords = [rawCoords];
+  return {
+    ...shop,
+    addresses: shop.addresses || null,
+    supported_types: shop.supported_types || ['coffee'],
+    coordinates: coords,
+    isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
+  };
+}
+
+// Мгновенно достаём кофейни из кэша (для показа QR без ожидания сети).
+function getCachedShops(): ShopWithStatus[] {
+  try {
+    const cached = getCache<any[]>(CACHE_KEYS.shops);
+    if (cached?.data?.length) return cached.data.map(mapShopRow);
+  } catch { /* ignore */ }
+  return [];
+}
+
+// Кэшированная геолокация (её пишет PermissionsBootstrap) — чтобы синхронно
+// выбрать БЛИЖАЙШУЮ кофейню ещё до расчёта расстояний по live-геолокации.
+function getCachedLocation(): { lat: number; lng: number } | null {
+  try {
+    const raw = localStorage.getItem('geolocation_cache');
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (typeof p?.latitude === 'number' && typeof p?.longitude === 'number') {
+      return { lat: p.latitude, lng: p.longitude };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// Минимальное расстояние от точки до любого адреса кофейни.
+function minShopDistance(shop: ShopWithStatus, loc: { lat: number; lng: number }): number {
+  let min = Infinity;
+  for (const c of shop.coordinates || []) {
+    const lat = Number((c as any)?.lat);
+    const lng = Number((c as any)?.lng);
+    if (!isFinite(lat) || !isFinite(lng)) continue;
+    const d = haversineDistanceMeters(loc.lat, loc.lng, lat, lng);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+// Ближайшая ОТКРЫТАЯ кофейня по заданной геолокации (или null, если не определить).
+function pickNearestOpen(shops: ShopWithStatus[], loc: { lat: number; lng: number }): ShopWithStatus | null {
+  const open = shops.filter(s => s.isCurrentlyOpen);
+  const pool = open.length ? open : shops;
+  let best: ShopWithStatus | null = null;
+  let bestD = Infinity;
+  for (const s of pool) {
+    const d = minShopDistance(s, loc);
+    if (d < bestD) { bestD = d; best = s; }
+  }
+  return bestD === Infinity ? null : best;
+}
+
+// Название тарифа/гостевого доступа в бейдже: авто-подгонка размера шрифта,
+// чтобы текст ВСЕГДА помещался в одну строку при любой длине названия.
+function FitBadgeText({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [size, setSize] = useState(17);
+  useLayoutEffect(() => {
+    const span = ref.current;
+    const badge = span?.parentElement;
+    if (!span || !badge) return;
+    const cs = getComputedStyle(badge);
+    const avail = badge.clientWidth - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.paddingRight || '0');
+    let s = 17; // «чуть поменьше» прежнего (было ~20px)
+    span.style.fontSize = `${s}px`;
+    while (span.scrollWidth > avail && s > 12) {
+      s -= 1;
+      span.style.fontSize = `${s}px`;
+    }
+    setSize(s);
+  }, [text]);
+  return (
+    <span ref={ref} className="font-black text-accent whitespace-nowrap" style={{ fontSize: `${size}px` }}>
+      {text}
+    </span>
+  );
+}
+
 export default function RedeemPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,14 +159,44 @@ export default function RedeemPage() {
       return cached?.data?.userId || null;
     } catch { return null; }
   });
-  const [shops, setShops] = useState<ShopWithStatus[]>([]);
-  const [isLoadingShops, setIsLoadingShops] = useState(true);
-  const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(null);
+  // Инициализируем кофейни из кэша синхронно — чтобы QR показывался мгновенно
+  // при нажатии «Показать QR» / «Забрать здесь», не дожидаясь ответа сети.
+  // Свежие данные всё равно подгружаются в фоне (fetchShops) и заменяют кэш.
+  const [shops, setShops] = useState<ShopWithStatus[]>(() => getCachedShops());
+  const [isLoadingShops, setIsLoadingShops] = useState<boolean>(() => getCachedShops().length === 0);
+  // Первичный выбор кофейни (синхронно из кэша). locked=true, если выбор уверенный:
+  // пришли из конкретной кофейни ЛИБО определили ближайшую по кэш-геолокации.
+  // Тогда поздний fetchShops НЕ перебьёт его на кофейню «по алфавиту» (это и был баг
+  // с «перескоком» QR с ближайшей на другую).
+  const initialShopPick = useRef<{ shop: ShopWithStatus | null; locked: boolean } | null>(null);
+  if (initialShopPick.current === null) {
+    const cached = getCachedShops();
+    const initId = (location.state as any)?.shop?.id;
+    if (cached.length === 0) {
+      initialShopPick.current = { shop: null, locked: false };
+    } else if (initId) {
+      const matched = cached.find(s => s.id === initId);
+      initialShopPick.current = matched ? { shop: matched, locked: true } : { shop: null, locked: false };
+    } else {
+      const loc = getCachedLocation();
+      const nearest = loc ? pickNearestOpen(cached, loc) : null;
+      initialShopPick.current = nearest
+        ? { shop: nearest, locked: true }
+        : { shop: cached.find(s => s.isCurrentlyOpen) || cached[0] || null, locked: false };
+    }
+  }
+  const [selectedShop, setSelectedShop] = useState<ShopWithStatus | null>(initialShopPick.current.shop);
+  // true = выбор кофейни зафиксирован (ближайшая/из ссылки/выбран вручную) — авто-шаги не перебивают.
+  const shopLockedRef = useRef<boolean>(initialShopPick.current.locked);
   const [lastRedemptionId, setLastRedemptionId] = useState<string | null>(null);
-  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
-  const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(59);
-  const [guestSubName, setGuestSubName] = useState<string | null>(null);
-  const [guestSubVolume, setGuestSubVolume] = useState<string | null>(null);
+  // Инициализируем инфо о гостевом тарифе из кэша синхронно — чтобы название
+  // «Гостевой кофе (...)» показывалось сразу, без подгрузки/мигания.
+  const [guestSubName, setGuestSubName] = useState<string | null>(() => {
+    try { return JSON.parse(localStorage.getItem('subday_guest_sub_info') || 'null')?.name ?? null; } catch { return null; }
+  });
+  const [guestSubVolume, setGuestSubVolume] = useState<string | null>(() => {
+    try { return JSON.parse(localStorage.getItem('subday_guest_sub_info') || 'null')?.volume ?? null; } catch { return null; }
+  });
   
   const { stats, refetch, isLoading: statsLoading } = useUserStatsContext();
   const { playSuccessSound } = useSuccessSound();
@@ -129,10 +251,13 @@ export default function RedeemPage() {
     });
     
     setShops(sorted);
-    // Auto-select nearest open shop on first distance calc, but NOT if user came from a specific shop
-    if (!lastDistanceKey && sorted.length > 0 && !initialShop?.id) {
-      const nearestOpen = sorted.find(s => s.isCurrentlyOpen);
-      setSelectedShop(nearestOpen || sorted[0]);
+    // Авто-выбор ближайшей ОТКРЫТОЙ кофейни — но только если выбор ещё не
+    // зафиксирован (пользователь не выбирал вручную, не пришёл из конкретной
+    // кофейни и мы не выбрали ближайшую по кэш-геолокации при инициализации).
+    if (!shopLockedRef.current && !initialShop?.id && sorted.length > 0) {
+      const nearestOpen = sorted.find(s => s.isCurrentlyOpen) || sorted[0];
+      setSelectedShop(nearestOpen);
+      shopLockedRef.current = true; // фиксируем — fetchShops больше не перебьёт
     }
     setLastDistanceKey(distKey);
   }, [distances, shops.length, lastDistanceKey, initialShop]);
@@ -185,21 +310,27 @@ export default function RedeemPage() {
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
   const remaining = isGuestCoffee && hasGuestCoffee ? stats.guestCoffees : (drinkType === 'coffee' ? stats.coffeeRemaining : stats.drinksRemaining);
   const hasActiveSub = isGuestCoffee ? hasGuestCoffee : (drinkType === 'coffee' ? hasCoffee : hasLunch);
+
+  // Заморожена ли подписка выбранного типа (та же логика, что на сервере partner-scan-qr).
+  // Гостевой кофе не замораживается.
+  const activeSubForType = activeSubscriptions.find(s => s.subscription_type === drinkType);
+  const isSubFrozen = !isGuestCoffee
+    && !!activeSubForType?.is_frozen
+    && (!activeSubForType?.freeze_until || new Date(activeSubForType.freeze_until) > new Date());
   // While stats/subscriptions are still loading, coffeeRemaining/activeSubscriptions
   // default to 0/[] — without this flag the QR area briefly flashes "no subscription"
   // or "out of cups" for users who actually have an active subscription.
   const isLoadingUserData = statsLoading || subsLoading;
 
   const handleRealtimeRedemption = useCallback(() => {
-    setStatus('scanning');
-    setTimeout(() => {
-      setStatus('success');
-      setShowConfetti(true);
-      playSuccessSound();
-      vibrateSuccess();
-      refetch();
-      setTimeout(() => setShowConfetti(false), 2000);
-    }, 500);
+    // Событие приходит по realtime ТОЛЬКО после реального списания на сервере,
+    // поэтому показываем успех сразу — без искусственной задержки (было 500мс).
+    setStatus('success');
+    setShowConfetti(true);
+    playSuccessSound();
+    vibrateSuccess();
+    refetch();
+    setTimeout(() => setShowConfetti(false), 2000);
   }, [refetch, playSuccessSound, vibrateSuccess]);
 
   useEffect(() => {
@@ -236,6 +367,11 @@ export default function RedeemPage() {
             if (subType) {
               setGuestSubName(subType.name);
               setGuestSubVolume((subType as any).max_volume || null);
+              try {
+                localStorage.setItem('subday_guest_sub_info', JSON.stringify({
+                  name: subType.name, volume: (subType as any).max_volume || null,
+                }));
+              } catch { /* ignore */ }
             }
           }
         }
@@ -267,22 +403,7 @@ export default function RedeemPage() {
         const { data, error } = await supabase
           .from('shops').select('id, name, address, addresses, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
         if (error) throw error;
-        const shopsWithStatus: ShopWithStatus[] = (data || []).map(shop => {
-          const rawCoords = (shop as any).coordinates;
-          let coords: Coordinate[] = [];
-          if (Array.isArray(rawCoords)) {
-            coords = rawCoords.filter((c: any) => c?.lat && c?.lng);
-          } else if (rawCoords?.lat && rawCoords?.lng) {
-            coords = [rawCoords];
-          }
-          return {
-            ...shop,
-            addresses: (shop as any).addresses || null,
-            supported_types: (shop as any).supported_types || ['coffee'],
-            coordinates: coords,
-            isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
-          };
-        });
+        const shopsWithStatus: ShopWithStatus[] = (data || []).map(mapShopRow);
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
           if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
@@ -295,31 +416,28 @@ export default function RedeemPage() {
           const matchedShop = shopsWithStatus.find(s => s.id === initialShop.id);
           if (matchedShop) {
             setSelectedShop(matchedShop);
+            shopLockedRef.current = true;
             return;
           }
         }
-        const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
-        setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+        // Не перебиваем уже зафиксированный выбор (ближайшую) кофейней «по алфавиту».
+        // Ставим временный дефолт только если выбор ещё не зафиксирован —
+        // distance-эффект затем выберет ближайшую.
+        if (!shopLockedRef.current) {
+          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+        }
       } catch (error) {
         console.error('Error fetching shops:', error);
         // Оффлайн-фоллбек: восстанавливаем из кеша
         const cached = getCache<any[]>(CACHE_KEYS.shops);
         if (cached?.data?.length) {
-          const shopsWithStatus: ShopWithStatus[] = cached.data.map((shop: any) => {
-            const rawCoords = shop.coordinates;
-            let coords: Coordinate[] = [];
-            if (Array.isArray(rawCoords)) coords = rawCoords.filter((c: any) => c?.lat && c?.lng);
-            return {
-              ...shop,
-              addresses: shop.addresses || null,
-              supported_types: shop.supported_types || ['coffee'],
-              coordinates: coords,
-              isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, coords),
-            };
-          });
+          const shopsWithStatus: ShopWithStatus[] = cached.data.map(mapShopRow);
           setShops(shopsWithStatus);
-          const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
-          setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+          if (!shopLockedRef.current) {
+            const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
+            setSelectedShop(firstOpen || shopsWithStatus[0] || null);
+          }
           toast.info('Нет сети — данные могут быть устаревшими');
         } else {
           toast.error(t('redeem.loadError'));
@@ -363,44 +481,34 @@ export default function RedeemPage() {
     fetchQRData();
   }, []);
 
-  // QR countdown timer - refresh every 60 seconds
+  // Каждые 60 сек обновляем статус кофеен (открыта/закрыта) и при закрытии
+  // выбранной — авто-переключаемся на открытую. Отсчёта времени больше нет:
+  // QR статичен и всегда валиден (проверяется на сервере при сканировании).
   useEffect(() => {
     const interval = setInterval(() => {
-      setQrSecondsLeft(prev => {
-        if (prev <= 1) {
-          // Regenerate QR
-          setQrTimestamp(Date.now());
-          // Also refresh shop open/closed status
-          setShops(prevShops => {
-            const updated = prevShops.map(shop => ({
-              ...shop, isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, shop.coordinates),
-            }));
-            updated.sort((a, b) => {
-              if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
-              if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
-              return a.name.localeCompare(b.name);
-            });
-            return updated;
-          });
-          if (selectedShop) {
-            const updatedStatus = isAnyAddressOpen(selectedShop.working_hours, selectedShop.coordinates);
-            if (!updatedStatus) {
-              // Selected shop just closed — auto-switch to nearest open shop
-              setShops(prev => {
-                const nearestOpen = prev.find(s => s.isCurrentlyOpen);
-                if (nearestOpen) setSelectedShop(nearestOpen);
-                return prev;
-              });
-            }
-            setSelectedShop(prev => prev ? {
-              ...prev, isCurrentlyOpen: updatedStatus,
-            } : null);
-          }
-          return 59;
-        }
-        return prev - 1;
+      setShops(prevShops => {
+        const updated = prevShops.map(shop => ({
+          ...shop, isCurrentlyOpen: isAnyAddressOpen(shop.working_hours, shop.coordinates),
+        }));
+        updated.sort((a, b) => {
+          if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
+          if (!a.isCurrentlyOpen && b.isCurrentlyOpen) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        return updated;
       });
-    }, 1000);
+      if (selectedShop) {
+        const updatedStatus = isAnyAddressOpen(selectedShop.working_hours, selectedShop.coordinates);
+        if (!updatedStatus) {
+          setShops(prev => {
+            const nearestOpen = prev.find(s => s.isCurrentlyOpen);
+            if (nearestOpen) setSelectedShop(nearestOpen);
+            return prev;
+          });
+        }
+        setSelectedShop(prev => prev ? { ...prev, isCurrentlyOpen: updatedStatus } : null);
+      }
+    }, 60000);
     return () => clearInterval(interval);
   }, [selectedShop]);
 
@@ -419,8 +527,10 @@ export default function RedeemPage() {
     if (!userId || !selectedShop || !selectedShop.isCurrentlyOpen) return null;
     if (!hasActiveSub || remaining <= 0) return null;
     const payload = {
+      // timestamp убран из payload: сервер его не использует, а более короткая
+      // строка => меньше модулей => крупнее квадратики => легче считать под углом.
       type: 'subday_redeem', userId, shopId: selectedShop.id,
-      drinkType, timestamp: qrTimestamp,
+      drinkType,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
     };
     // Кешируем последний QR-снимок для оффлайн-показа
@@ -429,7 +539,7 @@ export default function RedeemPage() {
     // hasActiveSub depends on activeSubscriptions (useSubscriptionStatus), which can
     // resolve asynchronously after the initial render — it must be a dep so the QR
     // recomputes once subscriptions load, instead of staying stuck at null.
-  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, qrTimestamp, isGuestCoffee, hasGuestCoffee, hasActiveSub]);
+  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, isGuestCoffee, hasGuestCoffee, hasActiveSub]);
 
   // Восстановление userId из кеша при оффлайне
   useEffect(() => {
@@ -502,7 +612,7 @@ export default function RedeemPage() {
                 {shops.map((shop) => (
                   <DropdownMenuItem
                     key={shop.id}
-                    onClick={() => shop.isCurrentlyOpen ? setSelectedShop(shop) : null}
+                    onClick={() => { if (shop.isCurrentlyOpen) { setSelectedShop(shop); shopLockedRef.current = true; } }}
                     disabled={!shop.isCurrentlyOpen}
                     className={`flex items-center gap-3 p-3 ${
                       shop.isCurrentlyOpen ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
@@ -558,7 +668,10 @@ export default function RedeemPage() {
         
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {status === 'ready' && (
-            <div className="text-center animate-slide-up">
+            // w-full max-w + mx-auto дают контейнеру ОПРЕДЕЛЁННУЮ ширину, поэтому
+            // QR-бокс всегда одного размера с первого кадра — без «прыжка» с маленького
+            // на большой (раньше ширина считалась от содержимого и «плавала» при загрузке).
+            <div className="text-center animate-slide-up w-full max-w-[400px] mx-auto">
               {isLoadingUserData ? (
                 // Render a single stable placeholder while subscription/stats data
                 // is still loading, instead of progressively popping in the type
@@ -633,9 +746,9 @@ export default function RedeemPage() {
                 const noCups = hasActiveSub && remaining <= 0;
                 const borderColor = (isLoadingUserData || noSub || noCups) ? 'border-muted' : shopClosed ? 'border-destructive/40' : 'border-accent';
                 return (
-                  <div className={`w-full max-w-[360px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${borderColor} p-1.5`}>
+                  <div className={`relative w-full max-w-[360px] aspect-square bg-white rounded-3xl shadow-card flex items-center justify-center mb-6 mx-auto border-4 ${isSubFrozen ? 'border-sky-400' : borderColor} p-1.5`}>
                     {qrCodeData ? (
-                      <QRCodeSVG value={qrCodeData} size={320} level="M" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
+                      <QRCodeSVG value={qrCodeData} size={320} level="L" includeMargin={false} bgColor="white" fgColor="#000000" className="w-full h-full" />
                     ) : shopClosed ? (
                       <div className="text-center p-4">
                         <Clock size={48} className="text-destructive mx-auto mb-3" />
@@ -665,28 +778,56 @@ export default function RedeemPage() {
                         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
+
+                    {/* Оверлей поверх QR, когда подписка заморожена */}
+                    {isSubFrozen && qrCodeData && (
+                      <div className="absolute inset-0 rounded-3xl bg-background/90 backdrop-blur-[3px] flex flex-col items-center justify-center text-center px-5 gap-2.5">
+                        <div className="w-14 h-14 rounded-full bg-sky-400/15 flex items-center justify-center">
+                          <Snowflake size={30} className="text-sky-500" />
+                        </div>
+                        <p className="text-base font-bold text-foreground leading-tight">Ваша подписка заморожена</p>
+                        <p className="text-sm text-muted-foreground leading-snug">
+                          Разморозьте подписку в профиле, чтобы воспользоваться!
+                        </p>
+                        <button
+                          onClick={() => navigate('/profile')}
+                          className="mt-1 px-5 py-2.5 rounded-2xl bg-sky-500 text-white text-sm font-semibold active:scale-95 transition-transform"
+                        >
+                          Разморозить в профиле
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
               <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
               {/* Current plan name */}
               {(() => {
-                if (isGuestCoffee && guestSubName) {
-                  return <p className="text-sm font-semibold text-accent mb-1">Гостевой доступ ({guestSubName})</p>;
-                }
-                const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
-                return activeSub?.subscription_name ? (
-                  <p className="text-sm font-semibold text-accent mb-1">{activeSub.subscription_name}</p>
-                ) : null;
+                // Название тарифа/гостевого доступа — заметный бейдж, всегда в 1 строку.
+                // В режиме гостевого кофе СРАЗУ показываем «Гостевой кофе» и НЕ откатываемся
+                // на название подписки, пока грузится guestSubName — иначе бейдж мигал
+                // (сначала подписка, потом гостевой).
+                const name = isGuestCoffee
+                  ? (guestSubName ? `Гостевой кофе (${guestSubName})` : 'Гостевой кофе')
+                  : (activeSubscriptions.find(s => s.subscription_type === drinkType)?.subscription_name || null);
+                if (!name) return null;
+                return (
+                  <div className="w-full flex justify-center mb-1.5">
+                    <div className="inline-flex max-w-full items-center px-3 py-1 rounded-full bg-accent/15 border border-accent/30 overflow-hidden">
+                      <FitBadgeText text={name} />
+                    </div>
+                  </div>
+                );
               })()}
-              <p className="text-xs text-muted-foreground mb-1">
-                {qrSettings.qr_validity_text.replace('{seconds}', String(qrSecondsLeft))}
-              </p>
               <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
               {/* Volume */}
               {(() => {
-                if (isGuestCoffee && guestSubVolume) {
-                  return <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {guestSubVolume}</p>;
+                // В режиме гостевого кофе показываем только гостевой объём и НЕ
+                // откатываемся на объём подписки, пока грузится guestSubVolume.
+                if (isGuestCoffee) {
+                  return guestSubVolume ? (
+                    <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {guestSubVolume}</p>
+                  ) : null;
                 }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
                 const subVolume = activeSub?.subscription_type_id
@@ -699,7 +840,9 @@ export default function RedeemPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 {qrSettings.qr_remaining_text
                   .replace('{count}', String(remaining))
-                  .replace('{type}', drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks'))
+                  .replace('{type}', isGuestCoffee
+                    ? `гостевой ${t('redeem.coffee')}`
+                    : (drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')))
                 }
               </p>
               

@@ -5,6 +5,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
+import logo from '@/assets/logo.png';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
 import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled, IconSnowflake } from '@tabler/icons-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,8 +49,8 @@ export default function ProfilePage() {
 
   // Подгружаем тумблер гео-уведомлений из профиля
   useEffect(() => {
-    if (profile && (profile as any).geo_notifications_enabled !== undefined) {
-      setGeoNotifEnabled((profile as any).geo_notifications_enabled !== false);
+    if (profile && (profile as any).geoNotificationsEnabled !== undefined) {
+      setGeoNotifEnabled((profile as any).geoNotificationsEnabled !== false);
     }
   }, [profile]);
 
@@ -103,15 +104,17 @@ export default function ProfilePage() {
   const handleCancelNameEdit = () => { setEditName(profile?.name || ''); setIsEditingName(false); };
 
   const handlePushToggle = async () => {
+    const wasEnabled = notifSettings.pushEnabled;
     const result = await togglePush();
     if (result === 'granted') {
       toast.success(t('profile.notificationsEnabled'));
+    } else if (result === 'blocked') {
+      toast.error('Уведомления запрещены в настройках устройства. Включите их в настройках телефона.');
     } else if (result === 'denied') {
-      toast.error('Разрешение на уведомления отклонено. Включите в настройках устройства.');
+      toast.error('Разрешение на уведомления отклонено.');
     } else {
-      // toggled
-      const current = notifSettings.pushEnabled;
-      toast.success(current ? t('profile.notificationsDisabled') : t('profile.notificationsEnabled'));
+      // 'toggled' — пользователь выключил push
+      toast.success(wasEnabled ? t('profile.notificationsDisabled') : t('profile.notificationsEnabled'));
     }
   };
   
@@ -269,8 +272,9 @@ export default function ProfilePage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div>
           <LiquidGlassHeader>
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 flex items-center justify-between">
               <h1 className="text-2xl font-black text-foreground">{t('profile.title')}</h1>
+              <img src={logo} alt="subday" className="h-10 w-auto object-contain shrink-0" />
             </div>
           </LiquidGlassHeader>
           <div className="px-4 pt-2">

@@ -106,6 +106,46 @@ export function useVibration() {
     }
   }, [isNative, tgHaptic]);
 
+  /**
+   * Soft ramp-up buzz for the splash/preloader — starts gentle (Light) and
+   * builds up power (→ Medium → Heavy) over ~1s. Change the sequence below to
+   * tweak how the preloader vibration feels.
+   */
+  const vibratePreloader = useCallback(() => {
+    // Плавное «бзыыык»: частые импульсы, плотность и интенсивность которых
+    // нарастают к концу, поэтому отдельные тычки сливаются в один непрерывный
+    // разгон от мягкого к жёсткому. Меняй TOTAL/START_GAP/END_GAP ниже, чтобы
+    // подкрутить длительность и «слитность» вибрации.
+    const TOTAL = 850;       // общая длительность разгона, мс
+    const START_GAP = 60;    // интервал в начале (реже = мягче)
+    const END_GAP = 22;      // интервал в конце (чаще = «бзыыык»)
+
+    if (isNative || tgHaptic) {
+      let t = 0;
+      while (t < TOTAL) {
+        const p = t / TOTAL; // прогресс 0..1
+        const at = t;
+        if (isNative) {
+          const style = p < 0.4 ? ImpactStyle.Light : p < 0.75 ? ImpactStyle.Medium : ImpactStyle.Heavy;
+          setTimeout(() => Haptics.impact({ style }).catch(() => {}), at);
+        } else if (tgHaptic) {
+          const style = p < 0.4 ? 'light' : p < 0.75 ? 'medium' : 'heavy';
+          setTimeout(() => tgHaptic.impactOccurred(style as 'light' | 'medium' | 'heavy'), at);
+        }
+        // Интервал плавно сокращается START_GAP → END_GAP (плотность растёт).
+        t += START_GAP - (START_GAP - END_GAP) * p;
+      }
+      return;
+    }
+    if ('vibrate' in navigator) {
+      // Разгон: время вибрации растёт, паузы сокращаются (soft → «бзыыык»),
+      // финальный длинный импульс — жёсткий «-к».
+      try {
+        navigator.vibrate([15, 70, 20, 60, 30, 50, 45, 40, 60, 30, 80, 20, 110, 12, 160]);
+      } catch {}
+    }
+  }, [isNative, tgHaptic]);
+
   return {
     vibrate,
     vibrateSuccess,
@@ -113,5 +153,6 @@ export function useVibration() {
     vibrateError,
     vibrateSelection,
     vibrateLight,
+    vibratePreloader,
   };
 }

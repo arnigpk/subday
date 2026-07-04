@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, Loader2, Usb, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
@@ -165,9 +165,17 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     el.innerHTML = '';
 
     try {
-      const scanner = new Html5Qrcode('qr-reader');
+      // useBarCodeDetectorIfSupported → нативный движок BarcodeDetector (Google ML):
+      // читает QR с крутых углов, частично видимый код, и заметно быстрее.
+      // Если платформа не поддерживает — html5-qrcode сам откатывается на JS-декодер.
+      const scanner = new Html5Qrcode('qr-reader', {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        verbose: false,
+      });
       scannerRef.current = scanner;
-      await scanner.start({ facingMode: 'environment' }, { fps: 25, aspectRatio: 1 }, handleScan, () => {});
+      // disableFlip: false → читаем и зеркально отражённые коды.
+      await scanner.start({ facingMode: 'environment' }, { fps: 25, aspectRatio: 1, disableFlip: false }, handleScan, () => {});
       if (!mountedRef.current) { scanner.stop().catch(() => {}); return; }
       setIsScanning(true);
       setError(null);

@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { supabase } from '@/integrations/supabase/client';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase';
+import {
+  saveDeviceToken,
+  deleteThisDeviceToken,
+  isPushOptedOut,
+  setPushOptedOut,
+} from '@/lib/pushToken';
 
 const STORAGE_KEY = 'subday_notification_settings';
 const VAPID_KEY =
@@ -35,24 +40,6 @@ function saveSettings(settings: NotificationSettings) {
   } catch {}
 }
 
-async function saveDeviceToken(token: string, platform: string) {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await (supabase.from('device_tokens') as any).upsert(
-      {
-        user_id: user.id,
-        token,
-        platform,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,token' }
-    );
-  } catch (err) {
-    console.error('Failed to save device token:', err);
-  }
-}
-
 // Check if system actually granted notification permission
 async function checkSystemPushGranted(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
@@ -76,16 +63,14 @@ export function useNotificationSettings() {
       const granted = await checkSystemPushGranted();
       if (cancelled) return;
       setSystemPushGranted(granted);
-      // If system permission is NOT granted — force pushEnabled to false everywhere
+      // Эффективное состояние тумблера = разрешение ОС выдано И пользователь не отключил push сам.
+      // - Если пользователь выключил (opt-out) — держим ВЫКЛ, не навязываемся.
+      // - Если НЕ выключал и разрешение есть — включаем автоматически.
+      const optedOut = isPushOptedOut();
+      const effective = granted && !optedOut;
       setSettings(prev => {
-        if (!granted && prev.pushEnabled) {
-          const next = { ...prev, pushEnabled: false };
-          saveSettings(next);
-          return next;
-        }
-        if (granted && !prev.pushEnabled) {
-          // Mirror granted state into the UI toggle
-          const next = { ...prev, pushEnabled: true };
+        if (prev.pushEnabled !== effective) {
+          const next = { ...prev, pushEnabled: effective };
           saveSettings(next);
           return next;
         }
@@ -98,23 +83,14 @@ export function useNotificationSettings() {
     const onFocus = () => sync();
     window.addEventListener('focus', onFocus);
 
-    // Native: register listeners for FCM token
-    let removeListeners: (() => void) | null = null;
-    if (Capacitor.isNativePlatform()) {
-      const platform = Capacitor.getPlatform();
-      PushNotifications.addListener('registration', (token) => {
-        saveDeviceToken(token.value, platform);
-      });
-      PushNotifications.addListener('registrationError', (err) => {
-        console.error('Push registration error:', err);
-      });
-      removeListeners = () => { PushNotifications.removeAllListeners(); };
-    }
+    // ВАЖНО: слушатель 'registration' (сохранение FCM-токена) живёт ТОЛЬКО в
+    // useNativePush (глобально, через PermissionsBootstrap). Здесь свои слушатели
+    // НЕ добавляем и removeAllListeners НЕ вызываем — иначе при размонтировании
+    // страницы убивались чужие слушатели, и Android-токен переставал сохраняться.
 
     return () => {
       cancelled = true;
       window.removeEventListener('focus', onFocus);
-      if (removeListeners) removeListeners();
     };
   }, []);
 
@@ -127,61 +103,69 @@ export function useNotificationSettings() {
   }, []);
 
   const togglePush = useCallback(async (): Promise<'granted' | 'denied' | 'toggled' | 'blocked'> => {
+    const turningOn = !loadSettings().pushEnabled;
+
+    // --- Пользователь ВЫКЛЮЧАЕТ push ---
+    if (!turningOn) {
+      setPushOptedOut(true);       // явный отказ — держим выключенным при след. заходах
+      update({ pushEnabled: false });
+      await deleteThisDeviceToken(); // сервер перестаёт слать пуши на это устройство
+      return 'toggled';
+    }
+
+    // --- Пользователь ВКЛЮЧАЕТ push ---
+    // Снимаем opt-out. Разрешение выдано → регистрируемся заново (токен вернётся).
+    setPushOptedOut(false);
+
     // Native flow
     if (Capacitor.isNativePlatform()) {
       try {
-        const permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive === 'granted') {
-          const current = loadSettings();
-          update({ pushEnabled: !current.pushEnabled });
-          return 'toggled';
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+          permStatus = await PushNotifications.requestPermissions();
         }
-        if (permStatus.receive === 'denied') return 'blocked';
-
-        const requestResult = await PushNotifications.requestPermissions();
-        if (requestResult.receive === 'granted') {
+        if (permStatus.receive === 'granted') {
           await PushNotifications.register();
           setSystemPushGranted(true);
           update({ pushEnabled: true });
           return 'granted';
         }
-        return 'denied';
+        // Разрешение не выдано. Не помечаем opt-out: если пользователь выдаст
+        // разрешение в настройках ОС — тумблер включится сам при заходе.
+        update({ pushEnabled: false });
+        return permStatus.receive === 'denied' ? 'blocked' : 'denied';
       } catch {
+        update({ pushEnabled: false });
         return 'denied';
       }
     }
 
     // Web flow
-    if (typeof Notification === 'undefined') return 'denied';
-
-    if (Notification.permission === 'denied') return 'blocked';
+    if (typeof Notification === 'undefined') { update({ pushEnabled: false }); return 'denied'; }
+    if (Notification.permission === 'denied') { update({ pushEnabled: false }); return 'blocked'; }
 
     if (Notification.permission === 'default') {
       const result = await Notification.requestPermission();
-      if (result !== 'granted') return 'denied';
-      // Get FCM token
-      try {
-        if (messaging && 'serviceWorker' in navigator) {
-          const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-          await navigator.serviceWorker.ready;
-          const fcmToken = await getToken(messaging, {
-            vapidKey: VAPID_KEY,
-            serviceWorkerRegistration: swReg,
-          });
-          if (fcmToken) await saveDeviceToken(fcmToken, 'web');
-        }
-      } catch (err) {
-        console.error('FCM token error:', err);
-      }
-      setSystemPushGranted(true);
-      update({ pushEnabled: true });
-      return 'granted';
+      if (result !== 'granted') { update({ pushEnabled: false }); return 'denied'; }
     }
 
-    // Already granted — just toggle the in-app preference
-    const current = loadSettings();
-    update({ pushEnabled: !current.pushEnabled });
-    return 'toggled';
+    // Разрешение есть — получаем/обновляем FCM-токен.
+    try {
+      if (messaging && 'serviceWorker' in navigator) {
+        const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        await navigator.serviceWorker.ready;
+        const fcmToken = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: swReg,
+        });
+        if (fcmToken) await saveDeviceToken(fcmToken, 'web');
+      }
+    } catch (err) {
+      console.error('FCM token error:', err);
+    }
+    setSystemPushGranted(true);
+    update({ pushEnabled: true });
+    return 'granted';
   }, [update]);
 
   return { settings, update, togglePush, systemPushGranted };

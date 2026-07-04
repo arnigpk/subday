@@ -118,7 +118,9 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           }
 
           const { data: { user } } = await supabase.auth.getUser();
-          const { error: updateErr } = await supabase
+          // .select() подтверждает, что реально обновлена строка. Если 0 строк
+          // (qr_scanned уже true — гонка/повторный скан) — НЕ показываем ложный успех.
+          const { data: updatedPreorder, error: updateErr } = await supabase
             .from('preorders')
             .update({
               status: 'completed',
@@ -127,10 +129,16 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
               qr_scanned: true,
             })
             .eq('id', preorder.id)
-            .eq('qr_scanned', false);
+            .eq('qr_scanned', false)
+            .select('id');
 
           if (updateErr) {
             setResult({ success: false, message: 'Ошибка при обновлении предзаказа' });
+            resetProcessing();
+            return;
+          }
+          if (!updatedPreorder || updatedPreorder.length === 0) {
+            setResult({ success: false, message: 'Этот QR-код уже использован' });
             resetProcessing();
             return;
           }
@@ -172,7 +180,8 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       // customer's own paid balance — so the timestamp added no real protection.
       // Redemption is now reliable regardless of the two devices' clocks.
 
-      const { data: response, error } = await supabase.functions.invoke('partner-scan-qr', {
+      // Таймаут, чтобы на слабом/мёртвом интернете спиннер не висел вечно.
+      const invokePromise = supabase.functions.invoke('partner-scan-qr', {
         body: {
           userId: data.userId,
           shopId: data.shopId,
@@ -180,6 +189,10 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           isGuestCoffee: data.isGuestCoffee || false,
         },
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('scan-timeout')), 15000),
+      );
+      const { data: response, error } = await Promise.race([invokePromise, timeoutPromise]) as Awaited<typeof invokePromise>;
 
       if (error) {
         console.error('Edge function error:', error);
@@ -217,7 +230,13 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       }
     } catch (error) {
       console.error('Scan processing error:', error);
-      setResult({ success: false, message: 'Произошла ошибка. Попробуйте ещё раз.' });
+      const isTimeout = error instanceof Error && error.message === 'scan-timeout';
+      setResult({
+        success: false,
+        message: isTimeout
+          ? 'Слабое соединение — попробуйте ещё раз'
+          : 'Произошла ошибка. Попробуйте ещё раз.',
+      });
     } finally {
       resetProcessing();
     }

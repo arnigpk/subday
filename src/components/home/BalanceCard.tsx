@@ -17,7 +17,7 @@ interface BalanceCardProps {
 
 export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const { stats, isLoading } = useUserStatsContext();
-  const { daysRemaining, isExpiringSoon, activeSubscriptions } = useSubscriptionStatus();
+  const { daysRemaining, isExpiringSoon, activeSubscriptions, isLoading: isSubLoading } = useSubscriptionStatus();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   
@@ -79,7 +79,10 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
     return `${t('balance.guestCoffee')} ${stats.guestCoffees} (${t('balance.until')} ${dateStr})`;
   };
   
-  if (isLoading) {
+  // Пока грузятся И статистика, И подписки — показываем скелетон, а НЕ «нет подписки».
+  // Иначе у пользователя с подпиской мелькало ложное «У вас нет подписки».
+  // Подписки кешируются (1 мин), поэтому при повторных заходах скелетона почти нет.
+  if (isLoading || isSubLoading) {
     return (
       <div className="card-static animate-slide-up">
         <div className="animate-pulse">

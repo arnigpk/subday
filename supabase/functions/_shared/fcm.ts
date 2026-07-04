@@ -212,11 +212,23 @@ export async function sendFcmMessage(
           token: deviceToken,
           notification: { title: opts.title, body: opts.body },
           ...(opts.data ? { data: opts.data } : {}),
+          // ВНИМАНИЕ: проверенный payload. Нестандартные поля
+          // (default_sound/default_vibrate_timings/notification_priority)
+          // ранее приводили к отклонению payload в FCM — их НЕ добавлять.
+          // Вибрацию/heads-up на Android даёт сам канал (importance 5 + vibration).
           android: {
             priority: 'high',
             notification: {
               sound: 'default',
               channel_id: opts.androidChannelId || 'default',
+            },
+          },
+          // iOS: aps.sound = звук + вибрация (без него пуш приходит молча).
+          // Минимальный валидный блок — проверен живым тестом на Android
+          // (не ломает доставку).
+          apns: {
+            payload: {
+              aps: { sound: 'default' },
             },
           },
         },

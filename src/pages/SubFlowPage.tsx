@@ -153,12 +153,10 @@ export default function SubFlowPage() {
       <PullToRefresh onRefresh={handleRefresh}>
         <div ref={scrollContainerRef}>
           <LiquidGlassHeader>
-            <div className="px-4 py-4 flex items-center justify-between">
-              <div>
+            <div className="px-4 py-4">
+              <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-foreground">#subFlow</h1>
-                <p className="text-xs text-muted-foreground">{t('subflow.subtitle')}</p>
-              </div>
-              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
                 <SubFlowFollowerCount userId={userId} />
                 <SubFlowNotifications
                   userId={userId}
@@ -177,7 +175,9 @@ export default function SubFlowPage() {
                   }}
                 />
                 <img src={logo} alt="subday" className="h-10 w-auto object-contain" />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('subflow.subtitle')}</p>
             </div>
           </LiquidGlassHeader>
 

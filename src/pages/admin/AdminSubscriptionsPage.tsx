@@ -455,6 +455,8 @@ export default function AdminSubscriptionsPage() {
                               <p className="text-sm text-muted-foreground">
                                 {sub.cups_count} {sub.type === 'coffee' ? 'кофе' : 'ланчей'} • {formatDurationLabel(sub.duration_days)}
                               </p>
+                              {/* Уникальный ID подписки — для различения подписок с одинаковым названием */}
+                              <p className="text-[11px] text-muted-foreground/70 font-mono mt-0.5">ID: {String(sub.id).slice(0, 8)}</p>
                             </div>
                           </div>
                           {sub.badge && (

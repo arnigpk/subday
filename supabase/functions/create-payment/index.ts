@@ -42,6 +42,18 @@ function buildReturnUrl(origin: string, returnPath: string | undefined, status: 
   return url.toString();
 }
 
+// Для НАТИВНОГО приложения возвращаемся на страницу-«отскок» на публичном веб-домене,
+// которая перебрасывает в приложение по deep-link subday://pay. Оверлей оплаты
+// (Custom Tabs / SFSafariViewController) закрывается, приложение показывает результат.
+function buildNativeReturnUrl(returnPath: string | undefined, status: 'success' | 'failed', orderId: string) {
+  const normalizedPath = returnPath && returnPath.startsWith('/') ? returnPath : '/packages';
+  const url = new URL('/pay-return', DEFAULT_RETURN_ORIGIN);
+  url.searchParams.set('status', status);
+  url.searchParams.set('order', orderId);
+  url.searchParams.set('path', normalizedPath);
+  return url.toString();
+}
+
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
   if (!forwardedFor) return undefined;
@@ -178,7 +190,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const { subscription_type_id, return_path }: { subscription_type_id?: string; return_path?: string } = await req.json();
+    const { subscription_type_id, return_path, native }: { subscription_type_id?: string; return_path?: string; native?: boolean } = await req.json();
 
     if (!subscription_type_id) {
       return jsonResponse({ error: 'subscription_type_id is required' }, 400);
@@ -308,9 +320,13 @@ Deno.serve(async (req) => {
       pg_language: 'ru',
       pg_request_method: 'POST',
       pg_result_url: `${supabasePublicUrl}/functions/v1/freedompay-webhook`,
-      pg_success_url: buildReturnUrl(appOrigin, return_path, 'success', orderId),
+      pg_success_url: native
+        ? buildNativeReturnUrl(return_path, 'success', orderId)
+        : buildReturnUrl(appOrigin, return_path, 'success', orderId),
       pg_success_url_method: 'GET',
-      pg_failure_url: buildReturnUrl(appOrigin, return_path, 'failed', orderId),
+      pg_failure_url: native
+        ? buildNativeReturnUrl(return_path, 'failed', orderId)
+        : buildReturnUrl(appOrigin, return_path, 'failed', orderId),
       pg_failure_url_method: 'GET',
       pg_user_id: authUser.id,
       pg_payment_route: 'frame',

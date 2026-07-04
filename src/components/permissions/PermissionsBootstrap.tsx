@@ -5,33 +5,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase';
 import { useNativePush } from '@/hooks/useNativePush';
+import { saveDeviceToken, isPushOptedOut } from '@/lib/pushToken';
 
 const VAPID_KEY =
   'BAxmCxcPMx7w6yFuKKijoeRs1Z9Fo78avizGN6BghC3UQUqx8bglJNLQFzpkyxxHsPIMpx0qASRZmjoer-Pf13o';
 
 const PUSH_REQUESTED_KEY = 'permissions_push_requested';
 const GEO_REQUESTED_KEY = 'permissions_geo_requested';
-const CAMERA_REQUESTED_KEY = 'permissions_camera_requested';
 
 // ---------- DB helpers ----------
-
-async function saveDeviceToken(token: string, platform: string) {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await (supabase.from('device_tokens') as any).upsert(
-      {
-        user_id: user.id,
-        token,
-        platform,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,token' }
-    );
-  } catch (err) {
-    console.error('[Permissions] Failed to save device token:', err);
-  }
-}
 
 async function setGeoEnabledInProfile(enabled: boolean) {
   try {
@@ -184,24 +166,6 @@ async function handleGeoPermission() {
   }
 }
 
-// ---------- CAMERA (native only — pre-grants permission for QR scanner) ----------
-
-async function handleCameraPermission() {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const { Camera } = await import('@capacitor/camera');
-    let status = await Camera.checkPermissions();
-    if (status.camera === 'prompt' || status.camera === 'prompt-with-rationale') {
-      status = await Camera.requestPermissions({ permissions: ['camera'] });
-    }
-    if (status.camera === 'granted') {
-      try { localStorage.setItem('qr_camera_granted', 'true'); } catch {}
-    }
-  } catch (err) {
-    console.error('[Permissions] Camera error:', err);
-  }
-}
-
 // ---------- Status checks (skip if already in a final state) ----------
 
 async function pushAlreadyResolved(): Promise<boolean> {
@@ -254,10 +218,14 @@ export function PermissionsBootstrap() {
       await new Promise((r) => setTimeout(r, 1500));
       if (cancelled) return;
 
-      // PUSH: only ask if not yet resolved AND we haven't asked in this app before
+      // PUSH: если пользователь ЯВНО выключил push в приложении — уважаем это,
+      // ничего не запрашиваем и не регистрируем токен.
+      const pushOptedOut = isPushOptedOut();
       const pushAsked = localStorage.getItem(PUSH_REQUESTED_KEY) === '1';
       const pushResolved = await pushAlreadyResolved();
-      if (!pushResolved && !pushAsked) {
+      if (pushOptedOut) {
+        // no-op — push отключён пользователем
+      } else if (!pushResolved && !pushAsked) {
         try { localStorage.setItem(PUSH_REQUESTED_KEY, '1'); } catch {}
         if (Capacitor.isNativePlatform()) {
           await initNativePush();
@@ -284,8 +252,9 @@ export function PermissionsBootstrap() {
 
       if (cancelled) return;
 
-      // Small gap so two system dialogs don't stack
-      await new Promise((r) => setTimeout(r, 600));
+      // Комфортная пауза между системными диалогами, чтобы не «бомбить»
+      // пользователя запросами подряд.
+      await new Promise((r) => setTimeout(r, 2500));
       if (cancelled) return;
 
       // GEO: всегда переспрашиваем системно, пока разрешение не выдано
@@ -296,18 +265,9 @@ export function PermissionsBootstrap() {
         await handleGeoPermission();
       }
 
-      if (cancelled) return;
-
-      // CAMERA (native only): запрашиваем один раз, чтобы у бариста сразу был доступ к QR-сканеру
-      if (Capacitor.isNativePlatform()) {
-        const cameraAsked = localStorage.getItem(CAMERA_REQUESTED_KEY) === '1';
-        if (!cameraAsked) {
-          await new Promise((r) => setTimeout(r, 600));
-          if (cancelled) return;
-          try { localStorage.setItem(CAMERA_REQUESTED_KEY, '1'); } catch {}
-          await handleCameraPermission();
-        }
-      }
+      // КАМЕРУ на старте НЕ запрашиваем: она нужна только партнёру/бариста и
+      // запрашивается при первом открытии QR-сканера (QRScanner сам спросит и
+      // запомнит выдачу — повторно спрашивать не будет).
     };
 
     run();

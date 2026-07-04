@@ -1,0 +1,14 @@
+Способ входа: по WhatsApp / номеру телефона
+Тестовый номер: +7 700 000 0000
+Код подтверждения: 1234
+
+Шаги:
+1. На экране входа выберите вход по номеру телефона.
+2. Введите номер +7 700 000 0000, нажмите «Войти».
+3. Введите код 1234 — вход выполнится автоматически.
+У аккаунта есть активная подписка на кофе для проверки функций.
+
+--
+subday is a coffee subscription app for partner coffee shops in Kazakhstan.
+Login: use demo phone +77000000000 with verification code 1234.
+The app uses background location (with explicit user consent, subscribers only) to notify users when they pass near a partner coffee shop. Camera is used by partner staff to scan customer QR codes. Payments are processed via FreedomPay (external secure checkout in SFSafariViewController); the subscription unlocks physical goods (coffee in partner venues), not digital content — hence no In-App Purchase is used.

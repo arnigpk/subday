@@ -92,11 +92,16 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Fetch stats + profile + shop info in parallel
-    const [statsResult, profileResult, shopResult] = await Promise.all([
+    // Fetch stats + profile + shop + subscriptions in parallel (один слой round-trip'ов
+    // вместо двух — на слабом интернете это заметно ускоряет ответ).
+    const [statsResult, profileResult, shopResult, subsResult] = await Promise.all([
       supabase.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('profiles').select('name, phone').eq('user_id', userId).maybeSingle(),
-      supabase.from('shops').select('name, address, addresses, supported_types, working_hours').eq('id', shopId).maybeSingle(),
+      supabase.from('shops').select('name, address, addresses, supported_types, working_hours, revenue_share_percent').eq('id', shopId).maybeSingle(),
+      supabase
+        .from('user_subscriptions')
+        .select(`id, subscription_type_id, expires_at, is_frozen, freeze_until, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name, price, cups_count, revenue_share_percent )`)
+        .eq('user_id', userId).eq('is_active', true),
     ]);
 
     // Derive shopName, shopAddress, drinkName from DB — no longer in QR payload
@@ -175,7 +180,7 @@ Deno.serve(async (req) => {
       
       if (grant?.subscription_type_id) {
         fetchPromises.push(
-          supabase.from('subscription_types').select('name, max_volume').eq('id', grant.subscription_type_id).single()
+          supabase.from('subscription_types').select('name, max_volume, price, cups_count, revenue_share_percent').eq('id', grant.subscription_type_id).single()
         );
       } else {
         fetchPromises.push(Promise.resolve({ data: null }));
@@ -193,28 +198,59 @@ Deno.serve(async (req) => {
 
       const { newStreak, newMaxStreak } = calculateStreak(stats, today);
 
-      // Update stats + insert redemption in parallel
-      const [updateResult] = await Promise.all([
-        supabase.from('user_stats').update({
+      // === Списание гостевого кофе с ГАРАНТИЕЙ (как в обычном пути) ===
+      // 1) Атомарно: обновляем только если guest_coffees не изменился и ещё > 0.
+      const { data: guestUpdatedRows, error: guestUpdErr } = await supabase
+        .from('user_stats')
+        .update({
           guest_coffees: stats.guest_coffees - 1,
           current_streak: newStreak, max_streak: newMaxStreak,
           total_cups: stats.total_cups + 1, bonus_points: stats.bonus_points + bonusForRedemption,
           last_redemption_date: today,
-        }).eq('user_id', userId),
-        supabase.from('redemptions').insert({
-          user_id: userId, shop_name: shopName, shop_id: shopId,
-          shop_address: shopAddress || null,
-          drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
-          drink_type: 'coffee', subscription_name: guestSubscriptionName,
-          scanned_by: scannerId,
-        }),
-      ]);
+        })
+        .eq('user_id', userId)
+        .eq('guest_coffees', stats.guest_coffees)
+        .gt('guest_coffees', 0)
+        .select('user_id');
 
-      if (updateResult.error) {
-        await logger.persist('error', 'guest_redeem_failed', {
+      if (guestUpdErr || !guestUpdatedRows || guestUpdatedRows.length === 0) {
+        await logger.persist('error', 'guest_redeem_update_failed', {
           user_id: userId, scanner_id: scannerId, shop_id: shopId,
-        }, updateResult.error);
-        return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
+          rows: guestUpdatedRows?.length ?? 0,
+        }, guestUpdErr || undefined);
+        return new Response(JSON.stringify({ error: 'Не удалось списать, попробуйте ещё раз' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Снимок расчёта выплаты (как в обычном пути) — по гостевому тарифу.
+      const gSub = subTypeResult?.data as any;
+      const guestPayoutPercent = gSub?.revenue_share_percent
+        ?? (shopResult.data as any)?.revenue_share_percent
+        ?? 70;
+
+      // 2) История. Если не удалось — откатываем списание.
+      const { error: guestInsErr } = await supabase.from('redemptions').insert({
+        user_id: userId, shop_name: shopName, shop_id: shopId,
+        shop_address: shopAddress || null,
+        drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
+        drink_type: 'coffee', subscription_name: guestSubscriptionName,
+        scanned_by: scannerId,
+        subscription_type_id: grant?.subscription_type_id ?? null,
+        payout_price: gSub?.price ?? null,
+        payout_cups: gSub?.cups_count ?? null,
+        payout_percent: guestPayoutPercent,
+      });
+      if (guestInsErr) {
+        await supabase.from('user_stats').update({
+          guest_coffees: stats.guest_coffees,
+          current_streak: stats.current_streak, max_streak: stats.max_streak,
+          total_cups: stats.total_cups, bonus_points: stats.bonus_points,
+          last_redemption_date: stats.last_redemption_date,
+        }).eq('user_id', userId);
+        await logger.persist('error', 'guest_redeem_insert_failed_rolledback', {
+          user_id: userId, scanner_id: scannerId, shop_id: shopId,
+        }, guestInsErr);
+        return new Response(JSON.stringify({ error: 'Не удалось сохранить списание, попробуйте ещё раз' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
@@ -223,10 +259,11 @@ Deno.serve(async (req) => {
           .eq('invitee_user_id', userId).eq('status', 'active').then(() => {});
       }
 
-      await logger.persist('info', 'guest_redeem_ok', {
+      // Лог пишем в фоне — не держим ответ клиенту (списание уже подтверждено).
+      logger.persist('info', 'guest_redeem_ok', {
         user_id: userId, scanner_id: scannerId, shop_id: shopId, shop_name: shopName,
         drink_type: 'coffee', remaining: stats.guest_coffees - 1,
-      });
+      }).catch(() => {});
 
       return new Response(JSON.stringify({
         success: true, customerName: profile?.name || 'Клиент',
@@ -243,13 +280,10 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check daily limit + get subscription info
-    const { data: subscriptions } = await supabase
-      .from('user_subscriptions')
-      .select(`id, expires_at, is_frozen, freeze_until, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name )`)
-      .eq('user_id', userId).eq('is_active', true);
+    // Подписки уже загружены параллельно выше.
+    const subscriptions = subsResult.data;
 
-    interface SubTypeInfo { daily_limit: number | null; type: string; name: string; }
+    interface SubTypeInfo { daily_limit: number | null; type: string; name: string; price: number | null; cups_count: number | null; revenue_share_percent: number | null; }
 
     const now = new Date();
     const isFrozenNow = (s: any) => s.is_frozen && s.freeze_until && new Date(s.freeze_until) > now;
@@ -301,22 +335,62 @@ Deno.serve(async (req) => {
 
     const subscriptionName = subTypes?.name || null;
 
-    // Update stats + insert redemption in parallel
-    const [updateResult] = await Promise.all([
-      supabase.from('user_stats').update(newStats).eq('user_id', userId),
-      supabase.from('redemptions').insert({
-        user_id: userId, shop_name: shopName, shop_id: shopId,
-        shop_address: shopAddress || null,
-        drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
-        scanned_by: scannerId,
-      }),
-    ]);
+    // Снимок расчёта выплаты на момент списания (чтобы старые выплаты не менялись
+    // при смене цены/процента). Процент: подписки → магазина → 70 по умолчанию.
+    const payoutPrice = subTypes?.price ?? null;
+    const payoutCups = subTypes?.cups_count ?? null;
+    const payoutPercent = subTypes?.revenue_share_percent
+      ?? (shopResult.data as any)?.revenue_share_percent
+      ?? 70;
 
-    if (updateResult.error) {
-      await logger.persist('error', 'redeem_failed', {
+    // === Списание с ГАРАНТИЕЙ: success ТОЛЬКО если чашка реально списана И записана в историю ===
+    const balCol = drinkType === 'coffee' ? 'coffee_remaining' : 'drinks_remaining';
+    const oldBal = drinkType === 'coffee' ? stats.coffee_remaining : stats.drinks_remaining;
+
+    // 1) Атомарное списание: обновляем строку ТОЛЬКО если баланс не изменился с момента
+    //    чтения (защита от гонок/двойного скана) и ещё > 0. .select() подтверждает,
+    //    что реально обновлена ровно 1 строка — иначе НЕТ ложного успеха.
+    const { data: updatedRows, error: updErr } = await supabase
+      .from('user_stats')
+      .update(newStats)
+      .eq('user_id', userId)
+      .eq(balCol, oldBal)
+      .gt(balCol, 0)
+      .select('user_id');
+
+    if (updErr || !updatedRows || updatedRows.length === 0) {
+      await logger.persist('error', 'redeem_update_failed', {
         user_id: userId, scanner_id: scannerId, shop_id: shopId, drink_type: drinkType,
-      }, updateResult.error);
-      return new Response(JSON.stringify({ error: 'Ошибка при списании' }),
+        rows: updatedRows?.length ?? 0,
+      }, updErr || undefined);
+      return new Response(JSON.stringify({ error: 'Не удалось списать, попробуйте ещё раз' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 2) Пишем историю. Если не удалось — ОТКАТЫВАЕМ списание, чтобы не было
+    //    списания без записи в истории.
+    const { error: insErr } = await supabase.from('redemptions').insert({
+      user_id: userId, shop_name: shopName, shop_id: shopId,
+      shop_address: shopAddress || null,
+      drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
+      scanned_by: scannerId,
+      subscription_type_id: (matchingSub as any)?.subscription_type_id ?? null,
+      payout_price: payoutPrice, payout_cups: payoutCups, payout_percent: payoutPercent,
+    });
+    if (insErr) {
+      await supabase.from('user_stats').update({
+        coffee_remaining: stats.coffee_remaining,
+        drinks_remaining: stats.drinks_remaining,
+        current_streak: stats.current_streak,
+        max_streak: stats.max_streak,
+        total_cups: stats.total_cups,
+        bonus_points: stats.bonus_points,
+        last_redemption_date: stats.last_redemption_date,
+      }).eq('user_id', userId);
+      await logger.persist('error', 'redeem_insert_failed_rolledback', {
+        user_id: userId, scanner_id: scannerId, shop_id: shopId, drink_type: drinkType,
+      }, insErr);
+      return new Response(JSON.stringify({ error: 'Не удалось сохранить списание, попробуйте ещё раз' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -346,10 +420,11 @@ Deno.serve(async (req) => {
         });
     }
 
-    await logger.persist('info', 'redeem_ok', {
+    // Лог пишем в фоне — не держим ответ клиенту (списание уже подтверждено).
+    logger.persist('info', 'redeem_ok', {
       user_id: userId, scanner_id: scannerId, shop_id: shopId, shop_name: shopName,
       drink_type: drinkType, remaining: newRemaining, subscription_name: subscriptionName,
-    });
+    }).catch(() => {});
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',

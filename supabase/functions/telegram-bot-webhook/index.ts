@@ -22,11 +22,16 @@ interface TelegramUpdate {
 // In-memory dedup to prevent processing same update_id twice
 const processedUpdates = new Set<number>();
 
-async function sendTelegramMessage(botToken: string, chatId: number, text: string, parseMode = 'HTML') {
+async function sendTelegramMessage(botToken: string, chatId: number, text: string, parseMode = 'HTML', replyMarkup?: unknown) {
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: parseMode }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
   });
 }
 
@@ -113,8 +118,10 @@ Deno.serve(async (req) => {
         chatId,
         `🔐 <b>Ваш код для входа в subday:</b>\n\n` +
         `<code>${code}</code>\n\n` +
-        `Введите этот код на сайте.\n` +
-        `⏱ Код действителен 5 минут.`
+        `Введите этот код в приложении или нажмите кнопку «Открыть».\n` +
+        `⏱️ Код действителен 5 минут.`,
+        'HTML',
+        { inline_keyboard: [[{ text: 'Открыть', web_app: { url: 'https://web.subday.app' } }]] }
       );
 
       // Background: fetch and store avatar

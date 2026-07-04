@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
     }
 
     // Send Telegram notification
-    const botToken = Deno.env.get('NOTIFICATION_BOT_TOKEN');
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID');
+    const botToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || workerEnv['NOTIFICATION_BOT_TOKEN'];
+    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || workerEnv['NOTIFICATION_CHAT_ID'];
 
     if (botToken && chatId) {
       const message = `📢 *Заявка на рекламу*\n\n☕ Кофейня: *${shopName}*\n🕐 Время: ${time}`;

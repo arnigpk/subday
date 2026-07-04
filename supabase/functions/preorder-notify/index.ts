@@ -107,8 +107,9 @@ Deno.serve(async (req) => {
     }
 
     const pushTitle = '☕ Новый предзаказ!';
-    const syrupText = syrup ? ` + ${syrup}` : '';
-    const pushBody = `${shopName}: ${coffeeName}${syrupText}`;
+    // Use the admin template text for in-app + FCM body too (HTML stripped),
+    // so all channels match the configured template instead of a hardcoded string.
+    const pushBody = notificationMessage.replace(/<[^>]*>/g, '');
 
     let telegramSent = 0;
     let fcmSent = 0;
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
 
     // 1. Send personal Telegram messages to staff via @subday_lgbot
     if (channel === 'telegram' || channel === 'both') {
-      const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+      const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'];
       if (telegramBotToken) {
         const { data: staffProfiles } = await supabase
           .from('profiles')
@@ -181,7 +182,7 @@ Deno.serve(async (req) => {
         .in('user_id', staffUserIds);
 
       if (tokens && tokens.length > 0) {
-        const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT'));
+        const { serviceAccount, parseError } = parseFcmServiceAccount(Deno.env.get('FCM_SERVICE_ACCOUNT') || workerEnv['FCM_SERVICE_ACCOUNT']);
         if (!serviceAccount) {
           console.error('preorder-notify FCM key error:', parseError);
         } else {

@@ -18,7 +18,20 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Deep link для возврата из оплаты: subday://pay?... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="subday" />
+            </intent-filter>
         </activity>
+
+        <!-- Дефолтный канал для FCM, когда приложение убито из памяти -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

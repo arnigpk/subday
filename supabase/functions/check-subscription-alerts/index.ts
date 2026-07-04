@@ -68,29 +68,38 @@ Deno.serve(async (req) => {
 
     // 3. Check low balance for all active users
     if (lowThresholds.length > 0) {
-      const maxThreshold = Math.max(...lowThresholds);
+      const sortedThresholds = [...lowThresholds].sort((a, b) => a - b); // по возрастанию
 
-      // Get users with active subscriptions and low remaining
-      const { data: lowBalanceUsers } = await supabase
-        .from('user_stats')
-        .select('user_id, coffee_remaining, drinks_remaining')
-        .or(`coffee_remaining.lte.${maxThreshold},drinks_remaining.lte.${maxThreshold}`);
+      // ВАЖНО: идём ОТ активных подписок (их мало), а не от user_stats.
+      // Старый подход (`остаток <= порога` по всей user_stats) захватывал ВСЕХ
+      // пользователей (у неподписчиков 0 кофе), а затем .in() с сотнями UUID
+      // превышал лимит длины URL у шлюза → запрос молча падал → "Sent 0".
+      const { data: activeSubs, error: subsErr } = await supabase
+        .from('user_subscriptions')
+        .select('user_id, subscription_type_id, subscription_types(name, type)')
+        .eq('is_active', true);
+      if (subsErr) console.error('low_balance: active subs query failed:', subsErr);
 
-      if (lowBalanceUsers) {
-        // Filter to only those with active subscriptions
-        const userIds = lowBalanceUsers.map(u => u.user_id);
-        const { data: activeSubs } = await supabase
-          .from('user_subscriptions')
-          .select('user_id, subscription_type_id, subscription_types(name, type)')
-          .eq('is_active', true)
-          .in('user_id', userIds);
+      const activeSubMap = new Map<string, any[]>();
+      for (const sub of (activeSubs || [])) {
+        if (!activeSubMap.has(sub.user_id)) activeSubMap.set(sub.user_id, []);
+        activeSubMap.get(sub.user_id)!.push(sub);
+      }
 
-        const activeSubMap = new Map<string, any[]>();
-        for (const sub of (activeSubs || [])) {
-          if (!activeSubMap.has(sub.user_id)) activeSubMap.set(sub.user_id, []);
-          activeSubMap.get(sub.user_id)!.push(sub);
-        }
+      // Статистику подписчиков берём ЧАНКАМИ, чтобы .in() не превышал лимит URL.
+      const subUserIds = [...activeSubMap.keys()];
+      const lowBalanceUsers: Array<{ user_id: string; coffee_remaining: number; drinks_remaining: number }> = [];
+      for (let i = 0; i < subUserIds.length; i += 100) {
+        const chunk = subUserIds.slice(i, i + 100);
+        const { data: statsRows, error: statsErr } = await supabase
+          .from('user_stats')
+          .select('user_id, coffee_remaining, drinks_remaining')
+          .in('user_id', chunk);
+        if (statsErr) { console.error('low_balance: stats chunk failed:', statsErr); continue; }
+        for (const r of (statsRows || [])) lowBalanceUsers.push(r as any);
+      }
 
+      {
         for (const user of lowBalanceUsers) {
           const subs = activeSubMap.get(user.user_id);
           if (!subs) continue;
@@ -101,41 +110,44 @@ Deno.serve(async (req) => {
             const remaining = st.type === 'coffee' ? user.coffee_remaining : user.drinks_remaining;
             if (remaining <= 0) continue;
 
-            for (const threshold of lowThresholds) {
-              if (remaining === threshold) {
-                // Check if we already sent this alert (independent of in-app toggle)
-                const alertKey = `low_balance_${st.type}_${threshold}`;
-                const { data: existing } = await supabase
-                  .from('notification_dedupe_log')
-                  .select('id')
-                  .eq('user_id', user.user_id)
-                  .eq('alert_key', alertKey)
-                  .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-                  .limit(1);
+            // Целевой порог = НАИМЕНЬШИЙ, при котором остаток ≤ порога (самое
+            // релевантное предупреждение). Срабатывает НА ДОСТИЖЕНИИ (даже если
+            // баланс «перепрыгнул» точное значение). Одно уведомление за проверку.
+            const target = sortedThresholds.find(t => remaining <= t);
+            if (target === undefined) continue;
 
-                if (existing && existing.length > 0) continue;
+            // Дедуп: повторно НЕ шлём (не спамим каждые 15 мин). Дедуп очищается
+            // при переподключении тарифа (activate_subscription) — тогда придёт заново.
+            const alertKey = `low_balance_${st.type}_${target}`;
+            const { data: existing } = await supabase
+              .from('notification_dedupe_log')
+              .select('id')
+              .eq('user_id', user.user_id)
+              .eq('alert_key', alertKey)
+              .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+              .limit(1);
 
-                // Mark as sent (dedupe before fire-and-forget invoke)
-                await supabase.from('notification_dedupe_log').insert({
-                  user_id: user.user_id,
-                  alert_key: alertKey,
-                });
+            if (existing && existing.length > 0) continue;
 
-                // Send notification
-                await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-                  body: JSON.stringify({
-                    type: 'low_balance',
-                    userId: user.user_id,
-                    cupsCount: remaining,
-                    subscriptionName: st.name || (st.type === 'coffee' ? 'Кофе' : 'Ланч'),
-                    drinkType: st.type,
-                  }),
-                }).catch(err => console.error('Low balance notification error:', err));
-                sentCount++;
-              }
-            }
+            await supabase.from('notification_dedupe_log').insert({
+              user_id: user.user_id,
+              alert_key: alertKey,
+            });
+
+            // cupsCount = реальный остаток (для {{count}}), threshold = порог (для подбора шаблона).
+            await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({
+                type: 'low_balance',
+                userId: user.user_id,
+                cupsCount: remaining,
+                threshold: target,
+                subscriptionName: st.name || (st.type === 'coffee' ? 'Кофе' : 'Ланч'),
+                drinkType: st.type,
+              }),
+            }).catch(err => console.error('Low balance notification error:', err));
+            sentCount++;
           }
         }
       }

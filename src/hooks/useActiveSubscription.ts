@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Кеш активных подписок — чтобы на странице «Подписки» активная сразу была
+// помечена активной (а не «Оформить → потом активна»). Фоновый fetch обновит.
+const ACTIVE_SUBS_CACHE_KEY = 'subday_active_subs_cache';
+function readActiveSubsCache(): string[] | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SUBS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export function useActiveSubscription() {
-  const [activeSubscriptionTypeIds, setActiveSubscriptionTypeIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeSubscriptionTypeIds, setActiveSubscriptionTypeIds] = useState<string[]>(() => readActiveSubsCache() ?? []);
+  const [isLoading, setIsLoading] = useState(() => readActiveSubsCache() === null);
 
   useEffect(() => {
     fetchActiveSubscription();
@@ -13,6 +23,7 @@ export function useActiveSubscription() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        try { localStorage.removeItem(ACTIVE_SUBS_CACHE_KEY); } catch { /* ignore */ }
         setIsLoading(false);
         return;
       }
@@ -27,9 +38,9 @@ export function useActiveSubscription() {
         console.error('Error fetching active subscription:', error);
       }
 
-      setActiveSubscriptionTypeIds(
-        (data || []).map(s => s.subscription_type_id).filter(Boolean) as string[]
-      );
+      const ids = (data || []).map(s => s.subscription_type_id).filter(Boolean) as string[];
+      setActiveSubscriptionTypeIds(ids);
+      try { localStorage.setItem(ACTIVE_SUBS_CACHE_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
     } catch (error) {
       console.error('Error in useActiveSubscription:', error);
     } finally {

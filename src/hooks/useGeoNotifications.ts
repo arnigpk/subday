@@ -2,11 +2,13 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useGeolocation } from './useGeolocation';
 import { haversineDistanceMeters } from '@/utils/haversine';
+import { fetchGeoClientConfig, GeoClientConfig } from '@/lib/geoConfig';
 
-const RADIUS_M = 250; // должен соответствовать конфигу шаблона
 const CHECK_INTERVAL_MS = 60_000; // проверяем не чаще 1 раза в минуту
-const LOCAL_COOLDOWN_MS = 30 * 60 * 1000; // мин 30 мин между вызовами edge function локально
 const LS_KEY = 'subday_geo_notify_last_call';
+// Радиус и локальный кулдаун редактируются в админке (fallback ниже).
+const DEFAULT_RADIUS_M = 250;
+const DEFAULT_LOCAL_COOLDOWN_MS = 30 * 60 * 1000;
 
 interface ShopRow {
   id: string;
@@ -34,19 +36,23 @@ export function useGeoNotifications(enabled: boolean) {
   const { latitude, longitude } = useGeolocation();
   const shopsRef = useRef<ShopRow[]>([]);
   const lastCheckRef = useRef(0);
+  const configRef = useRef<GeoClientConfig>({
+    radiusMeters: DEFAULT_RADIUS_M,
+    localCooldownMs: DEFAULT_LOCAL_COOLDOWN_MS,
+  });
 
-  // Загружаем активные кофейни с координатами один раз
+  // Загружаем активные кофейни + конфиг гео (радиус, локальный кулдаун) один раз
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from('shops')
-        .select('id, is_active, coordinates')
-        .eq('is_active', true);
-      if (!cancelled && data) {
-        shopsRef.current = data as ShopRow[];
-      }
+      const [{ data }, cfg] = await Promise.all([
+        supabase.from('shops').select('id, is_active, coordinates').eq('is_active', true),
+        fetchGeoClientConfig(),
+      ]);
+      if (cancelled) return;
+      if (data) shopsRef.current = data as ShopRow[];
+      configRef.current = cfg;
     })();
     return () => { cancelled = true; };
   }, [enabled]);
@@ -60,10 +66,11 @@ export function useGeoNotifications(enabled: boolean) {
     if (now - lastCheckRef.current < CHECK_INTERVAL_MS) return;
     lastCheckRef.current = now;
 
-    if (now - getLastCall() < LOCAL_COOLDOWN_MS) return;
+    if (now - getLastCall() < configRef.current.localCooldownMs) return;
 
     const shops = shopsRef.current;
     if (shops.length === 0) return;
+    const radius = configRef.current.radiusMeters;
 
     const candidates: Array<{ shop_id: string; distance_m: number }> = [];
 
@@ -77,7 +84,7 @@ export function useGeoNotifications(enabled: boolean) {
         const d = haversineDistanceMeters(latitude, longitude, lat, lng);
         if (d < minDist) minDist = d;
       }
-      if (minDist <= RADIUS_M) {
+      if (minDist <= radius) {
         candidates.push({ shop_id: shop.id, distance_m: minDist });
       }
     }

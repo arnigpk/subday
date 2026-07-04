@@ -19,6 +19,10 @@ interface NotificationRequest {
   subscriptionName?: string;
   drinkType?: 'coffee' | 'drinks';
   giftMessage?: string;
+  senderName?: string;
+  // Порог шаблона для подбора (low_balance): остаток может быть МЕНЬШЕ порога,
+  // но шаблон подбираем по порогу, а {{count}} показываем реальный остаток.
+  threshold?: number;
 }
 
 function extractTelegramId(phone: string): string | null {
@@ -154,7 +158,7 @@ Deno.serve(async (req) => {
 
   try {
     const body: NotificationRequest = await req.json();
-    const { type, userId, cupsCount, daysCount, subscriptionName, drinkType, giftMessage } = body;
+    const { type, userId, cupsCount, daysCount, subscriptionName, drinkType, giftMessage, senderName, threshold } = body;
 
     console.log('Processing notification:', { type, userId, cupsCount, daysCount, subscriptionName });
 
@@ -197,7 +201,8 @@ Deno.serve(async (req) => {
       for (const tmpl of templates) {
         const config = (tmpl.trigger_config || {}) as Record<string, number>;
         if (type === 'low_balance' && config.threshold) {
-          if (cupsCount === config.threshold) {
+          // Подбор по порогу (threshold), если передан; иначе по остатку (обратная совместимость).
+          if ((threshold ?? cupsCount) === config.threshold) {
             matchedTemplate = tmpl;
             break;
           }
@@ -245,6 +250,7 @@ Deno.serve(async (req) => {
         subscription_name: subName,
         count: String(count),
         unit: unit,
+        sender_name: senderName || 'Друг',
       });
     } else {
       // Fallback defaults
@@ -261,7 +267,7 @@ Deno.serve(async (req) => {
       } else if (type === 'guest_coffee_expiring') {
         message = `Успейте воспользоваться Гостевым кофе, завтра закончится!`;
       } else if (type === 'guest_coffee') {
-        message = `🎁 Вам подарили кофе! Попробуйте subday ☕`;
+        message = `${senderName || 'Друг'} подарил вам ${count} кофе на 14 дней, приятного кофе 💚`;
         if (giftMessage) message += `\n💬 «${giftMessage}»`;
       } else {
         return new Response(

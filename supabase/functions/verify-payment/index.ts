@@ -298,7 +298,13 @@ Deno.serve(async (req) => {
         started_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
         is_active: true,
+        // Дневной лимит стартует заново — можно пить сразу после переподключения.
+        daily_limit_reset_at: new Date().toISOString(),
       });
+      // Сброс дедупа уведомлений о низком балансе / скором окончании.
+      await supabase.from('notification_dedupe_log').delete()
+        .eq('user_id', authUser.id)
+        .or('alert_key.like.low_balance_*,alert_key.like.expiring_soon_*');
 
       if (subType.type === 'coffee') {
         const { error: statsErr } = await supabase.from('user_stats')

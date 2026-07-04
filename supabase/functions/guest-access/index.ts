@@ -72,12 +72,12 @@ function getMonthKey(): string {
   return `${year}-${month}-01`;
 }
 
-async function sendGuestCoffeeNotification(supabaseUrl: string, serviceKey: string, inviteeUserId: string, message?: string, count: number = 1) {
+async function sendGuestCoffeeNotification(supabaseUrl: string, serviceKey: string, inviteeUserId: string, message?: string, count: number = 1, senderName?: string) {
   try {
     await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId, giftMessage: message, cupsCount: count }),
+      body: JSON.stringify({ type: "guest_coffee", userId: inviteeUserId, giftMessage: message, cupsCount: count, senderName }),
     });
   } catch (err) {
     console.error("Guest notification error:", err);
@@ -150,13 +150,15 @@ async function handleGrant(supabase: any, supabaseUrl: string, serviceKey: strin
 
   const monthKey = getMonthKey();
 
-  // 1. Check inviter has coffee + get subscription type in parallel
-  const [inviterStatsResult, subscriptionTypeId] = await Promise.all([
+  // 1. Check inviter has coffee + get subscription type + name in parallel
+  const [inviterStatsResult, subscriptionTypeId, inviterProfileResult] = await Promise.all([
     supabase.from("user_stats").select("coffee_remaining").eq("user_id", inviterId).single(),
     getInviterSubscriptionTypeId(supabase, inviterId),
+    supabase.from("profiles").select("name").eq("user_id", inviterId).maybeSingle(),
   ]);
 
   const inviterStats = inviterStatsResult.data;
+  const senderName = (inviterProfileResult?.data?.name || "").trim() || "Друг";
   if (!inviterStats || inviterStats.coffee_remaining < count) {
     return jsonRes({ error: "Недостаточно кофе в подписке для выдачи." }, 400);
   }
@@ -288,7 +290,7 @@ async function handleGrant(supabase: any, supabaseUrl: string, serviceKey: strin
   });
 
   // Send notification to invitee (fire-and-forget)
-  sendGuestCoffeeNotification(supabaseUrl, serviceKey, inviteeProfile.user_id, message, count).catch(e => console.error("Notification error:", e));
+  sendGuestCoffeeNotification(supabaseUrl, serviceKey, inviteeProfile.user_id, message, count, senderName).catch(e => console.error("Notification error:", e));
 
   return jsonRes({ status: "active", expires_at: result.expires_at });
 }

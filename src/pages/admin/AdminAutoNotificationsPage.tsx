@@ -37,7 +37,20 @@ const defaultForm = {
   milestones: '',
   cooldown_minutes: 60,
   in_app_enabled: true,
+  // --- ГЕО (geo_proximity) ---
+  geo_title: 'Кофейня рядом',
+  geo_radius_meters: 250,
+  geo_cooldown_hours: 12,
+  geo_visit_cooldown_hours: 12,
+  geo_daily_limit: 2,
+  geo_max_shops: 3,
+  geo_dominant_gap_m: 150,
+  geo_local_cooldown_minutes: 30,
+  geo_requires_subscription: true,
+  geo_respect_working_hours: true,
 };
+
+const isGeoTrigger = (type: string) => type === 'geo_proximity';
 
 const triggerLabels: Record<string, string> = {
   activated: 'Подписка активирована',
@@ -106,7 +119,7 @@ const defaultMessages: Record<string, string> = {
   admin_register_telegram: '🆕 Новая регистрация через Telegram\n\n👤 Имя: {{name}}\n📱 Telegram: {{telegram}}\n🕐 {{time}}',
   admin_payment: '🎉 Новая оплата подписки!\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
   admin_payment_special: '🎉 Новая оплата подписки! (спецпредложение)\n\n👤 Имя: {{name}}\n📦 Подписка: {{subscription_name}}\n💰 Сумма: {{amount}} ₸\n🆔 Заказ: {{order_id}}',
-  guest_coffee: 'Поздравляем, друг подарил вам гостевой кофе на 14 дней, попробуйте subday 💚',
+  guest_coffee: '{{sender_name}} подарил вам {{count}} кофе на 14 дней, приятного кофе 💚',
   guest_coffee_expiring: 'Успейте воспользоваться Гостевым кофе, завтра закончится!',
   subscription_expired: '❌ Ваша подписка {{subscription_name}} закончилась. Оформите новую, чтобы продолжить пользоваться кофе ☕',
   preorder_new: '☕ Новый предзаказ!\n\n🏪 Кофейня: {{shop_name}}\n☕ Напиток: {{coffee_name}}\n🧴 Сироп: {{syrup}}\n👤 Клиент: {{customer_name}}\n🕐 {{time}}',
@@ -173,13 +186,23 @@ export default function AdminAutoNotificationsPage() {
       milestones: config?.milestones ? config.milestones.join(', ') : '',
       cooldown_minutes: config?.cooldown_minutes || 60,
       in_app_enabled: config?.in_app_enabled !== false,
+      geo_title: config?.title ?? 'Кофейня рядом',
+      geo_radius_meters: config?.radius_meters ?? 250,
+      geo_cooldown_hours: config?.cooldown_hours ?? 12,
+      geo_visit_cooldown_hours: config?.visit_cooldown_hours ?? 12,
+      geo_daily_limit: config?.daily_limit ?? 2,
+      geo_max_shops: config?.max_shops_per_check ?? 3,
+      geo_dominant_gap_m: config?.dominant_gap_m ?? 150,
+      geo_local_cooldown_minutes: config?.local_cooldown_minutes ?? 30,
+      geo_requires_subscription: config?.requires_subscription !== false,
+      geo_respect_working_hours: config?.respect_working_hours !== false,
     });
     setDialogOpen(true);
   };
 
   const handleTriggerTypeChange = (v: string) => {
     const updates: any = { trigger_type: v };
-    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v) || v === 'guest_coffee_expiring') && !editingTemplate) {
+    if ((SUBFLOW_TRIGGERS.includes(v) || ADMIN_TRIGGERS.includes(v) || PREORDER_TRIGGERS.includes(v) || v === 'guest_coffee_expiring' || v === 'guest_coffee') && !editingTemplate) {
       updates.message_template = defaultMessages[v] || '';
       if (!form.name) {
         updates.name = triggerLabels[v] || '';
@@ -214,6 +237,18 @@ export default function AdminAutoNotificationsPage() {
     }
     if (isSubflowTrigger(form.trigger_type)) {
       triggerConfig.cooldown_minutes = form.cooldown_minutes || 60;
+    }
+    if (isGeoTrigger(form.trigger_type)) {
+      triggerConfig.title = form.geo_title || 'Кофейня рядом';
+      triggerConfig.radius_meters = Number(form.geo_radius_meters) || 250;
+      triggerConfig.cooldown_hours = Number(form.geo_cooldown_hours) || 12;
+      triggerConfig.visit_cooldown_hours = Number(form.geo_visit_cooldown_hours) || 12;
+      triggerConfig.daily_limit = Number(form.geo_daily_limit) || 2;
+      triggerConfig.max_shops_per_check = Number(form.geo_max_shops) || 3;
+      triggerConfig.dominant_gap_m = Number(form.geo_dominant_gap_m) || 150;
+      triggerConfig.local_cooldown_minutes = Number(form.geo_local_cooldown_minutes) || 30;
+      triggerConfig.requires_subscription = form.geo_requires_subscription;
+      triggerConfig.respect_working_hours = form.geo_respect_working_hours;
     }
     // in_app_enabled: персистим всегда — некоторые триггеры (preorder_new, subflow_*)
     // создают записи в колокольчике независимо от канала FCM/Telegram.
@@ -310,6 +345,9 @@ export default function AdminAutoNotificationsPage() {
     }
     if (triggerType === 'geo_proximity') {
       return '{{shops_inline}} — список кофеен через запятую (ОПТИМАЛЬНО для push, до 3 штук, авто-урезается до 1, если ближайшая явно ближе остальных), {{shop_name}} — название ближайшей, {{distance}} — расстояние до ближайшей (например «120 м»), {{count}} — кол-во кофеен в уведомлении, {{shops_list}} — список через •, {{name}} — имя пользователя. ⚠️ Push: избегайте \\n и длинных тире, держите длину ≤120 символов.';
+    }
+    if (triggerType === 'guest_coffee') {
+      return '{{sender_name}} — имя отправителя, {{count}} — сколько кофе подарено';
     }
     return '{{subscription_name}} — название подписки, {{count}} — число, {{unit}} — единица';
   };
@@ -527,6 +565,73 @@ export default function AdminAutoNotificationsPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Минимальный интервал между уведомлениями одного типа для пользователя.
                 </p>
+              </div>
+            )}
+            {isGeoTrigger(form.trigger_type) && (
+              <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-primary" /> Настройки гео-уведомления
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Заголовок push</label>
+                  <Input
+                    value={form.geo_title}
+                    onChange={e => setForm(f => ({ ...f, geo_title: e.target.value }))}
+                    placeholder="Кофейня рядом"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Радиус (метры)</label>
+                    <Input type="number" min={10} value={form.geo_radius_meters}
+                      onChange={e => setForm(f => ({ ...f, geo_radius_meters: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Кулдаун на кофейню (часы)</label>
+                    <Input type="number" min={0} value={form.geo_cooldown_hours}
+                      onChange={e => setForm(f => ({ ...f, geo_cooldown_hours: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Кулдаун после визита (часы)</label>
+                    <Input type="number" min={0} value={form.geo_visit_cooldown_hours}
+                      onChange={e => setForm(f => ({ ...f, geo_visit_cooldown_hours: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Лимит в день</label>
+                    <Input type="number" min={1} value={form.geo_daily_limit}
+                      onChange={e => setForm(f => ({ ...f, geo_daily_limit: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Макс. кофеен в уведомлении</label>
+                    <Input type="number" min={1} max={3} value={form.geo_max_shops}
+                      onChange={e => setForm(f => ({ ...f, geo_max_shops: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Порог «одна кофейня» (метры)</label>
+                    <Input type="number" min={0} value={form.geo_dominant_gap_m}
+                      onChange={e => setForm(f => ({ ...f, geo_dominant_gap_m: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Локальный кулдаун (минуты)</label>
+                    <Input type="number" min={1} value={form.geo_local_cooldown_minutes}
+                      onChange={e => setForm(f => ({ ...f, geo_local_cooldown_minutes: Number(e.target.value) }))} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Кулдаун на кофейню — минимум времени между уведомлениями об одной кофейне. Кулдаун после визита —
+                  не звать в кофейню, где недавно списывали кофе. «Порог одна кофейня» — если ближайшая ближе остальных на
+                  столько метров, в уведомлении покажем только её.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.geo_requires_subscription}
+                    onCheckedChange={v => setForm(f => ({ ...f, geo_requires_subscription: v }))} />
+                  <span className="text-sm">Только для подписчиков</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.geo_respect_working_hours}
+                    onCheckedChange={v => setForm(f => ({ ...f, geo_respect_working_hours: v }))} />
+                  <span className="text-sm">Учитывать рабочие часы кофейни</span>
+                </div>
               </div>
             )}
             <div>

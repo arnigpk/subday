@@ -23,6 +23,7 @@ export interface UserProfile {
   avatarUrl: string | null;
   subflowNickname: string | null;
   publicId: string | null;
+  geoNotificationsEnabled: boolean;
 }
 
 export interface Redemption {
@@ -49,22 +50,42 @@ const defaultStats: UserStats = {
   guestExpiresAt: null,
 };
 
+// Кеш статистики+профиля для МГНОВЕННОГО показа главной при повторных заходах
+// (свежие данные всё равно догружаются в фоне и заменяют кеш).
+const STATS_CACHE_KEY = 'subday_userstats_cache';
+function readStatsCache(): { stats: UserStats; profile: UserProfile | null } | null {
+  try {
+    const raw = localStorage.getItem(STATS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function writeStatsCache(stats: UserStats, profile: UserProfile | null) {
+  try { localStorage.setItem(STATS_CACHE_KEY, JSON.stringify({ stats, profile })); } catch { /* ignore */ }
+}
+
 export function useUserStats() {
-  const [stats, setStats] = useState<UserStats>(defaultStats);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  // Инициализируем из кеша синхронно — главная показывает баланс/подписку сразу,
+  // без ожидания сети (потом фоновый fetch обновит данные).
+  const [stats, setStats] = useState<UserStats>(() => readStatsCache()?.stats ?? defaultStats);
+  const [profile, setProfile] = useState<UserProfile | null>(() => readStatsCache()?.profile ?? null);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [completedPreordersCount, setCompletedPreordersCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => readStatsCache() === null);
   const [userId, setUserId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setIsLoading(false); return; }
+    if (!user) {
+      // Нет сессии — чистим персистентный кеш, чтобы новый пользователь не увидел чужие данные.
+      try { localStorage.removeItem(STATS_CACHE_KEY); } catch { /* ignore */ }
+      setIsLoading(false);
+      return;
+    }
     setUserId(user.id);
 
     // Fetch profile, stats, redemptions, and completed preorders in parallel
     const [profileResult, statsResult, redemptionsResult, preordersCountResult] = await Promise.all([
-      supabase.from('profiles').select('name, phone, city, country, avatar_url, subflow_nickname, public_id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('profiles').select('name, phone, city, country, avatar_url, subflow_nickname, public_id, geo_notifications_enabled').eq('user_id', user.id).maybeSingle(),
       supabase.from('user_stats').select('*').eq('user_id', user.id).maybeSingle(),
       supabase.from('redemptions').select('*').eq('user_id', user.id).order('redeemed_at', { ascending: false }).limit(50),
       supabase.from('preorders').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'completed'),
@@ -72,8 +93,9 @@ export function useUserStats() {
 
     setCompletedPreordersCount(preordersCountResult.count ?? 0);
 
+    let cachedProfile: UserProfile | null = null;
     if (profileResult.data) {
-      setProfile({
+      cachedProfile = {
         name: profileResult.data.name,
         phone: profileResult.data.phone,
         city: profileResult.data.city,
@@ -81,7 +103,9 @@ export function useUserStats() {
         avatarUrl: profileResult.data.avatar_url,
         subflowNickname: profileResult.data.subflow_nickname,
         publicId: (profileResult.data as any).public_id || null,
-      });
+        geoNotificationsEnabled: (profileResult.data as any).geo_notifications_enabled !== false,
+      };
+      setProfile(cachedProfile);
     }
 
     let statsData = statsResult.data;
@@ -94,7 +118,7 @@ export function useUserStats() {
     }
 
     if (statsData) {
-      setStats({
+      const nextStats: UserStats = {
         coffeeRemaining: statsData.coffee_remaining,
         coffeeTotal: statsData.coffee_total,
         drinksRemaining: statsData.drinks_remaining,
@@ -106,7 +130,10 @@ export function useUserStats() {
         lastRedemptionDate: statsData.last_redemption_date,
         guestCoffees: statsData.guest_coffees ?? 0,
         guestExpiresAt: statsData.guest_expires_at ?? null,
-      });
+      };
+      setStats(nextStats);
+      // Кешируем для мгновенного показа при следующем заходе.
+      writeStatsCache(nextStats, cachedProfile);
     }
 
     if (redemptionsResult.data) {

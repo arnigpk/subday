@@ -6,6 +6,7 @@ import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { uploadWithProgress } from '@/utils/xhrUpload';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { ensureCameraPermission } from '@/lib/cameraPermission';
 
 interface StoryCreateDialogProps {
   open: boolean;
@@ -285,7 +286,13 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
           <div className="flex gap-3 justify-center">
             {/* Camera button — opens native camera for photo or video */}
             <button
-              onClick={() => {
+              onClick={async () => {
+                // Разрешение камеры запрашиваем ПО ФАКТУ (только здесь) и запоминаем.
+                const ok = await ensureCameraPermission();
+                if (!ok) {
+                  toast.error('Нет доступа к камере. Включите его в настройках телефона.');
+                  return;
+                }
                 if (inputRef.current) {
                   inputRef.current.setAttribute('capture', 'environment');
                   inputRef.current.click();

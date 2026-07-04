@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || workerEnv['TELEGRAM_BOT_TOKEN'];
+    const fcmSecret = Deno.env.get('FCM_SERVICE_ACCOUNT') || workerEnv['FCM_SERVICE_ACCOUNT'];
     const supabase = createClient(supabaseUrl!, serviceKey!);
 
     const authHeader = req.headers.get('Authorization');
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
             actor_name: actorName,
             preview: '',
           });
-          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
+          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel, fcmSecret);
         }
       }
 
@@ -171,7 +172,7 @@ Deno.serve(async (req) => {
       });
 
       const promises = followers.map(f =>
-        sendExternalNotification(supabase, telegramBotToken, f.follower_id, message, channel)
+        sendExternalNotification(supabase, telegramBotToken, f.follower_id, message, channel, fcmSecret)
           .catch(err => console.error('Notify error for follower:', err))
       );
       await Promise.allSettled(promises);
@@ -212,7 +213,7 @@ Deno.serve(async (req) => {
             actor_name: actorName,
             preview: '',
           });
-          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel);
+          await sendExternalNotification(supabase, telegramBotToken, post.user_id, message, channel, fcmSecret);
         }
       }
 
@@ -240,7 +241,7 @@ Deno.serve(async (req) => {
             actor_name: actorName,
             preview: '',
           });
-          await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
+          await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel, fcmSecret);
         }
       }
     } else if (type === 'story_like') {
@@ -265,7 +266,7 @@ Deno.serve(async (req) => {
         actor_name: actorName,
         preview: '',
       });
-      await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel);
+      await sendExternalNotification(supabase, telegramBotToken, targetUserId, message, channel, fcmSecret);
     }
 
     return jsonResponse({ ok: true });
@@ -372,6 +373,7 @@ async function sendExternalNotification(
   userId: string,
   message: string,
   channel: string,
+  fcmSecret: string | undefined,
 ) {
   const tasks: Promise<void>[] = [];
 
@@ -380,7 +382,7 @@ async function sendExternalNotification(
   }
 
   if (channel === 'push' || channel === 'both') {
-    tasks.push(sendPushNotification(supabase, userId, message));
+    tasks.push(sendPushNotification(supabase, userId, message, fcmSecret));
   }
 
   await Promise.allSettled(tasks);
@@ -417,7 +419,7 @@ async function sendTelegramNotification(
   }
 }
 
-async function sendPushNotification(supabase: any, userId: string, message: string) {
+async function sendPushNotification(supabase: any, userId: string, message: string, fcmSecret: string | undefined) {
   try {
     const { data: tokens } = await supabase
       .from('device_tokens')
@@ -426,7 +428,6 @@ async function sendPushNotification(supabase: any, userId: string, message: stri
 
     if (!tokens || tokens.length === 0) return;
 
-    const fcmSecret = Deno.env.get('FCM_SERVICE_ACCOUNT');
     const { serviceAccount, parseError } = parseFcmServiceAccount(fcmSecret);
     if (!serviceAccount) {
       console.error('[subflow-notify] FCM not configured:', parseError);

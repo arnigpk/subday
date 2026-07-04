@@ -153,7 +153,11 @@ Deno.serve(async (req) => {
         started_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
         is_active: true,
+        daily_limit_reset_at: new Date().toISOString(),
       });
+      await supabase.from('notification_dedupe_log').delete()
+        .eq('user_id', paymentOrder.user_id)
+        .or('alert_key.like.low_balance_*,alert_key.like.expiring_soon_*');
 
       if (subType.type === 'coffee') {
         const { error: statsErr } = await supabase.from('user_stats')

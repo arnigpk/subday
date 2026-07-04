@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,8 @@ interface HistoryRow {
   subscription_name: string | null;
   subscription_price: number | null;
   subscription_cups: number | null;
+  // Снимок % выплаты на момент списания (заморозка старых выплат). null у старых списаний.
+  payoutPercent?: number | null;
   user_name: string | null;
   user_phone: string | null;
   user_public_id: string | null;
@@ -58,16 +60,32 @@ function calcPayout(
   shopPercentMap: Map<string, number>,
   subTypePercentMap: Map<string, number | null>,
 ): number {
-  if (row.source !== 'redemption') return 0;
+  // Completed (issued) preorders pay the partner exactly like a normal redemption
+  // of one cup. Pending/expired preorders (and anything else) do not.
+  if (row.source === 'preorder') {
+    if (row.preorder_status !== 'completed') return 0;
+  } else if (row.source !== 'redemption') {
+    return 0;
+  }
   // Выдача гостевого доступа другу ("Гостевой доступ → ...") — не реальная продажа в кофейне,
   // фактический напиток считается отдельной записью при сканировании ("Гостевой кофе от ID...").
   // Без этого исключения сумма гостевого кофе задваивалась бы (выдача + погашение).
   if (row.drink_name.startsWith('Гостевой доступ')) return 0;
   if (!row.subscription_price || !row.subscription_cups || row.subscription_cups === 0) return 0;
-  // Subscription type percent overrides shop percent when explicitly set (70 or 80)
-  const subTypePct = row.subscription_name ? subTypePercentMap.get(row.subscription_name) : undefined;
-  const percent = subTypePct ?? shopPercentMap.get(row.shop_name) ?? 70;
-  return Math.round(row.subscription_price / row.subscription_cups * (percent / 100));
+  return Math.round(row.subscription_price / row.subscription_cups * (resolvePayoutPercent(row, shopPercentMap, subTypePercentMap) / 100));
+}
+
+// Процент выплаты для строки: снимок на момент списания → процент тарифа →
+// процент кофейни → 70. Единая точка — используется и в истории, и в расчётах.
+function resolvePayoutPercent(
+  row: HistoryRow,
+  shopPercentMap: Map<string, number>,
+  subTypePercentMap: Map<string, number | null>,
+): number {
+  return (row.payoutPercent != null)
+    ? row.payoutPercent
+    : ((row.subscription_name ? subTypePercentMap.get(row.subscription_name) : undefined)
+        ?? shopPercentMap.get(row.shop_name) ?? 70);
 }
 
 type PeriodType = 'last_month' | 'custom' | 'all';
@@ -92,6 +110,23 @@ export default function AdminHistoryPage() {
   const [subTypePercentMap, setSubTypePercentMap] = useState<Map<string, number | null>>(new Map());
   const [isExporting, setIsExporting] = useState(false);
   const [totalPayout, setTotalPayout] = useState(0);
+
+  // --- Вкладка «Расчёты / выплаты» ---
+  const [activeTab, setActiveTab] = useState<'history' | 'payouts'>('history');
+  const [payoutStats, setPayoutStats] = useState<Array<{
+    shop: string; cups: number; total: number; payout: number; ours: number;
+    tariffs: Array<{ name: string; percent: number; cups: number; total: number; payout: number; ours: number }>;
+  }>>([]);
+  const [isLoadingPayouts, setIsLoadingPayouts] = useState(false);
+  // Раскрытые кофейни во вкладке расчётов (по умолчанию все свёрнуты)
+  const [expandedShops, setExpandedShops] = useState<Set<string>>(new Set());
+  const toggleShopExpand = (shop: string) => {
+    setExpandedShops(prev => {
+      const next = new Set(prev);
+      if (next.has(shop)) next.delete(shop); else next.add(shop);
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchShops();
@@ -182,11 +217,11 @@ export default function AdminHistoryPage() {
 
       // Fetch all subscription types for name lookup
       const { data: allSubTypes } = await supabase.from('subscription_types').select('id, name, price, cups_count, revenue_share_percent');
-      const subTypeById = new Map<string, { name: string; price: number; cups: number }>();
+      const subTypeById = new Map<string, { name: string; price: number; cups: number; percent: number | null }>();
       const subTypeByName = new Map<string, { price: number; cups: number }>();
       const newSubTypePercentMap = new Map<string, number | null>();
       allSubTypes?.forEach(st => {
-        subTypeById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
+        subTypeById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count, percent: (st as any).revenue_share_percent ?? null });
         subTypeByName.set(st.name, { price: st.price, cups: st.cups_count });
         newSubTypePercentMap.set(st.name, (st as any).revenue_share_percent ?? null);
       });
@@ -199,6 +234,8 @@ export default function AdminHistoryPage() {
         const userType = userTypeId ? subTypeById.get(userTypeId) : null;
         const subName = r.subscription_name || userType?.name || null;
         const typeInfo = subName ? subTypeByName.get(subName) : null;
+        // Привязка к конкретному тарифу по его id (архивированному) — приоритетнее имени.
+        const byId = r.subscription_type_id ? subTypeById.get(r.subscription_type_id) : null;
         combined.push({
           id: r.id,
           source: 'redemption',
@@ -209,8 +246,10 @@ export default function AdminHistoryPage() {
           drink_type: r.drink_type,
           redeemed_at: r.redeemed_at,
           subscription_name: subName,
-          subscription_price: typeInfo?.price ?? userType?.price ?? null,
-          subscription_cups: typeInfo?.cups ?? userType?.cups ?? null,
+          // Приоритет: снимок → по id тарифа → по имени → по текущей подписке юзера.
+          subscription_price: r.payout_price ?? byId?.price ?? typeInfo?.price ?? userType?.price ?? null,
+          subscription_cups: r.payout_cups ?? byId?.cups ?? typeInfo?.cups ?? userType?.cups ?? null,
+          payoutPercent: r.payout_percent ?? byId?.percent ?? null,
           user_name: profileMap.get(r.user_id)?.name || null,
           user_phone: profileMap.get(r.user_id)?.phone || null,
           user_public_id: profileMap.get(r.user_id)?.public_id || null,
@@ -223,6 +262,7 @@ export default function AdminHistoryPage() {
         const typeId = userSubTypeId.get(p.user_id);
         const fallbackType = typeId ? subTypeById.get(typeId) || null : null;
         const subName = p.subscription_name || fallbackType?.name || null;
+        const typeInfo = subName ? subTypeByName.get(subName) : null;
         combined.push({
           id: p.id,
           source: 'preorder',
@@ -233,8 +273,8 @@ export default function AdminHistoryPage() {
           drink_type: 'preorder',
           redeemed_at: p.created_at,
           subscription_name: subName,
-          subscription_price: null,
-          subscription_cups: null,
+          subscription_price: typeInfo?.price ?? fallbackType?.price ?? null,
+          subscription_cups: typeInfo?.cups ?? fallbackType?.cups ?? null,
           user_name: profileMap.get(p.user_id)?.name || null,
           user_phone: profileMap.get(p.user_id)?.phone || null,
           user_public_id: profileMap.get(p.user_id)?.public_id || null,
@@ -301,11 +341,11 @@ export default function AdminHistoryPage() {
         supabase.from('subscription_types').select('id, name, price, cups_count, revenue_share_percent'),
       ]);
 
-      const expSubById = new Map<string, { name: string; price: number; cups: number }>();
+      const expSubById = new Map<string, { name: string; price: number; cups: number; percent: number | null }>();
       const expSubByName = new Map<string, { price: number; cups: number }>();
       const expSubTypePercentMap = new Map<string, number | null>();
       exportSubTypes?.forEach((st: any) => {
-        expSubById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count });
+        expSubById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count, percent: st.revenue_share_percent ?? null });
         expSubByName.set(st.name, { price: st.price, cups: st.cups_count });
         expSubTypePercentMap.set(st.name, st.revenue_share_percent ?? null);
       });
@@ -332,33 +372,41 @@ export default function AdminHistoryPage() {
           const userType = userTypeId ? expSubById.get(userTypeId) : null;
           const subName = r.subscription_name || userType?.name || null;
           const typeInfo = subName ? expSubByName.get(subName) : null;
+          const byId = r.subscription_type_id ? expSubById.get(r.subscription_type_id) : null;
           return {
             id: r.id, source: 'redemption' as const, user_id: r.user_id,
             shop_name: r.shop_name, shop_address: r.shop_address || null,
             drink_name: r.drink_name, drink_type: r.drink_type, redeemed_at: r.redeemed_at,
             subscription_name: subName,
-            subscription_price: typeInfo?.price ?? userType?.price ?? null,
-            subscription_cups: typeInfo?.cups ?? userType?.cups ?? null,
+            subscription_price: r.payout_price ?? byId?.price ?? typeInfo?.price ?? userType?.price ?? null,
+            subscription_cups: r.payout_cups ?? byId?.cups ?? typeInfo?.cups ?? userType?.cups ?? null,
+            payoutPercent: r.payout_percent ?? byId?.percent ?? null,
             user_name: profileMap.get(r.user_id)?.name || null,
             user_phone: profileMap.get(r.user_id)?.phone || null,
             user_public_id: profileMap.get(r.user_id)?.public_id || null,
             user_country: profileMap.get(r.user_id)?.country || null,
           };
         }),
-        ...(pData || []).map((p: any) => ({
-          id: p.id, source: 'preorder' as const, user_id: p.user_id,
-          shop_name: p.shop_name, shop_address: p.shop_address || null,
-          drink_name: p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name,
-          drink_type: 'preorder', redeemed_at: p.created_at,
-          subscription_name: p.subscription_name || null,
-          subscription_price: null,
-          subscription_cups: null,
-          user_name: profileMap.get(p.user_id)?.name || null,
-          user_phone: profileMap.get(p.user_id)?.phone || null,
-          user_public_id: profileMap.get(p.user_id)?.public_id || null,
-          user_country: profileMap.get(p.user_id)?.country || null,
-          preorder_status: p.status,
-        })),
+        ...(pData || []).map((p: any) => {
+          const typeId = expUserSubTypeId.get(p.user_id);
+          const fallbackType = typeId ? expSubById.get(typeId) || null : null;
+          const subName = p.subscription_name || fallbackType?.name || null;
+          const typeInfo = subName ? expSubByName.get(subName) : null;
+          return {
+            id: p.id, source: 'preorder' as const, user_id: p.user_id,
+            shop_name: p.shop_name, shop_address: p.shop_address || null,
+            drink_name: p.syrup ? `${p.coffee_name} + ${p.syrup}` : p.coffee_name,
+            drink_type: 'preorder', redeemed_at: p.created_at,
+            subscription_name: subName,
+            subscription_price: typeInfo?.price ?? fallbackType?.price ?? null,
+            subscription_cups: typeInfo?.cups ?? fallbackType?.cups ?? null,
+            user_name: profileMap.get(p.user_id)?.name || null,
+            user_phone: profileMap.get(p.user_id)?.phone || null,
+            user_public_id: profileMap.get(p.user_id)?.public_id || null,
+            user_country: profileMap.get(p.user_id)?.country || null,
+            preorder_status: p.status,
+          };
+        }),
       ];
 
       if (countryFilter !== 'all') combined = combined.filter(r => r.user_country === countryFilter);
@@ -381,6 +429,151 @@ export default function AdminHistoryPage() {
       );
     } finally { setIsExporting(false); }
   };
+
+  // Агрегированные расчёты по кофейням: общая сумма (полная цена чашки по тарифу),
+  // выплата партнёру (та же calcPayout, что и в истории — 70/80% тарифа или кофейни,
+  // со снимком на момент списания) и наша доля (= общая − выплата).
+  const fetchPayouts = async () => {
+    setIsLoadingPayouts(true);
+    try {
+      const dateFilters = getDateFilters();
+      const skipR = typeFilter === 'preorder';
+      const skipP = typeFilter === 'coffee' || typeFilter === 'drinks';
+
+      let rQ = supabase.from('redemptions').select('*');
+      if (shopFilter !== 'all') rQ = rQ.eq('shop_name', shopFilter);
+      if (typeFilter !== 'all' && !skipR) rQ = rQ.eq('drink_type', typeFilter);
+      if (dateFilters) rQ = rQ.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+
+      let pQ = supabase.from('preorders').select('*');
+      if (shopFilter !== 'all') pQ = pQ.eq('shop_name', shopFilter);
+      if (dateFilters) pQ = pQ.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+
+      const [{ data: rData = [] }, { data: pData = [] }, { data: pSubTypes }] = await Promise.all([
+        skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
+        skipP ? Promise.resolve({ data: [] }) : pQ.order('created_at', { ascending: false }).limit(5000),
+        supabase.from('subscription_types').select('id, name, price, cups_count, revenue_share_percent'),
+      ]);
+
+      const pSubById = new Map<string, { name: string; price: number; cups: number; percent: number | null }>();
+      const pSubByName = new Map<string, { price: number; cups: number }>();
+      const pSubTypePercentMap = new Map<string, number | null>();
+      pSubTypes?.forEach((st: any) => {
+        pSubById.set(st.id, { name: st.name, price: st.price, cups: st.cups_count, percent: st.revenue_share_percent ?? null });
+        pSubByName.set(st.name, { price: st.price, cups: st.cups_count });
+        pSubTypePercentMap.set(st.name, st.revenue_share_percent ?? null);
+      });
+
+      const allData = [...(rData || []), ...(pData || [])];
+      const userIds = [...new Set(allData.map((r: any) => r.user_id))];
+      const profileMap = new Map<string, any>();
+      const pUserSubTypeId = new Map<string, string>();
+      // Чанками, чтобы .in() не превышал лимит URL
+      for (let i = 0; i < userIds.length; i += 100) {
+        const chunk = userIds.slice(i, i + 100);
+        const [{ data: profiles }, { data: userSubs }] = await Promise.all([
+          supabase.from('profiles').select('user_id, country, city').in('user_id', chunk),
+          supabase.from('user_subscriptions').select('user_id, subscription_type_id, created_at')
+            .in('user_id', chunk).not('subscription_type_id', 'is', null).order('created_at', { ascending: false }),
+        ]);
+        profiles?.forEach((p: any) => profileMap.set(p.user_id, p));
+        userSubs?.forEach((us: any) => {
+          if (!pUserSubTypeId.has(us.user_id) && us.subscription_type_id) pUserSubTypeId.set(us.user_id, us.subscription_type_id);
+        });
+      }
+
+      // Собираем строки в формате HistoryRow (та же логика, что и в exportAll)
+      let combined: HistoryRow[] = [
+        ...(rData || []).map((r: any) => {
+          const userTypeId = pUserSubTypeId.get(r.user_id);
+          const userType = userTypeId ? pSubById.get(userTypeId) : null;
+          const subName = r.subscription_name || userType?.name || null;
+          const typeInfo = subName ? pSubByName.get(subName) : null;
+          const byId = r.subscription_type_id ? pSubById.get(r.subscription_type_id) : null;
+          return {
+            id: r.id, source: 'redemption' as const, user_id: r.user_id,
+            shop_name: r.shop_name, shop_address: null, drink_name: r.drink_name,
+            drink_type: r.drink_type, redeemed_at: r.redeemed_at,
+            subscription_name: subName,
+            subscription_price: r.payout_price ?? byId?.price ?? typeInfo?.price ?? userType?.price ?? null,
+            subscription_cups: r.payout_cups ?? byId?.cups ?? typeInfo?.cups ?? userType?.cups ?? null,
+            payoutPercent: r.payout_percent ?? byId?.percent ?? null,
+            user_name: null, user_phone: null, user_public_id: null,
+            user_country: profileMap.get(r.user_id)?.country || null,
+          } as HistoryRow & { user_city?: string | null };
+        }),
+        ...(pData || []).map((p: any) => {
+          const typeId = pUserSubTypeId.get(p.user_id);
+          const fallbackType = typeId ? pSubById.get(typeId) || null : null;
+          const subName = p.subscription_name || fallbackType?.name || null;
+          const typeInfo = subName ? pSubByName.get(subName) : null;
+          return {
+            id: p.id, source: 'preorder' as const, user_id: p.user_id,
+            shop_name: p.shop_name, shop_address: null,
+            drink_name: p.coffee_name, drink_type: 'preorder', redeemed_at: p.created_at,
+            subscription_name: subName,
+            subscription_price: typeInfo?.price ?? fallbackType?.price ?? null,
+            subscription_cups: typeInfo?.cups ?? fallbackType?.cups ?? null,
+            user_name: null, user_phone: null, user_public_id: null,
+            user_country: profileMap.get(p.user_id)?.country || null,
+            preorder_status: p.status,
+          } as HistoryRow;
+        }),
+      ];
+
+      // Фильтры страны/города (как в истории)
+      if (countryFilter !== 'all') combined = combined.filter(r => r.user_country === countryFilter);
+      if (cityFilter !== 'all') combined = combined.filter(r => profileMap.get(r.user_id)?.city === cityFilter);
+
+      // Агрегация: кофейня → тарифы внутри неё. У каждого тарифа свой точный
+      // процент (70 или 80) — никаких «смешанных» процентов. Строка кофейни —
+      // сумма её тарифов.
+      type TariffAgg = { name: string; percent: number; cups: number; total: number; payout: number; ours: number };
+      const byShop = new Map<string, Map<string, TariffAgg>>();
+      for (const row of combined) {
+        const payout = calcPayout(row, shopPercentMap, pSubTypePercentMap);
+        if (payout <= 0) continue; // не участвует (гостевая выдача, невыданный предзаказ и т.д.)
+        const percent = resolvePayoutPercent(row, shopPercentMap, pSubTypePercentMap);
+        const fullCup = Math.round((row.subscription_price as number) / (row.subscription_cups as number));
+        const tariffName = row.subscription_name || 'Без тарифа';
+        const tariffKey = `${tariffName}|${percent}`;
+
+        if (!byShop.has(row.shop_name)) byShop.set(row.shop_name, new Map());
+        const tariffs = byShop.get(row.shop_name)!;
+        const agg = tariffs.get(tariffKey) || { name: tariffName, percent, cups: 0, total: 0, payout: 0, ours: 0 };
+        agg.cups += 1;
+        agg.total += fullCup;
+        agg.payout += payout;
+        agg.ours += fullCup - payout;
+        tariffs.set(tariffKey, agg);
+      }
+
+      const statsArr = [...byShop.entries()]
+        .map(([shop, tariffMap]) => {
+          const tariffs = [...tariffMap.values()].sort((a, b) => a.name.localeCompare(b.name) || a.percent - b.percent);
+          return {
+            shop,
+            cups: tariffs.reduce((a, t) => a + t.cups, 0),
+            total: tariffs.reduce((a, t) => a + t.total, 0),
+            payout: tariffs.reduce((a, t) => a + t.payout, 0),
+            ours: tariffs.reduce((a, t) => a + t.ours, 0),
+            tariffs,
+          };
+        })
+        .sort((a, b) => b.payout - a.payout);
+      setPayoutStats(statsArr);
+    } catch (e) {
+      console.error('fetchPayouts error:', e);
+      setPayoutStats([]);
+    } finally {
+      setIsLoadingPayouts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'payouts') fetchPayouts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, shopFilter, typeFilter, countryFilter, cityFilter, periodType, dateRange, shopPercentMap]);
 
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
@@ -464,6 +657,26 @@ export default function AdminHistoryPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
+            {/* Вкладки: История / Расчёты и выплаты */}
+            <div className="flex w-full sm:w-auto rounded-lg border border-border overflow-hidden self-start">
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 sm:flex-none px-5 py-2 text-sm font-medium transition-colors ${
+                  activeTab === 'history' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                История
+              </button>
+              <button
+                onClick={() => setActiveTab('payouts')}
+                className={`flex-1 sm:flex-none px-5 py-2 text-sm font-medium transition-colors ${
+                  activeTab === 'payouts' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Расчёты / выплаты
+              </button>
+            </div>
+            {activeTab === 'history' && (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
                 <CardTitle>Всего записей ({totalCount})</CardTitle>
@@ -503,6 +716,7 @@ export default function AdminHistoryPage() {
                 </AlertDialog>
               )}
             </div>
+            )}
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
@@ -590,7 +804,114 @@ export default function AdminHistoryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {activeTab === 'payouts' ? (
+            isLoadingPayouts ? (
+              <div className="space-y-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+                ))}
+              </div>
+            ) : payoutStats.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Нет расчётов за выбранный период</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="flex justify-end mb-3">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const totalCups = payoutStats.reduce((a, s) => a + s.cups, 0);
+                    const totalSum = payoutStats.reduce((a, s) => a + s.total, 0);
+                    const totalPay = payoutStats.reduce((a, s) => a + s.payout, 0);
+                    const totalOurs = payoutStats.reduce((a, s) => a + s.ours, 0);
+                    downloadCSV(`расчеты_выплаты_${new Date().toISOString().slice(0, 10)}.csv`,
+                      ['Кофейня', 'Тариф', 'Процент выплаты', 'Чашек', 'Общая сумма (₸)', 'Выплата партнёру (₸)', 'Наш процент (₸)'],
+                      [
+                        ...payoutStats.flatMap(s => [
+                          [s.shop, 'ИТОГО ПО КОФЕЙНЕ', '', s.cups, s.total, s.payout, s.ours],
+                          ...s.tariffs.map(t => [s.shop, t.name, `${t.percent}%`, t.cups, t.total, t.payout, t.ours]),
+                        ]),
+                        ['ИТОГО', '', '', totalCups, totalSum, totalPay, totalOurs],
+                      ]
+                    );
+                  }}>
+                    <Download size={14} className="mr-1" />
+                    Скачать отчёт (CSV)
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Кофейня / тариф</TableHead>
+                      <TableHead className="text-right">Чашек</TableHead>
+                      <TableHead className="text-right">Общая сумма</TableHead>
+                      <TableHead className="text-right">Выплата партнёру</TableHead>
+                      <TableHead className="text-right">Наш процент</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payoutStats.map((s) => (
+                      <React.Fragment key={s.shop}>
+                        {/* Строка кофейни — итоги; клик раскрывает разбивку по тарифам */}
+                        <TableRow
+                          className="bg-muted/30 cursor-pointer hover:bg-muted/60 transition-colors select-none"
+                          onClick={() => toggleShopExpand(s.shop)}
+                        >
+                          <TableCell className="font-bold">
+                            <span className={`inline-block mr-2 text-xs transition-transform ${expandedShops.has(s.shop) ? 'rotate-90' : ''}`}>▶</span>
+                            {s.shop}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">{s.cups.toLocaleString('ru-RU')}</TableCell>
+                          <TableCell className="text-right font-bold">{s.total.toLocaleString('ru-RU')} ₸</TableCell>
+                          <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">{s.payout.toLocaleString('ru-RU')} ₸</TableCell>
+                          <TableCell className="text-right font-bold text-primary">{s.ours.toLocaleString('ru-RU')} ₸</TableCell>
+                        </TableRow>
+                        {/* Тарифы внутри кофейни — видны только когда кофейня раскрыта */}
+                        {expandedShops.has(s.shop) && s.tariffs.map((t) => (
+                          <TableRow key={`${s.shop}|${t.name}|${t.percent}`}>
+                            <TableCell className="pl-8 text-sm text-muted-foreground">
+                              {t.name}
+                              <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                t.percent === 80 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' : 'bg-muted text-muted-foreground'
+                              }`}>{t.percent}%</span>
+                            </TableCell>
+                            <TableCell className="text-right text-sm">{t.cups.toLocaleString('ru-RU')}</TableCell>
+                            <TableCell className="text-right text-sm">{t.total.toLocaleString('ru-RU')} ₸</TableCell>
+                            <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">
+                              {t.payout.toLocaleString('ru-RU')} ₸
+                              <span className="ml-1 text-xs text-muted-foreground">({t.percent}%)</span>
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-primary">
+                              {t.ours.toLocaleString('ru-RU')} ₸
+                              <span className="ml-1 text-xs text-muted-foreground">({100 - t.percent}%)</span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                    {/* Итоговая строка */}
+                    <TableRow className="border-t-2 bg-muted/40">
+                      <TableCell className="font-bold">ИТОГО</TableCell>
+                      <TableCell className="text-right font-bold">
+                        {payoutStats.reduce((a, s) => a + s.cups, 0).toLocaleString('ru-RU')}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {payoutStats.reduce((a, s) => a + s.total, 0).toLocaleString('ru-RU')} ₸
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {payoutStats.reduce((a, s) => a + s.payout, 0).toLocaleString('ru-RU')} ₸
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        {payoutStats.reduce((a, s) => a + s.ours, 0).toLocaleString('ru-RU')} ₸
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Общая сумма — полная стоимость каждой выданной чашки по тарифу (цена тарифа ÷ чашек).
+                  Выплата — по проценту тарифа (70/80%) или кофейни, зафиксированному на момент списания.
+                  Наш процент = общая сумма − выплата партнёру.
+                </p>
+              </div>
+            )
+          ) : isLoading ? (
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-12 bg-muted animate-pulse rounded" />

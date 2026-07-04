@@ -1,0 +1,94 @@
+subday — инструкция по iOS-сборке
+Проект на Capacitor 8 (React + Vite внутри нативной обёртки). Нативная часть уже сконфигурирована — твоя задача: собрать, подписать, донастроить Firebase-пуши и проверить по чек-листу.
+
+1. Сборка
+npm install
+npm run build
+npx cap sync ios
+Открыть ios/App/App.xcodeproj в Xcode (проект на SPM, CocoaPods не используется; все 10 Capacitor-плагинов подтянутся сами из ios/App/CapApp-SPM/Package.swift).
+
+Ключевые данные:
+Bundle ID: app.subday.vhod
+Имя: subday
+URL-схема: subday (уже в Info.plist — трогать нельзя, на ней возврат из оплаты)
+2. Signing & Capabilities (таргет App)
+Signing — твой Apple Developer Team.
+Push Notifications (создаст aps-environment в entitlements).
+Background Modes → включить Location updates и Remote notifications.
+3. Пуши (Firebase / FCM) — единственная содержательная задача
+Бэкенд шлёт через FCM, поэтому приложение должно отдавать FCM-токен, а не сырой APNs. Плагин @capacitor/push-notifications по умолчанию отдаёт APNs — нужно связать с Firebase:
+
+File → Add Package Dependencies… → https://github.com/firebase/firebase-ios-sdk → добавить продукт FirebaseMessaging к таргету App.
+GoogleService-Info.plist уже лежит в ios/App/App/ — проверь Target Membership (таргет App) и что bundle ID в нём = app.subday.vhod.
+Замени AppDelegate.swift на:
+
+
+import UIKit
+import Capacitor
+import FirebaseCore
+import FirebaseMessaging
+
+@UIApplicationMain
+class AppDelegate: UIResponder, UIApplicationDelegate {
+
+    var window: UIWindow?
+
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        FirebaseApp.configure()
+        return true
+    }
+
+    func applicationWillResignActive(_ application: UIApplication) {}
+    func applicationDidEnterBackground(_ application: UIApplication) {}
+    func applicationWillEnterForeground(_ application: UIApplication) {}
+    func applicationDidBecomeActive(_ application: UIApplication) {}
+    func applicationWillTerminate(_ application: UIApplication) {}
+
+    // APNs-токен → Firebase → FCM-токен → Capacitor (событие 'registration' в JS)
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+            } else if let token = token {
+                NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+            }
+        }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
+    // Deep links (возврат из оплаты subday://) — НЕ удалять
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
+    }
+
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+}
+
+
+Firebase Console → Project Settings → Cloud Messaging → загрузить APNs Authentication Key (.p8, Key ID + Team ID). Без этого iOS-пуши не доставляются.
+4. Оплата картой / Apple Pay — как это работает (ничего дописывать не надо, только проверить)
+Флоу уже реализован на JS-стороне:
+
+Пользователь жмёт «Оформить» → оплата FreedomPay открывается через @capacitor/browser → на iOS это SFSafariViewController (встроенное окно поверх приложения, из приложения не выкидывает). Это настоящий Safari-движок, поэтому карта и Apple Pay работают (в отличие от WKWebView/iframe).
+После оплаты FreedomPay редиректит на https://web.subday.app/pay-return?... — эта страница автоматически делает переход на subday://pay?....
+Приложение ловит deep-link (через ApplicationDelegateProxy в AppDelegate — поэтому его нельзя удалять), закрывает окно оплаты и показывает экран успеха.
+Если авто-переход из SFSafariViewController заблокируется — на странице есть кнопка-fallback «Вернуться в приложение». Если пользователь закрыл окно вручную — приложение само проверяет статус платежа на сервере.
+Что проверить: оплата открывается ВНУТРИ приложения (оверлеем), после успешной оплаты окно закрывается само и показывается анимация успеха. Схема subday уже прописана в Info.plist (CFBundleURLTypes) — не менять. Apple Pay тестировать только на реальном устройстве.
+
+5. Что уже готово и должно работать из коробки
+Геолокация, вкл. фоновую — уведомление «рядом кофейня» приходит даже при закрытом приложении (плагин @capacitor-community/background-geolocation). Все ключи в Info.plist есть (NSLocationAlwaysAndWhenInUse..., UIBackgroundModes: location). Работает только для подписчиков и по согласию (тумблер в профиле); при первом включении спросит разрешение «Всегда».
+Пуши — после п.3: звук/вибрация, показ уведомления даже когда приложение открыто (через local-notifications). Тумблер в профиле реально вкл/выкл доставку.
+Камера (QR-сканер), haptics, фото (Photo Picker) — разрешения в Info.plist есть.
+6. Чек-лист приёмки (реальный iPhone, не симулятор)
+Установка → онбординг проходит, разрешения (уведомления, гео «Всегда», камера) запрашиваются корректно.
+Вход по номеру/Telegram работает.
+После входа в БД device_tokens появляется токен → тестовый пуш приходит (со звуком; и при открытом, и при закрытом приложении).
+Оплата подписки: встроенное окно → оплата → авто-возврат в приложение → экран успеха. Отдельно проверить Apple Pay.
+Показ QR → сканирование партнёром → списание, экран успеха у клиента появляется мгновенно.
+Гео-уведомление приходит при приближении к кофейне-партнёру с закрытым приложением.

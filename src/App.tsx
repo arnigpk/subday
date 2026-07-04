@@ -17,8 +17,11 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { useVibration } from "@/hooks/useVibration";
 import { usePaymentResult } from "@/hooks/usePaymentResult";
+import { PENDING_PAYMENT_KEY } from "@/hooks/usePayment";
 import { PaymentSuccessAnimation } from "@/components/payment/PaymentSuccessAnimation";
 import { useGeoNotifications } from "@/hooks/useGeoNotifications";
+import { useBackgroundGeoNotifications } from "@/hooks/useBackgroundGeoNotifications";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootstrap";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
@@ -38,6 +41,7 @@ import SubFlowPage from "./pages/SubFlowPage";
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));
 const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+import PayReturnPage from "./pages/PayReturnPage";
 
 // Register service worker for PWA  
 if ('serviceWorker' in navigator) {
@@ -143,6 +147,19 @@ function DeepLinkHandler() {
     const handleAppUrlOpen = (data: { url: string }) => {
       try {
         const url = new URL(data.url);
+
+        // Возврат из оплаты: subday://pay?status=success&order=..&path=/packages
+        // Страница-«отскок» на web.subday.app перебрасывает сюда после оплаты.
+        if (url.protocol === 'subday:' || url.hostname === 'pay') {
+          const status = url.searchParams.get('status') || 'success';
+          const order = url.searchParams.get('order') || '';
+          const returnPath = url.searchParams.get('path') || '/packages';
+          try { localStorage.removeItem(PENDING_PAYMENT_KEY); } catch { /* ignore */ }
+          import('@capacitor/browser').then(({ Browser }) => Browser.close().catch(() => {}));
+          navigate(`${returnPath}?payment=${status}&order=${order}`);
+          return;
+        }
+
         const path = url.pathname + url.search + url.hash;
         if (path && path !== '/') {
           navigate(path);
@@ -154,8 +171,31 @@ function DeepLinkHandler() {
 
     CapApp.addListener('appUrlOpen', handleAppUrlOpen);
 
+    // Fallback: пользователь закрыл оверлей оплаты вручную (или deep-link не сработал).
+    // Проверяем незавершённый платёж и подтверждаем его на сервере.
+    let browserSub: { remove: () => void } | null = null;
+    import('@capacitor/browser').then(({ Browser }) => {
+      Browser.addListener('browserFinished', async () => {
+        let pending: any = null;
+        try { pending = JSON.parse(localStorage.getItem(PENDING_PAYMENT_KEY) || 'null'); } catch { /* ignore */ }
+        if (!pending?.orderId) return;
+        try { localStorage.removeItem(PENDING_PAYMENT_KEY); } catch { /* ignore */ }
+        try {
+          const { data } = await supabase.functions.invoke('verify-payment', {
+            body: { order_id: pending.orderId },
+          });
+          if (data?.success) {
+            navigate(`${pending.returnPath || '/packages'}?payment=success&order=${pending.orderId}`);
+          }
+        } catch (e) {
+          console.warn('[payment] verify on close failed', e);
+        }
+      }).then((h) => { browserSub = h; });
+    });
+
     return () => {
       CapApp.removeAllListeners();
+      if (browserSub) browserSub.remove();
     };
   }, [navigate]);
 
@@ -207,7 +247,16 @@ function GeoNotificationsRunner() {
     };
   }, []);
 
-  useGeoNotifications(enabled);
+  // Строгая проверка активной подписки — фоновый foreground-service (батарея!)
+  // поднимаем только для платящих подписчиков. Веб-версия фильтруется на сервере.
+  const { activeSubscriptions } = useSubscriptionStatus();
+  const hasSub = activeSubscriptions.length > 0;
+  const isNative = Capacitor.isNativePlatform();
+
+  // Веб/мини-апп: только когда приложение открыто (foreground JS).
+  useGeoNotifications(enabled && !isNative);
+  // Натив (APK/iOS): фоновый вотчер — доходит даже с закрытым приложением.
+  useBackgroundGeoNotifications(enabled && isNative && hasSub);
   return null;
 }
 
@@ -261,7 +310,12 @@ const AppContent = () => {
   const [animationReady, setAnimationReady] = useState(false);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
 
-  const { vibrateShort } = useVibration();
+  const { vibrateShort, vibratePreloader } = useVibration();
+
+  // Soft ramp-up haptic that plays together with the splash/preloader on app open.
+  useEffect(() => {
+    vibratePreloader();
+  }, [vibratePreloader]);
 
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
 
@@ -427,6 +481,12 @@ const AppContent = () => {
         <PrivacyPolicyPage />
       </BrowserRouter>
     );
+  }
+
+  // Страница-возврат после оплаты (открывается в Custom Tabs/Safari VC на web.subday.app,
+  // перебрасывает обратно в приложение). Публичная, без авторизации и прелоадера.
+  if (typeof window !== 'undefined' && window.location.pathname === '/pay-return') {
+    return <PayReturnPage />;
   }
 
   if (isLoading) {
