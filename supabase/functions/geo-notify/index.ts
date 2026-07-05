@@ -30,11 +30,18 @@ interface RequestBody {
   candidates: Candidate[];
 }
 
-// Парсинг рабочих часов "HH:MM-HH:MM" с учётом часов через полночь.
-function isOpenNow(workingHours: string | null | undefined): boolean {
-  if (!workingHours) return false;
-  const m = workingHours.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
-  if (!m) return false;
+// Парсинг рабочих часов. Возвращает:
+//   true  — сейчас открыто, false — сейчас закрыто,
+//   null  — часы неизвестны/непарсируемы (пусто, «с 9 до 22» и т.п.)
+function parseOpenNow(workingHours: string | null | undefined): boolean | null {
+  if (!workingHours || !workingHours.trim()) return null;
+  const s = workingHours.trim();
+  const m = s.match(/(\d{1,2}):(\d{2})\s*[–\-—]\s*(\d{1,2}):(\d{2})/);
+  if (!m) {
+    // «Круглосуточно» / «24/7» без диапазона времени → всегда открыто
+    if (/24\s*\/\s*7|кругл/i.test(s)) return true;
+    return null; // формат не распознан — НЕ считаем закрытой
+  }
   const [, oh, om, ch, cm] = m;
   const now = new Date();
   // Используем UTC+5 (KZ) — простое приближение, без zone DB.
@@ -44,6 +51,23 @@ function isOpenNow(workingHours: string | null | undefined): boolean {
   const close = parseInt(ch) * 60 + parseInt(cm);
   if (close < open) return cur >= open || cur < close;
   return cur >= open && cur < close;
+}
+
+// Открыта ли кофейня СЕЙЧАС с учётом часов по каждому адресу (coordinates[i].working_hours)
+// и общих часов кофейни. Правила:
+//  - если хоть один источник говорит «открыто» → открыто;
+//  - если все известные источники говорят «закрыто» → закрыто;
+//  - если часы нигде не заданы/не распознаны → считаем ОТКРЫТОЙ (не блокируем
+//    уведомления навсегда из-за незаполненных данных).
+function isShopOpenNow(shop: { working_hours?: string | null; coordinates?: any }): boolean {
+  const results: Array<boolean | null> = [parseOpenNow(shop.working_hours)];
+  const coords = Array.isArray(shop.coordinates) ? shop.coordinates : [];
+  for (const c of coords) {
+    results.push(parseOpenNow(c?.working_hours));
+  }
+  const known = results.filter((r): r is boolean => r !== null);
+  if (known.length === 0) return true;
+  return known.some(r => r === true);
 }
 
 // (FCM OAuth helpers moved to ../_shared/fcm.ts)
@@ -143,16 +167,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Дневной лимит
+    // 5. Дневной лимит — считаем УВЕДОМЛЕНИЯ, а не строки лога.
+    // Одно уведомление пишет в лог до 3 строк (по строке на каждую кофейню в тексте),
+    // строки одного уведомления имеют одинаковый sent_at (batch insert). Раньше
+    // считались строки — лимит 5 исчерпывался уже после ~2 уведомлений.
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
-    const { count: todayCount } = await supabase
+    const { data: todayRows } = await supabase
       .from('geo_notification_log')
-      .select('*', { count: 'exact', head: true })
+      .select('sent_at')
       .eq('user_id', user.id)
       .gte('sent_at', dayStart.toISOString());
+    const todayCount = new Set((todayRows || []).map((r: any) => r.sent_at)).size;
 
-    if ((todayCount ?? 0) >= dailyLimit) {
+    if (todayCount >= dailyLimit) {
       return new Response(JSON.stringify({ skipped: 'daily_limit' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -212,7 +240,7 @@ Deno.serve(async (req) => {
       if (!shop || !(shop as any).is_active) continue;
       if (recentlyNotifiedSet.has(cand.shop_id)) continue;
       if (recentlyVisitedSet.has(cand.shop_id)) continue;
-      if (respectHours && !isOpenNow((shop as any).working_hours)) continue;
+      if (respectHours && !isShopOpenNow(shop as any)) continue;
       chosen.push({ shop, distance_m: cand.distance_m });
     }
 
