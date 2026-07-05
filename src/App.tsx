@@ -344,11 +344,29 @@ const AppContent = () => {
     Promise.all([configPromise, animPromise]).then(([config, customAnim]) => {
       if (cancelled) return;
 
-      // Pick custom anim if present, else fall back to bundled default.
-      setAnimationData(customAnim || defaultPreloaderAnimation);
+      // Офлайн-кэш кастомного прелоадера: успешную загрузку сохраняем локально,
+      // а при запуске БЕЗ интернета берём из кэша — чтобы офлайн показывался
+      // актуальный (новый) прелоадер, а не вшитый старый. Вшитый — последний фолбэк.
+      const PRELOADER_CACHE_KEY = 'subday_preloader_cache';
+      let cached: { config?: any; anim?: any } | null = null;
+      try { cached = JSON.parse(localStorage.getItem(PRELOADER_CACHE_KEY) || 'null'); } catch { /* ignore */ }
+
+      if (customAnim) {
+        try {
+          localStorage.setItem(PRELOADER_CACHE_KEY, JSON.stringify({
+            config: config ?? cached?.config ?? null,
+            anim: customAnim,
+          }));
+        } catch { /* квота localStorage — не критично, просто без кэша */ }
+      }
+
+      const effectiveConfig = config ?? cached?.config ?? null;
+
+      // Приоритет: свежескачанный → кэшированный → вшитый дефолт.
+      setAnimationData(customAnim || cached?.anim || defaultPreloaderAnimation);
       setAnimationReady(true);
 
-      const isEnabled = config?.enabled !== false;
+      const isEnabled = effectiveConfig?.enabled !== false;
       if (!isEnabled) {
         setIsPreloaderDone(true);
         return;
@@ -357,7 +375,7 @@ const AppContent = () => {
       // Show preloader for the FULL configured duration, measured from app
       // start. If config fetch took some time, subtract elapsed so total
       // visible time matches admin setting exactly.
-      const dur = (config?.duration ?? 2) * 1000;
+      const dur = (effectiveConfig?.duration ?? 2) * 1000;
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, dur - elapsed);
       timer = setTimeout(() => setIsPreloaderDone(true), remaining);
