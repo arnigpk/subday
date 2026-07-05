@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { saveDeviceToken, isPushOptedOut } from '@/lib/pushToken';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Native push notifications hook (iOS/Android via Capacitor).
@@ -90,6 +91,17 @@ export function useNativePush() {
       PushNotifications.removeAllListeners();
       listenersAttached.current = false;
     };
+  }, []);
+
+ 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        PushNotifications.register().catch(() => {});
+      }
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
   const initialize = useCallback(async (): Promise<'granted' | 'denied' | 'unsupported'> => {
