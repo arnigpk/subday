@@ -7,7 +7,8 @@ import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import logo from '@/assets/logo.png';
 import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
-import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled, IconSnowflake } from '@tabler/icons-react';
+import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled, IconSnowflake, IconBan, IconBrandWhatsapp } from '@tabler/icons-react';
+import { getBlockedUsers, unblockUser, type BlockedUser } from '@/lib/subflowModeration';
 import { supabase } from '@/integrations/supabase/client';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
@@ -40,6 +41,11 @@ export default function ProfilePage() {
   const [freezeDays, setFreezeDays] = useState(7);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  // Диалог «Помощь»: заблокированные пользователи + связь с поддержкой
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
+  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const { settings: notifSettings, update: updateNotifSettings, togglePush } = useNotificationSettings();
@@ -119,6 +125,24 @@ export default function ProfilePage() {
   };
   
   const handleSupportClick = () => window.open('https://api.whatsapp.com/send/?phone=77077000994', Capacitor.isNativePlatform() ? '_system' : '_blank');
+
+  const openBlockedList = async () => {
+    setShowSupportDialog(false);
+    setShowBlockedDialog(true);
+    setBlockedLoading(true);
+    setBlockedUsers(await getBlockedUsers());
+    setBlockedLoading(false);
+  };
+
+  const handleUnblock = async (blockedId: string) => {
+    const ok = await unblockUser(blockedId);
+    if (ok) {
+      setBlockedUsers(prev => prev.filter(u => u.blocked_id !== blockedId));
+      toast.success('Пользователь разблокирован');
+    } else {
+      toast.error('Не удалось разблокировать');
+    }
+  };
 
   const isFrozen = activeSubscriptions.some(s => s.is_frozen);
   const freezeUsed = activeSubscriptions.some(s => s.freeze_used);
@@ -394,7 +418,7 @@ export default function ProfilePage() {
               }
               if (item.type === 'support') {
                 return (
-                  <button key={item.label} onClick={handleSupportClick} className="w-full card-interactive flex items-center gap-3">
+                  <button key={item.label} onClick={() => setShowSupportDialog(true)} className="w-full card-interactive flex items-center gap-3">
                     <Icon size={20} className="text-muted-foreground" />
                     <span className="flex-1 font-medium text-foreground text-left">{item.label}</span>
                     <IconChevronRight size={18} className="text-muted-foreground" />
@@ -578,6 +602,79 @@ export default function ProfilePage() {
                     onCheckedChange={handleGeoNotifToggle}
                   />
                 </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Support dialog: заблокированные пользователи + связь с поддержкой */}
+          <Dialog open={showSupportDialog} onOpenChange={setShowSupportDialog}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <IconMessageCircleUser size={20} className="text-primary" /> {t('profile.support')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2.5">
+                <button
+                  onClick={openBlockedList}
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-muted hover:bg-muted/70 transition-colors text-left"
+                >
+                  <IconBan size={20} className="text-destructive shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground">Заблокированные</p>
+                    <p className="text-xs text-muted-foreground">Пользователи, которых вы заблокировали в #subFlow</p>
+                  </div>
+                  <IconChevronRight size={18} className="text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  onClick={() => { setShowSupportDialog(false); handleSupportClick(); }}
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors text-left"
+                >
+                  <IconBrandWhatsapp size={20} className="text-[#25D366] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground">Обратиться в поддержку</p>
+                    <p className="text-xs text-muted-foreground">Напишите нам в WhatsApp — ответим быстро</p>
+                  </div>
+                  <IconChevronRight size={18} className="text-muted-foreground shrink-0" />
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Blocked users dialog */}
+          <Dialog open={showBlockedDialog} onOpenChange={setShowBlockedDialog}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <IconBan size={20} className="text-destructive" /> Заблокированные
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {blockedLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : blockedUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    Вы никого не блокировали
+                  </p>
+                ) : (
+                  blockedUsers.map((u) => (
+                    <div key={u.blocked_id} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted">
+                      <Avatar className="w-9 h-9 shrink-0">
+                        {u.avatar_url && <AvatarImage src={u.avatar_url} />}
+                        <AvatarFallback className="text-xs">{(u.name || '?').charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span className="flex-1 min-w-0 font-medium text-foreground truncate">{u.name || 'Пользователь'}</span>
+                      <button
+                        onClick={() => handleUnblock(u.blocked_id)}
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/70 text-xs font-semibold text-foreground transition-colors"
+                      >
+                        Разблокировать
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </DialogContent>
           </Dialog>

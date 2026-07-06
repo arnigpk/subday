@@ -11,7 +11,8 @@ export function GuestLoginBanner({ onLogin }: GuestLoginBannerProps) {
   const { t } = useLanguage();
   return (
     <div className="fixed top-0 inset-x-0 z-[60] safe-area-top pointer-events-none">
-      <div className="mx-auto max-w-md m-2 flex items-center justify-between gap-3 rounded-xl bg-primary text-primary-foreground shadow-lg px-4 py-2 pointer-events-auto">
+      {/* animate-pulse — мягкое «дыхание» прозрачностью, чтобы плашка не давила на глаза */}
+      <div className="mx-auto max-w-md m-2 flex items-center justify-between gap-3 rounded-xl bg-primary/80 text-primary-foreground shadow-lg px-4 py-2 pointer-events-auto animate-pulse">
         <span className="text-sm font-medium truncate">{t('auth.guestBanner')}</span>
         <button
           type="button"

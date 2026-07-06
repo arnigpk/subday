@@ -10,6 +10,44 @@ export async function getBlockedUserIds(): Promise<Set<string>> {
   }
 }
 
+export interface BlockedUser {
+  blocked_id: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
+// Список заблокированных пользователей с именами/аватарами (для экрана в профиле).
+export async function getBlockedUsers(): Promise<BlockedUser[]> {
+  try {
+    const { data: blocks } = await supabase
+      .from('subflow_blocks')
+      .select('blocked_id')
+      .order('created_at', { ascending: false });
+    if (!blocks || blocks.length === 0) return [];
+    const ids = blocks.map((b: any) => b.blocked_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, avatar_url')
+      .in('user_id', ids);
+    return ids.map((id: string) => {
+      const p = (profiles || []).find((pr: any) => pr.user_id === id);
+      return { blocked_id: id, name: p?.name || null, avatar_url: p?.avatar_url || null };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Разблокировать: удаляем свою запись блокировки (RLS «own blocks delete»).
+export async function unblockUser(blockedId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('subflow_blocks').delete().eq('blocked_id', blockedId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 // Заблокировать автора: контент сразу убирается из ленты (на клиенте) + уведомление разработчику.
 export async function blockUser(targetUserId: string, reason?: string): Promise<boolean> {
   try {
