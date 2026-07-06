@@ -364,7 +364,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
 
   const handleBlock = async () => {
     if (!confirm(`Заблокировать пользователя ${post.author_name}? Его посты и комментарии исчезнут из вашей ленты.`)) return;
-    const ok = await blockUser(post.user_id);
+    const ok = await blockUser(post.user_id, undefined, post.id);
     if (ok) {
       toast.success('Пользователь заблокирован');
       onUpdate(); // лента перезагрузится и отфильтрует заблокированного

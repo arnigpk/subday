@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
         return `${esc(nm)}(${pid})`;
       };
 
-      // Суть поста: обрезанный текст + пометка о картинке.
+      // Суть поста: обрезанный текст + пометка о картинке (или общий тип, если поста нет).
       const postSummary = async (): Promise<string> => {
-        if (targetType !== 'post' || !targetId) return esc(targetType);
+        if (!targetId) return targetType === 'post' ? 'пост' : esc(targetType);
         const { data } = await supabase
           .from('subflow_posts')
           .select('content, image_url, image_urls')
@@ -93,11 +93,13 @@ Deno.serve(async (req) => {
 
       let text: string;
       if (action === 'block') {
-        const [blockerName, authorName] = await Promise.all([nameOf(user.id), nameOf(targetUserId)]);
+        const [blockerName, authorName, summary] = await Promise.all([
+          nameOf(user.id), nameOf(targetUserId), postSummary(),
+        ]);
         text =
           `🚫 Блокировка в #subFlow\n` +
           `${blockerName} заблокировал\n` +
-          `Из-за поста\n` +
+          `Из-за поста: ${summary}\n` +
           `Автора поста: ${authorName}\n` +
           (reason ? `Причина: ${esc(reason)}\n` : '') +
           `Разобрать в течение 24 часов.`;

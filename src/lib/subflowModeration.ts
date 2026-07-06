@@ -49,10 +49,11 @@ export async function unblockUser(blockedId: string): Promise<boolean> {
 }
 
 // Заблокировать автора: контент сразу убирается из ленты (на клиенте) + уведомление разработчику.
-export async function blockUser(targetUserId: string, reason?: string): Promise<boolean> {
+// postId — id поста, из-за которого блокируют (чтобы в уведомлении показать его суть).
+export async function blockUser(targetUserId: string, reason?: string, postId?: string | null): Promise<boolean> {
   try {
     const { error } = await supabase.functions.invoke('subflow-report', {
-      body: { action: 'block', targetUserId, reason },
+      body: { action: 'block', targetUserId, reason, targetId: postId ?? null },
     });
     return !error;
   } catch {
