@@ -6,8 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     SplashScreen: {
+      // Нативный splash скрывается сразу — не держим его поверх webview, чтобы
+      // анимированный Lottie-прелоадер получал всё своё время (без 2-сек задержки).
       launchAutoHide: true,
-      launchShowDuration: 2000,
+      launchShowDuration: 0,
+      launchFadeOutDuration: 0,
       backgroundColor: '#FAF9F6',
     },
     PushNotifications: {
