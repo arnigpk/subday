@@ -157,7 +157,8 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
 }) {
   const translatedName = useAutoTranslate(sub.name);
   const translatedDescription = useAutoTranslate(sub.description);
-  const translatedBadge = sub.badge;
+  // Бейдж тоже настраивается админом по-русски — переводим через Gemini
+  const translatedBadge = useAutoTranslate(sub.badge);
   
   const hasOffer = !!specialOffer;
   const displayPrice = hasOffer ? specialOffer!.offer_price : sub.price;

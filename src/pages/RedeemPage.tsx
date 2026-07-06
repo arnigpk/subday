@@ -13,6 +13,8 @@ import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useShopDistances, type Coordinate } from '@/hooks/useShopDistances';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { TT } from '@/components/TT';
 import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
 import { haversineDistanceMeters } from '@/utils/haversine';
 
@@ -321,6 +323,18 @@ export default function RedeemPage() {
   // default to 0/[] — without this flag the QR area briefly flashes "no subscription"
   // or "out of cups" for users who actually have an active subscription.
   const isLoadingUserData = statsLoading || subsLoading;
+
+  // Автоперевод текстов QR-экрана (настраиваются админом по-русски в qr_settings)
+  // и составной строки остатка — Gemini переводит при языке, отличном от ru.
+  const translatedQrTitle = useAutoTranslate(qrSettings.qr_title);
+  const translatedBaristaText = useAutoTranslate(qrSettings.qr_barista_text);
+  const remainingTextRu = qrSettings.qr_remaining_text
+    .replace('{count}', String(remaining))
+    .replace('{type}', isGuestCoffee
+      ? `гостевой ${t('redeem.coffee')}`
+      : (drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')));
+  const translatedRemainingText = useAutoTranslate(remainingTextRu);
+  const translatedGuestLabel = useAutoTranslate('Гостевой кофе');
 
   const handleRealtimeRedemption = useCallback(() => {
     // Событие приходит по realtime ТОЛЬКО после реального списания на сервере,
@@ -721,13 +735,13 @@ export default function RedeemPage() {
                     <WifiOff size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 leading-tight">
-                        Нет интернета — офлайн-режим
+                        <TT text="Нет интернета — офлайн-режим" />
                       </p>
                       <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-1 leading-snug">
-                        Ничего страшного, если у вас есть подписка — вы можете пользоваться приложением без проблем.
+                        <TT text="Ничего страшного, если у вас есть подписка — вы можете пользоваться приложением без проблем." />
                       </p>
                       <p className="text-[11px] text-amber-700/70 dark:text-amber-300/70 mt-1.5 leading-snug">
-                        Когда появится интернет, баланс и кнопки автоматически обновятся.
+                        <TT text="Когда появится интернет, баланс и кнопки автоматически обновятся." />
                       </p>
                     </div>
                   </div>
@@ -735,7 +749,7 @@ export default function RedeemPage() {
                     onClick={() => window.location.reload()}
                     className="w-full mt-1 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-semibold text-amber-700 dark:text-amber-300 transition-colors"
                   >
-                    Повторить попытку
+                    <TT text="Повторить попытку" />
                   </button>
                 </div>
               )}
@@ -752,8 +766,8 @@ export default function RedeemPage() {
                     ) : shopClosed ? (
                       <div className="text-center p-4">
                         <Clock size={48} className="text-destructive mx-auto mb-3" />
-                        <p className="text-sm font-semibold text-destructive">Кофейня закрыта</p>
-                        <p className="text-xs text-muted-foreground mt-1">Выберите открытую кофейню</p>
+                        <p className="text-sm font-semibold text-destructive"><TT text="Кофейня закрыта" /></p>
+                        <p className="text-xs text-muted-foreground mt-1"><TT text="Выберите открытую кофейню" /></p>
                       </div>
                     ) : isLoadingUserData ? (
                       // Fills the same w-full/h-full footprint the QR will take once loaded,
@@ -764,14 +778,14 @@ export default function RedeemPage() {
                     ) : noSub ? (
                       <div className="text-center p-4">
                         <span className="text-5xl mb-3 block">☕</span>
-                        <p className="text-sm font-semibold text-foreground">Нет активной подписки</p>
-                        <p className="text-xs text-muted-foreground mt-1">Оформите подписку чтобы получить QR</p>
+                        <p className="text-sm font-semibold text-foreground"><TT text="Нет активной подписки" /></p>
+                        <p className="text-xs text-muted-foreground mt-1"><TT text="Оформите подписку чтобы получить QR" /></p>
                       </div>
                     ) : noCups ? (
                       <div className="text-center p-4">
                         <span className="text-5xl mb-3 block">🫙</span>
-                        <p className="text-sm font-semibold text-foreground">{drinkType === 'coffee' ? 'Кофе закончился' : 'Ланчи закончились'}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Оформите новую подписку</p>
+                        <p className="text-sm font-semibold text-foreground"><TT text={drinkType === 'coffee' ? 'Кофе закончился' : 'Ланчи закончились'} /></p>
+                        <p className="text-xs text-muted-foreground mt-1"><TT text="Оформите новую подписку" /></p>
                       </div>
                     ) : (
                       <div className="w-full h-full rounded-2xl bg-muted/30 flex items-center justify-center">
@@ -785,22 +799,22 @@ export default function RedeemPage() {
                         <div className="w-14 h-14 rounded-full bg-sky-400/15 flex items-center justify-center">
                           <Snowflake size={30} className="text-sky-500" />
                         </div>
-                        <p className="text-base font-bold text-foreground leading-tight">Ваша подписка заморожена</p>
+                        <p className="text-base font-bold text-foreground leading-tight"><TT text="Ваша подписка заморожена" /></p>
                         <p className="text-sm text-muted-foreground leading-snug">
-                          Разморозьте подписку в профиле, чтобы воспользоваться!
+                          <TT text="Разморозьте подписку в профиле, чтобы воспользоваться!" />
                         </p>
                         <button
                           onClick={() => navigate('/profile')}
                           className="mt-1 px-5 py-2.5 rounded-2xl bg-sky-500 text-white text-sm font-semibold active:scale-95 transition-transform"
                         >
-                          Разморозить в профиле
+                          <TT text="Разморозить в профиле" />
                         </button>
                       </div>
                     )}
                   </div>
                 );
               })()}
-              <p className="text-lg font-bold text-foreground mb-0.5">{qrSettings.qr_title}</p>
+              <p className="text-lg font-bold text-foreground mb-0.5">{translatedQrTitle}</p>
               {/* Current plan name */}
               {(() => {
                 // Название тарифа/гостевого доступа — заметный бейдж, всегда в 1 строку.
@@ -808,7 +822,7 @@ export default function RedeemPage() {
                 // на название подписки, пока грузится guestSubName — иначе бейдж мигал
                 // (сначала подписка, потом гостевой).
                 const name = isGuestCoffee
-                  ? (guestSubName ? `Гостевой кофе (${guestSubName})` : 'Гостевой кофе')
+                  ? (guestSubName ? `${translatedGuestLabel} (${guestSubName})` : translatedGuestLabel)
                   : (activeSubscriptions.find(s => s.subscription_type === drinkType)?.subscription_name || null);
                 if (!name) return null;
                 return (
@@ -819,14 +833,14 @@ export default function RedeemPage() {
                   </div>
                 );
               })()}
-              <p className="text-muted-foreground mb-1">{qrSettings.qr_barista_text}</p>
+              <p className="text-muted-foreground mb-1">{translatedBaristaText}</p>
               {/* Volume */}
               {(() => {
                 // В режиме гостевого кофе показываем только гостевой объём и НЕ
                 // откатываемся на объём подписки, пока грузится guestSubVolume.
                 if (isGuestCoffee) {
                   return guestSubVolume ? (
-                    <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {guestSubVolume}</p>
+                    <p className="text-sm font-semibold text-accent mb-1"><TT text="Допустимый объём" />: {guestSubVolume}</p>
                   ) : null;
                 }
                 const activeSub = activeSubscriptions.find(s => s.subscription_type === drinkType);
@@ -834,17 +848,10 @@ export default function RedeemPage() {
                   ? subTypeVolumes.find(sv => sv.id === activeSub.subscription_type_id)?.max_volume
                   : null;
                 return subVolume ? (
-                  <p className="text-sm font-semibold text-accent mb-1">Допустимый объём: {subVolume}</p>
+                  <p className="text-sm font-semibold text-accent mb-1"><TT text="Допустимый объём" />: {subVolume}</p>
                 ) : null;
               })()}
-              <p className="text-sm text-muted-foreground mb-4">
-                {qrSettings.qr_remaining_text
-                  .replace('{count}', String(remaining))
-                  .replace('{type}', isGuestCoffee
-                    ? `гостевой ${t('redeem.coffee')}`
-                    : (drinkType === 'coffee' ? t('redeem.coffee') : t('redeem.drinks')))
-                }
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">{translatedRemainingText}</p>
               
               {selectedShop && !selectedShop.isCurrentlyOpen && (
                 <p className="text-sm text-destructive mb-4">{t('redeem.shopClosed')}</p>

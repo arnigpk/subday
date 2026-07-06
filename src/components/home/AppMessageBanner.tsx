@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TT } from '@/components/TT';
 
 interface AppMessage {
   id: string;
@@ -139,7 +140,7 @@ export function AppMessageBanner() {
       >
         <div className="relative rounded-2xl border border-white/20 bg-card/90 backdrop-blur-xl shadow-lg px-4 py-3 pr-10">
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-            {msg.content}
+            <TT text={msg.content} />
           </p>
           <button
             onClick={() => handleDismiss(msg.id)}

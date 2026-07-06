@@ -43,43 +43,83 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY not configured");
     }
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GEMINI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: config.systemPrompt },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.1,
-      }),
-    });
+    // Цепочка моделей: flash-lite часто перегружена (503) и иногда выдаёт мусор —
+    // при ошибке или невалидном ответе пробуем следующую модель.
+    const MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"];
 
-    if (!response.ok) {
-      throw new Error(`AI Gateway error: ${response.status}`);
+    const parseTranslations = (content: string): string[] | null => {
+      const lines = content.split('\n').filter((l: string) => l.trim());
+      const out: string[] = [];
+      let matched = 0;
+      for (let i = 0; i < batch.length; i++) {
+        const linePrefix = `${i + 1}.`;
+        const matchedLine = lines.find((l: string) => l.trim().startsWith(linePrefix));
+        if (matchedLine) {
+          out.push(matchedLine.trim().substring(linePrefix.length).trim());
+          matched++;
+        } else if (lines[i]) {
+          const cleaned = lines[i].replace(/^\d+\.\s*/, '').trim();
+          out.push(cleaned || batch[i]);
+        } else {
+          out.push(batch[i]);
+        }
+      }
+      // Строгая валидация: модель обязана вернуть нумерованную строку для КАЖДОГО
+      // текста — иначе ответ подозрительный (перегруженные модели галлюцинируют),
+      // пробуем следующую модель.
+      if (matched < batch.length) return null;
+      return out;
+    };
+
+    const callModel = async (model: string): Promise<{ ok: boolean; status?: number; content?: string }> => {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GEMINI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: config.systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.1,
+        }),
+      });
+      if (!response.ok) return { ok: false, status: response.status };
+      const data = await response.json();
+      return { ok: true, content: data.choices?.[0]?.message?.content || '' };
+    };
+
+    let translations: string[] | null = null;
+    let lastError = '';
+
+    for (const model of MODELS) {
+      try {
+        let res = await callModel(model);
+        // 503 = временный всплеск нагрузки: одна быстрая повторная попытка.
+        if (!res.ok && res.status === 503) {
+          await new Promise((r) => setTimeout(r, 700));
+          res = await callModel(model);
+        }
+        if (!res.ok) {
+          lastError = `${model}: HTTP ${res.status}`;
+          continue;
+        }
+        const parsed = parseTranslations(res.content || '');
+        if (parsed) {
+          translations = parsed;
+          break;
+        }
+        lastError = `${model}: unparseable response`;
+      } catch (e) {
+        lastError = `${model}: ${e?.message || e}`;
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    const lines = content.split('\n').filter((l: string) => l.trim());
-    const translations: string[] = [];
-
-    for (let i = 0; i < batch.length; i++) {
-      const linePrefix = `${i + 1}.`;
-      const matchedLine = lines.find((l: string) => l.trim().startsWith(linePrefix));
-      if (matchedLine) {
-        translations.push(matchedLine.trim().substring(linePrefix.length).trim());
-      } else if (lines[i]) {
-        const cleaned = lines[i].replace(/^\d+\.\s*/, '').trim();
-        translations.push(cleaned || batch[i]);
-      } else {
-        translations.push(batch[i]);
-      }
+    if (!translations) {
+      throw new Error(`All models failed. Last: ${lastError}`);
     }
 
     return new Response(JSON.stringify({ translations }), {

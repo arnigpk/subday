@@ -28,6 +28,8 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [cityOpen, setCityOpen] = useState(false);
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'code'>('form');
+  // Явное согласие с правилами сервиса (галочка) — App Store Guideline 1.2
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
@@ -209,7 +211,24 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
                   {t('auth.beelineWarningRegister')}
                 </p>
               )}
-              <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              {/* Явное согласие с правилами (EULA) — требование App Store Guideline 1.2 */}
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-xs text-muted-foreground leading-snug">
+                  {t('auth.agreeCheckbox')}{' '}
+                  <ServiceRulesDialog>
+                    <button type="button" onClick={(e) => e.stopPropagation()} className="text-primary underline hover:text-primary/80 transition-colors">
+                      {t('auth.agreeCheckboxLink')}
+                    </button>
+                  </ServiceRulesDialog>
+                </span>
+              </label>
+              <button onClick={handleSendCode} disabled={!isPhoneComplete || !name.trim() || !city || !agreedToTerms || isLoading || isCoolingDown} className="btn-accent w-full disabled:opacity-50 disabled:cursor-not-allowed">
                 {isCoolingDown ? t('auth.resendIn').replace('{sec}', String(remaining)) : isLoading ? t('auth.sending') : t('auth.getCode')}
               </button>
               <button onClick={onSwitchToLogin} className="btn-secondary w-full">

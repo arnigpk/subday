@@ -10,6 +10,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { TT } from '@/components/TT';
 
 interface SpecialOfferPopupProps {
   open: boolean;
@@ -40,7 +42,10 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offe
     navigate('/packages');
   };
 
-  const displayText = description || `${offerCups} кофе за ${formatPrice(offerPrice)} ₸ — чтобы вы попробовали subday.`;
+  // Автоперевод текста предложения (описание задаётся админом по-русски)
+  const displayText = useAutoTranslate(
+    description || `${offerCups} кофе за ${formatPrice(offerPrice)} ₸ — чтобы вы попробовали subday.`
+  );
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onDismiss(); }}>
@@ -50,13 +55,13 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offe
             <Gift className="w-7 h-7 sm:w-8 sm:h-8 text-accent" />
           </div>
           <DialogTitle className="text-xl sm:text-2xl font-black">
-            Спецпредложение 🎁
+            <TT text="Спецпредложение" /> 🎁
           </DialogTitle>
           <DialogDescription className="text-sm sm:text-base text-foreground/80 leading-relaxed">
             {displayText}
             {eligibleUntil && (
               <span className="block mt-2 text-xs sm:text-sm text-muted-foreground">
-                Предложение действует {formatEligibleUntil(eligibleUntil)}
+                <TT text="Предложение действует" /> {formatEligibleUntil(eligibleUntil)}
               </span>
             )}
           </DialogDescription>
@@ -67,14 +72,14 @@ export function SpecialOfferPopup({ open, onDismiss, offerPrice, offerCups, offe
             onClick={handleActivate}
             className="w-full h-11 sm:h-12 text-xs sm:text-sm font-bold bg-accent hover:bg-accent/90 text-accent-foreground tracking-wide px-3"
           >
-            АКТИВИРОВАТЬ СПЕЦПРЕДЛОЖЕНИЕ🚀
+            <TT text="АКТИВИРОВАТЬ СПЕЦПРЕДЛОЖЕНИЕ" />🚀
           </Button>
           <Button 
             variant="ghost" 
             onClick={onDismiss}
             className="w-full text-sm text-muted-foreground"
           >
-            Позже
+            <TT text="Позже" />
           </Button>
         </div>
       </DialogContent>
