@@ -7,6 +7,7 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
+import { getBlockedUserIds } from '@/lib/subflowModeration';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -75,6 +76,12 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
+  // Заблокированные пользователи — их посты скрываем из ленты (App Store 1.2)
+  const blockedIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!currentUserId) { blockedIdsRef.current = new Set(); return; }
+    getBlockedUserIds().then(ids => { blockedIdsRef.current = ids; });
+  }, [currentUserId]);
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
@@ -105,11 +112,14 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         query = query.lt('created_at', lastCreatedAtRef.current);
       }
 
-      const { data: postsData, error: postsError } = await query;
+      const { data: postsRaw, error: postsError } = await query;
 
       if (postsError) throw postsError;
 
-      if (!postsData || postsData.length === 0) {
+      // Скрываем посты заблокированных пользователей (пагинация по created_at сохраняется).
+      const postsData = (postsRaw || []).filter((p: any) => !blockedIdsRef.current.has(p.user_id));
+
+      if (!postsRaw || postsRaw.length === 0) {
         if (isInitial) setPosts([]);
         setHasMore(false);
         setIsLoading(false);
@@ -117,8 +127,10 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         return;
       }
 
-      lastCreatedAtRef.current = postsData[postsData.length - 1].created_at;
-      setHasMore(postsData.length === POSTS_PER_PAGE);
+      // Курсор и hasMore — по СЫРОЙ странице (postsRaw), иначе при полностью
+      // заблокированной странице курсор бы сломался.
+      lastCreatedAtRef.current = postsRaw[postsRaw.length - 1].created_at;
+      setHasMore(postsRaw.length === POSTS_PER_PAGE);
 
       const userIds = [...new Set(postsData.map(p => p.user_id))];
       

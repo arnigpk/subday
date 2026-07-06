@@ -13,9 +13,10 @@ import { PaymentLogos } from './PaymentLogos';
 interface LoginScreenProps {
   onComplete: () => void;
   onSwitchToRegister: (phone?: string, country?: Country) => void;
+  onGuestBrowse?: () => void;
 }
 
-export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps) {
+export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: LoginScreenProps) {
   const { t } = useLanguage();
   const detectedCountry = useDetectedCountry();
   const [country, setCountry] = useState<Country>(detectedCountry);
@@ -256,6 +257,15 @@ export function LoginScreen({ onComplete, onSwitchToRegister }: LoginScreenProps
         <p className="text-xs text-muted-foreground text-center">
           {t('auth.termsPrefix')} <ServiceRulesDialog><button type="button" className="text-primary underline hover:text-primary/80 transition-colors">{t('auth.termsLink')}</button></ServiceRulesDialog>.
         </p>
+        {onGuestBrowse && (
+          <button
+            type="button"
+            onClick={onGuestBrowse}
+            className="w-full max-w-sm mx-auto block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors py-1"
+          >
+            {t('auth.guestBrowse')}
+          </button>
+        )}
         <PaymentLogos />
       </div>
     </div>

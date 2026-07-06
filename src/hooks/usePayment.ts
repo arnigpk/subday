@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useGuestMode } from '@/contexts/GuestModeContext';
 
 interface UsePaymentResult {
   isProcessing: boolean;
@@ -17,8 +18,14 @@ export const PENDING_PAYMENT_KEY = 'subday_pending_payment';
 export function usePayment(): UsePaymentResult {
   const [isProcessing, setIsProcessing] = useState(false);
   const location = useLocation();
+  const { isGuest, requestLogin } = useGuestMode();
 
   const createPayment = async (subscriptionTypeId: string) => {
+    // Гость: оплата требует аккаунта — уводим на вход/регистрацию, не показывая ошибку.
+    if (isGuest) {
+      requestLogin();
+      return;
+    }
     setIsProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();

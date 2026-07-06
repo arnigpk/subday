@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Plus } from 'lucide-react';
+import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Plus, MoreVertical, Flag, Ban } from 'lucide-react';
+import { blockUser, reportContent } from '@/lib/subflowModeration';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -353,6 +354,25 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
     }
   };
 
+  // --- Модерация UGC (App Store Guideline 1.2) ---
+  const handleReport = async () => {
+    if (!confirm('Пожаловаться на этот пост? Мы рассмотрим жалобу в течение 24 часов.')) return;
+    const ok = await reportContent({ targetType: 'post', targetId: post.id, targetUserId: post.user_id });
+    if (ok) toast.success('Жалоба отправлена. Спасибо, мы рассмотрим её в течение 24 часов.');
+    else toast.error('Не удалось отправить жалобу');
+  };
+
+  const handleBlock = async () => {
+    if (!confirm(`Заблокировать пользователя ${post.author_name}? Его посты и комментарии исчезнут из вашей ленты.`)) return;
+    const ok = await blockUser(post.user_id);
+    if (ok) {
+      toast.success('Пользователь заблокирован');
+      onUpdate(); // лента перезагрузится и отфильтрует заблокированного
+    } else {
+      toast.error('Не удалось заблокировать');
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editContent.trim()) {
       toast.error(t('subflow.writeText'));
@@ -438,6 +458,35 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
             >
               <Trash2 size={16} />
             </button>
+          )}
+          {/* Модерация: жалоба / блокировка — только для чужих постов (App Store 1.2) */}
+          {currentUserId && !isOwner && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                  title="Ещё"
+                >
+                  <MoreVertical size={16} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-1">
+                <button
+                  onClick={handleReport}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-foreground hover:bg-secondary transition-colors text-left"
+                >
+                  <Flag size={15} className="text-amber-600" />
+                  Пожаловаться на пост
+                </button>
+                <button
+                  onClick={handleBlock}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors text-left"
+                >
+                  <Ban size={15} />
+                  Заблокировать пользователя
+                </button>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       </div>

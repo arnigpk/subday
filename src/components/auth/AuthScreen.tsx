@@ -5,9 +5,10 @@ import { Country } from './CountryCodePicker';
 
 interface AuthScreenProps {
   onComplete: (isNewUser?: boolean) => void;
+  onGuestBrowse?: () => void;
 }
 
-export function AuthScreen({ onComplete }: AuthScreenProps) {
+export function AuthScreen({ onComplete, onGuestBrowse }: AuthScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [prefillPhone, setPrefillPhone] = useState('');
   const [prefillCountry, setPrefillCountry] = useState<Country | undefined>();
@@ -37,6 +38,7 @@ export function AuthScreen({ onComplete }: AuthScreenProps) {
     <LoginScreen
       onComplete={onComplete}
       onSwitchToRegister={handleSwitchToRegister}
+      onGuestBrowse={onGuestBrowse}
     />
   );
 }

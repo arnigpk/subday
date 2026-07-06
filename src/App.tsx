@@ -10,6 +10,8 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-ro
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { GuestModeProvider } from "@/contexts/GuestModeContext";
+import { GuestLoginBanner } from "@/components/auth/GuestLoginBanner";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
@@ -302,6 +304,8 @@ function PlatformGuard({ children, isTelegramMiniApp }: { children: ReactNode; i
 
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
+  // Гостевой режим: пользователь смотрит приложение без входа (App Store 5.1.1).
+  const [guestMode, setGuestMode] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   // Start as null — do NOT show bundled animation immediately, otherwise old
@@ -537,16 +541,19 @@ const AppContent = () => {
     );
   }
   
-  if (!session) {
+  if (!session && !guestMode) {
     return (
       <>
         <Sonner />
-        <AuthScreen onComplete={handleAuthComplete} />
+        <AuthScreen onComplete={handleAuthComplete} onGuestBrowse={() => setGuestMode(true)} />
       </>
     );
   }
-  
+
+  const isGuest = !session;
+
   return (
+    <GuestModeProvider value={{ isGuest, requestLogin: () => setGuestMode(false) }}>
     <UserStatsProvider>
       <BrowserRouter>
         <PaymentResultHandler />
@@ -555,6 +562,7 @@ const AppContent = () => {
         <PermissionsBootstrap />
         <Toaster />
         <Sonner />
+        {isGuest && <GuestLoginBanner onLogin={() => setGuestMode(false)} />}
         {showOnboarding && <OnboardingTutorial onComplete={completeOnboarding} />}
         <PlatformGuard isTelegramMiniApp={isTelegramMiniApp}>
         <Suspense fallback={<LazyFallback />}>
@@ -603,6 +611,7 @@ const AppContent = () => {
         </PlatformGuard>
       </BrowserRouter>
     </UserStatsProvider>
+    </GuestModeProvider>
   );
 };
 
