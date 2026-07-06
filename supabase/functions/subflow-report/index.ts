@@ -57,16 +57,63 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Уведомление разработчику в админ-бот (fire-and-forget).
+    // Уведомление разработчику в админ-бот (человекочитаемое: имена + суть поста).
     if (botToken && chatId) {
-      const title = action === 'block' ? '🚫 Блокировка в #subFlow' : '⚠️ Жалоба в #subFlow';
-      const text =
-        `${title}\n` +
-        `От: <code>${user.id}</code>\n` +
-        `Тип: ${targetType}${targetId ? ` (<code>${targetId}</code>)` : ''}\n` +
-        (targetUserId ? `Автор: <code>${targetUserId}</code>\n` : '') +
-        (reason ? `Причина: ${reason}\n` : '') +
-        `Разобрать в течение 24 часов.`;
+      // Экранируем HTML — parse_mode: HTML, а имена/текст могут содержать < > &.
+      const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // «Имя(id123456)» — ник в subFlow или имя из профиля + короткий public_id.
+      const nameOf = async (uid: string | null): Promise<string> => {
+        if (!uid) return '—';
+        const { data } = await supabase
+          .from('profiles')
+          .select('name, subflow_nickname, public_id')
+          .eq('user_id', uid)
+          .maybeSingle();
+        const nm = (data?.subflow_nickname || data?.name || 'Пользователь').toString();
+        const pid = data?.public_id ? `id${data.public_id}` : uid.slice(0, 8);
+        return `${esc(nm)}(${pid})`;
+      };
+
+      // Суть поста: обрезанный текст + пометка о картинке.
+      const postSummary = async (): Promise<string> => {
+        if (targetType !== 'post' || !targetId) return esc(targetType);
+        const { data } = await supabase
+          .from('subflow_posts')
+          .select('content, image_url, image_urls')
+          .eq('id', targetId)
+          .maybeSingle();
+        if (!data) return 'пост (не найден или удалён)';
+        const t = (data.content || '').toString().trim();
+        const hasImg = !!data.image_url || (Array.isArray(data.image_urls) && data.image_urls.length > 0);
+        const snip = t ? `«${esc(t.slice(0, 150))}${t.length > 150 ? '…' : ''}»` : '';
+        const img = hasImg ? (snip ? ' 🖼 + картинка' : '🖼 картинка (без текста)') : '';
+        return `${snip}${img}` || 'пост';
+      };
+
+      let text: string;
+      if (action === 'block') {
+        const [blockerName, authorName] = await Promise.all([nameOf(user.id), nameOf(targetUserId)]);
+        text =
+          `🚫 Блокировка в #subFlow\n` +
+          `${blockerName} заблокировал\n` +
+          `Из-за поста\n` +
+          `Автора поста: ${authorName}\n` +
+          (reason ? `Причина: ${esc(reason)}\n` : '') +
+          `Разобрать в течение 24 часов.`;
+      } else {
+        const [reporterName, authorName, summary] = await Promise.all([
+          nameOf(user.id), nameOf(targetUserId), postSummary(),
+        ]);
+        text =
+          `⚠️ Жалоба в #subFlow\n` +
+          `От: ${reporterName}\n` +
+          `Тип: ${summary}\n` +
+          `Автор поста: ${authorName}\n` +
+          (reason ? `Причина: ${esc(reason)}\n` : '') +
+          `Разобрать в течение 24 часов.`;
+      }
+
       fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
