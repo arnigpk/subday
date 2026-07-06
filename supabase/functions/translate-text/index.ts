@@ -35,19 +35,22 @@ serve(async (req) => {
       ? `Translate the following texts from Russian to English. Return ONLY translated texts, one per line, with numbers. Preserve formatting, emojis and special characters. Don't add anything extra.\n\n${numberedTexts}`
       : `Переведи следующие тексты с ${config.from} на ${config.to} язык. Верни ТОЛЬКО переведённые тексты, по одному на строку, с номерами. Сохрани форматирование, эмодзи и специальные символы. Не добавляй ничего лишнего.\n\n${numberedTexts}`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    // Прямой Google Gemini API (OpenAI-совместимый endpoint), ключ — свой.
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get("x-worker-env") || "{}"); } catch { /* ignore */ }
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || workerEnv["GEMINI_API_KEY"];
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY not configured");
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: config.systemPrompt },
           { role: "user", content: prompt },
