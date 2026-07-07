@@ -441,7 +441,10 @@ async function sendPushNotification(supabase: any, userId: string, message: stri
       const result = await sendFcmMessage(accessToken, serviceAccount.project_id, (t as any).token, {
         title: '#subFlow',
         body: message,
-        androidChannelId: 'subflow',
+        // Единый канал 'default' — создаётся нативно в MainActivity, поэтому
+        // существует всегда. Кастомный 'subflow' в приложении не создавался,
+        // из-за чего Android молча отбрасывал эти пуши.
+        androidChannelId: 'default',
       });
       if (!result.ok) {
         console.error('[subflow-notify] FCM send failed:', result.status, result.error);

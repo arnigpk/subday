@@ -192,7 +192,9 @@ Deno.serve(async (req) => {
               const result = await sendFcmMessage(accessToken, serviceAccount.project_id, deviceToken.token, {
                 title: pushTitle,
                 body: pushBody,
-                androidChannelId: 'preorders',
+                // Единый канал 'default' (создаётся нативно в MainActivity).
+                // Канал 'preorders' в приложении не создавался → Android его дропал.
+                androidChannelId: 'default',
               });
               if (result.ok) {
                 fcmSent++;
