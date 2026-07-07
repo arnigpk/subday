@@ -28,16 +28,20 @@ import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootst
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 
-// Eager-loaded core pages
+// Eager: только Главная (стартовый экран) и NotFound (крошечный фолбэк).
 import HomePage from "./pages/HomePage";
-import PackagesPage from "./pages/PackagesPage";
-import PackageDetailPage from "./pages/PackageDetailPage";
-import ShopsPage from "./pages/ShopsPage";
-import ShopDetailPage from "./pages/ShopDetailPage";
-import RedeemPage from "./pages/RedeemPage";
-import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
-import SubFlowPage from "./pages/SubFlowPage";
+
+// Ленивая загрузка остальных вкладок — уменьшает стартовый бандл, ускоряет
+// запуск. Код страницы подгружается при первом заходе (на нативе — из локального
+// файла, ≈мгновенно). Роуты уже обёрнуты в <Suspense fallback={LazyFallback}>.
+const PackagesPage = lazy(() => import("./pages/PackagesPage"));
+const PackageDetailPage = lazy(() => import("./pages/PackageDetailPage"));
+const ShopsPage = lazy(() => import("./pages/ShopsPage"));
+const ShopDetailPage = lazy(() => import("./pages/ShopDetailPage"));
+const RedeemPage = lazy(() => import("./pages/RedeemPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SubFlowPage = lazy(() => import("./pages/SubFlowPage"));
 
 // Lazy-loaded secondary pages
 const HistoryPage = lazy(() => import("./pages/HistoryPage"));

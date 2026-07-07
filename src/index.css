@@ -70,7 +70,7 @@
     --safe-area-top-base: env(safe-area-inset-top, 0px);
     --safe-area-bottom-base: env(safe-area-inset-bottom, 0px);
     --safe-area-top-offset: 12px;
-    --safe-area-bottom-offset: 6px;
+    --safe-area-bottom-offset: 2px;
     --app-nav-height: 64px;
     --app-nav-total-height: calc(var(--app-nav-height) + var(--safe-area-bottom-base) + var(--safe-area-bottom-offset) + 4px);
     --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 24px);
@@ -90,7 +90,8 @@
     --tg-safe-area-top: 40px;
     --safe-area-top-offset: var(--tg-safe-area-top, 40px);
     --admin-mobile-extra-top: 0px;
-    --safe-area-bottom-offset: 20px;
+    /* Telegram Mini App: меньше «воздуха» под нижним меню — опускаем его ниже. */
+    --safe-area-bottom-offset: 6px;
     --app-content-bottom-clearance: calc(var(--app-nav-total-height) + 32px);
     --app-floating-clearance: calc(var(--app-nav-total-height) + 18px);
     --app-floating-clearance-compact: calc(var(--app-nav-total-height) + 6px);
