@@ -42,6 +42,7 @@ interface TransactionWithUser {
   user_country: string | null;
   payment_id: string | null;
   order_id: string | null;
+  is_refunded: boolean;
   receipt_data: any | null;
 }
 
@@ -212,7 +213,7 @@ export default function AdminSubscriptionTransactionsPage() {
       const [profilesResult, paymentOrdersResult] = await Promise.all([
         supabase.from('profiles').select('user_id, name, phone, public_id, country, city').in('user_id', userIds),
         paymentOrderIds.length > 0
-          ? supabase.from('payment_orders').select('id, payment_id, order_id').in('id', paymentOrderIds)
+          ? supabase.from('payment_orders').select('id, payment_id, order_id, status').in('id', paymentOrderIds)
           : Promise.resolve({ data: [] }),
       ]);
 
@@ -230,6 +231,7 @@ export default function AdminSubscriptionTransactionsPage() {
           user_country: profile?.country || null,
           payment_id: payment?.payment_id || null,
           order_id: payment?.order_id || null,
+          is_refunded: payment?.status === 'refunded',
           receipt_data: (t as any).receipt_data || null,
         };
       });
@@ -806,17 +808,23 @@ export default function AdminSubscriptionTransactionsPage() {
                             ) : '—'}
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                              t.transaction_type === 'purchase'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            }`}>
-                              {t.transaction_type === 'purchase' ? (
-                                <><CreditCard className="w-3 h-3" />Покупка</>
-                              ) : (
-                                <><Shield className="w-3 h-3" />Админ</>
-                              )}
-                            </span>
+                            {t.is_refunded ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                <RotateCcw className="w-3 h-3" />Возвращено
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                                t.transaction_type === 'purchase'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              }`}>
+                                {t.transaction_type === 'purchase' ? (
+                                  <><CreditCard className="w-3 h-3" />Покупка</>
+                                ) : (
+                                  <><Shield className="w-3 h-3" />Админ</>
+                                )}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {getPaymentMethodLabel(t.payment_method, t.receipt_data)}
