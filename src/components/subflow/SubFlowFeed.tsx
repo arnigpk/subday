@@ -94,6 +94,12 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         setPosts([]);
         lastCreatedAtRef.current = null;
         setHasMore(true);
+        // Актуализируем список заблокированных на КАЖДОЙ первичной загрузке —
+        // иначе только что заблокированный автор оставался бы виден в ленте до
+        // перемонтирования (blockedIdsRef иначе грузится один раз при mount).
+        if (currentUserId) {
+          try { blockedIdsRef.current = await getBlockedUserIds(); } catch { /* оставляем прежний список */ }
+        }
       } else {
         setIsLoadingMore(true);
       }
