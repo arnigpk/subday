@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText, Download, Loader2 } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, Trash2, User, CreditCard, Shield, CheckCircle, XCircle, Clock, FileText, Download, Loader2, RotateCcw } from 'lucide-react';
 import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -69,7 +69,8 @@ type PaymentStatusFilter = 'all' | 'paid' | 'pending' | 'failed';
 const PAGE_SIZE = 20;
 
 export default function AdminSubscriptionTransactionsPage() {
-  const { canManage } = useAdminAuth();
+  const { canManage, isSuperAdmin } = useAdminAuth();
+  const [refundingId, setRefundingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('payments');
   const [isExporting, setIsExporting] = useState(false);
   
@@ -321,6 +322,33 @@ export default function AdminSubscriptionTransactionsPage() {
     }
   };
 
+  const handleRefund = async (p: PaymentOrderWithUser) => {
+    setRefundingId(p.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('refund-payment', {
+        body: { payment_order_id: p.id },
+      });
+      if (error) {
+        // edge-функция вернула не-2xx: достаём текст ошибки
+        let msg = 'Ошибка возврата';
+        try { const ctx = await (error as any).context?.json?.(); if (ctx?.error) msg = ctx.error + (ctx.details ? `: ${ctx.details}` : ''); } catch { /* ignore */ }
+        toast.error(msg);
+        return;
+      }
+      if ((data as any)?.success) {
+        toast.success(`Возврат выполнен: ${(data as any).amount?.toLocaleString?.() || p.amount} ₸ (${(data as any).provider})`);
+        fetchPayments();
+      } else {
+        toast.error((data as any)?.error || 'Возврат не выполнен');
+      }
+    } catch (e) {
+      console.error('Refund error:', e);
+      toast.error('Ошибка возврата');
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
   const handleDeletePayment = async (id: string) => {
     try {
       await supabase.from('subscription_transactions').delete().eq('payment_order_id', id);
@@ -361,6 +389,12 @@ export default function AdminSubscriptionTransactionsPage() {
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
             <Clock className="w-3 h-3" /> Ожидание
+          </span>
+        );
+      case 'refunded':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            <RotateCcw className="w-3 h-3" /> Возвращено
           </span>
         );
       default:
@@ -666,25 +700,55 @@ export default function AdminSubscriptionTransactionsPage() {
                             {p.paid_at ? format(new Date(p.paid_at), 'd.MM.yyyy HH:mm', { locale: ru }) : '—'}
                           </TableCell>
                           <TableCell>
-                            {canManage && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
-                                    <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
+                            <div className="flex items-center gap-1 justify-end">
+                              {/* Возврат средств — только суперадмин, только оплаченный заказ */}
+                              {isSuperAdmin && p.status === 'paid' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost" size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-purple-600"
+                                      title="Вернуть средства"
+                                      disabled={refundingId === p.id}
+                                    >
+                                      {refundingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Вернуть средства?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Возврат <b>{p.amount.toLocaleString()} ₸</b> пользователю <b>{p.user_name || 'без имени'}</b> через <b>{getSimplePaymentMethod(p.metadata)}</b>.
+                                        <br />Деньги вернутся на счёт клиента. Действие необратимо. Подписку при необходимости отключите отдельно.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleRefund(p)}>Вернуть {p.amount.toLocaleString()} ₸</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                              {canManage && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Удалить запись оплаты?</AlertDialogTitle>
+                                      <AlertDialogDescription>Запись будет удалена безвозвратно.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeletePayment(p.id)}>Удалить</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
