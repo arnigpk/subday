@@ -7,7 +7,7 @@ import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { usePayment } from '@/hooks/usePayment';
 import { KaspiPaymentModal } from '@/components/KaspiPaymentModal';
-import { PaymentSuccessAnimation } from '@/components/payment/PaymentSuccessAnimation';
+import { PENDING_KASPI_KEY } from '@/hooks/usePaymentResult';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -45,7 +45,6 @@ export default function PackageDetailPage() {
   const { isProcessing, createPayment } = usePayment();
   const [kaspiData, setKaspiData] = useState<{ qrToken: string; amount: number; expireDate?: string; orderId?: string } | null>(null);
   const [isKaspiProcessing, setIsKaspiProcessing] = useState(false);
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const { activeSubscriptionTypeIds } = useActiveSubscription();
   const { t, language } = useLanguage();
   const { vibrateSuccess } = useVibration();
@@ -69,8 +68,8 @@ export default function PackageDetailPage() {
           .single();
         if (data?.status === 'paid' || data?.status === 'completed' || data?.status === 'success') {
           clearInterval(interval);
-          setKaspiData(null);
-          setShowSuccessAnimation(true);
+          setKaspiData(null); // закрываем модалку; анимацию покажет глобальный
+          // обработчик usePaymentResult (по ключу PENDING_KASPI_KEY).
         }
       } catch { /* ignore polling errors */ }
     }, 3000);
@@ -95,6 +94,9 @@ export default function PackageDetailPage() {
       });
       if (res.data?.success && res.data?.qr_token) {
         setKaspiData({ qrToken: res.data.qr_token, amount: res.data.amount, expireDate: res.data.expire_date, orderId: res.data.order_id });
+        // Сохраняем ожидающий заказ — глобальный обработчик покажет анимацию успеха
+        // при возврате из приложения Kaspi (даже если модалку закрыли/приложение выгрузили).
+        try { if (res.data.order_id) localStorage.setItem(PENDING_KASPI_KEY, res.data.order_id); } catch { /* ignore */ }
       } else if (res.data?.error || res.error) {
         const { toast } = await import('sonner');
         toast.error(res.data?.error || 'Ошибка создания платежа');
@@ -202,10 +204,6 @@ export default function PackageDetailPage() {
         onClose={() => setKaspiData(null)}
       />
     )}
-    <PaymentSuccessAnimation
-      show={showSuccessAnimation}
-      onComplete={() => window.location.reload()}
-    />
     <AppLayout>
       <div className="safe-area-top">
         <div className="px-4 py-4 flex items-center gap-3">

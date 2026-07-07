@@ -2,11 +2,67 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+
+// Ожидающий Kaspi(xpayment)-заказ. В отличие от FreedomPay (возврат в браузере с
+// ?payment=success), Kaspi открывает отдельное приложение и возврата с параметрами
+// нет — поэтому статус проверяем сами по order_id и показываем ту же анимацию.
+export const PENDING_KASPI_KEY = 'subday_pending_kaspi';
 
 export function usePaymentResult() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isVerifying, setIsVerifying] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
+  // --- Kaspi(xpayment): глобальная проверка успеха оплаты ---
+  // Работает на любом экране и переживает выгрузку приложения/закрытие модалки,
+  // т.к. ожидающий заказ хранится в localStorage. Проверяем при возврате в
+  // приложение (resume/focus) и интервалом, пока заказ не завершится.
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkPendingKaspi = async () => {
+      let orderId: string | null = null;
+      try { orderId = localStorage.getItem(PENDING_KASPI_KEY); } catch { /* ignore */ }
+      if (!orderId) return;
+      try {
+        const { data } = await supabase
+          .from('payment_orders')
+          .select('status, created_at')
+          .eq('order_id', orderId)
+          .maybeSingle();
+        if (!data) return;
+        if (data.status === 'paid') {
+          try { localStorage.removeItem(PENDING_KASPI_KEY); } catch { /* ignore */ }
+          if (!cancelled) setShowSuccessAnimation(true);
+        } else if (
+          data.status === 'failed' || data.status === 'refunded' ||
+          (data.created_at && Date.now() - new Date(data.created_at).getTime() > 30 * 60 * 1000)
+        ) {
+          // Заказ не оплачен и протух — убираем, чтобы не проверять вечно.
+          try { localStorage.removeItem(PENDING_KASPI_KEY); } catch { /* ignore */ }
+        }
+      } catch { /* сеть/RLS — молча пропускаем, попробуем на следующем тике */ }
+    };
+
+    const interval = setInterval(checkPendingKaspi, 2500);
+    const onFocus = () => checkPendingKaspi();
+    window.addEventListener('focus', onFocus);
+    let capListener: { remove: () => void } | null = null;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) checkPendingKaspi(); })
+        .then((l) => { capListener = l; });
+    }
+    checkPendingKaspi(); // сразу при монтировании (напр. холодный старт после Kaspi)
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      if (capListener) capListener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
