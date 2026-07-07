@@ -8,10 +8,26 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Таймаут REST/auth-запросов: без него зависший запрос (плохая сеть/Huawei без
+// GMS/блокировки) висит бесконечно и подвешивает загрузку. 20с — с большим
+// запасом для нормальных операций; обрывается только реально зависший запрос.
+// Если вызывающий сам передал signal (напр. загрузка файла) — уважаем его и
+// таймаут не навешиваем. WebSocket realtime это не затрагивает.
+const REQUEST_TIMEOUT_MS = 20000;
+const fetchWithTimeout: typeof fetch = (input, init) => {
+  if (init?.signal) return fetch(input, init);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  global: {
+    fetch: fetchWithTimeout,
+  },
 });

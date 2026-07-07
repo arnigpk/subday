@@ -74,11 +74,14 @@ export function useUserStats() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    // try/catch/finally: даже если getUser() или запросы упадут/зависнут (сетевой
+    // сбой, медленная сеть), isLoading ГАРАНТИРОВАННО сбросится в finally — иначе
+    // скелетон главной висел бы вечно.
+    try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       // Нет сессии — чистим персистентный кеш, чтобы новый пользователь не увидел чужие данные.
       try { localStorage.removeItem(STATS_CACHE_KEY); } catch { /* ignore */ }
-      setIsLoading(false);
       return;
     }
     setUserId(user.id);
@@ -146,8 +149,12 @@ export function useUserStats() {
         }))
       );
     }
-
-    setIsLoading(false);
+    } catch (err) {
+      // Сеть упала/зависла — показываем кэш/дефолты, скелетон не зависнет.
+      console.error('[useUserStats] fetchData failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
