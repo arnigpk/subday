@@ -30,12 +30,31 @@ let cachedStatus: SubscriptionStatus | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 60000; // 1 minute
 
+// P3: персистентный кэш в localStorage — при ХОЛОДНОМ старте (модульный кэш
+// теряется при перезапуске) BalanceCard рисуется мгновенно из кэша, без скелетона.
+// Свежие данные подтягиваются в фоне и перезаписывают кэш.
+const SUB_CACHE_KEY = 'subday_subscription_cache';
+function readSubCache(): SubscriptionStatus | null {
+  try {
+    const raw = localStorage.getItem(SUB_CACHE_KEY);
+    if (!raw) return null;
+    return { ...JSON.parse(raw), isLoading: false };
+  } catch { return null; }
+}
+function writeSubCache(s: SubscriptionStatus) {
+  try { localStorage.setItem(SUB_CACHE_KEY, JSON.stringify({ ...s, isLoading: false })); } catch { /* ignore */ }
+}
+
 export function useSubscriptionStatus() {
   const [status, setStatus] = useState<SubscriptionStatus>(() => {
-    // Return cached data instantly if available
+    // Return in-memory cache instantly if fresh
     if (cachedStatus && Date.now() - cacheTimestamp < CACHE_TTL) {
       return cachedStatus;
     }
+    // P3: холодный старт — показываем сохранённую подписку из localStorage (без
+    // скелетона); фоновый fetch обновит данные.
+    const persisted = readSubCache();
+    if (persisted) return persisted;
     return {
       hasActiveSubscription: false,
       activeSubscriptions: [],
@@ -51,8 +70,10 @@ export function useSubscriptionStatus() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        const result = { ...status, isLoading: false };
-        setStatus(result);
+        // Нет сессии — чистим кэш, чтобы новый пользователь не увидел чужую подписку.
+        try { localStorage.removeItem(SUB_CACHE_KEY); } catch { /* ignore */ }
+        cachedStatus = null;
+        setStatus({ hasActiveSubscription: false, activeSubscriptions: [], daysRemaining: null, isExpiringSoon: false, isLoading: false });
         return;
       }
 
@@ -121,10 +142,11 @@ export function useSubscriptionStatus() {
         isLoading: false,
       };
 
-      // Update module-level cache
+      // Update module-level cache + persist for instant cold-start render (P3)
       cachedStatus = newStatus;
       cacheTimestamp = Date.now();
-      
+      writeSubCache(newStatus);
+
       setStatus(newStatus);
     } catch (error) {
       console.error('Error in useSubscriptionStatus:', error);

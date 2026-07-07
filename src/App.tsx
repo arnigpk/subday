@@ -306,16 +306,24 @@ function PlatformGuard({ children, isTelegramMiniApp }: { children: ReactNode; i
   return <>{children}</>;
 }
 
+// Кэш прелоадера (P1/P2): показываем анимацию МГНОВЕННО из localStorage/вшитого
+// дефолта, не дожидаясь сети. Свежий прелоадер тянется в фоне и обновляет кэш для
+// следующего запуска — 333КБ загрузка уходит с критического пути старта.
+const PRELOADER_CACHE_KEY = 'subday_preloader_cache';
+function readPreloaderCache(): { config?: any; anim?: any } | null {
+  try { return JSON.parse(localStorage.getItem(PRELOADER_CACHE_KEY) || 'null'); } catch { return null; }
+}
+
 const AppContent = () => {
   const [session, setSession] = useState<Session | null>(null);
   // Гостевой режим: пользователь смотрит приложение без входа (App Store 5.1.1).
   const [guestMode, setGuestMode] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
-  // Start as null — do NOT show bundled animation immediately, otherwise old
-  // preloader flashes for a moment before custom one loads from storage.
-  const [animationData, setAnimationData] = useState<any>(null);
-  const [animationReady, setAnimationReady] = useState(false);
+  // P1: анимация готова СРАЗУ — из кэша (localStorage) или вшитого дефолта, без
+  // ожидания сети. Свежую версию догружаем в фоне (см. эффект ниже).
+  const [animationData, setAnimationData] = useState<any>(() => readPreloaderCache()?.anim || defaultPreloaderAnimation);
+  const [animationReady, setAnimationReady] = useState(true);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
 
   const { vibrateShort, vibratePreloader } = useVibration();
@@ -327,66 +335,44 @@ const AppContent = () => {
 
   const { isReady: isTelegramReady, isTelegramMiniApp, getInitData } = useTelegramWebApp();
 
-  // Load preloader animation + config in parallel. The preloader is shown
-  // for the EXACT duration set in admin, while the rest of the app
-  // (auth, Telegram init, etc.) loads in the background.
+  // P1+P2: длительность прелоадера отсчитывается СРАЗУ от старта (по кэш-конфигу),
+  // без ожидания сети. Свежий прелоадер (config + anim) тянем в ФОНЕ и кладём в
+  // кэш для СЛЕДУЮЩЕГО запуска — на текущий старт это уже не влияет.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
-    const startTime = Date.now();
 
-    const cacheBust = `?t=${Date.now()}`;
+    // --- Немедленный таймер по кэшированному конфигу ---
+    const cachedNow = readPreloaderCache();
+    const cfg = cachedNow?.config ?? null;
+    const isEnabled = cfg?.enabled !== false;
+    if (!isEnabled) {
+      setIsPreloaderDone(true);
+    } else {
+      const dur = (cfg?.duration ?? 2) * 1000;
+      timer = setTimeout(() => setIsPreloaderDone(true), dur);
+    }
+
+    // --- Фоновая ревалидация: обновляем кэш к следующему запуску (P2: без
+    // no-store/cache-bust — пусть кэшируется; всё равно не на критическом пути) ---
     const { data: configData } = supabase.storage.from('app-assets').getPublicUrl('preloader-config.json');
     const { data: animData } = supabase.storage.from('app-assets').getPublicUrl('preloader.json');
 
-    const fetchOpts: RequestInit = { cache: 'no-store' };
-
-    const configPromise = fetch(configData.publicUrl + cacheBust, fetchOpts)
-      .then((res) => (res.ok ? res.json() : null))
-      .catch(() => null);
-
-    const animPromise = fetch(animData.publicUrl + cacheBust, fetchOpts)
-      .then((res) => (res.ok ? res.json() : null))
-      .catch(() => null);
-
-    Promise.all([configPromise, animPromise]).then(([config, customAnim]) => {
+    Promise.all([
+      fetch(configData.publicUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(animData.publicUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([config, customAnim]) => {
       if (cancelled) return;
-
-      // Офлайн-кэш кастомного прелоадера: успешную загрузку сохраняем локально,
-      // а при запуске БЕЗ интернета берём из кэша — чтобы офлайн показывался
-      // актуальный (новый) прелоадер, а не вшитый старый. Вшитый — последний фолбэк.
-      const PRELOADER_CACHE_KEY = 'subday_preloader_cache';
-      let cached: { config?: any; anim?: any } | null = null;
-      try { cached = JSON.parse(localStorage.getItem(PRELOADER_CACHE_KEY) || 'null'); } catch { /* ignore */ }
-
-      if (customAnim) {
+      const prev = readPreloaderCache();
+      const nextAnim = customAnim ?? prev?.anim ?? null;
+      const nextConfig = config ?? prev?.config ?? null;
+      if (customAnim || config) {
         try {
-          localStorage.setItem(PRELOADER_CACHE_KEY, JSON.stringify({
-            config: config ?? cached?.config ?? null,
-            anim: customAnim,
-          }));
-        } catch { /* квота localStorage — не критично, просто без кэша */ }
+          localStorage.setItem(PRELOADER_CACHE_KEY, JSON.stringify({ config: nextConfig, anim: nextAnim }));
+        } catch { /* квота localStorage — не критично */ }
       }
-
-      const effectiveConfig = config ?? cached?.config ?? null;
-
-      // Приоритет: свежескачанный → кэшированный → вшитый дефолт.
-      setAnimationData(customAnim || cached?.anim || defaultPreloaderAnimation);
-      setAnimationReady(true);
-
-      const isEnabled = effectiveConfig?.enabled !== false;
-      if (!isEnabled) {
-        setIsPreloaderDone(true);
-        return;
-      }
-
-      // Show preloader for the FULL configured duration, measured from app
-      // start. If config fetch took some time, subtract elapsed so total
-      // visible time matches admin setting exactly.
-      const dur = (effectiveConfig?.duration ?? 2) * 1000;
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, dur - elapsed);
-      timer = setTimeout(() => setIsPreloaderDone(true), remaining);
+      // Анимацию НЕ подменяем на лету (иначе моргнёт посреди показа) — новая
+      // версия применится со следующего запуска из кэша.
     });
 
     return () => {
