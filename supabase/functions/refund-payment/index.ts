@@ -12,7 +12,10 @@ const corsHeaders = {
 };
 
 const FREEDOMPAY_REVOKE_URL = 'https://api.freedompay.kz/revoke.php';
-const XPAYMENT_REFUND_URL = 'https://api.xpayment.kz/v1/refunds';
+// xpayment: возврат по конкретному платежу — POST /v1/payments/{payment_id}/refund,
+// тело { amount, reason }. Проверено живым probe'ом (404 PAYMENT_NOT_FOUND на
+// фейковом id = эндпоинт/авторизация/тело корректны).
+const XPAYMENT_BASE_URL = 'https://api.xpayment.kz/v1';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -148,22 +151,20 @@ Deno.serve(async (req) => {
       // --- xpayment (Kaspi): POST /v1/refunds, Bearer ---
       const apiKey = env('XPAYMENT_API_KEY');
       if (!apiKey) return jsonResponse({ error: 'XPAYMENT_API_KEY не настроен' }, 500);
-      const resp = await fetch(XPAYMENT_REFUND_URL, {
+      const refundUrl = `${XPAYMENT_BASE_URL}/payments/${encodeURIComponent(String(order.payment_id))}/refund`;
+      const resp = await fetch(refundUrl, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payment_id: order.payment_id,
-          merchant_order_id: order.order_id,
-          amount,
-        }),
+        body: JSON.stringify({ amount, reason: 'Возврат средств (суперадмин)' }),
       });
       const data = await resp.json().catch(() => ({}));
       providerResult = { http: resp.status, ...data };
-      refundOk = resp.ok && !data?.error;
-      refundId = data?.refund_id || data?.id || null;
+      // Успех: 2xx, нет error и нет fail_reason (у xpayment объект возврата содержит fail_reason при ошибке).
+      refundOk = resp.ok && !data?.error && !data?.fail_reason;
+      refundId = data?.id || data?.refund_id || String(order.payment_id);
       if (!refundOk) {
         console.error('xpayment refund failed:', resp.status, JSON.stringify(data));
-        return jsonResponse({ error: 'Kaspi отказал в возврате', details: data?.message || data?.error || `HTTP ${resp.status}`, providerResult }, 502);
+        return jsonResponse({ error: 'Kaspi отказал в возврате', details: data?.message || data?.error || data?.fail_reason || `HTTP ${resp.status}`, providerResult }, 502);
       }
     } else {
       // --- FreedomPay: POST /revoke.php, подпись MD5 ---
