@@ -1,21 +1,66 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Clock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { supabase } from '@/integrations/supabase/client';
 
 interface KaspiPaymentModalProps {
   qrToken: string;
   amount: number;
   expireDate?: string;
+  orderId?: string;
   onClose: () => void;
+  /** Вызывается, когда оплата подтверждена (заказ стал 'paid'). */
+  onPaid?: () => void;
 }
 
-export function KaspiPaymentModal({ qrToken, amount, expireDate, onClose }: KaspiPaymentModalProps) {
+export function KaspiPaymentModal({ qrToken, amount, expireDate, orderId, onClose, onPaid }: KaspiPaymentModalProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // Пока модалка открыта — опрашиваем статус заказа. Оплата в Kaspi происходит
+  // в отдельном приложении, поэтому проверяем и на возврате в приложение
+  // (visibilitychange / appStateChange), и интервалом. На 'paid' — onPaid().
+  const onPaidRef = useRef(onPaid);
+  onPaidRef.current = onPaid;
+  useEffect(() => {
+    if (!orderId) return;
+    let done = false;
+    const check = async () => {
+      if (done) return;
+      try {
+        const { data } = await supabase
+          .from('payment_orders')
+          .select('status')
+          .eq('order_id', orderId)
+          .maybeSingle();
+        if (data && (data.status === 'paid' || data.status === 'completed' || data.status === 'success')) {
+          done = true;
+          onPaidRef.current?.();
+        }
+      } catch { /* сеть/RLS — попробуем на следующем тике */ }
+    };
+    const interval = setInterval(check, 2500);
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', check);
+    let capListener: { remove: () => void } | null = null;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) check(); }).then((l) => { capListener = l; });
+    }
+    check();
+    return () => {
+      done = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', check);
+      if (capListener) capListener.remove();
+    };
+  }, [orderId]);
 
   useEffect(() => {
     if (!expireDate) return;

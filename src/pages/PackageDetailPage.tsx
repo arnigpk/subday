@@ -56,25 +56,8 @@ export default function PackageDetailPage() {
     if (id) fetchSubscription();
   }, [id]);
 
-  // Poll Kaspi payment status while QR modal is open
-  useEffect(() => {
-    if (!kaspiData?.orderId) return;
-    const interval = setInterval(async () => {
-      try {
-        const { data } = await supabase
-          .from('payment_orders')
-          .select('status')
-          .eq('order_id', kaspiData.orderId)
-          .single();
-        if (data?.status === 'paid' || data?.status === 'completed' || data?.status === 'success') {
-          clearInterval(interval);
-          setKaspiData(null); // закрываем модалку; анимацию покажет глобальный
-          // обработчик usePaymentResult (по ключу PENDING_KASPI_KEY).
-        }
-      } catch { /* ignore polling errors */ }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [kaspiData?.orderId]);
+  // Опрос статуса Kaspi теперь внутри KaspiPaymentModal (пока она открыта) — он
+  // вызывает onPaid. Глобальный usePaymentResult подстрахует при выгрузке приложения.
 
   const handlePurchase = () => {
     if (subscription) {
@@ -201,7 +184,14 @@ export default function PackageDetailPage() {
         qrToken={kaspiData.qrToken}
         amount={kaspiData.amount}
         expireDate={kaspiData.expireDate}
+        orderId={kaspiData.orderId}
         onClose={() => setKaspiData(null)}
+        onPaid={() => {
+          setKaspiData(null);
+          try { localStorage.removeItem(PENDING_KASPI_KEY); } catch { /* ignore */ }
+          // Мгновенно показываем ту же анимацию успеха (глобальный обработчик).
+          window.dispatchEvent(new CustomEvent('subday:payment-success'));
+        }}
       />
     )}
     <AppLayout>

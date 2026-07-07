@@ -46,9 +46,18 @@ export function usePaymentResult() {
       } catch { /* сеть/RLS — молча пропускаем, попробуем на следующем тике */ }
     };
 
+    // Мгновенный показ: любой платёжный флоу может дёрнуть это событие, как только
+    // сам обнаружил успех (напр. модалка Kaspi по своему опросу) — без ожидания тика.
+    const onSuccessEvent = () => {
+      try { localStorage.removeItem(PENDING_KASPI_KEY); } catch { /* ignore */ }
+      if (!cancelled) setShowSuccessAnimation(true);
+    };
+    window.addEventListener('subday:payment-success', onSuccessEvent);
+
     const interval = setInterval(checkPendingKaspi, 2500);
     const onFocus = () => checkPendingKaspi();
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
     let capListener: { remove: () => void } | null = null;
     if (Capacitor.isNativePlatform()) {
       CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) checkPendingKaspi(); })
@@ -60,6 +69,8 @@ export function usePaymentResult() {
       cancelled = true;
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('subday:payment-success', onSuccessEvent);
       if (capListener) capListener.remove();
     };
   }, []);
