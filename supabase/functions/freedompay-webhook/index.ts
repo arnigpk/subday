@@ -252,11 +252,20 @@ Deno.serve(async (req) => {
     if (isSuccess) {
       console.log('Payment successful, activating subscription for user:', paymentOrder.user_id);
 
-      await supabase.from('payment_orders').update({
+      // Атомарный claim: помечаем paid ТОЛЬКО если заказ ещё pending. Если строку
+      // уже забрал verify-payment (гонка «вебхук ↔ возврат в приложение») —
+      // update вернёт 0 строк, и мы НЕ активируем/не уведомляем повторно.
+      // Иначе приходило 2 одинаковых пуша «Подписка активирована».
+      const { data: claimedOrder } = await supabase.from('payment_orders').update({
         status: 'paid',
         paid_at: new Date().toISOString(),
         payment_id: pgPaymentId || null,
-      }).eq('id', paymentOrder.id);
+      }).eq('id', paymentOrder.id).eq('status', 'pending').select('id').maybeSingle();
+
+      if (!claimedOrder) {
+        console.log('Order already claimed by another handler (verify-payment):', orderId);
+        return xmlResponse('ok', 'Already processed', secretKey);
+      }
 
       const metadata = (paymentOrder.metadata || {}) as Record<string, unknown>;
       const isSpecialOffer = metadata.is_special_offer === true;

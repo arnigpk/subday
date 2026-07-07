@@ -119,11 +119,18 @@ Deno.serve(async (req) => {
 
     console.log('Payment completed, activating subscription for user:', paymentOrder.user_id);
 
-    await supabase.from('payment_orders').update({
+    // Атомарный claim: помечаем paid только если заказ ещё pending — защита от
+    // повторной активации/уведомления при гонке (двойная доставка вебхука и т.п.).
+    const { data: claimedOrder } = await supabase.from('payment_orders').update({
       status: 'paid',
       paid_at: new Date().toISOString(),
       payment_id: paymentId || null,
-    }).eq('id', paymentOrder.id);
+    }).eq('id', paymentOrder.id).eq('status', 'pending').select('id').maybeSingle();
+
+    if (!claimedOrder) {
+      console.log('Order already claimed by another handler:', merchantOrderId);
+      return jsonResponse({ ok: true });
+    }
 
     const metadata = (paymentOrder.metadata || {}) as Record<string, unknown>;
     const isSpecialOffer = metadata.is_special_offer === true;
