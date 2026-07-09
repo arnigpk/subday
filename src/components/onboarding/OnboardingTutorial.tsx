@@ -22,10 +22,10 @@ interface OnboardingPage {
 const PAGES: OnboardingPage[] = [
   {
     emoji: '☕',
-    title: 'Одна подписка — десятки кофеен',
+    title: 'Одна подписка - десятки, сотни кофеен',
     blocks: [
-      { type: 'p', text: 'SubDay объединяет кофейни города в одной подписке.' },
-      { type: 'p', text: 'Выберите тариф и получайте напитки в кофейнях-партнёрах без лишних оплат за каждый кофе.' },
+      { type: 'p', text: 'subday объединяет кофейни города в одной подписке.' },
+      { type: 'p', text: 'Выберите тариф, платите 1 раз в месяц и получайте напитки в кофейнях-партнёрах без лишних оплат за каждый кофе.' },
       { type: 'p', text: 'Уже более 20 кофеен в одной подписке.' },
     ],
     buttonLabel: 'Далее →',
@@ -110,7 +110,7 @@ export function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#FAF9F6]">
       <button
         onClick={onComplete}
-        className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-10 flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-xs text-muted-foreground"
+        className="absolute right-4 top-[calc(env(safe-area-inset-top)+2.25rem)] z-10 flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-xs text-muted-foreground"
       >
         Пропустить <X className="h-3 w-3" />
       </button>
