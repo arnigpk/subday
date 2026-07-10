@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Check, User, UserPlus, UserCheck, Maximize2, Plus, MoreVertical, Flag, Ban } from 'lucide-react';
 import { blockUser, reportContent } from '@/lib/subflowModeration';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { LinkifiedText } from '@/components/subflow/LinkifiedText';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -527,7 +528,7 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
           </div>
         </div>
       ) : (
-        <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+        <p className="text-foreground leading-relaxed mb-3 whitespace-pre-wrap"><LinkifiedText text={post.content} /></p>
       )}
 
       {/* Media carousel with swipe support and progressive loading */}

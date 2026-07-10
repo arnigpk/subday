@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { ShopLogoUpload } from '@/components/admin/ShopLogoUpload';
 import { ShopGalleryUpload } from '@/components/admin/ShopGalleryUpload';
+import { ShopContractUpload } from '@/components/admin/ShopContractUpload';
 import { AddressesEditor, AddressWithCoords } from '@/components/shop/AddressesEditor';
 import { BadgesEditor, ShopBadgeData } from '@/components/shop/BadgesEditor';
 import {
@@ -76,6 +77,8 @@ interface Shop {
   description: string | null;
   supported_types: string[];
   revenue_share_percent: number;
+  contract_url: string | null;
+  contract_file_url: string | null;
 }
 
 interface Coordinate {
@@ -118,6 +121,8 @@ export default function AdminShopsPage() {
     supported_types: ['coffee'] as string[],
     preorders_enabled: false,
     revenue_share_percent: 70,
+    contract_url: null as string | null,
+    contract_file_url: null as string | null,
   });
 
   const sensors = useSensors(
@@ -201,6 +206,8 @@ export default function AdminShopsPage() {
       supported_types: ['coffee'],
       preorders_enabled: false,
       revenue_share_percent: 70,
+      contract_url: null,
+      contract_file_url: null,
     });
     setIsDialogOpen(true);
   };
@@ -243,6 +250,8 @@ export default function AdminShopsPage() {
       supported_types: shop.supported_types || ['coffee'],
       preorders_enabled: (shop as any).preorders_enabled || false,
       revenue_share_percent: (shop as any).revenue_share_percent === 80 ? 80 : 70,
+      contract_url: (shop as any).contract_url ?? null,
+      contract_file_url: (shop as any).contract_file_url ?? null,
     });
     setIsDialogOpen(true);
   };
@@ -284,6 +293,8 @@ export default function AdminShopsPage() {
             supported_types: formData.supported_types,
             preorders_enabled: formData.preorders_enabled,
             revenue_share_percent: formData.revenue_share_percent,
+            contract_url: formData.contract_url?.trim() || null,
+            contract_file_url: formData.contract_file_url || null,
           } as any)
           .eq('id', editingShop.id);
 
@@ -315,6 +326,8 @@ export default function AdminShopsPage() {
             supported_types: formData.supported_types,
             preorders_enabled: formData.preorders_enabled,
             revenue_share_percent: formData.revenue_share_percent,
+            contract_url: formData.contract_url?.trim() || null,
+            contract_file_url: formData.contract_file_url || null,
           } as any]);
 
         if (error) throw error;
@@ -621,6 +634,27 @@ export default function AdminShopsPage() {
                 </Label>
               </div>
             )}
+
+            {/* Договор кофейни — ссылка (электронно подписан) и/или файл (PDF/Word).
+                Появляется в кабинете партнёра двумя кнопками. */}
+            <div className="space-y-3 rounded-lg border p-3">
+              <Label className="text-sm font-semibold">Договор</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="contract_url" className="text-xs text-muted-foreground">Ссылка на договор (электронно подписанный)</Label>
+                <Input
+                  id="contract_url"
+                  placeholder="https://..."
+                  value={formData.contract_url || ''}
+                  onChange={(e) => setFormData({ ...formData, contract_url: e.target.value })}
+                />
+              </div>
+              <ShopContractUpload
+                currentFileUrl={formData.contract_file_url}
+                onFileChange={(url) => setFormData({ ...formData, contract_file_url: url })}
+                shopId={editingShop?.id}
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Отмена

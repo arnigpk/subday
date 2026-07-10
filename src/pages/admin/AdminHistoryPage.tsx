@@ -128,6 +128,58 @@ export default function AdminHistoryPage() {
     });
   };
 
+  // --- Отметки выплат (2 периода в месяц: H1 = 1–15, H2 = 16–конец) ---
+  const _now = new Date();
+  const [payoutPeriod, setPayoutPeriod] = useState<{ year: number; month: number }>({ year: _now.getFullYear(), month: _now.getMonth() + 1 });
+  const [shopIdMap, setShopIdMap] = useState<Map<string, string>>(new Map());
+  // ключ: `${shopId}|${half}` → отметка сделана
+  const [payoutMarks, setPayoutMarks] = useState<Map<string, { paid_at: string }>>(new Map());
+
+  const reloadPayoutMarks = async (year: number, month: number) => {
+    const { data } = await supabase.from('partner_payouts').select('shop_id, half, paid_at').eq('year', year).eq('month', month);
+    const m = new Map<string, { paid_at: string }>();
+    (data || []).forEach((r: any) => m.set(`${r.shop_id}|${r.half}`, { paid_at: r.paid_at }));
+    setPayoutMarks(m);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'payouts') reloadPayoutMarks(payoutPeriod.year, payoutPeriod.month);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, payoutPeriod.year, payoutPeriod.month]);
+
+  const shiftPayoutMonth = (delta: number) => {
+    setPayoutPeriod(prev => {
+      const d = new Date(prev.year, prev.month - 1 + delta, 1);
+      return { year: d.getFullYear(), month: d.getMonth() + 1 };
+    });
+  };
+
+  const togglePayoutMark = async (shopId: string, half: 1 | 2, amount: number | null) => {
+    if (!shopId) return;
+    const key = `${shopId}|${half}`;
+    const exists = payoutMarks.has(key);
+    setPayoutMarks(prev => {
+      const next = new Map(prev);
+      if (exists) next.delete(key); else next.set(key, { paid_at: new Date().toISOString() });
+      return next;
+    });
+    try {
+      if (exists) {
+        await supabase.from('partner_payouts').delete()
+          .eq('shop_id', shopId).eq('year', payoutPeriod.year).eq('month', payoutPeriod.month).eq('half', half);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('partner_payouts').insert({
+          shop_id: shopId, year: payoutPeriod.year, month: payoutPeriod.month, half, amount, marked_by: user?.id ?? null,
+        });
+      }
+    } catch (e) {
+      console.error('payout toggle error', e);
+      toast.error('Ошибка отметки выплаты');
+      reloadPayoutMarks(payoutPeriod.year, payoutPeriod.month);
+    }
+  };
+
   useEffect(() => {
     fetchShops();
   }, []);
@@ -137,10 +189,11 @@ export default function AdminHistoryPage() {
   }, [page, shopFilter, typeFilter, countryFilter, cityFilter, search, periodType, dateRange, shopPercentMap]);
 
   const fetchShops = async () => {
-    const { data } = await supabase.from('shops').select('name, is_active, revenue_share_percent');
+    const { data } = await supabase.from('shops').select('id, name, is_active, revenue_share_percent');
     if (data) {
       setShops(data.filter(s => s.is_active).map(s => s.name));
       setShopPercentMap(new Map(data.map(s => [s.name, s.revenue_share_percent ?? 70])));
+      setShopIdMap(new Map(data.map((s: any) => [s.name, s.id])));
     }
   };
 
@@ -815,7 +868,17 @@ export default function AdminHistoryPage() {
               <p className="text-muted-foreground text-center py-8">Нет расчётов за выбранный период</p>
             ) : (
               <div className="overflow-x-auto">
-                <div className="flex justify-end mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Отметки выплат за:</span>
+                    <div className="flex items-center gap-1 rounded-lg border border-border">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => shiftPayoutMonth(-1)}><ChevronLeft className="w-4 h-4" /></Button>
+                      <span className="text-sm font-semibold min-w-[120px] text-center capitalize">
+                        {format(new Date(payoutPeriod.year, payoutPeriod.month - 1, 1), 'LLLL yyyy', { locale: ru })}
+                      </span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => shiftPayoutMonth(1)}><ChevronRight className="w-4 h-4" /></Button>
+                    </div>
+                  </div>
                   <Button variant="outline" size="sm" onClick={() => {
                     const totalCups = payoutStats.reduce((a, s) => a + s.cups, 0);
                     const totalSum = payoutStats.reduce((a, s) => a + s.total, 0);
@@ -855,8 +918,31 @@ export default function AdminHistoryPage() {
                           onClick={() => toggleShopExpand(s.shop)}
                         >
                           <TableCell className="font-bold">
-                            <span className={`inline-block mr-2 text-xs transition-transform ${expandedShops.has(s.shop) ? 'rotate-90' : ''}`}>▶</span>
-                            {s.shop}
+                            <div className="flex items-center">
+                              <span className={`inline-block mr-2 text-xs transition-transform ${expandedShops.has(s.shop) ? 'rotate-90' : ''}`}>▶</span>
+                              {s.shop}
+                            </div>
+                            {(() => {
+                              const shopId = shopIdMap.get(s.shop);
+                              const m1 = !!shopId && payoutMarks.has(`${shopId}|1`);
+                              const m2 = !!shopId && payoutMarks.has(`${shopId}|2`);
+                              const chip = (active: boolean) =>
+                                `text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
+                                  active
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800'
+                                    : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/70'
+                                }`;
+                              return (
+                                <div className="flex gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                  <button type="button" title="Период 1–15 (выплата 16–17)" className={chip(m1)} onClick={() => togglePayoutMark(shopId!, 1, null)}>
+                                    {m1 ? '✓ ' : ''}1–15
+                                  </button>
+                                  <button type="button" title="Период 16–конец (выплата 1–2)" className={chip(m2)} onClick={() => togglePayoutMark(shopId!, 2, null)}>
+                                    {m2 ? '✓ ' : ''}16–конец
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-right font-bold">{s.cups.toLocaleString('ru-RU')}</TableCell>
                           <TableCell className="text-right font-bold">{s.total.toLocaleString('ru-RU')} ₸</TableCell>

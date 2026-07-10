@@ -1,3 +1,4 @@
+import { LinkifiedText } from '@/components/subflow/LinkifiedText';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -256,7 +257,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
                     </button>
                   )}
                 </div>
-                <p className="text-sm text-foreground">{comment.content}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap"><LinkifiedText text={comment.content} /></p>
               </div>
             </div>
           ))}

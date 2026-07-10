@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Coffee, TrendingUp, Clock, Loader2, Store, Save, X, Pencil } from 'lucide-react';
+import { Coffee, TrendingUp, Clock, Loader2, Store, Save, X, Pencil, FileDown, ExternalLink } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { Textarea } from '@/components/ui/textarea';
 
 import { format, startOfDay, subDays } from 'date-fns';
@@ -42,6 +43,8 @@ export default function PartnerDashboard() {
   const [editedShopData, setEditedShopData] = useState<ShopData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Договор кофейни: ссылка и/или загруженный файл (задаются админом).
+  const [contract, setContract] = useState<{ url: string | null; fileUrl: string | null }>({ url: null, fileUrl: null });
 
   useEffect(() => {
     if (!shopId || authLoading) return;
@@ -54,7 +57,7 @@ export default function PartnerDashboard() {
         // Fetch shop data
         const { data: shop } = await supabase
           .from('shops')
-          .select('name, address, addresses, working_hours, logo_url, description')
+          .select('name, address, addresses, working_hours, logo_url, description, contract_url, contract_file_url')
           .eq('id', shopId)
           .maybeSingle();
 
@@ -68,6 +71,7 @@ export default function PartnerDashboard() {
             logo_url: shop.logo_url || null,
             description: (shop as any).description || '',
           });
+          setContract({ url: (shop as any).contract_url ?? null, fileUrl: (shop as any).contract_file_url ?? null });
         }
 
         // Fetch redemptions + completed preorders for today and week in parallel
@@ -349,6 +353,35 @@ export default function PartnerDashboard() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Договор — в самом низу дашборда. Раздельно: файл и ссылка. */}
+        {(contract.fileUrl || contract.url) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Договор</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {contract.fileUrl && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => window.open(contract.fileUrl!, Capacitor.isNativePlatform() ? '_system' : '_blank')}
+                >
+                  <FileDown className="w-4 h-4 mr-2" /> Скачать договор (файл)
+                </Button>
+              )}
+              {contract.url && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => window.open(contract.url!, Capacitor.isNativePlatform() ? '_system' : '_blank')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" /> Перейти по договору (ссылка)
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </PartnerLayout>
   );
