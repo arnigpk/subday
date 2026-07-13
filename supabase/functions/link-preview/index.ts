@@ -9,7 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // never hides a public preview. Only non-sensitive fields are ever emitted.
 
 const SITE = "https://web.subday.app";
-const DEFAULT_IMAGE = `${SITE}/icon-1024.png`;
+const DEFAULT_IMAGE = `${SITE}/og-default.png`;
 const DEFAULT_TITLE = "subday — specialty coffee & HoReCa subscriptions";
 const DEFAULT_DESC = "Подписки на кофе и напитки. Забирай быстрее и экономь больше.";
 
