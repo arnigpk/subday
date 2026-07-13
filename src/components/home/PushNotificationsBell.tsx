@@ -60,6 +60,8 @@ function SwipeableNotification({
   onHintDone?: () => void;
 }) {
   const startX = useRef(0);
+  const startY = useRef(0);
+  const lockedDir = useRef<null | 'h' | 'v'>(null);
   const currentX = useRef(0);
   const isDragging = useRef(false);
   const elRef = useRef<HTMLDivElement>(null);
@@ -84,22 +86,33 @@ function SwipeableNotification({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
     currentX.current = 0;
+    lockedDir.current = null;
     isDragging.current = true;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging.current || !elRef.current) return;
-    const diff = e.touches[0].clientX - startX.current;
-    currentX.current = Math.min(0, diff);
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    // Направление жеста определяем один раз: если вертикаль — НЕ мешаем скроллу.
+    if (lockedDir.current === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      lockedDir.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if (lockedDir.current === 'v') return; // вертикальный скролл — пропускаем нативно
+    currentX.current = Math.min(0, dx);
     elRef.current.style.transform = `translateX(${currentX.current}px)`;
     elRef.current.style.transition = 'none';
   };
 
   const handleTouchEnd = () => {
     isDragging.current = false;
+    const wasHorizontal = lockedDir.current === 'h';
+    lockedDir.current = null;
     if (!elRef.current) return;
-    if (currentX.current < -80) {
+    if (wasHorizontal && currentX.current < -80) {
       elRef.current.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
       elRef.current.style.transform = 'translateX(-100%)';
       elRef.current.style.opacity = '0';

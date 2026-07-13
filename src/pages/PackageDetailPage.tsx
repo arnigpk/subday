@@ -8,6 +8,7 @@ import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubsc
 import { usePayment } from '@/hooks/usePayment';
 import { KaspiPaymentModal } from '@/components/KaspiPaymentModal';
 import { PENDING_KASPI_KEY } from '@/hooks/usePaymentResult';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -76,10 +77,18 @@ export default function PackageDetailPage() {
         body: { subscription_type_id: subscription.id },
       });
       if (res.data?.success && res.data?.qr_token) {
-        setKaspiData({ qrToken: res.data.qr_token, amount: res.data.amount, expireDate: res.data.expire_date, orderId: res.data.order_id });
+        const orderId = res.data.order_id;
         // Сохраняем ожидающий заказ — глобальный обработчик покажет анимацию успеха
-        // при возврате из приложения Kaspi (даже если модалку закрыли/приложение выгрузили).
-        try { if (res.data.order_id) localStorage.setItem(PENDING_KASPI_KEY, res.data.order_id); } catch { /* ignore */ }
+        // при возврате из приложения Kaspi (даже если приложение выгрузили).
+        try { if (orderId) localStorage.setItem(PENDING_KASPI_KEY, orderId); } catch { /* ignore */ }
+        if (Capacitor.isNativePlatform()) {
+          // Мобильное устройство: qr_token — это диплинк Kaspi, открываем приложение
+          // Kaspi НАПРЯМУЮ, без модалки с QR. Успех подхватит usePaymentResult.
+          window.open(res.data.qr_token, '_system');
+        } else {
+          // Веб/десктоп: приложения Kaspi нет — показываем модалку с QR для сканирования.
+          setKaspiData({ qrToken: res.data.qr_token, amount: res.data.amount, expireDate: res.data.expire_date, orderId });
+        }
       } else if (res.data?.error || res.error) {
         const { toast } = await import('sonner');
         toast.error(res.data?.error || 'Ошибка создания платежа');
