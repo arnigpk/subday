@@ -26,6 +26,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="subday" />
             </intent-filter>
+
+            <!-- App Links: https://web.subday.app/* открывает приложение напрямую.
+                 autoVerify проверяет домен через /.well-known/assetlinks.json. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="web.subday.app" />
+            </intent-filter>
         </activity>
 
         <!-- Дефолтный канал для FCM, когда приложение убито из памяти -->

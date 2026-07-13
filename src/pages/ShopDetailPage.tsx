@@ -1,3 +1,4 @@
+import { ShareButton } from '@/components/ShareButton';
 import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -117,6 +118,11 @@ export default function ShopDetailPage() {
       <div className="px-4 py-4 flex items-center gap-3">
         <Link to="/shops" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center"><ArrowLeft size={20} className="text-foreground" /></Link>
         <h1 className="text-xl font-bold text-foreground flex-1 truncate">{shop.name}</h1>
+        <ShareButton
+          url={`https://web.subday.app/shops/${shop.id}`}
+          title={shop.name}
+          text={`${shop.name} — в подписке subday ☕`}
+        />
       </div>
       
       <div className="px-4 mb-6">

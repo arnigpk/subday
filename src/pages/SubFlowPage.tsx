@@ -40,6 +40,13 @@ export default function SubFlowPage() {
   const entryAlertFired = useRef(false);
   const { users: storyUsers, refresh: refreshStories, viewedStoryIds } = useAllActiveStories(userId);
 
+  // Диплинк на конкретный пост: web.subday.app/subflow?post=<id> → подсветить/открыть.
+  // subFlow под подпиской — без неё пользователь увидит пейволл (штатно).
+  useEffect(() => {
+    const postId = new URLSearchParams(window.location.search).get('post');
+    if (postId) setHighlightPostId(postId);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;

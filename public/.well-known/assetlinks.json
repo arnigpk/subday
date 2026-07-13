@@ -4,7 +4,9 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.subday.vhod",
-      "sha256_cert_fingerprints": ["YOUR_SHA256_FINGERPRINT"]
+      "sha256_cert_fingerprints": [
+        "47:9F:14:0A:13:53:81:BB:3C:85:75:39:7F:26:A6:D1:9E:69:40:D6:50:0B:7E:F9:07:DA:F6:30:04:BF:09:B6"
+      ]
     }
   }
 ]

@@ -4,6 +4,7 @@ import { MessageCircle, Trash2, MapPin, ChevronLeft, ChevronRight, Pencil, X, Ch
 import { blockUser, reportContent } from '@/lib/subflowModeration';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LinkifiedText } from '@/components/subflow/LinkifiedText';
+import { ShareButton } from '@/components/ShareButton';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { SubFlowComments } from './SubFlowComments';
@@ -733,23 +734,31 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
         );
       })()}
 
-      {/* Comments toggle */}
-      <button
-        onClick={() => setShowComments(!showComments)}
-        className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
-          showComments 
-            ? 'text-primary' 
-            : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
-        <span>
-          {commentsCount > 0 
-            ? `${t('subflow.comments')} (${commentsCount})` 
-            : t('subflow.comment')
-          }
-        </span>
-      </button>
+      {/* Comments toggle + Share */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setShowComments(!showComments)}
+          className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
+            showComments
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <MessageCircle size={18} className={showComments ? 'fill-primary/20' : ''} />
+          <span>
+            {commentsCount > 0
+              ? `${t('subflow.comments')} (${commentsCount})`
+              : t('subflow.comment')
+            }
+          </span>
+        </button>
+        <ShareButton
+          url={`https://web.subday.app/subflow?post=${post.id}`}
+          title="#subFlow"
+          text={`${(post.content || '').slice(0, 80)}${(post.content || '').length > 80 ? '…' : ''}`}
+          className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        />
+      </div>
 
       {/* Comments section */}
       {showComments && (

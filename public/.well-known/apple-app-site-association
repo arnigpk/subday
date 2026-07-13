@@ -3,23 +3,12 @@
     "apps": [],
     "details": [
       {
-        "appIDs": ["TEAM_ID.app.lovable.1f0fb7ffd23642dc84de6a2e07064142"],
-        "paths": [
-          "/shops/*",
-          "/packages/*",
-          "/subflow",
-          "/profile",
-          "/redeem",
-          "/history",
-          "/streaks",
-          "/bonuses",
-          "/gift-coffee",
-          "/"
-        ]
+        "appIDs": ["98H9396QZ4.kz.subday.app"],
+        "paths": ["/shops/*", "/subflow", "/packages/*", "/profile", "/redeem", "/history", "/gift-coffee", "/"]
       }
     ]
   },
   "webcredentials": {
-    "apps": ["TEAM_ID.app.lovable.1f0fb7ffd23642dc84de6a2e07064142"]
+    "apps": ["98H9396QZ4.kz.subday.app"]
   }
 }
