@@ -4,7 +4,7 @@ import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
-import { compressImage, getFileExtension, formatFileSize, getVideoDuration } from '@/utils/imageCompression';
+import { compressImage, getFileExtension, formatFileSize, getVideoDuration, captureVideoPoster } from '@/utils/imageCompression';
 import { uploadWithProgress } from '@/utils/xhrUpload';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -29,6 +29,7 @@ interface MediaFile {
   blob: Blob;
   preview: string;
   type: 'image' | 'video';
+  poster?: Blob; // captured first frame for video, used as share preview
 }
 
 const MAX_MEDIA = 5;
@@ -173,10 +174,13 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
             toast.error('Не удалось прочитать видео');
             continue;
           }
+          let poster: Blob | undefined;
+          try { poster = await captureVideoPoster(file); } catch { /* poster is best-effort */ }
           newMedia.push({
             blob: file,
             preview: URL.createObjectURL(file),
             type: 'video',
+            poster,
           });
         } else if (file.type.startsWith('image/')) {
           const { blob } = await compressImage(file, { maxWidth: 1200, quality: 0.75 });
@@ -290,6 +294,19 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
 
         uploadedBytes += media.blob.size;
         mediaUrls.push(publicUrl);
+
+        // For videos: upload the captured poster frame next to the file at a
+        // deterministic path (`<video>.poster.jpg`) so link previews can show it.
+        if (media.type === 'video' && media.poster) {
+          try {
+            await supabase.storage
+              .from('subflow-images')
+              .upload(`${fileName}.poster.jpg`, media.poster, {
+                contentType: 'image/jpeg',
+                upsert: true,
+              });
+          } catch { /* poster is best-effort, never block the post */ }
+        }
       }
 
       setUploadProgress(96);

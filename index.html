@@ -10,12 +10,30 @@
     <link rel="icon" href="/favicon.jpg" type="image/jpeg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="apple-mobile-web-app-title" content="subday" />
+    <!-- Smart App Banner: на iOS Safari предлагает открыть/установить приложение. -->
+    <meta name="apple-itunes-app" content="app-id=6787442372" />
     <title>subday — specialty coffee & HoReCa subscriptions</title>
 
     <!-- Фон с первого кадра = фон прелоадера (#FAF9F6). Нужно, чтобы при мгновенном
          скрытии нативного splash не мелькал белый экран до загрузки CSS. -->
     <style>html,body{background-color:#FAF9F6;margin:0;}</style>
     <meta name="description" content="subday — specialty coffee & HoReCa subscriptions. Grab your drinks fast and save more." />
+
+    <!-- Дефолтные OpenGraph/Twitter теги для красивого превью при шеринге главной.
+         Для /shops/:id и /subflow?post=... эти теги подменяет edge-функция link-preview
+         (nginx проксирует туда краулеров соцсетей). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="subday" />
+    <meta property="og:title" content="subday — specialty coffee & HoReCa subscriptions" />
+    <meta property="og:description" content="Подписки на кофе и напитки. Забирай быстрее и экономь больше." />
+    <meta property="og:url" content="https://web.subday.app/" />
+    <meta property="og:image" content="https://web.subday.app/icon-1024.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="subday — specialty coffee & HoReCa subscriptions" />
+    <meta name="twitter:description" content="Подписки на кофе и напитки. Забирай быстрее и экономь больше." />
+    <meta name="twitter:image" content="https://web.subday.app/icon-1024.png" />
 
     <!-- Preconnect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -158,6 +158,62 @@ export function getVideoDuration(file: File): Promise<number> {
 }
 
 /**
+ * Capture a poster frame (JPEG) from a video file for use as an OpenGraph
+ * preview image. Seeks a little into the clip to avoid black first frames.
+ * Best-effort: rejects if the frame cannot be drawn.
+ */
+export function captureVideoPoster(file: File, maxWidth = 1080): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    (video as HTMLVideoElement & { playsInline: boolean }).playsInline = true;
+    video.src = URL.createObjectURL(file);
+
+    const cleanup = () => URL.revokeObjectURL(video.src);
+
+    const draw = () => {
+      try {
+        let width = video.videoWidth;
+        let height = video.videoHeight;
+        if (!width || !height) throw new Error('No video dimensions');
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('No canvas context');
+        ctx.drawImage(video, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            cleanup();
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to encode poster'));
+          },
+          'image/jpeg',
+          0.8
+        );
+      } catch (e) {
+        cleanup();
+        reject(e as Error);
+      }
+    };
+
+    video.onloadedmetadata = () => {
+      // Seek slightly in; clamp for very short clips.
+      const target = Math.min(0.5, (video.duration || 1) / 2);
+      const onSeeked = () => { video.removeEventListener('seeked', onSeeked); draw(); };
+      video.addEventListener('seeked', onSeeked);
+      try { video.currentTime = target; } catch { draw(); }
+    };
+    video.onerror = () => { cleanup(); reject(new Error('Failed to load video')); };
+  });
+}
+
+/**
  * Format file size for display
  */
 export function formatFileSize(bytes: number): string {

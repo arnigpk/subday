@@ -25,6 +25,7 @@ import { useGeoNotifications } from "@/hooks/useGeoNotifications";
 import { useBackgroundGeoNotifications } from "@/hooks/useBackgroundGeoNotifications";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootstrap";
+import { AppInstallBridge } from "@/components/AppInstallBridge";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 
@@ -153,6 +154,14 @@ function DeepLinkHandler() {
     const handleAppUrlOpen = (data: { url: string }) => {
       try {
         const url = new URL(data.url);
+
+        // Диплинк «открыть экран» из веб-моста: subday://open?path=/shops/<id>
+        // (используется, когда ссылку открыли в браузере, а приложение установлено).
+        if (url.protocol === 'subday:' && url.hostname === 'open') {
+          const target = url.searchParams.get('path') || '/';
+          if (target && target !== '/') navigate(target);
+          return;
+        }
 
         // Возврат из оплаты: subday://pay?status=success&order=..&path=/packages
         // Страница-«отскок» на web.subday.app перебрасывает сюда после оплаты.
@@ -535,6 +544,7 @@ const AppContent = () => {
     return (
       <>
         <Sonner />
+        <AppInstallBridge />
         <AuthScreen onComplete={handleAuthComplete} onGuestBrowse={() => setGuestMode(true)} />
       </>
     );
@@ -548,6 +558,7 @@ const AppContent = () => {
       <BrowserRouter>
         <PaymentResultHandler />
         <DeepLinkHandler />
+        <AppInstallBridge />
         <GeoNotificationsRunner />
         <PermissionsBootstrap />
         <Toaster />
