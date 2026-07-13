@@ -9,6 +9,7 @@ import { usePayment } from '@/hooks/usePayment';
 import { KaspiPaymentModal } from '@/components/KaspiPaymentModal';
 import { PENDING_KASPI_KEY } from '@/hooks/usePaymentResult';
 import { Capacitor } from '@capacitor/core';
+import { openExternal } from '@/utils/openExternal';
 import { Button } from '@/components/ui/button';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
@@ -82,9 +83,11 @@ export default function PackageDetailPage() {
         // при возврате из приложения Kaspi (даже если приложение выгрузили).
         try { if (orderId) localStorage.setItem(PENDING_KASPI_KEY, orderId); } catch { /* ignore */ }
         if (Capacitor.isNativePlatform()) {
-          // Мобильное устройство: qr_token — это диплинк Kaspi, открываем приложение
-          // Kaspi НАПРЯМУЮ, без модалки с QR. Успех подхватит usePaymentResult.
-          window.open(res.data.qr_token, '_system');
+          // Мобильное устройство: qr_token — это диплинк Kaspi (https://qr.kaspi.kz/..),
+          // открываем приложение Kaspi НАПРЯМУЮ через AppLauncher (на iOS это
+          // UIApplication.open — уважает universal links; window.open('_system')
+          // из вебвью на iOS приложение НЕ открывал). Успех подхватит usePaymentResult.
+          await openExternal(res.data.qr_token);
         } else {
           // Веб/десктоп: приложения Kaspi нет — показываем модалку с QR для сканирования.
           setKaspiData({ qrToken: res.data.qr_token, amount: res.data.amount, expireDate: res.data.expire_date, orderId });
