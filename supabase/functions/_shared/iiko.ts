@@ -144,6 +144,8 @@ export async function getProducts(token: string, organizationId: string) {
 // Заказ
 // ---------------------------------------------------------------------------
 
+export type OrderEndpoint = 'order' | 'delivery';
+
 export interface CreateOrderArgs {
   organizationId: string;
   terminalGroupId: string;
@@ -152,42 +154,57 @@ export interface CreateOrderArgs {
   price: number;               // цена позиции (для суммы оплаты)
   paymentTypeId: string;
   paymentTypeKind: string;
-  autoClose: boolean;          // true — закрываем на выбранный способ; false — оставляем открытым
+  autoClose: boolean;          // true — оплата обработана (сумма=итог) ⇒ заказ закрывается
+  fiscalizeExternally?: boolean; // помечать чек фискализированным извне
+  endpoint?: OrderEndpoint;    // 'order' (касса) | 'delivery' (доставка/самовывоз)
   externalNumber?: string;     // идемпотентность/связка (redemption_id)
 }
 
 /**
  * Создать заказ «на вынос» в кассе.
- * PILOT: используем table order (/api/1/order/create) — позиция падает на кассу
- * без стола. Если у партнёра на кассе требуется deliveries/create — переключаем здесь.
- * autoClose=true  → оплата помечена обработанной (сумма=итог) ⇒ заказ закрывается.
- * autoClose=false → оплата привязана, но не обработана ⇒ кассир дозакрывает вручную.
+ * endpoint='order'    → /api/1/order/create (быстрый заказ на кассу, без стола);
+ * endpoint='delivery' → /api/1/deliveries/create (самовывоз, orderServiceType=DeliveryByClient).
+ * Обе схемы + флаги вынесены в настройку кофейни, чтобы выверить на пилоте без правок кода.
+ * autoClose=true → оплата помечена обработанной ⇒ заказ закрывается на выбранный способ.
  */
 export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ correlationId?: string; orderId?: string }> {
   const payment = {
     paymentTypeKind: a.paymentTypeKind,
     sum: a.price,
     paymentTypeId: a.paymentTypeId,
-    isProcessedExternally: a.autoClose,   // PILOT
-    isFiscalizedExternally: false,        // PILOT
+    isProcessedExternally: a.autoClose,
+    isFiscalizedExternally: !!a.fiscalizeExternally,
   };
+  const items = [{ type: 'Product', productId: a.productId, amount: 1, price: a.price }];
 
-  const body: Record<string, unknown> = {
+  if (a.endpoint === 'delivery') {
+    const body = {
+      organizationId: a.organizationId,
+      terminalGroupId: a.terminalGroupId,
+      order: {
+        ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
+        ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : {}),
+        orderServiceType: 'DeliveryByClient',   // самовывоз/вынос
+        customer: { name: 'subday' },
+        items,
+        payments: [payment],
+      },
+    };
+    const d = await iikoPost<{ correlationId?: string; orderInfo?: { id?: string } }>(token, '/api/1/deliveries/create', body);
+    return { correlationId: d.correlationId, orderId: d.orderInfo?.id };
+  }
+
+  const body = {
     organizationId: a.organizationId,
     terminalGroupId: a.terminalGroupId,
     order: {
       ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
       ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : {}),
-      items: [
-        { type: 'Product', productId: a.productId, amount: 1, price: a.price },
-      ],
+      items,
       payments: [payment],
     },
   };
-
-  const d = await iikoPost<{ correlationId?: string; orderInfo?: { id?: string } }>(
-    token, '/api/1/order/create', body,
-  );
+  const d = await iikoPost<{ correlationId?: string; orderInfo?: { id?: string } }>(token, '/api/1/order/create', body);
   return { correlationId: d.correlationId, orderId: d.orderInfo?.id };
 }
 
@@ -203,7 +220,7 @@ export async function processRedemptionOrder(
     // 1) Интеграция активна?
     const { data: integ } = await supabase
       .from('iiko_integrations')
-      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
+      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally, access_token, token_expires_at')
       .eq('shop_id', p.shopId)
       .maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
@@ -262,6 +279,8 @@ export async function processRedemptionOrder(
       paymentTypeId: integ.payment_type_id,
       paymentTypeKind: integ.payment_type_kind || 'Card',
       autoClose,
+      fiscalizeExternally: !!integ.fiscalize_externally,
+      endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
       externalNumber: p.redemptionId,
     });
 
@@ -286,6 +305,56 @@ export async function processRedemptionOrder(
         .eq('redemption_id', p.redemptionId).eq('status', 'pending');
     } catch { /* ignore */ }
     return { ok: false, status: 'failed', error };
+  }
+}
+
+/**
+ * Тестовый заказ из кабинета — создаёт реальный заказ по текущей настройке
+ * (тариф+адрес), НО не пишет журнал/списание. Для проверки модели на пилоте.
+ */
+export async function createTestOrder(
+  supabase: SupabaseClient,
+  p: { shopId: string; subscriptionTypeId: string; address: string | null },
+): Promise<{ ok: boolean; correlationId?: string; error?: string }> {
+  try {
+    const { data: integ } = await supabase.from('iiko_integrations')
+      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, order_endpoint, fiscalize_externally, access_token, token_expires_at')
+      .eq('shop_id', p.shopId).maybeSingle();
+    if (!integ) return { ok: false, error: 'Интеграция не подключена' };
+    if (!integ.organization_id || !integ.payment_type_id) return { ok: false, error: 'Не выбрана организация/оплата' };
+
+    let term: { terminal_group_id: string; order_type_id: string | null; auto_close: boolean | null } | null = null;
+    if (p.address) {
+      const { data } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close').eq('shop_id', p.shopId).eq('address', p.address).maybeSingle();
+      term = data;
+    }
+    if (!term) {
+      const { data: all } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close').eq('shop_id', p.shopId);
+      if (all && all.length === 1) term = all[0];
+    }
+    if (!term) return { ok: false, error: 'Не найдена касса для адреса' };
+
+    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_price').eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
+    if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
+    if (map.iiko_price == null) return { ok: false, error: 'У позиции нет цены' };
+
+    const token = await getValidToken(supabase, integ);
+    const res = await createOrder(token, {
+      organizationId: integ.organization_id,
+      terminalGroupId: term.terminal_group_id,
+      orderTypeId: term.order_type_id,
+      productId: map.iiko_product_id,
+      price: Number(map.iiko_price),
+      paymentTypeId: integ.payment_type_id,
+      paymentTypeKind: integ.payment_type_kind || 'Card',
+      autoClose: term.auto_close ?? integ.auto_close,
+      fiscalizeExternally: !!integ.fiscalize_externally,
+      endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
+      externalNumber: `test-${Date.now()}`,
+    });
+    return { ok: true, correlationId: res.correlationId };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 

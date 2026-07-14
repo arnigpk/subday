@@ -5,7 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   iikoAuth, getValidToken, getOrganizations, getTerminalGroups,
-  getOrderTypes, getPaymentTypes, getProducts, IikoError,
+  getOrderTypes, getPaymentTypes, getProducts, createTestOrder, IikoError,
 } from '../_shared/iiko.ts';
 
 const corsHeaders = {
@@ -98,6 +98,14 @@ Deno.serve(async (req) => {
         return json({ success: true, paymentTypes: await getPaymentTypes(iikoToken, orgId!) });
       case 'products':
         return json({ success: true, products: await getProducts(iikoToken, orgId!) });
+      case 'test_order': {
+        const r = await createTestOrder(supabase, {
+          shopId,
+          subscriptionTypeId: body.subscriptionTypeId as string,
+          address: (body.address as string) || null,
+        });
+        return json(r, r.ok ? 200 : 400);
+      }
       default:
         return json({ error: 'Unknown action' }, 400);
     }

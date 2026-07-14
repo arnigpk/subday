@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
         ?? 70;
 
       // 2) История. Если не удалось — откатываем списание.
-      const { error: guestInsErr } = await supabase.from('redemptions').insert({
+      const { data: guestRedemption, error: guestInsErr } = await supabase.from('redemptions').insert({
         user_id: userId, shop_name: shopName, shop_id: shopId,
         shop_address: shopAddress || null,
         drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
         payout_price: gSub?.price ?? null,
         payout_cups: gSub?.cups_count ?? null,
         payout_percent: guestPayoutPercent,
-      });
+      }).select('id').single();
       if (guestInsErr) {
         await supabase.from('user_stats').update({
           guest_coffees: stats.guest_coffees,
@@ -265,6 +265,16 @@ Deno.serve(async (req) => {
       if (stats.guest_coffees - 1 <= 0 && grant) {
         supabase.from('guest_grants').update({ status: 'consumed' })
           .eq('invitee_user_id', userId).eq('status', 'active').then(() => {});
+      }
+
+      // iiko: гостевой кофе тоже падает в кассу — по тарифу, из которого он выдан.
+      if (guestRedemption?.id && grant?.subscription_type_id) {
+        const gOrder = processRedemptionOrder(supabase, {
+          redemptionId: guestRedemption.id, shopId, address: shopAddress,
+          subscriptionTypeId: grant.subscription_type_id,
+        }).catch((e) => { console.error('iiko guest order error:', e); });
+        const rt = (globalThis as any).EdgeRuntime;
+        if (rt?.waitUntil) rt.waitUntil(gOrder); else await gOrder;
       }
 
       // Лог пишем в фоне — не держим ответ клиенту (списание уже подтверждено).

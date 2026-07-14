@@ -45,12 +45,14 @@ export default function PartnerIntegrationPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [pickerFor, setPickerFor] = useState<string | null>(null); // subTypeId for product picker
   const [productSearch, setProductSearch] = useState('');
+  const [testSubType, setTestSubType] = useState('');
+  const [testAddress, setTestAddress] = useState('');
 
   const load = useCallback(async () => {
     if (!shopId) return;
     setLoading(true);
     const [i, s, tc, mm, sh, ol] = await Promise.all([
-      supabase.from('iiko_integrations').select('shop_id, organization_id, organization_name, payment_type_id, payment_type_name, payment_type_kind, auto_close, is_active').eq('shop_id', shopId).maybeSingle(),
+      supabase.from('iiko_integrations').select('shop_id, organization_id, organization_name, payment_type_id, payment_type_name, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally').eq('shop_id', shopId).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
       supabase.from('iiko_terminals').select('*').eq('shop_id', shopId),
       supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId),
@@ -181,6 +183,16 @@ export default function PartnerIntegrationPage() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
 
+  const runTestOrder = async () => {
+    if (!testSubType) { toast.error('Выберите тариф для теста'); return; }
+    setBusy('test');
+    try {
+      const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action: 'test_order', shopId, subscriptionTypeId: testSubType, address: testAddress || undefined } });
+      if (error) { let msg = error.message; try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ } throw new Error(msg); }
+      if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу iiko'); else toast.error(data?.error || 'Ошибка тестового заказа');
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
+  };
+
   const orderAction = async (logId: string, action: 'retry' | 'cancel') => {
     setBusy(action + logId);
     try {
@@ -305,6 +317,42 @@ export default function PartnerIntegrationPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">Вкл — заказ сам закрывается на выбранный способ. Выкл — падает открытым с уже привязанной оплатой, кассир дозакрывает.</p>
                 </div>
                 <Switch checked={!!integ?.auto_close} onCheckedChange={v => saveInteg({ auto_close: v }, v ? 'Автозакрытие включено' : 'Автозакрытие выключено')} />
+              </div>
+            </section>
+
+            {/* 4b. Модель заказа (пилот) + тест */}
+            <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <h3 className="font-semibold text-foreground">Модель заказа</h3>
+              <div>
+                <label className="text-xs text-muted-foreground">Способ создания заказа</label>
+                <select className={selectCls + ' mt-1'} value={integ?.order_endpoint || 'order'} onChange={e => saveInteg({ order_endpoint: e.target.value }, 'Сохранено')}>
+                  <option value="order">Заказ на кассу (order/create)</option>
+                  <option value="delivery">Самовывоз/вынос (deliveries/create)</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-foreground">Чек фискализируется извне</p>
+                  <p className="text-xs text-muted-foreground">Включай, только если этого требует касса (пилот).</p>
+                </div>
+                <Switch checked={!!integ?.fiscalize_externally} onCheckedChange={v => saveInteg({ fiscalize_externally: v })} />
+              </div>
+              <div className="border-t border-border pt-3 space-y-2">
+                <p className="text-sm font-medium text-foreground">Тестовый заказ</p>
+                <p className="text-xs text-muted-foreground">Отправит реальный заказ на кассу (без списания) — проверить, что позиция падает и закрывается.</p>
+                <select className={selectCls} value={testSubType} onChange={e => setTestSubType(e.target.value)}>
+                  <option value="">— тариф —</option>
+                  {subTypes.filter(st => menuMap[st.id]).map(st => <option key={st.id} value={st.id}>{st.name} → {menuMap[st.id]?.iiko_product_name}</option>)}
+                </select>
+                {addresses.length > 1 && (
+                  <select className={selectCls} value={testAddress} onChange={e => setTestAddress(e.target.value)}>
+                    <option value="">— адрес (касса) —</option>
+                    {addresses.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+                <Button variant="outline" onClick={runTestOrder} disabled={busy === 'test'} className="w-full">
+                  {busy === 'test' ? <Loader2 className="animate-spin" size={16} /> : 'Отправить тестовый заказ'}
+                </Button>
               </div>
             </section>
 

@@ -28,6 +28,8 @@ export type Database = {
           payment_type_name: string | null
           auto_close: boolean
           is_active: boolean
+          order_endpoint: string
+          fiscalize_externally: boolean
           access_token: string | null
           token_expires_at: string | null
           created_at: string
@@ -46,6 +48,8 @@ export type Database = {
           payment_type_name?: string | null
           auto_close?: boolean
           is_active?: boolean
+          order_endpoint?: string
+          fiscalize_externally?: boolean
           access_token?: string | null
           token_expires_at?: string | null
           created_at?: string
@@ -64,6 +68,8 @@ export type Database = {
           payment_type_name?: string | null
           auto_close?: boolean
           is_active?: boolean
+          order_endpoint?: string
+          fiscalize_externally?: boolean
           access_token?: string | null
           token_expires_at?: string | null
           created_at?: string
