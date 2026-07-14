@@ -59,18 +59,12 @@ export default function AdminPushBroadcastPage() {
             toast.warning('PUSH не отправлен: FCM не настроен, поэтому уведомление создано только внутри приложения.');
           }
         } else {
-          const sent = fcmResult?.sent || 0;
-          const failed = fcmResult?.failed || 0;
-          const cleaned = fcmResult?.cleaned || 0; // устаревшие токены, удалены автоматически
-          // Устаревшие устройства (приложение удалено/переустановлено) — не ошибка,
-          // показываем как штатную чистку внутри успешного результата.
-          const parts = [`${fcmResult.recipient_count} получателей`, `доставлено на ${sent} устройств`];
-          if (cleaned > 0) parts.push(`очищено ${cleaned} устаревших`);
-          toast.success(`Отправлено: ${parts.join(' · ')}`);
-          // Предупреждаем ТОЛЬКО о реальных сбоях доставки (не об устаревших токенах).
-          const realFailures = Math.max(0, failed - cleaned);
-          if (realFailures > 0) {
-            toast.warning(`${realFailures} устройств временно недоступны — доставим при следующей рассылке`);
+          // PUSH теперь уходит в фоновую очередь (без лимитов при любом объёме).
+          const queued = fcmResult?.queued || 0;
+          if (queued > 0) {
+            toast.success(`Уведомления созданы для ${fcmResult.recipient_count} · PUSH на ${queued} устройств запущен в фоне`);
+          } else {
+            toast.success(`Уведомления созданы для ${fcmResult.recipient_count} пользователей`);
           }
         }
       }

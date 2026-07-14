@@ -196,83 +196,56 @@ Deno.serve(async (req) => {
       });
     }
 
-    let successCount = 0;
-    let failCount = 0;
-    let skippedCount = 0;
-    const invalidTokens: string[] = [];
-
-    if (deviceTokens.length > 0 && canSendDevicePush && serviceAccount && projectId) {
-      try {
-        const accessToken = await getFcmAccessToken(serviceAccount);
-
-        // Батчами параллельно — последовательная отправка сотням устройств упиралась
-        // бы в лимит времени edge-воркера. FCM держит высокую конкурентность.
-        const FCM_CONCURRENCY = 50;
-        for (let i = 0; i < deviceTokens.length; i += FCM_CONCURRENCY) {
-          const batch = deviceTokens.slice(i, i + FCM_CONCURRENCY);
-          const results = await Promise.all(batch.map(async (dt) => {
-            const result = await sendFcmMessage(accessToken, projectId, dt.token, { title, body: message });
-            return { token: dt.token, result };
-          }));
-          for (const { token, result } of results) {
-            if (result.ok) {
-              successCount++;
-            } else {
-              failCount++;
-              console.error(`FCM send failed for token ${token.slice(0, 10)}... (status ${result.status}):`, result.error);
-              if (isInvalidFcmTokenError(result.error)) invalidTokens.push(token);
-            }
-          }
-        }
-      } catch (err) {
-        pushConfigError = err instanceof Error ? err.message : 'Failed to initialize FCM delivery';
-        skippedCount = deviceTokens.length;
-        console.error('FCM delivery disabled for this request:', err);
-      }
-    } else if (deviceTokens.length > 0) {
-      skippedCount = deviceTokens.length;
+    if (deviceTokens.length > 0 && !(canSendDevicePush && serviceAccount && projectId)) {
       pushConfigError ||= 'FCM credentials are not configured. Device push skipped; in-app notifications only.';
-      console.warn('FCM credentials are not configured. Device push skipped; in-app notifications only.');
     }
 
-
-    if (invalidTokens.length > 0) {
-      await supabase.from('device_tokens').delete().in('token', invalidTokens);
-      console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
-    }
-
+    // In-app уведомления — сразу (быстрый bulk insert), это основная доставка.
     const inAppCreated = await createInAppNotifications(supabase, {
       title,
       message,
       createdBy: userId,
       recipientUserIds,
     });
-
-    // Fetch recipient names for history metadata
     const recipientsMeta = await fetchRecipientsMeta(supabase, recipientUserIds);
 
-    await savePushBroadcastHistory(supabase, {
-      sentBy: userId,
-      title,
-      message,
-      targetType: audienceTypes.join(','),
-      recipientCount: recipientUserIds.length,
-      sentCount: successCount,
-      failedCount: failCount,
+    // Device push — в фоновую очередь (broadcast-worker шлёт батчами, без лимитов).
+    const willQueuePush = deviceTokens.length > 0 && canSendDevicePush && !!serviceAccount && !!projectId && !pushConfigError;
+
+    const { data: bm } = await supabase.from('broadcast_messages').insert({
+      message: `${title}\n${message}`,
+      broadcast_type: 'push',
+      target_type: audienceTypes.join(','),
+      recipient_count: recipientUserIds.length,
+      sent_count: 0,
+      failed_count: 0,
+      status: willQueuePush ? 'queued' : 'done',
+      sent_by: userId,
       recipients: recipientsMeta,
-    });
+    }).select('id').single();
+
+    if (willQueuePush && bm) {
+      const queueRows = deviceTokens.map((dt) => ({ broadcast_id: bm.id, channel: 'push', target: dt.token, user_id: dt.user_id }));
+      for (let i = 0; i < queueRows.length; i += 500) {
+        const { error: qErr } = await supabase.from('broadcast_queue').insert(queueRows.slice(i, i + 500));
+        if (qErr) console.error('Failed to enqueue push batch:', qErr);
+      }
+      // Пинаем воркер, чтобы отправка началась сразу (cron — страховка).
+      fetch(`${supabaseUrl}/functions/v1/broadcast-worker`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+        body: '{}',
+      }).catch(() => {});
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      sent: successCount,
-      failed: failCount,
-      skipped: skippedCount,
-      total: deviceTokens.length,
       recipient_count: recipientUserIds.length,
       in_app_created: inAppCreated,
       push_enabled: canSendDevicePush && !pushConfigError,
       push_error: pushConfigError,
-      cleaned: invalidTokens.length,
+      queued: willQueuePush ? deviceTokens.length : 0,
+      broadcast_id: bm?.id ?? null,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

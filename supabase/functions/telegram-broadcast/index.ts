@@ -106,76 +106,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Sending broadcast to ${profiles.length} users (audience: ${audienceTypes.join(',')})`);
+    console.log(`Queueing telegram broadcast to ${profiles.length} users (audience: ${audienceTypes.join(',')})`);
 
-    let successCount = 0;
-    let failCount = 0;
-    let unreachableCount = 0; // не начинали чат с ботом / заблокировали — это не ошибка
-    const errors: string[] = [];
-    const recipientsList: { name: string; telegram_id: string }[] = [];
+    // Ставим рассылку в фоновую очередь — отправку делает broadcast-worker батчами,
+    // чтобы не упираться в лимит времени edge-воркера при любом объёме.
+    const recipientsList = profiles.map((p: any) => ({ name: p.name || '', telegram_id: (p.phone as string).replace('+telegram_', '') }));
 
-    // Описания Telegram, означающие «пользователь недоступен боту» (штатно, не сбой).
-    const isUnreachable = (desc?: string) =>
-      !!desc && /blocked|bot can't initiate|chat not found|user is deactivated|forbidden|deactivated/i.test(desc);
-
-    // Шлём батчами параллельно: последовательная отправка сотням юзеров упиралась
-    // в лимит времени edge-воркера (супервизор убивал функцию на середине —
-    // часть получала, история не сохранялась). Батч 25 + пауза ~1с ≈ 25 сообщений/сек
-    // (в пределах лимита Telegram) — 300+ юзеров уходят за считанные секунды.
-    const CONCURRENCY = 25;
-    const BATCH_DELAY_MS = 1000;
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    const sendOne = async (profile: { name?: string | null; phone: string }) => {
-      const telegramId = profile.phone.replace('+telegram_', '');
-      try {
-        const resp = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
-        });
-        const result = await resp.json();
-        return { name: profile.name, telegramId, ok: !!result.ok, description: result.description as string | undefined };
-      } catch (err) {
-        return { name: profile.name, telegramId, ok: false, description: err instanceof Error ? err.message : 'Unknown error' };
-      }
-    };
-
-    for (let i = 0; i < profiles.length; i += CONCURRENCY) {
-      const batch = profiles.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(batch.map(sendOne));
-      for (const r of results) {
-        recipientsList.push({ name: r.name || '', telegram_id: r.telegramId });
-        if (r.ok) {
-          successCount++;
-        } else {
-          failCount++;
-          if (isUnreachable(r.description)) unreachableCount++;
-          errors.push(`Failed: ${r.name || r.telegramId}: ${r.description}`);
-        }
-      }
-      if (i + CONCURRENCY < profiles.length) await sleep(BATCH_DELAY_MS);
-    }
-
-    // Save broadcast history with recipients
-    try {
-      await supabase.from('broadcast_messages').insert({
-        message: message.trim(),
-        broadcast_type: 'telegram',
-        target_type: audienceTypes.join(','),
-        recipient_count: profiles.length,
-        sent_count: successCount,
-        failed_count: failCount,
-        sent_by: user.id,
-        recipients: recipientsList,
+    // 1) Шапка рассылки (статус queued).
+    const { data: bm, error: bmErr } = await supabase.from('broadcast_messages').insert({
+      message: message.trim(),
+      broadcast_type: 'telegram',
+      target_type: audienceTypes.join(','),
+      recipient_count: profiles.length,
+      sent_count: 0,
+      failed_count: 0,
+      status: 'queued',
+      sent_by: user.id,
+      recipients: recipientsList,
+    }).select('id').single();
+    if (bmErr || !bm) {
+      console.error('Failed to create broadcast header:', bmErr);
+      return new Response(JSON.stringify({ error: 'Не удалось создать рассылку' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } catch (historyError) {
-      console.error('Error saving broadcast history:', historyError);
     }
+
+    // 2) Получатели в очередь (bulk-insert пачками).
+    const queueRows = profiles.map((p: any) => ({
+      broadcast_id: bm.id, channel: 'telegram', target: (p.phone as string).replace('+telegram_', ''), user_id: p.user_id,
+    }));
+    for (let i = 0; i < queueRows.length; i += 500) {
+      const { error: qErr } = await supabase.from('broadcast_queue').insert(queueRows.slice(i, i + 500));
+      if (qErr) console.error('Failed to enqueue batch:', qErr);
+    }
+
+    // 3) Пинаем воркер, чтобы отправка началась сразу (cron — страховка).
+    fetch(`${supabaseUrl}/functions/v1/broadcast-worker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+      body: '{}',
+    }).catch(() => {});
 
     return new Response(JSON.stringify({
-      success: true, sent: successCount, failed: failCount, unreachable: unreachableCount, total: profiles.length,
-      errors: errors.length > 0 ? errors : undefined,
+      success: true, queued: profiles.length, total: profiles.length, broadcast_id: bm.id,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

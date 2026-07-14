@@ -142,37 +142,19 @@ export default function AdminBroadcastPage() {
 
       if (error) throw error;
 
-      const sent = data?.sent || 0;
-      const total = data?.total || 0;
-      const failed = data?.failed || 0;
-      const unreachable = data?.unreachable || 0; // не начинали чат с ботом / заблокировали
-      const realFailures = Math.max(0, failed - unreachable);
-
+      const total = data?.total || data?.queued || 0;
       if (total === 0) {
         toast.warning(data?.message || 'Нет получателей в выбранной аудитории');
-      } else if (sent === 0) {
-        // Никто не получил — почти всегда потому, что не начинали чат с ботом.
-        toast.warning(
-          unreachable > 0
-            ? `Никто не получил: ${unreachable} не начинали чат с ботом (или заблокировали его)`
-            : 'Сообщения не отправлены — попробуйте позже',
-        );
-        setHistoryRefresh(prev => prev + 1);
       } else {
-        const parts = [`доставлено ${sent} из ${total}`];
-        if (unreachable > 0) parts.push(`${unreachable} не начинали чат с ботом`);
-        toast.success(`Рассылка выполнена: ${parts.join(' · ')}`);
-        // Предупреждаем ТОЛЬКО о реальных сбоях Telegram (не о недоступных ботам).
-        if (realFailures > 0) {
-          toast.warning(`${realFailures} не доставлено из-за ошибки Telegram — попробуйте позже`);
-        }
+        // Рассылка теперь идёт в фоне (очередь) — не упирается в лимиты при любом объёме.
+        toast.success(`Рассылка запущена: ${total} получателей. Идёт отправка в фоне — прогресс виден в истории.`);
         setMessage('');
         setSelectedUsers([]);
         setHistoryRefresh(prev => prev + 1);
       }
     } catch (error) {
       console.error('Broadcast error:', error);
-      toast.error('Не удалось выполнить рассылку. Проверьте соединение и попробуйте ещё раз.');
+      toast.error('Не удалось запустить рассылку. Проверьте соединение и попробуйте ещё раз.');
     } finally {
       setIsLoading(false);
     }

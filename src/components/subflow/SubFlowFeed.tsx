@@ -273,38 +273,24 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     fetchAds();
   }, [refreshTrigger, currentUserId, shopFilter]);
 
-  // Fetch highlighted post if not in feed
+  // Диплинк/уведомление на конкретный пост: НЕ добавляем его в начало ленты
+  // (иначе он дублировался — сверху + в своей естественной позиции). Вместо этого
+  // подгружаем ленту, пока пост не окажется загруженным, и тогда SubFlowPost сам
+  // проскроллит к нему и подсветит (isHighlighted). Ограничение — чтобы не тянуть
+  // всю ленту, если пост старый/удалён.
+  const highlightAttemptsRef = useRef(0);
   useEffect(() => {
-    if (!highlightPostId) return;
-    const exists = posts.some(p => p.id === highlightPostId);
-    if (exists) return;
-
-    (async () => {
-      const { data: postData } = await supabase.from('subflow_posts').select('*').eq('id', highlightPostId).single();
-      if (!postData) { onHighlightDone?.(); return; }
-
-      const { data: profile } = await supabase.from('profiles').select('user_id, name, avatar_url, subflow_nickname').eq('user_id', postData.user_id).single();
-      const { data: reactionsData } = await supabase.from('subflow_reactions').select('*').eq('post_id', highlightPostId);
-      const { data: commentsData } = await supabase.from('subflow_comments').select('post_id').eq('post_id', highlightPostId);
-
-      const counts: Record<string, number> = {};
-      const userReactions: string[] = [];
-      (reactionsData || []).forEach(r => {
-        counts[r.reaction] = (counts[r.reaction] || 0) + 1;
-        if (r.user_id === currentUserId) userReactions.push(r.reaction);
-      });
-
-      const enriched: Post = {
-        id: postData.id, user_id: postData.user_id, content: postData.content,
-        image_url: postData.image_url, image_urls: (postData as any).image_urls || [],
-        shop_id: postData.shop_id, shop_name: postData.shop_name, created_at: postData.created_at,
-        author_name: profile?.subflow_nickname || profile?.name || 'Пользователь',
-        author_avatar: profile?.avatar_url || null, reactions: counts,
-        user_reactions: userReactions, comments_count: commentsData?.length || 0,
-      };
-      setPosts(prev => [enriched, ...prev]);
-    })();
-  }, [highlightPostId]);
+    if (!highlightPostId) { highlightAttemptsRef.current = 0; return; }
+    if (isLoading || isLoadingMore) return;
+    if (posts.some(p => p.id === highlightPostId)) return; // найден — подсветка/скролл в SubFlowPost
+    if (hasMore && highlightAttemptsRef.current < 5) {
+      highlightAttemptsRef.current += 1;
+      loadMore();
+    } else {
+      onHighlightDone?.(); // не нашли (старый/удалён) — просто остаёмся в ленте
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightPostId, posts, hasMore, isLoading, isLoadingMore]);
 
   // Realtime
   useEffect(() => {
