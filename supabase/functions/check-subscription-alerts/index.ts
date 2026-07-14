@@ -66,6 +66,18 @@ Deno.serve(async (req) => {
 
     let sentCount = 0;
 
+    // Уведомления НЕ шлём по одному через await fetch (последовательный обход
+    // упирался бы в лимит времени воркера при росте базы). Собираем задачи и
+    // одним bulk-insert ставим в broadcast_queue (channel='notify'); дренит их
+    // broadcast-worker, вызывая send-subscription-notification с payload.
+    // Дедуп остаётся здесь же, ДО постановки — семантика прежняя, но постановка
+    // durable: сбой сети больше не теряет уведомление навсегда.
+    const notifyJobs: Array<{ userId: string; payload: Record<string, unknown> }> = [];
+    const enqueueNotification = (userId: string, payload: Record<string, unknown>) => {
+      notifyJobs.push({ userId, payload });
+      sentCount++;
+    };
+
     // 3. Check low balance for all active users
     if (lowThresholds.length > 0) {
       const sortedThresholds = [...lowThresholds].sort((a, b) => a - b); // по возрастанию
@@ -135,19 +147,14 @@ Deno.serve(async (req) => {
             });
 
             // cupsCount = реальный остаток (для {{count}}), threshold = порог (для подбора шаблона).
-            await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-              body: JSON.stringify({
-                type: 'low_balance',
-                userId: user.user_id,
-                cupsCount: remaining,
-                threshold: target,
-                subscriptionName: st.name || (st.type === 'coffee' ? 'Кофе' : 'Ланч'),
-                drinkType: st.type,
-              }),
-            }).catch(err => console.error('Low balance notification error:', err));
-            sentCount++;
+            enqueueNotification(user.user_id, {
+              type: 'low_balance',
+              userId: user.user_id,
+              cupsCount: remaining,
+              threshold: target,
+              subscriptionName: st.name || (st.type === 'coffee' ? 'Кофе' : 'Ланч'),
+              drinkType: st.type,
+            });
           }
         }
       }
@@ -194,17 +201,12 @@ Deno.serve(async (req) => {
                 alert_key: alertKey,
               });
 
-              await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-                body: JSON.stringify({
-                  type: 'expiring_soon',
-                  userId: sub.user_id,
-                  daysCount: daysLeft,
-                  subscriptionName: st.name || 'Подписка',
-                }),
-              }).catch(err => console.error('Expiry notification error:', err));
-              sentCount++;
+              enqueueNotification(sub.user_id, {
+                type: 'expiring_soon',
+                userId: sub.user_id,
+                daysCount: daysLeft,
+                subscriptionName: st.name || 'Подписка',
+              });
             }
           }
         }
@@ -241,16 +243,25 @@ Deno.serve(async (req) => {
 
         await supabase.from('notification_dedupe_log').insert({ user_id: u.user_id, alert_key: alertKey });
 
-        await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-          body: JSON.stringify({ type: 'guest_coffee_expiring', userId: u.user_id }),
-        }).catch(err => console.error('Guest coffee expiry notification error:', err));
-        sentCount++;
+        enqueueNotification(u.user_id, { type: 'guest_coffee_expiring', userId: u.user_id });
       }
     }
 
-    console.log(`Subscription alerts check completed. Sent ${sentCount} notifications.`);
+    // Bulk-постановка собранных уведомлений в очередь + пинок воркера.
+    if (notifyJobs.length > 0) {
+      const rows = notifyJobs.map(j => ({ channel: 'notify', target: j.userId, user_id: j.userId, payload: j.payload }));
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error: qErr } = await supabase.from('broadcast_queue').insert(rows.slice(i, i + 500));
+        if (qErr) console.error('Failed to enqueue notify jobs:', qErr);
+      }
+      fetch(`${supabaseUrl}/functions/v1/broadcast-worker`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+        body: '{}',
+      }).catch(() => {});
+    }
+
+    console.log(`Subscription alerts check completed. Queued ${sentCount} notifications.`);
 
     return new Response(
       JSON.stringify({ success: true, sentCount, timestamp: new Date().toISOString() }),

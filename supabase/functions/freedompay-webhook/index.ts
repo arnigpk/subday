@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendAdminNotification } from "../_shared/adminNotify.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,44 +131,6 @@ async function extractWebhookPayload(req: Request): Promise<Record<string, strin
     console.log('Webhook payload parse error:', parseError);
   }
   return payload;
-}
-
-async function sendAdminNotification(
-  supabase: any,
-  env: Record<string, string>,
-  triggerType: string,
-  variables: Record<string, string>
-): Promise<void> {
-  try {
-    const { data: template } = await supabase
-      .from('auto_notification_templates')
-      .select('message_template, is_active')
-      .eq('trigger_type', triggerType)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (!template) return;
-
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN'];
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID'];
-    if (!notificationBotToken || !chatId) {
-      console.error('Notification bot token or chat ID not configured');
-      return;
-    }
-
-    let message = template.message_template;
-    for (const [key, value] of Object.entries(variables)) {
-      message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-    }
-
-    await fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' }),
-    });
-  } catch (e) {
-    console.error('Admin notification error:', e);
-  }
 }
 
 Deno.serve(async (req) => {

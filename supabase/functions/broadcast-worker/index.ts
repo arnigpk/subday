@@ -17,6 +17,7 @@ const TIME_BUDGET_MS = 40_000;
 const TG_CHUNK = 25;          // ~25 сообщений/сек (лимит Telegram ~30/с)
 const TG_PACE_MS = 1000;
 const PUSH_CHUNK = 100;       // FCM держит высокую конкурентность
+const NOTIFY_CHUNK = 10;      // персональные авто-уведомления (каждое — вызов send-subscription-notification)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -44,7 +45,29 @@ Deno.serve(async (req) => {
       return h;
     };
 
-    const summary = { telegram: { sent: 0, failed: 0 }, push: { sent: 0, failed: 0, cleaned: 0 } };
+    const summary = { telegram: { sent: 0, failed: 0 }, push: { sent: 0, failed: 0, cleaned: 0 }, notify: { sent: 0, failed: 0 } };
+
+    // ---- NOTIFY (персональные авто-уведомления: low_balance / expiring_soon / ...) ----
+    // payload = тело запроса к send-subscription-notification; вся логика шаблонов
+    // и каналов остаётся в той функции — здесь только доставка из очереди.
+    while (Date.now() - started < TIME_BUDGET_MS) {
+      const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'notify', _limit: NOTIFY_CHUNK });
+      if (!rows || rows.length === 0) break;
+      const sentIds: number[] = []; const failedIds: number[] = [];
+      await Promise.all(rows.map(async (r: any) => {
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+            body: JSON.stringify(r.payload || {}),
+          });
+          if (resp.ok) { sentIds.push(r.id); summary.notify.sent++; }
+          else { failedIds.push(r.id); summary.notify.failed++; }
+        } catch { failedIds.push(r.id); summary.notify.failed++; }
+      }));
+      if (sentIds.length) await supabase.from('broadcast_queue').update({ status: 'sent', processed_at: new Date().toISOString() }).in('id', sentIds);
+      if (failedIds.length) await supabase.from('broadcast_queue').update({ status: 'failed', processed_at: new Date().toISOString() }).in('id', failedIds);
+    }
 
     // ---- TELEGRAM ----
     while (Date.now() - started < TIME_BUDGET_MS) {
