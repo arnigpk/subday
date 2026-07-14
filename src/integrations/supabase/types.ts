@@ -14,6 +14,183 @@ export type Database = {
   }
   public: {
     Tables: {
+      iiko_integrations: {
+        Row: {
+          shop_id: string
+          api_login: string
+          organization_id: string | null
+          organization_name: string | null
+          payment_type_id: string | null
+          payment_type_kind: string | null
+          payment_type_name: string | null
+          auto_close: boolean
+          is_active: boolean
+          access_token: string | null
+          token_expires_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          shop_id: string
+          api_login: string
+          organization_id?: string | null
+          organization_name?: string | null
+          payment_type_id?: string | null
+          payment_type_kind?: string | null
+          payment_type_name?: string | null
+          auto_close?: boolean
+          is_active?: boolean
+          access_token?: string | null
+          token_expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          shop_id?: string
+          api_login?: string
+          organization_id?: string | null
+          organization_name?: string | null
+          payment_type_id?: string | null
+          payment_type_kind?: string | null
+          payment_type_name?: string | null
+          auto_close?: boolean
+          is_active?: boolean
+          access_token?: string | null
+          token_expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      iiko_terminals: {
+        Row: {
+          id: string
+          shop_id: string
+          address: string
+          terminal_group_id: string
+          terminal_group_name: string | null
+          order_type_id: string | null
+          order_type_name: string | null
+          auto_close: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          address: string
+          terminal_group_id: string
+          terminal_group_name?: string | null
+          order_type_id?: string | null
+          order_type_name?: string | null
+          auto_close?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          address?: string
+          terminal_group_id?: string
+          terminal_group_name?: string | null
+          order_type_id?: string | null
+          order_type_name?: string | null
+          auto_close?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      iiko_menu_map: {
+        Row: {
+          id: string
+          shop_id: string
+          subscription_type_id: string
+          iiko_product_id: string
+          iiko_product_name: string | null
+          iiko_price: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          subscription_type_id: string
+          iiko_product_id: string
+          iiko_product_name?: string | null
+          iiko_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          subscription_type_id?: string
+          iiko_product_id?: string
+          iiko_product_name?: string | null
+          iiko_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      iiko_order_log: {
+        Row: {
+          id: string
+          redemption_id: string | null
+          shop_id: string
+          address: string | null
+          subscription_type_id: string | null
+          iiko_product_id: string | null
+          iiko_product_name: string | null
+          organization_id: string | null
+          terminal_group_id: string | null
+          correlation_id: string | null
+          iiko_order_id: string | null
+          status: string
+          auto_close: boolean | null
+          error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          redemption_id?: string | null
+          shop_id: string
+          address?: string | null
+          subscription_type_id?: string | null
+          iiko_product_id?: string | null
+          iiko_product_name?: string | null
+          organization_id?: string | null
+          terminal_group_id?: string | null
+          correlation_id?: string | null
+          iiko_order_id?: string | null
+          status?: string
+          auto_close?: boolean | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          redemption_id?: string | null
+          shop_id?: string
+          address?: string | null
+          subscription_type_id?: string | null
+          iiko_product_id?: string | null
+          iiko_product_name?: string | null
+          organization_id?: string | null
+          terminal_group_id?: string | null
+          correlation_id?: string | null
+          iiko_order_id?: string | null
+          status?: string
+          auto_close?: boolean | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_banner_events: {
         Row: {
           banner_id: string

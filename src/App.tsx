@@ -84,6 +84,7 @@ const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage
 const BaristaShiftHistory = lazy(() => import("./pages/partner/BaristaShiftHistory"));
 const PartnerStaffPage = lazy(() => import("./pages/partner/PartnerStaffPage"));
 const PartnerAdvertisingPage = lazy(() => import("./pages/partner/PartnerAdvertisingPage"));
+const PartnerIntegrationPage = lazy(() => import("./pages/partner/PartnerIntegrationPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -605,6 +606,7 @@ const AppContent = () => {
             <Route path="/partner/my-shift" element={<PartnerProtectedRoute><BaristaShiftHistory /></PartnerProtectedRoute>} />
             <Route path="/partner/staff" element={<PartnerProtectedRoute allowBarista={false}><PartnerStaffPage /></PartnerProtectedRoute>} />
             <Route path="/partner/advertising" element={<PartnerProtectedRoute allowBarista={false}><PartnerAdvertisingPage /></PartnerProtectedRoute>} />
+            <Route path="/partner/integration" element={<PartnerProtectedRoute allowBarista={false}><PartnerIntegrationPage /></PartnerProtectedRoute>} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -3,9 +3,10 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, AlertTriangle } from 'lucide-react';
+import { Check, X, AlertTriangle, MapPin } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
+import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
 
 interface ScanResult {
   success: boolean;
@@ -28,6 +29,33 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   const autoResetRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const processingStartRef = useRef<number>(0);
+
+  // Адрес/касса смены — подтверждаем перед сканом (для маршрутизации заказа в iiko).
+  const [shopAddresses, setShopAddresses] = useState<string[]>([]);
+  const [shiftAddress, setShiftAddress] = useState<string | null>(null);
+  const [showAddrDialog, setShowAddrDialog] = useState(false);
+
+  useEffect(() => {
+    if (!shopId) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [{ data: shop }, { data: shift }] = await Promise.all([
+        supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
+        supabase.from('barista_shifts').select('address, expires_at').eq('user_id', user.id).maybeSingle(),
+      ]);
+      const addrs = shop?.addresses?.length ? shop.addresses : (shop?.address ? [shop.address] : []);
+      setShopAddresses(addrs);
+      const active = shift?.expires_at && new Date(shift.expires_at) > new Date() ? shift.address : null;
+      if (active) {
+        setShiftAddress(active);
+      } else if (addrs.length <= 1) {
+        setShiftAddress(addrs[0] || null); // один адрес — без вопроса
+      } else {
+        setShowAddrDialog(true); // несколько — уточняем перед сканом
+      }
+    })();
+  }, [shopId]);
 
   useEffect(() => {
     if (result) {
@@ -68,6 +96,8 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       if (!stuck) return;
     }
     if (!shopId) return;
+    // Мультиадрес: не сканируем, пока бариста не подтвердил адрес/кассу.
+    if (shopAddresses.length > 1 && !shiftAddress) { setShowAddrDialog(true); return; }
     isProcessingRef.current = true;
     processingStartRef.current = Date.now();
     setIsProcessing(true);
@@ -187,6 +217,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           shopId: data.shopId,
           drinkType: data.drinkType,
           isGuestCoffee: data.isGuestCoffee || false,
+          address: shiftAddress || undefined, // касса смены → маршрутизация заказа iiko
         },
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -259,6 +290,18 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     </button>
   )}
 </div>
+        {/* Адрес/касса текущей смены — виден баристе, можно сменить (мультиадрес) */}
+        {shiftAddress && (
+          <div className="px-4">
+            <div className="flex items-center gap-2 text-sm bg-secondary/50 rounded-xl px-3 py-2">
+              <MapPin size={15} className="text-primary shrink-0" />
+              <span className="text-foreground truncate flex-1">{shiftAddress}</span>
+              {shopAddresses.length > 1 && (
+                <button onClick={() => setShowAddrDialog(true)} className="text-xs text-primary font-medium shrink-0">Сменить</button>
+              )}
+            </div>
+          </div>
+        )}
         <div className="px-4 relative">
           <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
           {result && (
@@ -283,6 +326,15 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           </div>
         </div>
       </div>
+
+      {shopId && showAddrDialog && (
+        <BaristaAddressDialog
+          open={showAddrDialog}
+          addresses={shopAddresses}
+          shopId={shopId}
+          onSelect={(addr) => { setShiftAddress(addr); setShowAddrDialog(false); }}
+        />
+      )}
     </PartnerLayout>
   );
 }

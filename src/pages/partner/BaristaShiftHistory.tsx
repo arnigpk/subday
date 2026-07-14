@@ -67,6 +67,17 @@ export default function BaristaShiftHistory() {
 
       if (shift && new Date(shift.expires_at) > new Date()) {
         setCurrentShiftAddress(shift.address);
+      } else if (addrs.length <= 1) {
+        // Один адрес — не спрашиваем, проставляем сам.
+        const only = addrs[0] || null;
+        if (only) {
+          await supabase.from('barista_shifts').upsert({
+            user_id: user.id, shop_id: shopId!, address: only,
+            started_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          }, { onConflict: 'user_id' });
+          setCurrentShiftAddress(only);
+        }
       } else {
         setShowAddressDialog(true);
       }

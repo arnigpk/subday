@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createEdgeLogger } from '../_shared/edgeLogger.ts';
+import { processRedemptionOrder } from '../_shared/iiko.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,7 @@ interface ScanRequest {
   drinkType: 'coffee' | 'drinks';
   drinkName: string;
   isGuestCoffee?: boolean;
+  address?: string; // адрес/касса, подтверждённый баристой на скане (для iiko)
 }
 
 function extractTelegramId(phone: string): string | null {
@@ -94,7 +96,7 @@ Deno.serve(async (req) => {
 
     // Fetch stats + profile + shop + subscriptions in parallel (один слой round-trip'ов
     // вместо двух — на слабом интернете это заметно ускоряет ответ).
-    const [statsResult, profileResult, shopResult, subsResult] = await Promise.all([
+    const [statsResult, profileResult, shopResult, subsResult, shiftResult] = await Promise.all([
       supabase.from('user_stats').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('profiles').select('name, phone').eq('user_id', userId).maybeSingle(),
       supabase.from('shops').select('name, address, addresses, supported_types, working_hours, revenue_share_percent').eq('id', shopId).maybeSingle(),
@@ -102,11 +104,17 @@ Deno.serve(async (req) => {
         .from('user_subscriptions')
         .select(`id, subscription_type_id, expires_at, is_frozen, freeze_until, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name, price, cups_count, revenue_share_percent )`)
         .eq('user_id', userId).eq('is_active', true),
+      // Активная смена сканирующего бариста — источник правды для адреса/кассы.
+      supabase.from('barista_shifts').select('address, expires_at').eq('user_id', scannerId).maybeSingle(),
     ]);
 
-    // Derive shopName, shopAddress, drinkName from DB — no longer in QR payload
+    // Derive shopName, drinkName from DB. Адрес: подтверждённый на скане (body.address)
+    // → адрес активной смены → первый адрес кофейни. Это же — ключ маршрутизации кассы iiko.
     const shopName = shopResult.data?.name || 'Кофейня';
-    const shopAddress = shopResult.data?.addresses?.[0] || shopResult.data?.address || null;
+    const shiftActive = shiftResult.data?.expires_at ? new Date(shiftResult.data.expires_at) > new Date() : false;
+    const shiftAddress = shiftActive ? (shiftResult.data?.address || null) : null;
+    const requestedAddress = typeof body.address === 'string' && body.address.trim() ? body.address.trim() : null;
+    const shopAddress = requestedAddress || shiftAddress || shopResult.data?.addresses?.[0] || shopResult.data?.address || null;
     const drinkName = drinkType === 'coffee' ? 'Кофе' : 'Ланч';
 
     const stats = statsResult.data;
@@ -369,14 +377,14 @@ Deno.serve(async (req) => {
 
     // 2) Пишем историю. Если не удалось — ОТКАТЫВАЕМ списание, чтобы не было
     //    списания без записи в истории.
-    const { error: insErr } = await supabase.from('redemptions').insert({
+    const { data: insertedRedemption, error: insErr } = await supabase.from('redemptions').insert({
       user_id: userId, shop_name: shopName, shop_id: shopId,
       shop_address: shopAddress || null,
       drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
       scanned_by: scannerId,
       subscription_type_id: (matchingSub as any)?.subscription_type_id ?? null,
       payout_price: payoutPrice, payout_cups: payoutCups, payout_percent: payoutPercent,
-    });
+    }).select('id').single();
     if (insErr) {
       await supabase.from('user_stats').update({
         coffee_remaining: stats.coffee_remaining,
@@ -418,6 +426,19 @@ Deno.serve(async (req) => {
             }).catch(err => console.error('Cups-expired notification error:', err));
           }
         });
+    }
+
+    // iiko: падение заказа в кассу «на вынос» + (опц.) автозакрытие. В фоне —
+    // не держим баристу; сбой iiko НЕ влияет на списание (оно уже подтверждено).
+    if (insertedRedemption?.id && (matchingSub as any)?.subscription_type_id) {
+      const orderPromise = processRedemptionOrder(supabase, {
+        redemptionId: insertedRedemption.id,
+        shopId,
+        address: shopAddress,
+        subscriptionTypeId: (matchingSub as any).subscription_type_id,
+      }).catch((e) => { console.error('iiko order error:', e); });
+      const rt = (globalThis as any).EdgeRuntime;
+      if (rt?.waitUntil) rt.waitUntil(orderPromise); else await orderPromise;
     }
 
     // Лог пишем в фоне — не держим ответ клиенту (списание уже подтверждено).
