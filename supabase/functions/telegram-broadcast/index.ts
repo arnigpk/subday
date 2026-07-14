@@ -110,8 +110,13 @@ Deno.serve(async (req) => {
 
     let successCount = 0;
     let failCount = 0;
+    let unreachableCount = 0; // не начинали чат с ботом / заблокировали — это не ошибка
     const errors: string[] = [];
     const recipientsList: { name: string; telegram_id: string }[] = [];
+
+    // Описания Telegram, означающие «пользователь недоступен боту» (штатно, не сбой).
+    const isUnreachable = (desc?: string) =>
+      !!desc && /blocked|bot can't initiate|chat not found|user is deactivated|forbidden|deactivated/i.test(desc);
 
     for (const profile of profiles) {
       try {
@@ -131,6 +136,7 @@ Deno.serve(async (req) => {
           successCount++;
         } else {
           failCount++;
+          if (isUnreachable(result.description)) unreachableCount++;
           errors.push(`Failed: ${profile.name || telegramId}: ${result.description}`);
         }
       } catch (err) {
@@ -157,7 +163,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      success: true, sent: successCount, failed: failCount, total: profiles.length,
+      success: true, sent: successCount, failed: failCount, unreachable: unreachableCount, total: profiles.length,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
