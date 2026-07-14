@@ -205,21 +205,22 @@ Deno.serve(async (req) => {
       try {
         const accessToken = await getFcmAccessToken(serviceAccount);
 
-        for (const deviceToken of deviceTokens) {
-          const result = await sendFcmMessage(accessToken, projectId, deviceToken.token, {
-            title,
-            body: message,
-          });
-          if (result.ok) {
-            successCount++;
-          } else {
-            failCount++;
-            console.error(
-              `FCM send failed for token ${deviceToken.token.slice(0, 10)}... (status ${result.status}):`,
-              result.error,
-            );
-            if (isInvalidFcmTokenError(result.error)) {
-              invalidTokens.push(deviceToken.token);
+        // Батчами параллельно — последовательная отправка сотням устройств упиралась
+        // бы в лимит времени edge-воркера. FCM держит высокую конкурентность.
+        const FCM_CONCURRENCY = 50;
+        for (let i = 0; i < deviceTokens.length; i += FCM_CONCURRENCY) {
+          const batch = deviceTokens.slice(i, i + FCM_CONCURRENCY);
+          const results = await Promise.all(batch.map(async (dt) => {
+            const result = await sendFcmMessage(accessToken, projectId, dt.token, { title, body: message });
+            return { token: dt.token, result };
+          }));
+          for (const { token, result } of results) {
+            if (result.ok) {
+              successCount++;
+            } else {
+              failCount++;
+              console.error(`FCM send failed for token ${token.slice(0, 10)}... (status ${result.status}):`, result.error);
+              if (isInvalidFcmTokenError(result.error)) invalidTokens.push(token);
             }
           }
         }

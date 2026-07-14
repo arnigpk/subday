@@ -118,32 +118,43 @@ Deno.serve(async (req) => {
     const isUnreachable = (desc?: string) =>
       !!desc && /blocked|bot can't initiate|chat not found|user is deactivated|forbidden|deactivated/i.test(desc);
 
-    for (const profile of profiles) {
-      try {
-        const telegramId = profile.phone.replace('+telegram_', '');
-        recipientsList.push({ name: profile.name || '', telegram_id: telegramId });
+    // Шлём батчами параллельно: последовательная отправка сотням юзеров упиралась
+    // в лимит времени edge-воркера (супервизор убивал функцию на середине —
+    // часть получала, история не сохранялась). Батч 25 + пауза ~1с ≈ 25 сообщений/сек
+    // (в пределах лимита Telegram) — 300+ юзеров уходят за считанные секунды.
+    const CONCURRENCY = 25;
+    const BATCH_DELAY_MS = 1000;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-        const telegramResponse = await fetch(
-          `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
-          }
-        );
-        const result = await telegramResponse.json();
-        if (result.ok) {
+    const sendOne = async (profile: { name?: string | null; phone: string }) => {
+      const telegramId = profile.phone.replace('+telegram_', '');
+      try {
+        const resp = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: telegramId, text: message, parse_mode: 'HTML' }),
+        });
+        const result = await resp.json();
+        return { name: profile.name, telegramId, ok: !!result.ok, description: result.description as string | undefined };
+      } catch (err) {
+        return { name: profile.name, telegramId, ok: false, description: err instanceof Error ? err.message : 'Unknown error' };
+      }
+    };
+
+    for (let i = 0; i < profiles.length; i += CONCURRENCY) {
+      const batch = profiles.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(batch.map(sendOne));
+      for (const r of results) {
+        recipientsList.push({ name: r.name || '', telegram_id: r.telegramId });
+        if (r.ok) {
           successCount++;
         } else {
           failCount++;
-          if (isUnreachable(result.description)) unreachableCount++;
-          errors.push(`Failed: ${profile.name || telegramId}: ${result.description}`);
+          if (isUnreachable(r.description)) unreachableCount++;
+          errors.push(`Failed: ${r.name || r.telegramId}: ${r.description}`);
         }
-      } catch (err) {
-        failCount++;
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        errors.push(`Error: ${profile.name}: ${errorMsg}`);
       }
+      if (i + CONCURRENCY < profiles.length) await sleep(BATCH_DELAY_MS);
     }
 
     // Save broadcast history with recipients
