@@ -17,7 +17,10 @@ export type Database = {
       iiko_integrations: {
         Row: {
           shop_id: string
-          api_login: string
+          api_login: string | null
+          app_id: string | null
+          api_key: string | null
+          client_secret: string | null
           organization_id: string | null
           organization_name: string | null
           payment_type_id: string | null
@@ -32,7 +35,10 @@ export type Database = {
         }
         Insert: {
           shop_id: string
-          api_login: string
+          api_login?: string | null
+          app_id?: string | null
+          api_key?: string | null
+          client_secret?: string | null
           organization_id?: string | null
           organization_name?: string | null
           payment_type_id?: string | null
@@ -47,7 +53,10 @@ export type Database = {
         }
         Update: {
           shop_id?: string
-          api_login?: string
+          api_login?: string | null
+          app_id?: string | null
+          api_key?: string | null
+          client_secret?: string | null
           organization_id?: string | null
           organization_name?: string | null
           payment_type_id?: string | null

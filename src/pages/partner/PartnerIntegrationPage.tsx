@@ -36,6 +36,8 @@ export default function PartnerIntegrationPage() {
 
   // dictionaries pulled from iiko
   const [apiLogin, setApiLogin] = useState('');
+  const [showV2, setShowV2] = useState(false);
+  const [v2, setV2] = useState({ appId: '', apiKey: '', clientSecret: '' });
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [terminals, setTerminals] = useState<Term[]>([]);
   const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
@@ -69,15 +71,26 @@ export default function PartnerIntegrationPage() {
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action, shopId, ...extra } });
-    if (error || data?.error) throw new Error(data?.error || error?.message || 'Ошибка iiko');
+    if (error) {
+      // supabase-js прячет тело за общим сообщением — достаём реальную ошибку iiko.
+      let msg = error.message;
+      try { const body = await (error as any).context?.json?.(); if (body?.error) msg = body.error; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.error);
     return data;
   };
 
   const handleConnect = async () => {
-    if (!apiLogin.trim()) { toast.error('Введите apiLogin'); return; }
+    if (showV2) {
+      if (!v2.appId.trim() || !v2.apiKey.trim() || !v2.clientSecret.trim()) { toast.error('Заполните appId, apiKey и clientSecret'); return; }
+    } else if (!apiLogin.trim()) { toast.error('Введите apiLogin'); return; }
     setBusy('connect');
     try {
-      const d = await call('connect', { apiLogin: apiLogin.trim() });
+      const payload = showV2
+        ? { appId: v2.appId.trim(), apiKey: v2.apiKey.trim(), clientSecret: v2.clientSecret.trim() }
+        : { apiLogin: apiLogin.trim() };
+      const d = await call('connect', payload);
       setOrgs(d.organizations || []);
       toast.success('Ключ подключён. Выберите организацию.');
       await load();
@@ -203,11 +216,27 @@ export default function PartnerIntegrationPage() {
           <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>
           {!connected ? (
             <>
-              <p className="text-sm text-muted-foreground">Введите apiLogin (ключ iiko Transport вашей организации).</p>
-              <div className="flex gap-2">
-                <Input value={apiLogin} onChange={e => setApiLogin(e.target.value)} placeholder="apiLogin" />
-                <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
-              </div>
+              {!showV2 ? (
+                <>
+                  <p className="text-sm text-muted-foreground">Введите apiLogin (ключ iiko Transport вашей организации).</p>
+                  <div className="flex gap-2">
+                    <Input value={apiLogin} onChange={e => setApiLogin(e.target.value)} placeholder="apiLogin" />
+                    <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
+                  </div>
+                  <button className="text-xs text-primary" onClick={() => setShowV2(true)}>Ключ нового формата (appId + apiKey + clientSecret)</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Ключ iiko API v2 — введите все три значения из кабинета iiko.</p>
+                  <Input value={v2.appId} onChange={e => setV2(s => ({ ...s, appId: e.target.value }))} placeholder="appId" />
+                  <Input value={v2.apiKey} onChange={e => setV2(s => ({ ...s, apiKey: e.target.value }))} placeholder="apiKey" />
+                  <Input value={v2.clientSecret} onChange={e => setV2(s => ({ ...s, clientSecret: e.target.value }))} placeholder="clientSecret" />
+                  <div className="flex gap-2 items-center">
+                    <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
+                    <button className="text-xs text-muted-foreground" onClick={() => setShowV2(false)}>← простой apiLogin</button>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>

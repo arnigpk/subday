@@ -17,18 +17,45 @@ export class IikoError extends Error {
   }
 }
 
-/** Получить токен по apiLogin (живёт ~1 час). */
-export async function iikoAuth(apiLogin: string): Promise<string> {
-  const r = await fetch(`${IIKO_BASE}/api/1/access_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiLogin }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok || !data?.token) {
+/**
+ * Получить токен iiko. Поддерживаем две схемы авторизации:
+ *  • v1 — простой apiLogin (iiko Transport):       POST /api/1/access_token { apiLogin }
+ *  • v2 — «приложение» iiko API (appId/apiKey/secret): POST /api/v2/access_token { appId, apiKey, clientSecret }
+ * Тип определяется по наличию v2-полей у интеграции.
+ */
+export interface IikoCreds {
+  api_login?: string | null;
+  app_id?: string | null;
+  api_key?: string | null;
+  client_secret?: string | null;
+}
+
+export async function iikoAuth(creds: IikoCreds | string): Promise<string> {
+  const c: IikoCreds = typeof creds === 'string' ? { api_login: creds } : creds;
+
+  if (c.app_id && c.api_key && c.client_secret) {
+    const r = await fetch(`${IIKO_BASE}/api/v2/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appId: c.app_id, apiKey: c.api_key, clientSecret: c.client_secret }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data?.token) return data.token as string;
+    throw new IikoError(data?.errorDescription || data?.error || 'iiko v2: неверные учётные данные', 401);
+  }
+
+  if (c.api_login) {
+    const r = await fetch(`${IIKO_BASE}/api/1/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiLogin: c.api_login }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data?.token) return data.token as string;
     throw new IikoError(data?.errorDescription || data?.error || 'iiko: неверный apiLogin', 401);
   }
-  return data.token as string;
+
+  throw new IikoError('Не заданы учётные данные iiko', 400);
 }
 
 /** POST к iiko с Bearer-токеном. Бросает IikoError с текстом ошибки iiko. */
@@ -55,13 +82,13 @@ export async function iikoPost<T = any>(token: string, path: string, body: unkno
  */
 export async function getValidToken(
   supabase: SupabaseClient,
-  integ: { shop_id: string; api_login: string; access_token: string | null; token_expires_at: string | null },
+  integ: { shop_id: string; api_login?: string | null; app_id?: string | null; api_key?: string | null; client_secret?: string | null; access_token: string | null; token_expires_at: string | null },
 ): Promise<string> {
   const now = Date.now();
   const exp = integ.token_expires_at ? new Date(integ.token_expires_at).getTime() : 0;
   if (integ.access_token && exp - now > 120_000) return integ.access_token;
 
-  const token = await iikoAuth(integ.api_login);
+  const token = await iikoAuth(integ);
   const expiresAt = new Date(now + 55 * 60 * 1000).toISOString(); // ~55 мин запас
   await supabase.from('iiko_integrations')
     .update({ access_token: token, token_expires_at: expiresAt, updated_at: new Date().toISOString() })
@@ -176,7 +203,7 @@ export async function processRedemptionOrder(
     // 1) Интеграция активна?
     const { data: integ } = await supabase
       .from('iiko_integrations')
-      .select('shop_id, api_login, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
+      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
       .eq('shop_id', p.shopId)
       .maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };

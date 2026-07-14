@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       let cancelled = false, note: string | undefined;
       if (log.iiko_order_id && log.organization_id) {
         const { data: integ } = await supabase.from('iiko_integrations')
-          .select('shop_id, api_login, access_token, token_expires_at').eq('shop_id', log.shop_id).maybeSingle();
+          .select('shop_id, api_login, app_id, api_key, client_secret, access_token, token_expires_at').eq('shop_id', log.shop_id).maybeSingle();
         if (integ) {
           const token = await getValidToken(supabase, integ);
           const r = await cancelOrder(token, log.organization_id, log.iiko_order_id);

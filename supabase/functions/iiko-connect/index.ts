@@ -47,20 +47,30 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('iiko_integrations')
-        .select('shop_id, api_login, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
+        .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
         .eq('shop_id', shopId).maybeSingle();
       return data;
     };
 
     if (action === 'connect') {
-      const apiLogin = (body.apiLogin as string || '').trim();
-      if (!apiLogin) return json({ error: 'Введите apiLogin' }, 400);
-      const iikoToken = await iikoAuth(apiLogin);
+      // Две схемы: простой apiLogin (v1) ИЛИ appId+apiKey+clientSecret (v2).
+      const apiLogin = ((body.apiLogin as string) || '').trim();
+      const appId = ((body.appId as string) || '').trim();
+      const apiKey = ((body.apiKey as string) || '').trim();
+      const clientSecret = ((body.clientSecret as string) || '').trim();
+      const isV2 = !!(appId && apiKey && clientSecret);
+      if (!apiLogin && !isV2) return json({ error: 'Введите apiLogin (или appId + apiKey + clientSecret для ключа нового формата)' }, 400);
+
+      const creds = isV2 ? { app_id: appId, api_key: apiKey, client_secret: clientSecret } : { api_login: apiLogin };
+      const iikoToken = await iikoAuth(creds);
       const orgs = await getOrganizations(iikoToken);
-      // сохраняем ключ + токен (интеграция пока не активна)
+      // сохраняем учётные данные + токен (интеграция пока не активна)
       await supabase.from('iiko_integrations').upsert({
         shop_id: shopId,
-        api_login: apiLogin,
+        api_login: isV2 ? null : apiLogin,
+        app_id: isV2 ? appId : null,
+        api_key: isV2 ? apiKey : null,
+        client_secret: isV2 ? clientSecret : null,
         access_token: iikoToken,
         token_expires_at: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
