@@ -30,31 +30,53 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   const isProcessingRef = useRef(false);
   const processingStartRef = useRef<number>(0);
 
-  // Адрес/касса смены — подтверждаем перед сканом (для маршрутизации заказа в iiko).
+  // Адрес/касса смены — для маршрутизации заказа iiko. Спрашиваем МИНИМАЛЬНО:
+  // 1 адрес → берём сам, без вопроса; несколько → спрашиваем ОДИН раз и запоминаем
+  // per-shop в localStorage. Выбор привязан к КОНКРЕТНОЙ кофейне (чинит баг, когда
+  // при смене кофейни подтягивался чужой адрес).
   const [shopAddresses, setShopAddresses] = useState<string[]>([]);
   const [shiftAddress, setShiftAddress] = useState<string | null>(null);
   const [showAddrDialog, setShowAddrDialog] = useState(false);
 
+  const addrKey = (sid: string) => `barista_addr_${sid}`;
+
+  // Запоминаем выбор per-shop + обновляем barista_shifts (серверный фолбэк/«Моя смена»).
+  const persistAddress = (sid: string, addr: string) => {
+    try { localStorage.setItem(addrKey(sid), addr); } catch { /* ignore */ }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('barista_shifts').upsert({
+        user_id: user.id, shop_id: sid, address: addr,
+        started_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }, { onConflict: 'user_id' }).then(() => {});
+    });
+  };
+
   useEffect(() => {
     if (!shopId) return;
+    let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const [{ data: shop }, { data: shift }] = await Promise.all([
-        supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
-        supabase.from('barista_shifts').select('address, expires_at').eq('user_id', user.id).maybeSingle(),
-      ]);
+      const { data: shop } = await supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle();
+      if (cancelled) return;
       const addrs = shop?.addresses?.length ? shop.addresses : (shop?.address ? [shop.address] : []);
       setShopAddresses(addrs);
-      const active = shift?.expires_at && new Date(shift.expires_at) > new Date() ? shift.address : null;
-      if (active) {
-        setShiftAddress(active);
-      } else if (addrs.length <= 1) {
-        setShiftAddress(addrs[0] || null); // один адрес — без вопроса
+
+      // Запомненный выбор именно для ЭТОЙ кофейни (и он всё ещё валиден).
+      let remembered: string | null = null;
+      try { remembered = localStorage.getItem(addrKey(shopId)); } catch { /* ignore */ }
+      if (remembered && addrs.includes(remembered)) { setShiftAddress(remembered); return; }
+
+      if (addrs.length <= 1) {
+        const only = addrs[0] || null;
+        setShiftAddress(only);
+        if (only) persistAddress(shopId, only); // фиксируем, чтобы больше не трогать
       } else {
-        setShowAddrDialog(true); // несколько — уточняем перед сканом
+        setShiftAddress(null);
+        setShowAddrDialog(true); // несколько адресов, выбора ещё нет — спросим один раз
       }
     })();
+    return () => { cancelled = true; };
   }, [shopId]);
 
   useEffect(() => {
@@ -332,7 +354,13 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           open={showAddrDialog}
           addresses={shopAddresses}
           shopId={shopId}
-          onSelect={(addr) => { setShiftAddress(addr); setShowAddrDialog(false); }}
+          onSelect={(addr) => {
+            setShiftAddress(addr);
+            setShowAddrDialog(false);
+            // Диалог уже пишет barista_shifts; здесь фиксируем выбор per-shop локально,
+            // чтобы больше не спрашивать при повторных заходах в сканер.
+            try { localStorage.setItem(addrKey(shopId), addr); } catch { /* ignore */ }
+          }}
         />
       )}
     </PartnerLayout>
