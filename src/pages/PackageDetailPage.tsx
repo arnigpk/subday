@@ -19,6 +19,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { getCurrencySymbol } from '@/utils/countries';
+import { FeatureHint } from '@/components/FeatureHint';
 
 interface SubscriptionType {
   id: string;
@@ -152,6 +153,10 @@ export default function PackageDetailPage() {
   const translatedBadge = subscription?.badge;
   const translatedFeatures = useAutoTranslateArray(adjustedFeatures);
   const translatedExclusions = useAutoTranslateArray(rawExclusions);
+  // Пояснения к пунктам «Что входит» (иконка «!»). Ключ — исходный текст пункта.
+  const featureHints = ((subscription as any)?.feature_hints || {}) as Record<string, string>;
+  const hintValues = rawFeatures.map(f => featureHints[f] || '');
+  const translatedHints = useAutoTranslateArray(hintValues);
   const customHowItWorks = (subscription as any)?.how_it_works || null;
   const translatedHowItWorks = useAutoTranslate(customHowItWorks);
 
@@ -283,10 +288,11 @@ export default function PackageDetailPage() {
             <div className="space-y-2">
               {translatedFeatures.map((feature, index) => (
                 <div key={index} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
-                  <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
                     <Check size={14} className="text-accent" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">{feature}</span>
+                  <span className="text-sm font-medium text-foreground flex-1">{feature}</span>
+                  <FeatureHint text={translatedHints[index]} />
                 </div>
               ))}
             </div>

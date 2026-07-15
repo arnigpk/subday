@@ -103,6 +103,7 @@ export default function AdminSubscriptionsPage() {
     badge: '' as string | null,
     badge_color: null as string | null,
     features: DEFAULT_FEATURES,
+    featureHints: [] as string[],
     exclusions: [] as string[],
     benefit: 0,
     daily_limit: null as number | null,
@@ -191,6 +192,7 @@ export default function AdminSubscriptionsPage() {
       badge: null,
       badge_color: null,
       features: DEFAULT_FEATURES,
+      featureHints: [],
       exclusions: [],
       benefit: 0,
       daily_limit: null,
@@ -215,6 +217,11 @@ export default function AdminSubscriptionsPage() {
       badge: sub.badge,
       badge_color: sub.badge_color,
       features: sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES,
+      featureHints: (() => {
+        const feats = sub.features && sub.features.length > 0 ? sub.features : DEFAULT_FEATURES;
+        const map = ((sub as any).feature_hints || {}) as Record<string, string>;
+        return feats.map((f: string) => map[f] || '');
+      })(),
       exclusions: (sub as any).exclusions && (sub as any).exclusions.length > 0 ? (sub as any).exclusions : [],
       benefit: sub.benefit || 0,
       daily_limit: sub.daily_limit,
@@ -234,6 +241,18 @@ export default function AdminSubscriptionsPage() {
       return;
     }
 
+    // Пояснения к пунктам: объект { текст пункта → пояснение } (только непустые).
+    const buildFeatureHints = () => {
+      const obj: Record<string, string> = {};
+      formData.features.forEach((f, i) => {
+        const key = f.trim();
+        const val = (formData.featureHints[i] || '').trim();
+        if (key && val) obj[key] = val;
+      });
+      return Object.keys(obj).length ? obj : null;
+    };
+    const featureHintsObj = buildFeatureHints();
+
     try {
       if (editingSub) {
         const { error } = await supabase
@@ -249,6 +268,7 @@ export default function AdminSubscriptionsPage() {
             badge: formData.badge || null,
             badge_color: formData.badge_color || null,
             features: formData.features.filter(f => f.trim() !== ''),
+            feature_hints: featureHintsObj,
             exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
@@ -280,6 +300,7 @@ export default function AdminSubscriptionsPage() {
             badge_color: formData.badge_color || null,
             sort_order: maxOrder + 1,
             features: formData.features.filter(f => f.trim() !== ''),
+            feature_hints: featureHintsObj,
             exclusions: formData.exclusions.filter(f => f.trim() !== ''),
             benefit: formData.benefit > 0 ? formData.benefit : null,
             daily_limit: formData.daily_limit,
@@ -699,6 +720,8 @@ export default function AdminSubscriptionsPage() {
             <SortableFeaturesEditor
               features={formData.features}
               onChange={(features) => setFormData({ ...formData, features })}
+              hints={formData.featureHints}
+              onHintsChange={(featureHints) => setFormData({ ...formData, featureHints })}
             />
             <SortableFeaturesEditor
               features={formData.exclusions}

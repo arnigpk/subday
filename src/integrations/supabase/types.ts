@@ -1629,6 +1629,7 @@ export type Database = {
           duration_days: number | null
           exclusions: string[] | null
           features: string[] | null
+          feature_hints: Json | null
           how_it_works: string | null
           id: string
           is_active: boolean | null
@@ -1653,6 +1654,7 @@ export type Database = {
           duration_days?: number | null
           exclusions?: string[] | null
           features?: string[] | null
+          feature_hints?: Json | null
           how_it_works?: string | null
           id?: string
           is_active?: boolean | null
@@ -1677,6 +1679,7 @@ export type Database = {
           duration_days?: number | null
           exclusions?: string[] | null
           features?: string[] | null
+          feature_hints?: Json | null
           how_it_works?: string | null
           id?: string
           is_active?: boolean | null
