@@ -425,7 +425,7 @@ export async function createTestOrder(
     }
     if (!term) return { ok: false, error: 'Не найдена касса для адреса' };
 
-    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_price').eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
+    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_product_name, iiko_price').eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
     if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
     if (map.iiko_price == null) return { ok: false, error: 'У позиции нет цены' };
 
@@ -445,13 +445,32 @@ export async function createTestOrder(
     });
     // Дожидаемся реального результата — тестовый заказ должен показать, что он
     // ДЕЙСТВИТЕЛЬНО упал на кассу (или конкретную ошибку iiko), а не просто «отправлен».
-    if (res.correlationId) {
-      const r = await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId);
-      if (r.ok) return { ok: true, correlationId: res.correlationId };
-      if (r.pending) return { ok: true, correlationId: res.correlationId, error: 'отправлено, iiko ещё обрабатывает — проверьте кассу' };
-      return { ok: false, error: r.error };
-    }
-    return { ok: true, correlationId: res.correlationId };
+    const r = res.correlationId
+      ? await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId)
+      : { ok: true } as { ok: boolean; pending?: boolean; error?: string };
+
+    // Пишем тестовый заказ в журнал (is_test) — чтобы его можно было ОТМЕНИТЬ из
+    // кабинета той же кнопкой, и он ушёл с кассы.
+    await supabase.from('iiko_order_log').insert({
+      redemption_id: null,
+      is_test: true,
+      shop_id: p.shopId,
+      address: p.address,
+      subscription_type_id: p.subscriptionTypeId,
+      iiko_product_id: map.iiko_product_id,
+      iiko_product_name: map.iiko_product_name,
+      organization_id: integ.organization_id,
+      terminal_group_id: term.terminal_group_id,
+      correlation_id: res.correlationId || null,
+      iiko_order_id: res.orderId || null,
+      status: (r.ok || r.pending) ? 'created' : 'failed',
+      auto_close: term.auto_close ?? integ.auto_close,
+      error: r.ok ? null : (r.error || null),
+    });
+
+    if (r.ok) return { ok: true, correlationId: res.correlationId };
+    if (r.pending) return { ok: true, correlationId: res.correlationId, error: 'отправлено, iiko ещё обрабатывает — проверьте кассу' };
+    return { ok: false, error: r.error };
   } catch (e) {
     return { ok: false, error: friendlyIiko(e instanceof Error ? e.message : String(e)) };
   }

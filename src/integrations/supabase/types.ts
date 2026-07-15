@@ -164,6 +164,7 @@ export type Database = {
           iiko_order_id: string | null
           status: string
           auto_close: boolean | null
+          is_test: boolean
           error: string | null
           created_at: string
           updated_at: string
@@ -182,6 +183,7 @@ export type Database = {
           iiko_order_id?: string | null
           status?: string
           auto_close?: boolean | null
+          is_test?: boolean
           error?: string | null
           created_at?: string
           updated_at?: string
@@ -200,6 +202,7 @@ export type Database = {
           iiko_order_id?: string | null
           status?: string
           auto_close?: boolean | null
+          is_test?: boolean
           error?: string | null
           created_at?: string
           updated_at?: string

@@ -16,7 +16,7 @@ interface Product { id: string; name: string; price: number | null }
 interface SubType { id: string; name: string; type: string }
 interface OrderLog {
   id: string; status: string; address: string | null; iiko_product_name: string | null;
-  error: string | null; created_at: string; iiko_order_id: string | null;
+  error: string | null; created_at: string; iiko_order_id: string | null; is_test?: boolean;
 }
 
 const selectCls = 'w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground';
@@ -58,7 +58,7 @@ export default function PartnerIntegrationPage() {
       supabase.from('iiko_terminals').select('*').eq('shop_id', shopId),
       supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId),
       supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
-      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id').eq('shop_id', shopId).order('created_at', { ascending: false }).limit(30),
+      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test').eq('shop_id', shopId).order('created_at', { ascending: false }).limit(30),
     ]);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
@@ -188,7 +188,8 @@ export default function PartnerIntegrationPage() {
     try {
       const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action: 'test_order', shopId, subscriptionTypeId: testSubType, address: testAddress || undefined } });
       if (error) { let msg = error.message; try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ } throw new Error(msg); }
-      if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу iiko'); else toast.error(data?.error || 'Ошибка тестового заказа');
+      if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу iiko (отменить можно ниже, в «Заказы iiko»)'); else toast.error(data?.error || 'Ошибка тестового заказа');
+      await load(); // подтянуть тестовый заказ в «Заказы iiko» с кнопкой отмены
     } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
 
@@ -445,10 +446,13 @@ export default function PartnerIntegrationPage() {
                   <div key={o.id} className="flex items-center gap-2 text-sm border-b border-border/50 py-2 last:border-0">
                     <StatusDot status={o.status} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-foreground">{o.iiko_product_name || '—'} <span className="text-xs text-muted-foreground">· {o.address || '—'}</span></p>
+                      <p className="truncate text-foreground">
+                        {o.is_test && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary mr-1">тест</span>}
+                        {o.iiko_product_name || '—'} <span className="text-xs text-muted-foreground">· {o.address || '—'}</span>
+                      </p>
                       <p className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString('ru')}{o.error ? ` · ${o.error}` : ''}</p>
                     </div>
-                    {o.status === 'failed' && <Button size="sm" variant="ghost" onClick={() => orderAction(o.id, 'retry')} disabled={busy === 'retry' + o.id} title="Повторить"><RefreshCw size={15} /></Button>}
+                    {o.status === 'failed' && !o.is_test && <Button size="sm" variant="ghost" onClick={() => orderAction(o.id, 'retry')} disabled={busy === 'retry' + o.id} title="Повторить"><RefreshCw size={15} /></Button>}
                     {(o.status === 'created' || o.status === 'closed') && <Button size="sm" variant="ghost" onClick={() => orderAction(o.id, 'cancel')} disabled={busy === 'cancel' + o.id} title="Отменить"><XCircle size={15} /></Button>}
                   </div>
                 ))}
