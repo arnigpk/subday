@@ -35,9 +35,9 @@ export default function PartnerIntegrationPage() {
   const [orderLog, setOrderLog] = useState<OrderLog[]>([]);
 
   // dictionaries pulled from iiko
+  const [apiKey, setApiKey] = useState('');       // основной путь (v2): один ключ из iikoWeb
+  const [showLegacy, setShowLegacy] = useState(false); // v1 apiLogin — легаси-fallback
   const [apiLogin, setApiLogin] = useState('');
-  const [showV2, setShowV2] = useState(false);
-  const [v2, setV2] = useState({ appId: '', apiKey: '', clientSecret: '' });
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [terminals, setTerminals] = useState<Term[]>([]);
   const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
@@ -84,14 +84,12 @@ export default function PartnerIntegrationPage() {
   };
 
   const handleConnect = async () => {
-    if (showV2) {
-      if (!v2.appId.trim() || !v2.apiKey.trim() || !v2.clientSecret.trim()) { toast.error('Заполните appId, apiKey и clientSecret'); return; }
-    } else if (!apiLogin.trim()) { toast.error('Введите apiLogin'); return; }
+    if (showLegacy) {
+      if (!apiLogin.trim()) { toast.error('Введите apiLogin'); return; }
+    } else if (!apiKey.trim()) { toast.error('Введите apiKey'); return; }
     setBusy('connect');
     try {
-      const payload = showV2
-        ? { appId: v2.appId.trim(), apiKey: v2.apiKey.trim(), clientSecret: v2.clientSecret.trim() }
-        : { apiLogin: apiLogin.trim() };
+      const payload = showLegacy ? { apiLogin: apiLogin.trim() } : { apiKey: apiKey.trim() };
       const d = await call('connect', payload);
       setOrgs(d.organizations || []);
       toast.success('Ключ подключён. Выберите организацию.');
@@ -228,25 +226,23 @@ export default function PartnerIntegrationPage() {
           <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>
           {!connected ? (
             <>
-              {!showV2 ? (
+              {!showLegacy ? (
                 <>
-                  <p className="text-sm text-muted-foreground">Введите apiLogin (ключ iiko Transport вашей организации).</p>
+                  <p className="text-sm text-muted-foreground">Введите apiKey — из iikoWeb: «Интеграции → API-ключи».</p>
+                  <div className="flex gap-2">
+                    <Input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="apiKey" />
+                    <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
+                  </div>
+                  <button className="text-xs text-muted-foreground" onClick={() => setShowLegacy(true)}>У меня старый ключ (apiLogin, iiko Transport)</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Старый формат: apiLogin (iiko Transport).</p>
                   <div className="flex gap-2">
                     <Input value={apiLogin} onChange={e => setApiLogin(e.target.value)} placeholder="apiLogin" />
                     <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
                   </div>
-                  <button className="text-xs text-primary" onClick={() => setShowV2(true)}>Ключ нового формата (appId + apiKey + clientSecret)</button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">Ключ iiko API v2 — введите все три значения из кабинета iiko.</p>
-                  <Input value={v2.appId} onChange={e => setV2(s => ({ ...s, appId: e.target.value }))} placeholder="appId" />
-                  <Input value={v2.apiKey} onChange={e => setV2(s => ({ ...s, apiKey: e.target.value }))} placeholder="apiKey" />
-                  <Input value={v2.clientSecret} onChange={e => setV2(s => ({ ...s, clientSecret: e.target.value }))} placeholder="clientSecret" />
-                  <div className="flex gap-2 items-center">
-                    <Button onClick={handleConnect} disabled={busy === 'connect'}>{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
-                    <button className="text-xs text-muted-foreground" onClick={() => setShowV2(false)}>← простой apiLogin</button>
-                  </div>
+                  <button className="text-xs text-primary" onClick={() => setShowLegacy(false)}>← Новый ключ (apiKey)</button>
                 </>
               )}
             </>

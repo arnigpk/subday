@@ -18,10 +18,14 @@ export class IikoError extends Error {
 }
 
 /**
- * Получить токен iiko. Поддерживаем две схемы авторизации:
- *  • v1 — простой apiLogin (iiko Transport):       POST /api/1/access_token { apiLogin }
- *  • v2 — «приложение» iiko API (appId/apiKey/secret): POST /api/v2/access_token { appId, apiKey, clientSecret }
- * Тип определяется по наличию v2-полей у интеграции.
+ * Получить токен iiko. Две схемы авторизации (по OpenAPI-спеке iiko):
+ *  • v2 (актуальная) — POST /api/v2/access_token { appId, apiKey, clientSecret }:
+ *      apiKey       — ключ ПАРТНЁРА (iikoWeb → «Интеграции → API-ключи», задаёт организации);
+ *      appId/secret — учётные данные ПРИЛОЖЕНИЯ subday из iiko Developer Portal
+ *                     (public-api.iikoweb.ru/portal), одни на все кофейни — глобальные
+ *                     секреты сервера (IIKO_APP_ID / IIKO_CLIENT_SECRET), с возможностью
+ *                     переопределения на кофейню через колонки app_id/client_secret.
+ *  • v1 (легаси, оставлено как fallback) — POST /api/1/access_token { apiLogin }.
  */
 export interface IikoCreds {
   api_login?: string | null;
@@ -30,14 +34,26 @@ export interface IikoCreds {
   client_secret?: string | null;
 }
 
-export async function iikoAuth(creds: IikoCreds | string): Promise<string> {
+function globalEnv(name: string): string | undefined {
+  try { return Deno.env.get(name) || undefined; } catch { return undefined; }
+}
+
+export async function iikoAuth(creds: IikoCreds | string, workerEnv: Record<string, string> = {}): Promise<string> {
   const c: IikoCreds = typeof creds === 'string' ? { api_login: creds } : creds;
 
-  if (c.app_id && c.api_key && c.client_secret) {
+  if (c.api_key) {
+    const appId = c.app_id || globalEnv('IIKO_APP_ID') || workerEnv['IIKO_APP_ID'];
+    const clientSecret = c.client_secret || globalEnv('IIKO_CLIENT_SECRET') || workerEnv['IIKO_CLIENT_SECRET'];
+    if (!appId || !clientSecret) {
+      throw new IikoError(
+        'iiko v2: не настроены appId/clientSecret приложения subday (iiko Developer Portal). Обратитесь в поддержку subday.',
+        500,
+      );
+    }
     const r = await fetch(`${IIKO_BASE}/api/v2/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appId: c.app_id, apiKey: c.api_key, clientSecret: c.client_secret }),
+      body: JSON.stringify({ appId, apiKey: c.api_key, clientSecret }),
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok && data?.token) return data.token as string;

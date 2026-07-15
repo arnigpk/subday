@@ -53,24 +53,28 @@ Deno.serve(async (req) => {
     };
 
     if (action === 'connect') {
-      // Две схемы: простой apiLogin (v1) ИЛИ appId+apiKey+clientSecret (v2).
+      // Основной путь — v2: партнёр вводит ТОЛЬКО apiKey (из iikoWeb → «Интеграции»);
+      // appId/clientSecret приложения subday — глобальные секреты сервера (Developer
+      // Portal), опционально можно переопределить на кофейню. v1 apiLogin — легаси-fallback.
       const apiLogin = ((body.apiLogin as string) || '').trim();
-      const appId = ((body.appId as string) || '').trim();
       const apiKey = ((body.apiKey as string) || '').trim();
-      const clientSecret = ((body.clientSecret as string) || '').trim();
-      const isV2 = !!(appId && apiKey && clientSecret);
-      if (!apiLogin && !isV2) return json({ error: 'Введите apiLogin (или appId + apiKey + clientSecret для ключа нового формата)' }, 400);
+      const appId = ((body.appId as string) || '').trim();          // optional override
+      const clientSecret = ((body.clientSecret as string) || '').trim(); // optional override
+      if (!apiLogin && !apiKey) return json({ error: 'Введите apiKey (из iikoWeb → «Интеграции → API-ключи»)' }, 400);
 
-      const creds = isV2 ? { app_id: appId, api_key: apiKey, client_secret: clientSecret } : { api_login: apiLogin };
-      const iikoToken = await iikoAuth(creds);
+      const isV2 = !!apiKey;
+      const creds = isV2
+        ? { api_key: apiKey, app_id: appId || null, client_secret: clientSecret || null }
+        : { api_login: apiLogin };
+      const iikoToken = await iikoAuth(creds, workerEnv);
       const orgs = await getOrganizations(iikoToken);
       // сохраняем учётные данные + токен (интеграция пока не активна)
       await supabase.from('iiko_integrations').upsert({
         shop_id: shopId,
         api_login: isV2 ? null : apiLogin,
-        app_id: isV2 ? appId : null,
+        app_id: isV2 && appId ? appId : null,
         api_key: isV2 ? apiKey : null,
-        client_secret: isV2 ? clientSecret : null,
+        client_secret: isV2 && clientSecret ? clientSecret : null,
         access_token: iikoToken,
         token_expires_at: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
