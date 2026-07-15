@@ -321,7 +321,9 @@ export default function PartnerIntegrationPage() {
                       {terminalsCfg[addr]?.order_type_id && !orderTypes.some(o => o.id === terminalsCfg[addr].order_type_id) && (
                         <option value={terminalsCfg[addr].order_type_id}>{terminalsCfg[addr].order_type_name}</option>
                       )}
-                      {orderTypes.map(o => <option key={o.id} value={o.id}>{o.name} ({o.orderServiceType})</option>)}
+                      {orderTypes
+                        .filter(o => (integ?.order_endpoint || 'order') === 'delivery' ? o.orderServiceType !== 'Common' : o.orderServiceType === 'Common')
+                        .map(o => <option key={o.id} value={o.id}>{o.name} ({o.orderServiceType})</option>)}
                     </select>
                   </div>
                 </div>
@@ -348,6 +350,7 @@ export default function PartnerIntegrationPage() {
                   <option value="order">Заказ на кассу (order/create)</option>
                   <option value="delivery">Самовывоз/вынос (deliveries/create)</option>
                 </select>
+                <p className="text-xs text-muted-foreground mt-1">Для выноса — «Самовывоз/вынос». Тогда в кассе выбирайте тип заказа <b>«Доставка самовывоз»</b> (тип «Обычный» для доставки iiko не примет).</p>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div>

@@ -366,18 +366,27 @@ export async function processRedemptionOrder(
       externalNumber: p.redemptionId,
     });
 
+    // Дожидаемся реального результата создания (async на кассе) — иначе ошибки
+    // (напр. неверный тип заказа/стоп-лист) остаются невидимыми.
+    const result = res.correlationId
+      ? await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId)
+      : { ok: true } as { ok: boolean; pending?: boolean; error?: string };
+
     await supabase.from('iiko_order_log').update({
-      status: 'created',
+      status: result.ok || result.pending ? 'created' : 'failed',
       correlation_id: res.correlationId || null,
       iiko_order_id: res.orderId || null,
       terminal_group_id: term.terminal_group_id,
       iiko_product_id: map.iiko_product_id,
       iiko_product_name: map.iiko_product_name,
       auto_close: autoClose,
+      error: result.ok ? null : (result.error || null),
       updated_at: new Date().toISOString(),
     }).eq('id', logId);
 
-    return { ok: true, status: 'created' };
+    return result.ok || result.pending
+      ? { ok: true, status: 'created' }
+      : { ok: false, status: 'failed', error: result.error };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     // мягкая пометка последней pending-строки как failed
@@ -434,28 +443,87 @@ export async function createTestOrder(
       endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
       externalNumber: `test-${Date.now()}`,
     });
+    // Дожидаемся реального результата — тестовый заказ должен показать, что он
+    // ДЕЙСТВИТЕЛЬНО упал на кассу (или конкретную ошибку iiko), а не просто «отправлен».
+    if (res.correlationId) {
+      const r = await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId);
+      if (r.ok) return { ok: true, correlationId: res.correlationId };
+      if (r.pending) return { ok: true, correlationId: res.correlationId, error: 'отправлено, iiko ещё обрабатывает — проверьте кассу' };
+      return { ok: false, error: r.error };
+    }
     return { ok: true, correlationId: res.correlationId };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, error: friendlyIiko(e instanceof Error ? e.message : String(e)) };
   }
 }
 
 export async function getCommandStatus(token: string, organizationId: string, correlationId: string) {
-  return await iikoPost<{ state: string; error?: unknown }>(
+  return await iikoPost<{ state: string; exception?: { message?: string }; errorInfo?: { message?: string }; error?: unknown }>(
     token, '/api/1/commands/status', { organizationId, correlationId },
   );
 }
 
+/** Перевод известных ошибок iiko на понятный язык (остальное — как есть от iiko). */
+export function friendlyIiko(msg: string): string {
+  if (!msg) return 'iiko отклонил заказ';
+  if (/cannot be 'Common'|service type of order type/i.test(msg))
+    return 'Для доставки/выноса тип заказа не может быть «Обычный». В настройке кассы выберите тип «Доставка самовывоз».';
+  if (/stop.?list|стоп-?лист/i.test(msg)) return 'Позиция сейчас в стоп-листе на кассе.';
+  if (/not.*alive|terminal.*offline|касса.*недоступ/i.test(msg)) return 'Касса офлайн — заказ не принят.';
+  if (/shift|смена.*не открыт|no.*opened.*session/i.test(msg)) return 'На кассе не открыта смена.';
+  return msg;
+}
+
 /**
- * Отмена заказа (best-effort). Для уже фискализированного заказа отмена в облаке
- * может быть недоступна — тогда возвращаем ok=false, а локально помечаем cancelled.
+ * Дождаться реального результата асинхронного создания заказа (commands/status).
+ * Возвращает { ok } при Success, { ok:false, error } при Error (с деталями из заказа),
+ * { pending:true } если iiko не подтвердил вовремя.
+ */
+export async function waitOrderResult(
+  token: string, organizationId: string, correlationId: string, orderId?: string,
+): Promise<{ ok: boolean; pending?: boolean; error?: string }> {
+  for (let i = 0; i < 6; i++) {
+    await sleep(2500);
+    let st: Awaited<ReturnType<typeof getCommandStatus>> | null = null;
+    try { st = await getCommandStatus(token, organizationId, correlationId); } catch { continue; }
+    if (st?.state === 'Success') return { ok: true };
+    if (st?.state === 'Error') {
+      let msg = st.exception?.message || st.errorInfo?.message || '';
+      if (!msg && orderId) {
+        try {
+          const info = await iikoPost<{ orders?: Array<{ errorInfo?: { message?: string } }> }>(
+            token, '/api/1/deliveries/by_id', { organizationId, orderIds: [orderId] },
+          );
+          msg = info.orders?.[0]?.errorInfo?.message || '';
+        } catch { /* ignore */ }
+      }
+      return { ok: false, error: friendlyIiko(msg) };
+    }
+  }
+  return { ok: false, pending: true, error: 'iiko не подтвердил создание вовремя — проверьте кассу' };
+}
+
+/**
+ * Отмена заказа. Для заказов доставки/выноса — /api/1/deliveries/cancel (наш путь);
+ * фолбэк на /api/1/order/cancel (табличные). Подтверждаем через commands/status.
  */
 export async function cancelOrder(token: string, organizationId: string, orderId: string): Promise<{ ok: boolean; error?: string }> {
+  const tryCancel = async (path: string) => {
+    const d = await iikoPost<{ correlationId?: string }>(token, path, { organizationId, orderId });
+    if (d.correlationId) {
+      const res = await waitOrderResult(token, organizationId, d.correlationId, orderId);
+      if (!res.ok && !res.pending) throw new IikoError(res.error || 'Отмена не выполнена', 400);
+    }
+  };
   try {
-    // PILOT: точный эндпоинт отмены зависит от типа заказа/настроек кассы.
-    await iikoPost(token, '/api/1/order/close', { organizationId, orderId });
+    await tryCancel('/api/1/deliveries/cancel');
     return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  } catch (e1) {
+    try {
+      await tryCancel('/api/1/order/cancel');
+      return { ok: true };
+    } catch (e2) {
+      return { ok: false, error: friendlyIiko(e2 instanceof Error ? e2.message : String(e2)) };
+    }
   }
 }
