@@ -47,6 +47,7 @@ export default function PartnerIntegrationPage() {
   const [productSearch, setProductSearch] = useState('');
   const [testSubType, setTestSubType] = useState('');
   const [testAddress, setTestAddress] = useState('');
+  const [loaded, setLoaded] = useState<{ pay?: boolean; terminals?: boolean; products?: boolean }>({});
 
   const load = useCallback(async () => {
     if (!shopId) return;
@@ -111,17 +112,17 @@ export default function PartnerIntegrationPage() {
 
   const loadTerminals = async () => {
     setBusy('terminals');
-    try { const d = await call('terminals'); setTerminals(d.terminals || []); setOrderTypes(d.orderTypes || []); }
+    try { const d = await call('terminals'); setTerminals(d.terminals || []); setOrderTypes(d.orderTypes || []); setLoaded(f => ({ ...f, terminals: true })); }
     catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
   const loadPayTypes = async () => {
     setBusy('pay');
-    try { const d = await call('payment_types'); setPayTypes(d.paymentTypes || []); }
+    try { const d = await call('payment_types'); setPayTypes(d.paymentTypes || []); setLoaded(f => ({ ...f, pay: true })); }
     catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
   const loadProducts = async () => {
     setBusy('products');
-    try { const d = await call('products'); setProducts(d.products || []); toast.success(`Загружено позиций: ${d.products?.length || 0}`); }
+    try { const d = await call('products'); setProducts(d.products || []); setLoaded(f => ({ ...f, products: true })); toast.success(`Загружено позиций: ${d.products?.length || 0}`); }
     catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
 
@@ -279,6 +280,11 @@ export default function PartnerIntegrationPage() {
                 </select>
                 <Button variant="outline" onClick={loadPayTypes} disabled={busy === 'pay'}>{busy === 'pay' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить'}</Button>
               </div>
+              {loaded.pay && payTypes.length <= 1 && (
+                <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2">
+                  iiko отдаёт для API только «{payTypes[0]?.name || 'Наличные'}». Если нужен «безнал subday» — в iiko (iikoOffice/iikoWeb) этот тип оплаты нужно <b>сделать доступным для внешних систем (API)</b>. Это настройка на стороне iiko.
+                </p>
+              )}
             </section>
 
             {/* 3. Кассы по адресам */}
@@ -288,6 +294,11 @@ export default function PartnerIntegrationPage() {
                 <Button variant="outline" size="sm" onClick={loadTerminals} disabled={busy === 'terminals'}>{busy === 'terminals' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить кассы'}</Button>
               </div>
               {addresses.length === 0 && <p className="text-sm text-muted-foreground">У кофейни не заданы адреса.</p>}
+              {loaded.terminals && terminals.length < addresses.length && (
+                <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2">
+                  iiko вернул касс: {terminals.length}, а адресов у кофейни: {addresses.length}. Вторая касса не видна через API — проверьте в iiko, что терминал второго адреса зарегистрирован и относится к этой же организации, либо что apiKey даёт доступ к обеим точкам.
+                </p>
+              )}
               {addresses.map(addr => (
                 <div key={addr} className="rounded-xl bg-secondary/40 p-3 space-y-2">
                   <p className="text-sm font-medium text-foreground flex items-center gap-1"><MapPin size={13} className="text-primary shrink-0" /> {addr}</p>
@@ -358,6 +369,11 @@ export default function PartnerIntegrationPage() {
                 <h3 className="font-semibold text-foreground flex items-center gap-2"><ListChecks size={16} className="text-primary" /> Тарифы → позиции меню</h3>
                 <Button variant="outline" size="sm" onClick={loadProducts} disabled={busy === 'products'}>{busy === 'products' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить меню'}</Button>
               </div>
+              {loaded.products && products.length === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2">
+                  Меню в iiko Cloud для этой организации пустое (0 позиций). Это настройка на стороне iiko: номенклатуру нужно <b>выгрузить/синхронизировать в облако</b>, либо apiKey выдан для организации без меню. Проверьте в iikoOffice, что меню опубликовано, и что ключ от нужной кофейни.
+                </p>
+              )}
               {subTypes.map(st => {
                 const m = menuMap[st.id];
                 return (
