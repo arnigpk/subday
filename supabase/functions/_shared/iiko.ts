@@ -200,7 +200,7 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
       order: {
         ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
         ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : {}),
-        orderServiceType: 'DeliveryByClient',   // самовывоз/вынос
+        orderServiceType: 'DeliveryPickUp',   // самовывоз/вынос (реальный enum iiko)
         customer: { name: 'subday' },
         items,
         payments: [payment],
