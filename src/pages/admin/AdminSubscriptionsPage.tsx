@@ -245,9 +245,10 @@ export default function AdminSubscriptionsPage() {
     const buildFeatureHints = () => {
       const obj: Record<string, string> = {};
       formData.features.forEach((f, i) => {
-        const key = f.trim();
+        // Ключ = ТОЧНЫЙ текст пункта, как он сохраняется в features (без trim),
+        // иначе клиент (lookup по features[i]) не найдёт пояснение.
         const val = (formData.featureHints[i] || '').trim();
-        if (key && val) obj[key] = val;
+        if (f.trim() && val) obj[f] = val;
       });
       return Object.keys(obj).length ? obj : null;
     };
