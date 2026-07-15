@@ -262,8 +262,11 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
       terminalGroupId: a.terminalGroupId,
       order: {
         ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
-        ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : {}),
-        orderServiceType: 'DeliveryPickUp',   // самовывоз/вынос (реальный enum iiko)
+        // iiko: НЕЛЬЗЯ слать оба — только orderTypeId ИЛИ orderServiceType.
+        // Если партнёр выбрал тип заказа — шлём его; иначе самовывоз DeliveryByClient
+        // (enum запроса deliveries/create; в справочнике он зовётся DeliveryPickUp).
+        ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : { orderServiceType: 'DeliveryByClient' }),
+        phone: '+77000000000',                  // обязательное поле; для выноса — плейсхолдер
         customer: { name: 'subday' },
         items,
         payments: [payment],
