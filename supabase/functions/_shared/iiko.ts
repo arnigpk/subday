@@ -144,9 +144,37 @@ export async function getOrderTypes(token: string, organizationId: string) {
   return (d.orderTypes || []).flatMap(g => (g.items || []).filter(i => !i.isDeleted));
 }
 
-/** Позиции меню (номенклатура) с ценой первой размерности. */
+/**
+ * Позиции меню с ценами. Приоритет — ВНЕШНЕЕ меню iiko (/api/2/menu → by_id),
+ * т.к. у партнёров номенклатура (/api/1/nomenclature) часто пустая, а позиции
+ * и цены лежат во внешнем меню (источник цен «Внешнее меню» в iikoWeb).
+ * Фолбэк — номенклатура. Возвращаем { id (productId для заказа), name, price }.
+ */
 export async function getProducts(token: string, organizationId: string) {
-  const d = await iikoPost<{ products: Array<{ id: string; name: string; groupId?: string; sizePrices?: Array<{ price?: { currentPrice?: number } }> }> }>(
+  // 1) Внешние меню организации.
+  try {
+    const menus = await iikoPost<{ externalMenus?: Array<{ id: string; name: string }> }>(
+      token, '/api/2/menu', { organizationIds: [organizationId] },
+    );
+    const list = menus.externalMenus || [];
+    if (list.length > 0) {
+      const menuId = String(list[0].id); // если меню несколько — берём первое
+      const menu = await iikoPost<{ itemCategories?: Array<{ name?: string; items?: Array<{ itemId: string; name: string; itemSizes?: Array<{ prices?: Array<{ price?: number }> }> }> }> }>(
+        token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] },
+      );
+      const out: Array<{ id: string; name: string; price: number | null }> = [];
+      for (const cat of (menu.itemCategories || [])) {
+        for (const it of (cat.items || [])) {
+          const prices = it.itemSizes?.[0]?.prices || [];
+          out.push({ id: it.itemId, name: it.name, price: prices[0]?.price ?? null });
+        }
+      }
+      if (out.length > 0) return out;
+    }
+  } catch (_e) { /* внешнее меню недоступно — пробуем номенклатуру */ }
+
+  // 2) Фолбэк — номенклатура.
+  const d = await iikoPost<{ products: Array<{ id: string; name: string; sizePrices?: Array<{ price?: { currentPrice?: number } }> }> }>(
     token, '/api/1/nomenclature', { organizationId },
   );
   return (d.products || []).map(p => ({

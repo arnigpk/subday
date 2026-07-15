@@ -256,7 +256,10 @@ export default function PartnerIntegrationPage() {
                   <label className="text-xs text-muted-foreground">Организация</label>
                   <div className="flex gap-2 mt-1">
                     <select className={selectCls} value={integ?.organization_id || ''} onChange={e => { const o = orgs.find(x => x.id === e.target.value); if (o) selectOrg(o); }}>
-                      <option value="">{integ?.organization_name || '— выберите —'}</option>
+                      <option value="">— выберите —</option>
+                      {integ?.organization_id && !orgs.some(o => o.id === integ.organization_id) && (
+                        <option value={integ.organization_id}>{integ.organization_name}</option>
+                      )}
                       {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
                     {orgs.length === 0 && <Button variant="outline" onClick={async () => { setBusy('orgs'); try { const d = await call('organizations'); setOrgs(d.organizations || []); } catch (e: any) { toast.error(e.message); } finally { setBusy(null); } }} disabled={busy === 'orgs'}>{busy === 'orgs' ? <Loader2 className="animate-spin" size={16} /> : 'Список'}</Button>}
@@ -275,7 +278,10 @@ export default function PartnerIntegrationPage() {
               <h3 className="font-semibold text-foreground flex items-center gap-2"><CreditCard size={16} className="text-primary" /> Способ оплаты</h3>
               <div className="flex gap-2">
                 <select className={selectCls} value={integ?.payment_type_id || ''} onChange={e => savePayment(e.target.value)}>
-                  <option value="">{integ?.payment_type_name || '— выберите —'}</option>
+                  <option value="">— выберите —</option>
+                  {integ?.payment_type_id && !payTypes.some(p => p.id === integ.payment_type_id) && (
+                    <option value={integ.payment_type_id}>{integ.payment_type_name}</option>
+                  )}
                   {payTypes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <Button variant="outline" onClick={loadPayTypes} disabled={busy === 'pay'}>{busy === 'pay' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить'}</Button>
@@ -304,11 +310,17 @@ export default function PartnerIntegrationPage() {
                   <p className="text-sm font-medium text-foreground flex items-center gap-1"><MapPin size={13} className="text-primary shrink-0" /> {addr}</p>
                   <div className="grid grid-cols-1 gap-2">
                     <select className={selectCls} value={terminalsCfg[addr]?.terminal_group_id || ''} onChange={e => setTerminalField(addr, 'terminal_group_id', e.target.value)}>
-                      <option value="">{terminalsCfg[addr]?.terminal_group_name || '— касса (терминал) —'}</option>
+                      <option value="">— касса (терминал) —</option>
+                      {terminalsCfg[addr]?.terminal_group_id && !terminals.some(t => t.id === terminalsCfg[addr].terminal_group_id) && (
+                        <option value={terminalsCfg[addr].terminal_group_id}>{terminalsCfg[addr].terminal_group_name}</option>
+                      )}
                       {terminals.map(t => <option key={t.id} value={t.id}>{t.name}{t.address ? ` · ${t.address}` : ''}</option>)}
                     </select>
                     <select className={selectCls} value={terminalsCfg[addr]?.order_type_id || ''} onChange={e => setTerminalField(addr, 'order_type_id', e.target.value)}>
-                      <option value="">{terminalsCfg[addr]?.order_type_name || '— тип заказа «на вынос» —'}</option>
+                      <option value="">— тип заказа «на вынос» —</option>
+                      {terminalsCfg[addr]?.order_type_id && !orderTypes.some(o => o.id === terminalsCfg[addr].order_type_id) && (
+                        <option value={terminalsCfg[addr].order_type_id}>{terminalsCfg[addr].order_type_name}</option>
+                      )}
                       {orderTypes.map(o => <option key={o.id} value={o.id}>{o.name} ({o.orderServiceType})</option>)}
                     </select>
                   </div>
