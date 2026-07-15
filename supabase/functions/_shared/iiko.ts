@@ -9,6 +9,8 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export const IIKO_BASE = 'https://api-ru.iiko.services';
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export class IikoError extends Error {
   status: number;
   constructor(message: string, status = 500) {
@@ -159,21 +161,44 @@ export async function getProducts(token: string, organizationId: string) {
     const list = menus.externalMenus || [];
     if (list.length > 0) {
       const menuId = String(list[0].id); // если меню несколько — берём первое
-      const menu = await iikoPost<{ itemCategories?: Array<{ name?: string; items?: Array<{ itemId: string; name: string; itemSizes?: Array<{ prices?: Array<{ price?: number }> }> }> }> }>(
-        token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] },
-      );
-      const out: Array<{ id: string; name: string; price: number | null }> = [];
-      for (const cat of (menu.itemCategories || [])) {
-        for (const it of (cat.items || [])) {
-          const prices = it.itemSizes?.[0]?.prices || [];
-          out.push({ id: it.itemId, name: it.name, price: prices[0]?.price ?? null });
+      // by_id жёстко лимитируется iiko («Too many requests») — ретраим на 429.
+      let lastErr: unknown = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const menu = await iikoPost<{ itemCategories?: Array<{ name?: string; items?: Array<{ itemId: string; name: string; itemSizes?: Array<{ prices?: Array<{ price?: number }> }> }> }> }>(
+            token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] },
+          );
+          const out: Array<{ id: string; name: string; price: number | null }> = [];
+          for (const cat of (menu.itemCategories || [])) {
+            for (const it of (cat.items || [])) {
+              const prices = it.itemSizes?.[0]?.prices || [];
+              out.push({ id: it.itemId, name: it.name, price: prices[0]?.price ?? null });
+            }
+          }
+          return out; // внешнее меню есть — возвращаем его (даже если 0 позиций)
+        } catch (e) {
+          lastErr = e;
+          const rateLimited = e instanceof IikoError && (e.status === 429 || /too many requests/i.test(e.message));
+          if (!rateLimited || attempt === 3) break;
+          await sleep(2500);
         }
       }
-      if (out.length > 0) return out;
+      // Внешнее меню ЕСТЬ, но by_id не отдал — НЕ подменяем пустой номенклатурой,
+      // показываем реальную причину (обычно лимит запросов iiko).
+      const rl = lastErr instanceof IikoError && (lastErr.status === 429 || /too many requests/i.test(lastErr.message));
+      throw new IikoError(
+        rl ? 'iiko временно ограничил запросы меню. Подождите ~минуту и повторите (после первой загрузки меню кэшируется).'
+           : (lastErr instanceof Error ? lastErr.message : 'Не удалось загрузить меню iiko'),
+        rl ? 429 : 500,
+      );
     }
-  } catch (_e) { /* внешнее меню недоступно — пробуем номенклатуру */ }
+  } catch (e) {
+    // Если это наша осмысленная ошибка по внешнему меню — пробрасываем.
+    if (e instanceof IikoError) throw e;
+    /* иначе (нет внешнего меню / сбой /api/2/menu) — пробуем номенклатуру */
+  }
 
-  // 2) Фолбэк — номенклатура.
+  // 2) Фолбэк — номенклатура (когда внешнего меню нет вовсе).
   const d = await iikoPost<{ products: Array<{ id: string; name: string; sizePrices?: Array<{ price?: { currentPrice?: number } }> }> }>(
     token, '/api/1/nomenclature', { organizationId },
   );

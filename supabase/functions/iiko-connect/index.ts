@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('iiko_integrations')
-        .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at')
+        .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at, menu_cache, menu_cached_at')
         .eq('shop_id', shopId).maybeSingle();
       return data;
     };
@@ -100,8 +100,24 @@ Deno.serve(async (req) => {
       }
       case 'payment_types':
         return json({ success: true, paymentTypes: await getPaymentTypes(iikoToken, orgId!) });
-      case 'products':
-        return json({ success: true, products: await getProducts(iikoToken, orgId!) });
+      case 'products': {
+        // Меню iiko (by_id) жёстко лимитируется — кэшируем на 10 мин и отдаём кэш
+        // при рейтлимите. Свежий кэш — не дёргаем iiko вовсе.
+        const cache = Array.isArray(integ.menu_cache) ? integ.menu_cache : null;
+        const fresh = integ.menu_cached_at && (Date.now() - new Date(integ.menu_cached_at).getTime() < 10 * 60 * 1000);
+        if (cache && fresh) return json({ success: true, products: cache, cached: true });
+        try {
+          const products = await getProducts(iikoToken, orgId!);
+          await supabase.from('iiko_integrations')
+            .update({ menu_cache: products, menu_cached_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+            .eq('shop_id', shopId);
+          return json({ success: true, products });
+        } catch (e) {
+          // Рейтлимит/сбой, но есть прошлый кэш — отдаём его, чтобы не блокировать настройку.
+          if (cache && cache.length) return json({ success: true, products: cache, cached: true, stale: true });
+          throw e;
+        }
+      }
       case 'test_order': {
         const r = await createTestOrder(supabase, {
           shopId,
