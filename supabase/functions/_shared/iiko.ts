@@ -152,8 +152,8 @@ export async function getOrderTypes(token: string, organizationId: string) {
  * и цены лежат во внешнем меню (источник цен «Внешнее меню» в iikoWeb).
  * Фолбэк — номенклатура. Возвращаем { id (productId для заказа), name, price }.
  */
-export async function getProducts(token: string, organizationId: string) {
-  // 1) Внешние меню организации.
+export async function getProducts(token: string, organizationId: string, supabase?: SupabaseClient) {
+  // 1) Внешние меню организации. Список (/api/2/menu) из Deno проходит нормально.
   try {
     const menus = await iikoPost<{ externalMenus?: Array<{ id: string; name: string }> }>(
       token, '/api/2/menu', { organizationIds: [organizationId] },
@@ -161,40 +161,50 @@ export async function getProducts(token: string, organizationId: string) {
     const list = menus.externalMenus || [];
     if (list.length > 0) {
       const menuId = String(list[0].id); // если меню несколько — берём первое
-      // by_id жёстко лимитируется iiko («Too many requests») — ретраим на 429.
-      let lastErr: unknown = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const menu = await iikoPost<{ itemCategories?: Array<{ name?: string; items?: Array<{ itemId: string; name: string; itemSizes?: Array<{ prices?: Array<{ price?: number }> }> }> }> }>(
-            token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] },
+
+      // ВАЖНО: /api/2/menu/by_id спрятан за QRATOR, который блокирует TLS-отпечаток
+      // Deno-fetch (возвращает HTML-500). Тянем через pg_net (libcurl) — RPC
+      // iiko_http_post_sync. Фолбэк на Deno-fetch — только если supabase не передан.
+      let menu: { itemCategories?: Array<{ items?: Array<{ itemId: string; name: string; itemSizes?: Array<{ prices?: Array<{ price?: number }> }> }> }> };
+      if (supabase) {
+        // Две фазы pg_net: старт (коммит → запрос уходит) + поллинг ответа.
+        const { data: reqId, error: startErr } = await supabase.rpc('iiko_http_post_start', {
+          _url: `${IIKO_BASE}/api/2/menu/by_id`,
+          _headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          _body: { externalMenuId: menuId, organizationIds: [organizationId] },
+        });
+        if (startErr || reqId == null) throw new IikoError('Не удалось запросить меню iiko', 502);
+
+        let row: { status_code: number; content: string } | null = null;
+        for (let i = 0; i < 20; i++) {
+          await sleep(700);
+          const { data } = await supabase.rpc('iiko_http_result', { _req: reqId });
+          if (Array.isArray(data) && data.length && data[0]?.status_code) { row = data[0]; break; }
+        }
+        if (!row || row.status_code !== 200 || !row.content) {
+          const code = row?.status_code;
+          throw new IikoError(
+            code === 429 ? 'iiko временно ограничил запросы меню. Подождите ~минуту и повторите.'
+                         : `Не удалось загрузить меню iiko (by_id${code ? ' → ' + code : ''})`,
+            code === 429 ? 429 : 502,
           );
-          const out: Array<{ id: string; name: string; price: number | null }> = [];
-          for (const cat of (menu.itemCategories || [])) {
-            for (const it of (cat.items || [])) {
-              const prices = it.itemSizes?.[0]?.prices || [];
-              out.push({ id: it.itemId, name: it.name, price: prices[0]?.price ?? null });
-            }
-          }
-          return out; // внешнее меню есть — возвращаем его (даже если 0 позиций)
-        } catch (e) {
-          lastErr = e;
-          const rateLimited = e instanceof IikoError && (e.status === 429 || /too many requests/i.test(e.message));
-          if (!rateLimited || attempt === 3) break;
-          await sleep(2500);
+        }
+        menu = JSON.parse(row.content);
+      } else {
+        menu = await iikoPost(token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] });
+      }
+
+      const out: Array<{ id: string; name: string; price: number | null }> = [];
+      for (const cat of (menu.itemCategories || [])) {
+        for (const it of (cat.items || [])) {
+          const prices = it.itemSizes?.[0]?.prices || [];
+          out.push({ id: it.itemId, name: it.name, price: prices[0]?.price ?? null });
         }
       }
-      // Внешнее меню ЕСТЬ, но by_id не отдал — НЕ подменяем пустой номенклатурой,
-      // показываем реальную причину (обычно лимит запросов iiko).
-      const rl = lastErr instanceof IikoError && (lastErr.status === 429 || /too many requests/i.test(lastErr.message));
-      throw new IikoError(
-        rl ? 'iiko временно ограничил запросы меню. Подождите ~минуту и повторите (после первой загрузки меню кэшируется).'
-           : (lastErr instanceof Error ? lastErr.message : 'Не удалось загрузить меню iiko'),
-        rl ? 429 : 500,
-      );
+      return out; // внешнее меню есть — возвращаем (даже если 0 позиций)
     }
   } catch (e) {
-    // Если это наша осмысленная ошибка по внешнему меню — пробрасываем.
-    if (e instanceof IikoError) throw e;
+    if (e instanceof IikoError) throw e; // осмысленная ошибка по внешнему меню — пробрасываем
     /* иначе (нет внешнего меню / сбой /api/2/menu) — пробуем номенклатуру */
   }
 

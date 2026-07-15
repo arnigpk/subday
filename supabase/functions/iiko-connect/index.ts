@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         const fresh = integ.menu_cached_at && (Date.now() - new Date(integ.menu_cached_at).getTime() < 10 * 60 * 1000);
         if (cache && fresh) return json({ success: true, products: cache, cached: true });
         try {
-          const products = await getProducts(iikoToken, orgId!);
+          const products = await getProducts(iikoToken, orgId!, supabase);
           await supabase.from('iiko_integrations')
             .update({ menu_cache: products, menu_cached_at: new Date().toISOString(), updated_at: new Date().toISOString() })
             .eq('shop_id', shopId);
