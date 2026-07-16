@@ -249,7 +249,10 @@ Deno.serve(async (req) => {
 
         console.log('SMS sent successfully, id:', smsResult.id)
       } catch (smsErr) {
-        console.error('SMS fetch error:', smsErr)
+        // Не логируем сырую ошибку: её message содержит URL с psw/login (утечка секрета в логи).
+        const safeMsg = (smsErr instanceof Error ? smsErr.message : String(smsErr))
+          .replace(/(psw|login)=[^&\s]*/gi, '$1=***')
+        console.error('SMS fetch error:', safeMsg)
         return new Response(
           JSON.stringify({ error: 'SMS сервис недоступен. Попробуйте WhatsApp или Telegram.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
