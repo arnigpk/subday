@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     if (!smscLogin || !smscPassword) {
       console.error('SMSC credentials not configured!')
       return new Response(
-        JSON.stringify({ error: 'SMS сервис временно недоступен. Используйте Telegram для входа.' }),
+        JSON.stringify({ error: 'SMS сервис временно недоступен. Используйте WhatsApp или Telegram для входа.' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
         } catch {
           console.error('SMSC returned non-JSON:', smsText)
           return new Response(
-            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Попробуйте Telegram.' }),
+            JSON.stringify({ error: 'SMS сервис вернул некорректный ответ. Попробуйте WhatsApp или Telegram.' }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
         if (smsResult.error) {
           console.error('SMS error:', smsResult.error_code, smsResult.error)
           return new Response(
-            JSON.stringify({ error: `Ошибка отправки SMS. Попробуйте Telegram.` }),
+            JSON.stringify({ error: `Ошибка отправки SMS. Попробуйте WhatsApp или Telegram.` }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
       } catch (smsErr) {
         console.error('SMS fetch error:', smsErr)
         return new Response(
-          JSON.stringify({ error: 'SMS сервис недоступен. Попробуйте Telegram.' }),
+          JSON.stringify({ error: 'SMS сервис недоступен. Попробуйте WhatsApp или Telegram.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
