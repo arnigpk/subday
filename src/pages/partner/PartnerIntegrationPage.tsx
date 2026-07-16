@@ -67,7 +67,7 @@ export default function PartnerIntegrationPage() {
       supabase.from('iiko_terminals').select('*').eq('shop_id', shopId),
       supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId),
       supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
-      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test').eq('shop_id', shopId).order('created_at', { ascending: false }).limit(30),
+      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test').eq('shop_id', shopId).eq('provider', 'iiko').order('created_at', { ascending: false }).limit(30),
     ]);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
