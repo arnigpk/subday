@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, shopId } = body as { action: string; shopId: string };
     if (!shopId) return json({ error: 'shopId required' }, 400);
+    const address = ((body.address as string) ?? '') || ''; // '' = дефолт-интеграция кофейни
 
     const { data: roles } = await supabase.from('user_roles').select('role, shop_id').eq('user_id', user.id);
     const allowed = (roles || []).some(r => (r.role === 'partner' && r.shop_id === shopId) || r.role === 'admin' || r.role === 'superadmin');
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('poster_integrations')
-        .select('shop_id, api_token, account_name, spot_id, currency, auto_close, is_active').eq('shop_id', shopId).maybeSingle();
+        .select('shop_id, api_token, account_name, spot_id, currency, auto_close, is_active').eq('shop_id', shopId).eq('address', address).maybeSingle();
       return data;
     };
 
@@ -47,8 +48,8 @@ Deno.serve(async (req) => {
       const spots = await getSpots(apiToken); // валидирует токен
       const accountName = apiToken.split(':')[0] || null;
       await supabase.from('poster_integrations').upsert({
-        shop_id: shopId, api_token: apiToken, account_name: accountName, updated_at: new Date().toISOString(),
-      }, { onConflict: 'shop_id' });
+        shop_id: shopId, address, api_token: apiToken, account_name: accountName, updated_at: new Date().toISOString(),
+      }, { onConflict: 'shop_id,address' });
       return json({ success: true, spots });
     }
 
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
         return json({ success: true, products: await getProducts(integ.api_token, spotId) });
       }
       case 'test_order': {
-        const r = await createPosterTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string });
+        const r = await createPosterTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string, integrationAddress: address });
         return json(r, r.ok ? 200 : 400);
       }
       default:

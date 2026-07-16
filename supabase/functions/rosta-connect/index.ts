@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, shopId } = body as { action: string; shopId: string };
     if (!shopId) return json({ error: 'shopId required' }, 400);
+    const address = ((body.address as string) ?? '') || ''; // '' = дефолт-интеграция кофейни
 
     const { data: roles } = await supabase.from('user_roles').select('role, shop_id').eq('user_id', user.id);
     const allowed = (roles || []).some(r => (r.role === 'partner' && r.shop_id === shopId) || r.role === 'admin' || r.role === 'superadmin');
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('rosta_integrations')
-        .select('shop_id, api_key, tradepoint_id, price_type_id').eq('shop_id', shopId).maybeSingle();
+        .select('shop_id, api_key, tradepoint_id, price_type_id').eq('shop_id', shopId).eq('address', address).maybeSingle();
       return data;
     };
 
@@ -50,8 +51,8 @@ Deno.serve(async (req) => {
       if (!apiKey) return json({ error: 'Введите API-ключ Rosta' }, 400);
       const tradepoints = await getTradepoints(apiKey); // валидирует ключ
       await supabase.from('rosta_integrations').upsert({
-        shop_id: shopId, api_key: apiKey, updated_at: new Date().toISOString(),
-      }, { onConflict: 'shop_id' });
+        shop_id: shopId, address, api_key: apiKey, updated_at: new Date().toISOString(),
+      }, { onConflict: 'shop_id,address' });
       return json({ success: true, tradepoints });
     }
 
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
       case 'price_types':
         return json({ success: true, priceTypes: await getPriceTypes(integ.api_key) });
       case 'test_order': {
-        const r = await createRostaTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string });
+        const r = await createRostaTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string, integrationAddress: address });
         return json(r, r.ok ? 200 : 400);
       }
       default:

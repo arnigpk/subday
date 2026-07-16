@@ -101,7 +101,7 @@ export async function iikoPost<T = any>(token: string, path: string, body: unkno
  */
 export async function getValidToken(
   supabase: SupabaseClient,
-  integ: { shop_id: string; api_login?: string | null; app_id?: string | null; api_key?: string | null; client_secret?: string | null; access_token: string | null; token_expires_at: string | null },
+  integ: { shop_id: string; address?: string | null; api_login?: string | null; app_id?: string | null; api_key?: string | null; client_secret?: string | null; access_token: string | null; token_expires_at: string | null },
 ): Promise<string> {
   const now = Date.now();
   const exp = integ.token_expires_at ? new Date(integ.token_expires_at).getTime() : 0;
@@ -109,9 +109,10 @@ export async function getValidToken(
 
   const token = await iikoAuth(integ);
   const expiresAt = new Date(now + 55 * 60 * 1000).toISOString(); // ~55 мин запас
+  // Кэш токена — только для КОНКРЕТНОЙ интеграции (shop+address), иначе затрём соседние адреса.
   await supabase.from('iiko_integrations')
     .update({ access_token: token, token_expires_at: expiresAt, updated_at: new Date().toISOString() })
-    .eq('shop_id', integ.shop_id);
+    .eq('shop_id', integ.shop_id).eq('address', integ.address ?? '');
   return token;
 }
 
@@ -310,16 +311,17 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
  */
 export async function processRedemptionOrder(
   supabase: SupabaseClient,
-  p: { redemptionId: string; shopId: string; address: string | null; subscriptionTypeId: string | null },
+  p: { redemptionId: string; shopId: string; address: string | null; integrationAddress?: string | null; subscriptionTypeId: string | null },
 ): Promise<{ ok: boolean; status: string; skipped?: boolean; error?: string }> {
   try {
-    const { data: integ } = await supabase.from('iiko_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle();
+    const key = p.integrationAddress ?? '';
+    const { data: integ } = await supabase.from('iiko_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
 
     // Идемпотентность: одна строка на списание (UNIQUE redemption_id).
     const { data: inserted, error: insErr } = await supabase
       .from('iiko_order_log')
-      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address, subscription_type_id: p.subscriptionTypeId, status: 'pending', attempts: 0 })
+      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address, integration_address: key, subscription_type_id: p.subscriptionTypeId, status: 'pending', attempts: 0 })
       .select('id')
       .maybeSingle();
     if (insErr || !inserted) return { ok: true, status: 'duplicate', skipped: true }; // дубль скана — второй заказ не создаём
@@ -344,12 +346,13 @@ export async function runIikoOrder(
   };
   try {
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('redemption_id, shop_id, address, subscription_type_id, iiko_order_id').eq('id', logId).maybeSingle();
+      .select('redemption_id, shop_id, address, integration_address, subscription_type_id, iiko_order_id').eq('id', logId).maybeSingle();
     if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
+    const key = log.integration_address ?? '';
 
     const { data: integ } = await supabase.from('iiko_integrations')
-      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally, access_token, token_expires_at')
-      .eq('shop_id', log.shop_id).maybeSingle();
+      .select('shop_id, address, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally, access_token, token_expires_at')
+      .eq('shop_id', log.shop_id).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return await fail('Интеграция iiko выключена', false);
     if (!integ.organization_id || !integ.payment_type_id) return await fail('Интеграция не настроена (организация/оплата)', false);
 
@@ -368,7 +371,7 @@ export async function runIikoOrder(
 
     if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
     const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_product_name, iiko_price')
-      .eq('shop_id', log.shop_id).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
+      .eq('shop_id', log.shop_id).eq('address', key).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
     if (!map) return await fail('Тариф не привязан к позиции меню', false);
     if (map.iiko_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
@@ -438,18 +441,20 @@ export async function runIikoOrder(
  */
 export async function createTestOrder(
   supabase: SupabaseClient,
-  p: { shopId: string; subscriptionTypeId: string; address: string | null },
+  p: { shopId: string; subscriptionTypeId: string; address: string | null; integrationAddress?: string | null },
 ): Promise<{ ok: boolean; correlationId?: string; error?: string }> {
   try {
+    const key = p.integrationAddress ?? '';
     const { data: integ } = await supabase.from('iiko_integrations')
-      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, order_endpoint, fiscalize_externally, access_token, token_expires_at')
-      .eq('shop_id', p.shopId).maybeSingle();
+      .select('shop_id, address, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, order_endpoint, fiscalize_externally, access_token, token_expires_at')
+      .eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ) return { ok: false, error: 'Интеграция не подключена' };
     if (!integ.organization_id || !integ.payment_type_id) return { ok: false, error: 'Не выбрана организация/оплата' };
 
+    const termAddr = p.address || key; // физический адрес кассы для теста
     let term: { terminal_group_id: string; order_type_id: string | null; auto_close: boolean | null } | null = null;
-    if (p.address) {
-      const { data } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close').eq('shop_id', p.shopId).eq('address', p.address).maybeSingle();
+    if (termAddr) {
+      const { data } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close').eq('shop_id', p.shopId).eq('address', termAddr).maybeSingle();
       term = data;
     }
     if (!term) {
@@ -458,7 +463,7 @@ export async function createTestOrder(
     }
     if (!term) return { ok: false, error: 'Не найдена касса для адреса' };
 
-    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_product_name, iiko_price').eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
+    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_product_name, iiko_price').eq('shop_id', p.shopId).eq('address', key).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
     if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
     if (map.iiko_price == null) return { ok: false, error: 'У позиции нет цены' };
 
@@ -488,7 +493,8 @@ export async function createTestOrder(
       redemption_id: null,
       is_test: true,
       shop_id: p.shopId,
-      address: p.address,
+      address: termAddr || null,
+      integration_address: key,
       subscription_type_id: p.subscriptionTypeId,
       iiko_product_id: map.iiko_product_id,
       iiko_product_name: map.iiko_product_name,

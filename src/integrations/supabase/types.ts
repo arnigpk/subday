@@ -17,6 +17,7 @@ export type Database = {
       iiko_integrations: {
         Row: {
           shop_id: string
+          address: string
           api_login: string | null
           app_id: string | null
           api_key: string | null
@@ -37,6 +38,7 @@ export type Database = {
         }
         Insert: {
           shop_id: string
+          address?: string
           api_login?: string | null
           app_id?: string | null
           api_key?: string | null
@@ -57,6 +59,7 @@ export type Database = {
         }
         Update: {
           shop_id?: string
+          address?: string
           api_login?: string | null
           app_id?: string | null
           api_key?: string | null
@@ -120,6 +123,7 @@ export type Database = {
         Row: {
           id: string
           shop_id: string
+          address: string
           subscription_type_id: string
           iiko_product_id: string
           iiko_product_name: string | null
@@ -130,6 +134,7 @@ export type Database = {
         Insert: {
           id?: string
           shop_id: string
+          address?: string
           subscription_type_id: string
           iiko_product_id: string
           iiko_product_name?: string | null
@@ -140,6 +145,7 @@ export type Database = {
         Update: {
           id?: string
           shop_id?: string
+          address?: string
           subscription_type_id?: string
           iiko_product_id?: string
           iiko_product_name?: string | null
@@ -167,6 +173,10 @@ export type Database = {
           is_test: boolean
           provider: string
           pos_order_id: string | null
+          integration_address: string
+          attempts: number
+          next_retry_at: string | null
+          auto_retry: boolean
           error: string | null
           created_at: string
           updated_at: string
@@ -188,6 +198,10 @@ export type Database = {
           is_test?: boolean
           provider?: string
           pos_order_id?: string | null
+          integration_address?: string
+          attempts?: number
+          next_retry_at?: string | null
+          auto_retry?: boolean
           error?: string | null
           created_at?: string
           updated_at?: string
@@ -209,6 +223,10 @@ export type Database = {
           is_test?: boolean
           provider?: string
           pos_order_id?: string | null
+          integration_address?: string
+          attempts?: number
+          next_retry_at?: string | null
+          auto_retry?: boolean
           error?: string | null
           created_at?: string
           updated_at?: string
@@ -218,6 +236,7 @@ export type Database = {
       poster_integrations: {
         Row: {
           shop_id: string
+          address: string
           api_token: string
           account_name: string | null
           spot_id: string | null
@@ -230,6 +249,7 @@ export type Database = {
         }
         Insert: {
           shop_id: string
+          address?: string
           api_token: string
           account_name?: string | null
           spot_id?: string | null
@@ -242,6 +262,7 @@ export type Database = {
         }
         Update: {
           shop_id?: string
+          address?: string
           api_token?: string
           account_name?: string | null
           spot_id?: string | null
@@ -258,6 +279,7 @@ export type Database = {
         Row: {
           id: string
           shop_id: string
+          address: string
           subscription_type_id: string
           poster_product_id: string
           poster_product_name: string | null
@@ -268,6 +290,7 @@ export type Database = {
         Insert: {
           id?: string
           shop_id: string
+          address?: string
           subscription_type_id: string
           poster_product_id: string
           poster_product_name?: string | null
@@ -278,6 +301,7 @@ export type Database = {
         Update: {
           id?: string
           shop_id?: string
+          address?: string
           subscription_type_id?: string
           poster_product_id?: string
           poster_product_name?: string | null
@@ -290,6 +314,7 @@ export type Database = {
       rosta_integrations: {
         Row: {
           shop_id: string
+          address: string
           api_key: string
           tradepoint_id: string | null
           tradepoint_name: string | null
@@ -310,6 +335,7 @@ export type Database = {
         }
         Insert: {
           shop_id: string
+          address?: string
           api_key: string
           tradepoint_id?: string | null
           tradepoint_name?: string | null
@@ -330,6 +356,7 @@ export type Database = {
         }
         Update: {
           shop_id?: string
+          address?: string
           api_key?: string
           tradepoint_id?: string | null
           tradepoint_name?: string | null
@@ -354,6 +381,7 @@ export type Database = {
         Row: {
           id: string
           shop_id: string
+          address: string
           subscription_type_id: string
           rosta_item_id: string
           rosta_item_name: string | null
@@ -364,6 +392,7 @@ export type Database = {
         Insert: {
           id?: string
           shop_id: string
+          address?: string
           subscription_type_id: string
           rosta_item_id: string
           rosta_item_name?: string | null
@@ -374,6 +403,7 @@ export type Database = {
         Update: {
           id?: string
           shop_id?: string
+          address?: string
           subscription_type_id?: string
           rosta_item_id?: string
           rosta_item_name?: string | null

@@ -51,27 +51,39 @@ export default function PartnerIntegrationPage() {
   const [testAddress, setTestAddress] = useState('');
   const [loaded, setLoaded] = useState<{ pay?: boolean; terminals?: boolean; products?: boolean }>({});
   const [provider, setProvider] = useState<'iiko' | 'poster' | 'rosta'>('iiko');
+  // Адрес-ключ настраиваемой интеграции: '' = дефолт (все адреса без своей интеграции).
+  const [address, setAddress] = useState('');
+  // Адреса, у которых ЕСТЬ своя интеграция (для «Кассы по адресам» и подсказок).
+  const [ownAddresses, setOwnAddresses] = useState<Set<string>>(new Set());
 
-  // Если у кофейни есть запись Poster/Rosta — открываем сразу её вкладку.
+  // Если у кофейни есть запись Poster/Rosta по текущему адресу — открываем её вкладку.
   useEffect(() => {
     if (!shopId) return;
-    supabase.from('poster_integrations').select('is_active').eq('shop_id', shopId).maybeSingle()
+    supabase.from('poster_integrations').select('is_active').eq('shop_id', shopId).eq('address', address).maybeSingle()
       .then(({ data }) => { if (data) setProvider('poster'); });
-    supabase.from('rosta_integrations').select('is_active').eq('shop_id', shopId).maybeSingle()
+    supabase.from('rosta_integrations').select('is_active').eq('shop_id', shopId).eq('address', address).maybeSingle()
       .then(({ data }) => { if (data) setProvider('rosta'); });
-  }, [shopId]);
+  }, [shopId, address]);
 
   const load = useCallback(async () => {
     if (!shopId) return;
     setLoading(true);
-    const [i, s, tc, mm, sh, ol] = await Promise.all([
-      supabase.from('iiko_integrations').select('shop_id, organization_id, organization_name, payment_type_id, payment_type_name, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally').eq('shop_id', shopId).maybeSingle(),
+    const [i, s, tc, mm, sh, ol, own] = await Promise.all([
+      supabase.from('iiko_integrations').select('shop_id, address, organization_id, organization_name, payment_type_id, payment_type_name, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally').eq('shop_id', shopId).eq('address', address).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
       supabase.from('iiko_terminals').select('*').eq('shop_id', shopId),
-      supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId),
+      supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId).eq('address', address),
       supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
       supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test').eq('shop_id', shopId).eq('provider', 'iiko').order('created_at', { ascending: false }).limit(30),
+      Promise.all([
+        supabase.from('iiko_integrations').select('address').eq('shop_id', shopId).neq('address', ''),
+        supabase.from('poster_integrations').select('address').eq('shop_id', shopId).neq('address', ''),
+        supabase.from('rosta_integrations').select('address').eq('shop_id', shopId).neq('address', ''),
+      ]),
     ]);
+    const ownSet = new Set<string>();
+    (own || []).forEach(r => (r.data || []).forEach((x: any) => x.address && ownSet.add(x.address)));
+    setOwnAddresses(ownSet);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
     const addrs = (sh.data?.addresses && sh.data.addresses.length ? sh.data.addresses : (sh.data?.address ? [sh.data.address] : []));
@@ -80,12 +92,12 @@ export default function PartnerIntegrationPage() {
     const mmMap: Record<string, any> = {}; (mm.data || []).forEach((r: any) => { mmMap[r.subscription_type_id] = r; }); setMenuMap(mmMap);
     setOrderLog((ol.data as OrderLog[]) || []);
     setLoading(false);
-  }, [shopId]);
+  }, [shopId, address]);
 
   useEffect(() => { if (shopId) load(); }, [shopId, load]);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
-    const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action, shopId, ...extra } });
+    const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action, shopId, address, ...extra } });
     if (error) {
       // supabase-js прячет тело за общим сообщением — достаём реальную ошибку iiko.
       let msg = error.message;
@@ -111,7 +123,7 @@ export default function PartnerIntegrationPage() {
   };
 
   const saveInteg = async (patch: Record<string, unknown>, label?: string) => {
-    const { error } = await supabase.from('iiko_integrations').update({ ...patch, updated_at: new Date().toISOString() }).eq('shop_id', shopId!);
+    const { error } = await supabase.from('iiko_integrations').update({ ...patch, updated_at: new Date().toISOString() }).eq('shop_id', shopId!).eq('address', address);
     if (error) { toast.error('Не сохранилось: ' + error.message); return false; }
     setInteg((p: any) => ({ ...p, ...patch }));
     if (label) toast.success(label);
@@ -163,8 +175,8 @@ export default function PartnerIntegrationPage() {
   };
 
   const pickProduct = async (subTypeId: string, product: Product) => {
-    const row = { shop_id: shopId, subscription_type_id: subTypeId, iiko_product_id: product.id, iiko_product_name: product.name, iiko_price: product.price };
-    const { error } = await supabase.from('iiko_menu_map').upsert(row, { onConflict: 'shop_id,subscription_type_id' });
+    const row = { shop_id: shopId, address, subscription_type_id: subTypeId, iiko_product_id: product.id, iiko_product_name: product.name, iiko_price: product.price };
+    const { error } = await supabase.from('iiko_menu_map').upsert(row, { onConflict: 'shop_id,address,subscription_type_id' });
     if (error) { toast.error(error.message); return; }
     setMenuMap(p => ({ ...p, [subTypeId]: row }));
     setPickerFor(null); setProductSearch('');
@@ -177,20 +189,19 @@ export default function PartnerIntegrationPage() {
       if (!integ?.organization_id || !integ?.payment_type_id) { toast.error('Выберите организацию и способ оплаты'); return; }
       if (Object.keys(terminalsCfg).length === 0) { toast.error('Настройте хотя бы одну кассу'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
-      // 1 активная интеграция на партнёра — гасим Poster и Rosta.
-      await supabase.from('poster_integrations').update({ is_active: false }).eq('shop_id', shopId!);
-      await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId!);
+      // 1 активная интеграция на АДРЕС — гасим Poster и Rosta этого же адреса.
+      await supabase.from('poster_integrations').update({ is_active: false }).eq('shop_id', shopId!).eq('address', address);
+      await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId!).eq('address', address);
     }
-    await saveInteg({ is_active: v }, v ? 'Интеграция включена (Poster и Rosta выключены)' : 'Интеграция выключена');
+    await saveInteg({ is_active: v }, v ? 'Интеграция включена (Poster и Rosta этого адреса выключены)' : 'Интеграция выключена');
   };
 
   const disconnect = async () => {
     if (!confirm('Отключить интеграцию iiko? Настройки касс и привязки тарифов будут удалены.')) return;
     setBusy('disconnect');
     try {
-      await supabase.from('iiko_menu_map').delete().eq('shop_id', shopId!);
-      await supabase.from('iiko_terminals').delete().eq('shop_id', shopId!);
-      await supabase.from('iiko_integrations').delete().eq('shop_id', shopId!);
+      await supabase.from('iiko_menu_map').delete().eq('shop_id', shopId!).eq('address', address);
+      await supabase.from('iiko_integrations').delete().eq('shop_id', shopId!).eq('address', address);
       toast.success('Интеграция отключена');
       setInteg(null); setTerminalsCfg({}); setMenuMap({}); setOrgs([]); setApiLogin('');
       await load();
@@ -201,7 +212,7 @@ export default function PartnerIntegrationPage() {
     if (!testSubType) { toast.error('Выберите тариф для теста'); return; }
     setBusy('test');
     try {
-      const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action: 'test_order', shopId, subscriptionTypeId: testSubType, address: testAddress || undefined } });
+      const { data, error } = await supabase.functions.invoke('iiko-connect', { body: { action: 'test_order', shopId, address, subscriptionTypeId: testSubType, testAddress: testAddress || undefined } });
       if (error) { let msg = error.message; try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ } throw new Error(msg); }
       if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу iiko (отменить можно ниже, в «Заказы iiko»)'); else toast.error(data?.error || 'Ошибка тестового заказа');
       await load(); // подтянуть тестовый заказ в «Заказы iiko» с кнопкой отмены
@@ -228,6 +239,9 @@ export default function PartnerIntegrationPage() {
   const connected = !!integ;
   const orgChosen = !!integ?.organization_id;
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
+  // Адреса, которыми управляет ТЕКУЩАЯ интеграция: конкретный адрес → только он;
+  // дефолт ('') → адреса без своей интеграции.
+  const terminalAddresses = address === '' ? addresses.filter(a => !ownAddresses.has(a)) : [address];
 
   return (
     <PartnerLayout>
@@ -237,7 +251,19 @@ export default function PartnerIntegrationPage() {
           <h2 className="text-xl font-bold text-foreground">Интеграция POS</h2>
         </div>
 
-        {/* Выбор провайдера — активна одна интеграция на кофейню */}
+        {/* Настройка для адреса — у разных адресов может быть своя интеграция */}
+        {addresses.length > 1 && (
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Настройка для адреса</label>
+            <select className={selectCls} value={address} onChange={e => setAddress(e.target.value)}>
+              <option value="">По умолчанию (все адреса)</option>
+              {addresses.map(a => <option key={a} value={a}>{a}{ownAddresses.has(a) ? ' — своя интеграция' : ''}</option>)}
+            </select>
+            <p className="text-[11px] text-muted-foreground">«По умолчанию» действует на адреса без своей интеграции. Выберите конкретный адрес, чтобы задать ему отдельного провайдера/ключ (напр. второй адрес на другом аккаунте).</p>
+          </div>
+        )}
+
+        {/* Выбор провайдера — активна одна интеграция на адрес */}
         <div className="grid grid-cols-3 gap-2">
           {(['iiko', 'poster', 'rosta'] as const).map(pv => (
             <button
@@ -250,8 +276,8 @@ export default function PartnerIntegrationPage() {
           ))}
         </div>
 
-        {provider === 'poster' && shopId && <PartnerPosterSection shopId={shopId} />}
-        {provider === 'rosta' && shopId && <PartnerRostaSection shopId={shopId} />}
+        {provider === 'poster' && shopId && <PartnerPosterSection shopId={shopId} address={address} />}
+        {provider === 'rosta' && shopId && <PartnerRostaSection shopId={shopId} address={address} />}
 
         {provider === 'iiko' && (<>
         {/* 1. Подключение */}
@@ -331,13 +357,13 @@ export default function PartnerIntegrationPage() {
                 <h3 className="font-semibold text-foreground flex items-center gap-2"><MapPin size={16} className="text-primary" /> Кассы по адресам</h3>
                 <Button variant="outline" size="sm" onClick={loadTerminals} disabled={busy === 'terminals'}>{busy === 'terminals' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить кассы'}</Button>
               </div>
-              {addresses.length === 0 && <p className="text-sm text-muted-foreground">У кофейни не заданы адреса.</p>}
-              {loaded.terminals && terminals.length < addresses.length && (
+              {terminalAddresses.length === 0 && <p className="text-sm text-muted-foreground">Для этой интеграции нет адресов без своей настройки.</p>}
+              {loaded.terminals && terminals.length < terminalAddresses.length && (
                 <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2">
-                  iiko вернул касс: {terminals.length}, а адресов у кофейни: {addresses.length}. Вторая касса не видна через API — проверьте в iiko, что терминал второго адреса зарегистрирован и относится к этой же организации, либо что apiKey даёт доступ к обеим точкам.
+                  iiko вернул касс: {terminals.length}, а адресов у этой интеграции: {terminalAddresses.length}. Касса не видна через API — проверьте в iiko, что терминал адреса зарегистрирован и относится к этой же организации, либо что apiKey даёт доступ к точке.
                 </p>
               )}
-              {addresses.map(addr => (
+              {terminalAddresses.map(addr => (
                 <div key={addr} className="rounded-xl bg-secondary/40 p-3 space-y-2">
                   <p className="text-sm font-medium text-foreground flex items-center gap-1"><MapPin size={13} className="text-primary shrink-0" /> {addr}</p>
                   <div className="grid grid-cols-1 gap-2">
@@ -398,10 +424,10 @@ export default function PartnerIntegrationPage() {
                   <option value="">— тариф —</option>
                   {subTypes.filter(st => menuMap[st.id]).map(st => <option key={st.id} value={st.id}>{st.name} → {menuMap[st.id]?.iiko_product_name}</option>)}
                 </select>
-                {addresses.length > 1 && (
+                {terminalAddresses.length > 1 && (
                   <select className={selectCls} value={testAddress} onChange={e => setTestAddress(e.target.value)}>
                     <option value="">— адрес (касса) —</option>
-                    {addresses.map(a => <option key={a} value={a}>{a}</option>)}
+                    {terminalAddresses.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 )}
                 <Button variant="outline" onClick={runTestOrder} disabled={busy === 'test'} className="w-full">

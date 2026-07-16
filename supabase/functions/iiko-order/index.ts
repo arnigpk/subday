@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     if (!logId) return json({ error: 'logId required' }, 400);
 
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('id, redemption_id, shop_id, address, subscription_type_id, provider, organization_id, iiko_order_id, pos_order_id, status')
+      .select('id, redemption_id, shop_id, address, integration_address, subscription_type_id, provider, organization_id, iiko_order_id, pos_order_id, status')
       .eq('id', logId).maybeSingle();
     if (!log) return json({ error: 'Заказ не найден' }, 404);
 

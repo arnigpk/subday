@@ -150,14 +150,15 @@ export async function closeOrder(
  */
 export async function processRostaRedemption(
   supabase: SupabaseClient,
-  p: { redemptionId: string; shopId: string; subscriptionTypeId: string | null },
+  p: { redemptionId: string; shopId: string; address?: string | null; integrationAddress?: string | null; subscriptionTypeId: string | null },
 ): Promise<{ ok: boolean; status: string; skipped?: boolean; error?: string }> {
   try {
-    const { data: integ } = await supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle();
+    const key = p.integrationAddress ?? '';
+    const { data: integ } = await supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
 
     const { data: inserted, error: insErr } = await supabase.from('iiko_order_log')
-      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, subscription_type_id: p.subscriptionTypeId, provider: 'rosta', status: 'pending', attempts: 0 })
+      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address ?? null, integration_address: key, subscription_type_id: p.subscriptionTypeId, provider: 'rosta', status: 'pending', attempts: 0 })
       .select('id').maybeSingle();
     if (insErr || !inserted) return { ok: true, status: 'duplicate', skipped: true };
     return await runRostaOrder(supabase, inserted.id, 0);
@@ -182,19 +183,20 @@ export async function runRostaOrder(
   };
   try {
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('shop_id, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
+      .select('shop_id, integration_address, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
     if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
+    const key = log.integration_address ?? '';
 
     const { data: integ } = await supabase.from('rosta_integrations')
       .select('api_key, tradepoint_id, cashbox_id, payment_method_id, user_id, auto_open_shift, auto_close, is_active')
-      .eq('shop_id', log.shop_id).maybeSingle();
+      .eq('shop_id', log.shop_id).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return await fail('Интеграция Rosta выключена', false);
     if (!integ.tradepoint_id) return await fail('Rosta: не выбрана торговая точка', false);
     if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
 
     const { data: map } = await supabase.from('rosta_menu_map')
       .select('rosta_item_id, rosta_item_name, rosta_price')
-      .eq('shop_id', log.shop_id).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
+      .eq('shop_id', log.shop_id).eq('address', key).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
     if (!map) return await fail('Тариф не привязан к позиции меню Rosta', false);
     if (map.rosta_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
     const price = Number(map.rosta_price);
@@ -245,18 +247,19 @@ export async function runRostaOrder(
 /** Тестовый заказ Rosta (без списания). Пишет в журнал is_test=true. */
 export async function createRostaTestOrder(
   supabase: SupabaseClient,
-  p: { shopId: string; subscriptionTypeId: string },
+  p: { shopId: string; subscriptionTypeId: string; integrationAddress?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const key = p.integrationAddress ?? '';
     const { data: integ } = await supabase.from('rosta_integrations')
       .select('shop_id, api_key, tradepoint_id, cashbox_id, payment_method_id, user_id, auto_open_shift, auto_close')
-      .eq('shop_id', p.shopId).maybeSingle();
+      .eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ) return { ok: false, error: 'Rosta не подключён' };
     if (!integ.tradepoint_id) return { ok: false, error: 'Не выбрана торговая точка' };
 
     const { data: map } = await supabase.from('rosta_menu_map')
       .select('rosta_item_id, rosta_item_name, rosta_price')
-      .eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
+      .eq('shop_id', p.shopId).eq('address', key).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
     if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
     if (map.rosta_price == null) return { ok: false, error: 'У позиции нет цены' };
 
@@ -277,7 +280,7 @@ export async function createRostaTestOrder(
 
     await supabase.from('iiko_order_log').insert({
       redemption_id: null, is_test: true, provider: 'rosta', shop_id: p.shopId,
-      subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.rosta_item_id,
+      integration_address: key, subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.rosta_item_id,
       iiko_product_name: map.rosta_item_name, pos_order_id: order.orderId,
       status, auto_close: integ.auto_close, error: note,
     });

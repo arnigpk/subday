@@ -112,14 +112,15 @@ export async function cancelOrder(token: string, transactionId: string): Promise
  */
 export async function processPosterRedemption(
   supabase: SupabaseClient,
-  p: { redemptionId: string; shopId: string; subscriptionTypeId: string | null },
+  p: { redemptionId: string; shopId: string; address?: string | null; integrationAddress?: string | null; subscriptionTypeId: string | null },
 ): Promise<{ ok: boolean; status: string; skipped?: boolean; error?: string }> {
   try {
-    const { data: integ } = await supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle();
+    const key = p.integrationAddress ?? '';
+    const { data: integ } = await supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
 
     const { data: inserted, error: insErr } = await supabase.from('iiko_order_log')
-      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, subscription_type_id: p.subscriptionTypeId, provider: 'poster', status: 'pending', attempts: 0 })
+      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address ?? null, integration_address: key, subscription_type_id: p.subscriptionTypeId, provider: 'poster', status: 'pending', attempts: 0 })
       .select('id').maybeSingle();
     if (insErr || !inserted) return { ok: true, status: 'duplicate', skipped: true };
     return await runPosterOrder(supabase, inserted.id, 0);
@@ -143,18 +144,19 @@ export async function runPosterOrder(
   };
   try {
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('shop_id, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
+      .select('shop_id, integration_address, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
     if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
+    const key = log.integration_address ?? '';
 
     const { data: integ } = await supabase.from('poster_integrations')
-      .select('api_token, spot_id, currency, auto_close, is_active').eq('shop_id', log.shop_id).maybeSingle();
+      .select('api_token, spot_id, currency, auto_close, is_active').eq('shop_id', log.shop_id).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return await fail('Интеграция Poster выключена', false);
     if (!integ.spot_id) return await fail('Poster: не выбрана точка (spot)', false);
     if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
 
     const { data: map } = await supabase.from('poster_menu_map')
       .select('poster_product_id, poster_product_name, poster_price')
-      .eq('shop_id', log.shop_id).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
+      .eq('shop_id', log.shop_id).eq('address', key).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
     if (!map) return await fail('Тариф не привязан к позиции меню Poster', false);
     if (map.poster_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
@@ -192,17 +194,18 @@ export async function runPosterOrder(
 /** Тестовый заказ Poster (без списания). Пишет в журнал is_test=true, чтобы можно было отменить. */
 export async function createPosterTestOrder(
   supabase: SupabaseClient,
-  p: { shopId: string; subscriptionTypeId: string },
+  p: { shopId: string; subscriptionTypeId: string; integrationAddress?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const key = p.integrationAddress ?? '';
     const { data: integ } = await supabase.from('poster_integrations')
-      .select('shop_id, api_token, spot_id, currency, auto_close').eq('shop_id', p.shopId).maybeSingle();
+      .select('shop_id, api_token, spot_id, currency, auto_close').eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ) return { ok: false, error: 'Poster не подключён' };
     if (!integ.spot_id) return { ok: false, error: 'Не выбрана точка (spot)' };
 
     const { data: map } = await supabase.from('poster_menu_map')
       .select('poster_product_id, poster_product_name, poster_price')
-      .eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
+      .eq('shop_id', p.shopId).eq('address', key).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
     if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
     if (map.poster_price == null) return { ok: false, error: 'У позиции нет цены' };
 
@@ -213,7 +216,7 @@ export async function createPosterTestOrder(
 
     await supabase.from('iiko_order_log').insert({
       redemption_id: null, is_test: true, provider: 'poster', shop_id: p.shopId,
-      subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.poster_product_id,
+      integration_address: key, subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.poster_product_id,
       iiko_product_name: map.poster_product_name, pos_order_id: res.transactionId || null,
       status: 'created', auto_close: integ.auto_close,
     });

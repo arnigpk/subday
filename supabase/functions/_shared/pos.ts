@@ -13,23 +13,31 @@ export interface RedemptionParams {
   subscriptionTypeId: string | null;
 }
 
-/** Создать заказ у активного провайдера. Каждый вариант сам «скипает», если не активен. */
-export async function dispatchRedemptionOrder(supabase: SupabaseClient, p: RedemptionParams) {
-  const [{ data: poster }, { data: rosta }] = await Promise.all([
-    supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle(),
-    supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle(),
+/**
+ * Ключ интеграции для адреса: физический адрес, если для него есть СВОЯ интеграция
+ * (любого провайдера), иначе '' — дефолт кофейни (обслуживает адреса без своей интеграции).
+ */
+export async function resolveAddressKey(supabase: SupabaseClient, shopId: string, address: string | null): Promise<string> {
+  if (!address) return '';
+  const [ii, po, ro] = await Promise.all([
+    supabase.from('iiko_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
+    supabase.from('poster_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
+    supabase.from('rosta_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
   ]);
-  if (poster?.is_active) {
-    return processPosterRedemption(supabase, {
-      redemptionId: p.redemptionId, shopId: p.shopId, subscriptionTypeId: p.subscriptionTypeId,
-    });
-  }
-  if (rosta?.is_active) {
-    return processRostaRedemption(supabase, {
-      redemptionId: p.redemptionId, shopId: p.shopId, subscriptionTypeId: p.subscriptionTypeId,
-    });
-  }
-  return processRedemptionOrder(supabase, p); // iiko (внутри проверяет активность)
+  return (ii.data || po.data || ro.data) ? address : '';
+}
+
+/** Создать заказ у активного провайдера ДЛЯ АДРЕСА. Каждый вариант сам «скипает», если не активен. */
+export async function dispatchRedemptionOrder(supabase: SupabaseClient, p: RedemptionParams) {
+  const key = await resolveAddressKey(supabase, p.shopId, p.address);
+  const [{ data: poster }, { data: rosta }] = await Promise.all([
+    supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle(),
+    supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle(),
+  ]);
+  const base = { redemptionId: p.redemptionId, shopId: p.shopId, address: p.address, integrationAddress: key, subscriptionTypeId: p.subscriptionTypeId };
+  if (poster?.is_active) return processPosterRedemption(supabase, base);
+  if (rosta?.is_active) return processRostaRedemption(supabase, base);
+  return processRedemptionOrder(supabase, base); // iiko (внутри проверяет активность)
 }
 
 /**
@@ -65,12 +73,13 @@ export async function dueRetryLogIds(supabase: SupabaseClient, limit = 50): Prom
 /** Отмена заказа из журнала — по провайдеру строки. */
 export async function cancelPosOrder(
   supabase: SupabaseClient,
-  log: { provider?: string | null; shop_id: string; pos_order_id?: string | null; iiko_order_id?: string | null; organization_id?: string | null },
+  log: { provider?: string | null; shop_id: string; integration_address?: string | null; pos_order_id?: string | null; iiko_order_id?: string | null; organization_id?: string | null },
 ): Promise<{ ok: boolean; error?: string; note?: string }> {
+  const addrKey = log.integration_address ?? '';
   if (log.provider === 'poster') {
     if (!log.pos_order_id) return { ok: false, error: 'Заказ Poster ещё не создан — отменять нечего' };
     const { data: integ } = await supabase.from('poster_integrations')
-      .select('api_token').eq('shop_id', log.shop_id).maybeSingle();
+      .select('api_token').eq('shop_id', log.shop_id).eq('address', addrKey).maybeSingle();
     if (!integ?.api_token) return { ok: false, error: 'Нет токена Poster' };
     return posterCancel(integ.api_token, log.pos_order_id);
   }
@@ -81,7 +90,7 @@ export async function cancelPosOrder(
   if (!log.iiko_order_id || !log.organization_id) return { ok: false, error: 'Заказ iiko ещё не создан — отменять нечего' };
   const { data: integ } = await supabase.from('iiko_integrations')
     .select('shop_id, api_login, app_id, api_key, client_secret, access_token, token_expires_at')
-    .eq('shop_id', log.shop_id).maybeSingle();
+    .eq('shop_id', log.shop_id).eq('address', addrKey).maybeSingle();
   if (!integ) return { ok: false, error: 'Интеграция iiko не найдена' };
   const token = await getValidToken(supabase, integ);
   return iikoCancel(token, log.organization_id, log.iiko_order_id);

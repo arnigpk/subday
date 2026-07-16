@@ -14,7 +14,7 @@ interface OrderLog { id: string; status: string; iiko_product_name: string | nul
 const selectCls = 'w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground';
 const tg = (kopecks: number | null | undefined) => kopecks == null ? '' : `${(Number(kopecks) / 100).toLocaleString('ru')}₸`;
 
-export function PartnerPosterSection({ shopId }: { shopId: string }) {
+export function PartnerPosterSection({ shopId, address }: { shopId: string; address: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [integ, setInteg] = useState<any>(null);
@@ -32,22 +32,22 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [i, s, mm, ol] = await Promise.all([
-      supabase.from('poster_integrations').select('shop_id, account_name, spot_id, spot_name, currency, auto_close, is_active').eq('shop_id', shopId).maybeSingle(),
+      supabase.from('poster_integrations').select('shop_id, account_name, spot_id, spot_name, currency, auto_close, is_active').eq('shop_id', shopId).eq('address', address).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
-      supabase.from('poster_menu_map').select('*').eq('shop_id', shopId),
-      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id, auto_retry, attempts').eq('shop_id', shopId).eq('provider', 'poster').order('created_at', { ascending: false }).limit(30),
+      supabase.from('poster_menu_map').select('*').eq('shop_id', shopId).eq('address', address),
+      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id, auto_retry, attempts').eq('shop_id', shopId).eq('provider', 'poster').eq('integration_address', address).order('created_at', { ascending: false }).limit(30),
     ]);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
     const mmMap: Record<string, any> = {}; (mm.data || []).forEach((r: any) => { mmMap[r.subscription_type_id] = r; }); setMenuMap(mmMap);
     setOrderLog((ol.data as OrderLog[]) || []);
     setLoading(false);
-  }, [shopId]);
+  }, [shopId, address]);
 
   useEffect(() => { load(); }, [load]);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
-    const { data, error } = await supabase.functions.invoke('poster-connect', { body: { action, shopId, ...extra } });
+    const { data, error } = await supabase.functions.invoke('poster-connect', { body: { action, shopId, address, ...extra } });
     if (error) {
       let msg = error.message;
       try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ }
@@ -58,7 +58,7 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
   };
 
   const saveInteg = async (patch: Record<string, unknown>, label?: string) => {
-    const { error } = await supabase.from('poster_integrations').update({ ...patch, updated_at: new Date().toISOString() }).eq('shop_id', shopId);
+    const { error } = await supabase.from('poster_integrations').update({ ...patch, updated_at: new Date().toISOString() }).eq('shop_id', shopId).eq('address', address);
     if (error) { toast.error('Не сохранилось: ' + error.message); return false; }
     setInteg((p: any) => ({ ...p, ...patch }));
     if (label) toast.success(label);
@@ -92,8 +92,8 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
   };
 
   const pickProduct = async (subTypeId: string, p: Product) => {
-    const row = { shop_id: shopId, subscription_type_id: subTypeId, poster_product_id: p.id, poster_product_name: p.name, poster_price: p.price };
-    const { error } = await supabase.from('poster_menu_map').upsert(row, { onConflict: 'shop_id,subscription_type_id' });
+    const row = { shop_id: shopId, address, subscription_type_id: subTypeId, poster_product_id: p.id, poster_product_name: p.name, poster_price: p.price };
+    const { error } = await supabase.from('poster_menu_map').upsert(row, { onConflict: 'shop_id,address,subscription_type_id' });
     if (error) { toast.error(error.message); return; }
     setMenuMap(m => ({ ...m, [subTypeId]: row }));
     setPickerFor(null); setProductSearch('');
@@ -104,19 +104,19 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
     if (v) {
       if (!integ?.spot_id) { toast.error('Выберите точку'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
-      // 1 активная интеграция на партнёра — гасим iiko и Rosta.
-      await supabase.from('iiko_integrations').update({ is_active: false }).eq('shop_id', shopId);
-      await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId);
+      // 1 активная интеграция на АДРЕС — гасим iiko и Rosta этого адреса.
+      await supabase.from('iiko_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
+      await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
     }
-    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko и Rosta выключены)' : 'Poster выключен');
+    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko и Rosta адреса выключены)' : 'Poster выключен');
   };
 
   const disconnect = async () => {
     if (!confirm('Отключить интеграцию Poster? Настройки и привязки тарифов будут удалены.')) return;
     setBusy('disconnect');
     try {
-      await supabase.from('poster_menu_map').delete().eq('shop_id', shopId);
-      await supabase.from('poster_integrations').delete().eq('shop_id', shopId);
+      await supabase.from('poster_menu_map').delete().eq('shop_id', shopId).eq('address', address);
+      await supabase.from('poster_integrations').delete().eq('shop_id', shopId).eq('address', address);
       toast.success('Poster отключён');
       setInteg(null); setMenuMap({}); setSpots([]); setApiToken('');
       await load();
@@ -127,7 +127,7 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
     if (!testSubType) { toast.error('Выберите тариф для теста'); return; }
     setBusy('test');
     try {
-      const { data, error } = await supabase.functions.invoke('poster-connect', { body: { action: 'test_order', shopId, subscriptionTypeId: testSubType } });
+      const { data, error } = await supabase.functions.invoke('poster-connect', { body: { action: 'test_order', shopId, address, subscriptionTypeId: testSubType } });
       if (error) { let msg = error.message; try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ } throw new Error(msg); }
       if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу Poster (отменить — ниже)'); else toast.error(data?.error || 'Ошибка тестового заказа');
       await load();

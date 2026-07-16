@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, shopId } = body as { action: string; shopId: string };
     if (!shopId) return json({ error: 'shopId required' }, 400);
+    const address = ((body.address as string) ?? '') || ''; // '' = дефолт-интеграция кофейни (ключ интеграции)
 
     // Доступ: партнёр этой кофейни или админ/суперадмин.
     const [{ data: roles }] = await Promise.all([
@@ -47,8 +48,8 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('iiko_integrations')
-        .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at, menu_cache, menu_cached_at')
-        .eq('shop_id', shopId).maybeSingle();
+        .select('shop_id, address, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, access_token, token_expires_at, menu_cache, menu_cached_at')
+        .eq('shop_id', shopId).eq('address', address).maybeSingle();
       return data;
     };
 
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
       // сохраняем учётные данные + токен (интеграция пока не активна)
       await supabase.from('iiko_integrations').upsert({
         shop_id: shopId,
+        address,
         api_login: isV2 ? null : apiLogin,
         app_id: isV2 && appId ? appId : null,
         api_key: isV2 ? apiKey : null,
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
         access_token: iikoToken,
         token_expires_at: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'shop_id' });
+      }, { onConflict: 'shop_id,address' });
       return json({ success: true, organizations: orgs });
     }
 
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
           const products = await getProducts(iikoToken, orgId!, supabase);
           await supabase.from('iiko_integrations')
             .update({ menu_cache: products, menu_cached_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-            .eq('shop_id', shopId);
+            .eq('shop_id', shopId).eq('address', address);
           return json({ success: true, products });
         } catch (e) {
           // Рейтлимит/сбой, но есть прошлый кэш — отдаём его, чтобы не блокировать настройку.
@@ -122,7 +124,8 @@ Deno.serve(async (req) => {
         const r = await createTestOrder(supabase, {
           shopId,
           subscriptionTypeId: body.subscriptionTypeId as string,
-          address: (body.address as string) || null,
+          integrationAddress: address,
+          address: (body.testAddress as string) || address || null,
         });
         return json(r, r.ok ? 200 : 400);
       }
