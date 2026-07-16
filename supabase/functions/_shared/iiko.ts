@@ -156,12 +156,21 @@ export async function getOrderTypes(token: string, organizationId: string) {
 export async function getProducts(token: string, organizationId: string, supabase?: SupabaseClient) {
   // 1) Внешние меню организации. Список (/api/2/menu) из Deno проходит нормально.
   try {
-    const menus = await iikoPost<{ externalMenus?: Array<{ id: string; name: string }> }>(
+    const menus = await iikoPost<{ externalMenus?: Array<{ id: string; name: string }>; priceCategories?: Array<{ id: string; name: string }> }>(
       token, '/api/2/menu', { organizationIds: [organizationId] },
     );
     const list = menus.externalMenus || [];
     if (list.length > 0) {
       const menuId = String(list[0].id); // если меню несколько — берём первое
+      // Если у меню заданы категории цен — by_id ТРЕБУЕТ priceCategoryId, иначе iiko
+      // отвечает 400 "Price category id is not correct" (EXTERNAL_MENU_DATA_MISSED).
+      // Берём базовую (первую) категорию.
+      const priceCategoryId = menus.priceCategories?.[0]?.id;
+      const byIdBody = {
+        externalMenuId: menuId,
+        organizationIds: [organizationId],
+        ...(priceCategoryId ? { priceCategoryId } : {}),
+      };
 
       // ВАЖНО: /api/2/menu/by_id спрятан за QRATOR, который блокирует TLS-отпечаток
       // Deno-fetch (возвращает HTML-500). Тянем через pg_net (libcurl) — RPC
@@ -172,7 +181,7 @@ export async function getProducts(token: string, organizationId: string, supabas
         const { data: reqId, error: startErr } = await supabase.rpc('iiko_http_post_start', {
           _url: `${IIKO_BASE}/api/2/menu/by_id`,
           _headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          _body: { externalMenuId: menuId, organizationIds: [organizationId] },
+          _body: byIdBody,
         });
         if (startErr || reqId == null) throw new IikoError('Не удалось запросить меню iiko', 502);
 
@@ -192,7 +201,7 @@ export async function getProducts(token: string, organizationId: string, supabas
         }
         menu = JSON.parse(row.content);
       } else {
-        menu = await iikoPost(token, '/api/2/menu/by_id', { externalMenuId: menuId, organizationIds: [organizationId] });
+        menu = await iikoPost(token, '/api/2/menu/by_id', byIdBody);
       }
 
       const out: Array<{ id: string; name: string; price: number | null }> = [];
