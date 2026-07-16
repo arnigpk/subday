@@ -3,7 +3,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { IikoError } from '../_shared/iiko.ts';
-import { dispatchRedemptionOrder, cancelPosOrder } from '../_shared/pos.ts';
+import { retryPosOrder, cancelPosOrder } from '../_shared/pos.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,12 +41,10 @@ Deno.serve(async (req) => {
     if (!ok) return json({ error: 'Нет доступа' }, 403);
 
     if (action === 'retry') {
-      if (!log.redemption_id) return json({ error: 'Нет привязки к списанию' }, 400);
-      // сносим прошлую (неудавшуюся) строку, чтобы идемпотентность не заблокировала повтор
-      await supabase.from('iiko_order_log').delete().eq('id', logId);
-      const res = await dispatchRedemptionOrder(supabase, {
-        redemptionId: log.redemption_id, shopId: log.shop_id, address: log.address, subscriptionTypeId: log.subscription_type_id,
-      });
+      // Безопасный повтор: атомарный захват строки + ядро провайдера (не пересоздаёт
+      // уже созданный заказ). Кнопка сбрасывает лимит и заново включает авто-ретрай.
+      const res = await retryPosOrder(supabase, logId, true);
+      if (res.skipped) return json({ error: res.error || 'Повтор недоступен' }, 409);
       return json({ success: res.ok, status: res.status, error: res.error });
     }
 

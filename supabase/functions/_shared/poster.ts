@@ -2,6 +2,7 @@
 // Авторизация — токен партнёра в query (?token=account:hash). Цены в КОПЕЙКАХ.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { failFields, successFields } from './posRetry.ts';
 
 export const POSTER_BASE = 'https://joinposter.com/api';
 
@@ -114,56 +115,77 @@ export async function processPosterRedemption(
   p: { redemptionId: string; shopId: string; subscriptionTypeId: string | null },
 ): Promise<{ ok: boolean; status: string; skipped?: boolean; error?: string }> {
   try {
-    const { data: integ } = await supabase.from('poster_integrations')
-      .select('shop_id, api_token, spot_id, currency, auto_close, is_active')
-      .eq('shop_id', p.shopId).maybeSingle();
+    const { data: integ } = await supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
 
-    // Идемпотентность (общий журнал).
     const { data: inserted, error: insErr } = await supabase.from('iiko_order_log')
-      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, subscription_type_id: p.subscriptionTypeId, provider: 'poster', status: 'pending' })
+      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, subscription_type_id: p.subscriptionTypeId, provider: 'poster', status: 'pending', attempts: 0 })
       .select('id').maybeSingle();
     if (insErr || !inserted) return { ok: true, status: 'duplicate', skipped: true };
-    const logId = inserted.id;
-    const fail = async (error: string) => {
-      await supabase.from('iiko_order_log').update({ status: 'failed', error, updated_at: new Date().toISOString() }).eq('id', logId);
-      return { ok: false, status: 'failed', error };
-    };
+    return await runPosterOrder(supabase, inserted.id, 0);
+  } catch (e) {
+    return { ok: false, status: 'failed', error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
-    if (!integ.spot_id) return await fail('Poster: не выбрана точка (spot)');
-    if (!p.subscriptionTypeId) return await fail('Не определён тариф списания');
+/**
+ * Ядро создания заказа Poster по строке журнала (первая попытка ИЛИ ретрай).
+ * Защита от дубля: если pos_order_id уже записан — заказ создан, повторно НЕ создаём.
+ * Сбой создания с ответом Poster (PosterError) — заказ точно не создан → авто-ретрай можно;
+ * сетевой/неоднозначный сбой — авто-ретрай снимаем (остаётся ручная кнопка). Никогда не бросает.
+ */
+export async function runPosterOrder(
+  supabase: SupabaseClient, logId: string, attempts: number,
+): Promise<{ ok: boolean; status: string; error?: string }> {
+  const fail = async (error: string, autoRetry = true) => {
+    await supabase.from('iiko_order_log').update(failFields(attempts, autoRetry, error)).eq('id', logId);
+    return { ok: false, status: 'failed', error };
+  };
+  try {
+    const { data: log } = await supabase.from('iiko_order_log')
+      .select('shop_id, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
+    if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
+
+    const { data: integ } = await supabase.from('poster_integrations')
+      .select('api_token, spot_id, currency, auto_close, is_active').eq('shop_id', log.shop_id).maybeSingle();
+    if (!integ || !integ.is_active) return await fail('Интеграция Poster выключена', false);
+    if (!integ.spot_id) return await fail('Poster: не выбрана точка (spot)', false);
+    if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
 
     const { data: map } = await supabase.from('poster_menu_map')
       .select('poster_product_id, poster_product_name, poster_price')
-      .eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
-    if (!map) return await fail('Тариф не привязан к позиции меню Poster');
-    if (map.poster_price == null) return await fail('У позиции нет цены — перепривяжите тариф');
+      .eq('shop_id', log.shop_id).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
+    if (!map) return await fail('Тариф не привязан к позиции меню Poster', false);
+    if (map.poster_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
-    const res = await createOrder(integ.api_token, {
-      spotId: integ.spot_id,
-      productId: map.poster_product_id,
-      priceKopecks: Number(map.poster_price),
-      currency: integ.currency || 'KZT',
-      autoClose: integ.auto_close,
-    });
+    // ЗАЩИТА ОТ ДУБЛЯ: заказ уже создавался ранее — второй раз не отправляем.
+    if (log.pos_order_id) {
+      await supabase.from('iiko_order_log').update(successFields({
+        status: 'created', iiko_product_id: map.poster_product_id, iiko_product_name: map.poster_product_name, auto_close: integ.auto_close,
+      })).eq('id', logId);
+      return { ok: true, status: 'created' };
+    }
 
-    await supabase.from('iiko_order_log').update({
-      status: 'created',
-      pos_order_id: res.transactionId || null,
-      iiko_product_id: map.poster_product_id,
-      iiko_product_name: map.poster_product_name,
-      auto_close: integ.auto_close,
-      updated_at: new Date().toISOString(),
-    }).eq('id', logId);
+    let res: { incomingOrderId?: string; transactionId?: string; status?: number };
+    try {
+      res = await createOrder(integ.api_token, {
+        spotId: integ.spot_id, productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
+        currency: integ.currency || 'KZT', autoClose: integ.auto_close,
+      });
+    } catch (e) {
+      // PosterError = Poster ответил ошибкой (заказ НЕ создан) → авто-ретрай безопасен.
+      // Иначе (сеть/таймаут) исход неоднозначен → снимаем авто-ретрай.
+      const apiRejected = e instanceof PosterError;
+      return await fail(e instanceof Error ? e.message : String(e), apiRejected);
+    }
 
+    await supabase.from('iiko_order_log').update(successFields({
+      status: 'created', pos_order_id: res.transactionId || null,
+      iiko_product_id: map.poster_product_id, iiko_product_name: map.poster_product_name, auto_close: integ.auto_close,
+    })).eq('id', logId);
     return { ok: true, status: 'created' };
   } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    try {
-      await supabase.from('iiko_order_log').update({ status: 'failed', error, updated_at: new Date().toISOString() })
-        .eq('redemption_id', p.redemptionId).eq('provider', 'poster').eq('status', 'pending');
-    } catch { /* ignore */ }
-    return { ok: false, status: 'failed', error };
+    return await fail(e instanceof Error ? e.message : String(e), false);
   }
 }
 

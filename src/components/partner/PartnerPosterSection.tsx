@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Loader2, MapPin, ListChecks, Trash2, XCircle, CheckCircle2, Search } from 'lucide-react';
+import { Loader2, MapPin, ListChecks, Trash2, XCircle, CheckCircle2, Search, RefreshCw } from 'lucide-react';
 
 interface Spot { id: string; name: string; address?: string }
 interface Product { id: string; name: string; price: number | null } // price в копейках
 interface SubType { id: string; name: string; type: string }
-interface OrderLog { id: string; status: string; iiko_product_name: string | null; error: string | null; created_at: string; is_test?: boolean; pos_order_id?: string | null }
+interface OrderLog { id: string; status: string; iiko_product_name: string | null; error: string | null; created_at: string; is_test?: boolean; pos_order_id?: string | null; auto_retry?: boolean; attempts?: number }
 
 const selectCls = 'w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground';
 const tg = (kopecks: number | null | undefined) => kopecks == null ? '' : `${(Number(kopecks) / 100).toLocaleString('ru')}₸`;
@@ -35,7 +35,7 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
       supabase.from('poster_integrations').select('shop_id, account_name, spot_id, spot_name, currency, auto_close, is_active').eq('shop_id', shopId).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
       supabase.from('poster_menu_map').select('*').eq('shop_id', shopId),
-      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id').eq('shop_id', shopId).eq('provider', 'poster').order('created_at', { ascending: false }).limit(30),
+      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id, auto_retry, attempts').eq('shop_id', shopId).eq('provider', 'poster').order('created_at', { ascending: false }).limit(30),
     ]);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
@@ -134,12 +134,16 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
 
-  const orderAction = async (logId: string, action: 'cancel') => {
-    setBusy(action + logId);
+  const orderAction = async (o: OrderLog, action: 'retry' | 'cancel') => {
+    if (action === 'retry' && o.auto_retry === false &&
+      !confirm('Этот заказ мог уже уйти на кассу (обрыв связи при отправке). Проверьте кассу — если чека там нет, повторите. Иначе возможен повторный чек.\n\nВсё равно повторить?')) return;
+    setBusy(action + o.id);
     try {
-      const { data, error } = await supabase.functions.invoke('iiko-order', { body: { action, logId } });
+      const { data, error } = await supabase.functions.invoke('iiko-order', { body: { action, logId: o.id } });
       if (error || data?.error) throw new Error(data?.error || error?.message);
-      toast.success(data?.note || 'Заказ отменён');
+      toast.success(action === 'retry'
+        ? ((data?.status === 'created' || data?.status === 'closed') ? 'Заказ создан ✓' : `Статус: ${data?.status || '—'}`)
+        : (data?.note || 'Заказ отменён'));
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
@@ -275,7 +279,8 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
                     </p>
                     <p className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString('ru')}{o.error ? ` · ${o.error}` : ''}</p>
                   </div>
-                  {(o.status === 'created' || o.status === 'closed') && <Button size="sm" variant="ghost" onClick={() => orderAction(o.id, 'cancel')} disabled={busy === 'cancel' + o.id} title="Отменить"><XCircle size={15} /></Button>}
+                  {o.status === 'failed' && !o.is_test && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'retry')} disabled={busy === 'retry' + o.id} title="Повторить"><RefreshCw size={15} /></Button>}
+                  {(o.status === 'created' || o.status === 'closed') && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'cancel')} disabled={busy === 'cancel' + o.id} title="Отменить"><XCircle size={15} /></Button>}
                 </div>
               ))}
             </section>

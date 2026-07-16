@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Loader2, MapPin, CreditCard, ListChecks, Trash2, CheckCircle2, Search, User } from 'lucide-react';
+import { Loader2, MapPin, CreditCard, ListChecks, Trash2, CheckCircle2, Search, User, RefreshCw } from 'lucide-react';
 
 interface Tradepoint { id: string; name: string }
 interface Cashbox { id: string; name: string; tradepointId?: string | null }
@@ -13,7 +13,7 @@ interface FrontUser { id: string; name: string }
 interface PriceType { id: string; name: string }
 interface Item { id: string; name: string; price: number | null } // цена в тенге
 interface SubType { id: string; name: string; type: string }
-interface OrderLog { id: string; status: string; iiko_product_name: string | null; error: string | null; created_at: string; is_test?: boolean; pos_order_id?: string | null }
+interface OrderLog { id: string; status: string; iiko_product_name: string | null; error: string | null; created_at: string; is_test?: boolean; pos_order_id?: string | null; auto_retry?: boolean; attempts?: number }
 
 const selectCls = 'w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground';
 const tg = (t: number | null | undefined) => t == null ? '' : `${Number(t).toLocaleString('ru')}₸`;
@@ -43,7 +43,7 @@ export function PartnerRostaSection({ shopId }: { shopId: string }) {
       supabase.from('rosta_integrations').select('shop_id, tradepoint_id, tradepoint_name, cashbox_id, cashbox_name, payment_method_id, payment_method_name, user_id, user_name, price_type_id, price_type_name, auto_open_shift, currency, auto_close, is_active').eq('shop_id', shopId).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
       supabase.from('rosta_menu_map').select('*').eq('shop_id', shopId),
-      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id').eq('shop_id', shopId).eq('provider', 'rosta').order('created_at', { ascending: false }).limit(30),
+      supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id, auto_retry, attempts').eq('shop_id', shopId).eq('provider', 'rosta').order('created_at', { ascending: false }).limit(30),
     ]);
     setInteg(i.data);
     setSubTypes((s.data as SubType[]) || []);
@@ -158,6 +158,18 @@ export function PartnerRostaSection({ shopId }: { shopId: string }) {
       const { data, error } = await supabase.functions.invoke('rosta-connect', { body: { action: 'test_order', shopId, subscriptionTypeId: testSubType } });
       if (error) { let msg = error.message; try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ } throw new Error(msg); }
       if (data?.ok) toast.success('Тестовый заказ отправлен ✓ Проверьте кассу Rosta'); else toast.error(data?.error || 'Ошибка тестового заказа');
+      await load();
+    } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
+  };
+
+  const orderAction = async (o: OrderLog, action: 'retry') => {
+    if (o.auto_retry === false &&
+      !confirm('Этот чек мог уже уйти на кассу (обрыв связи при отправке). Проверьте кассу — если чека там нет, повторите. Иначе возможен повторный чек.\n\nВсё равно повторить?')) return;
+    setBusy(action + o.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('iiko-order', { body: { action, logId: o.id } });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast.success((data?.status === 'created' || data?.status === 'closed') ? 'Чек создан ✓' : `Статус: ${data?.status || '—'}`);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
   };
@@ -345,7 +357,7 @@ export function PartnerRostaSection({ shopId }: { shopId: string }) {
           {orderLog.length > 0 && (
             <section className="rounded-2xl border border-border bg-card p-4 space-y-2">
               <h3 className="font-semibold text-foreground">Заказы Rosta</h3>
-              <p className="text-[11px] text-muted-foreground">Отмена чека в Rosta делается вручную на кассе (публичный API отмену не поддерживает).</p>
+              <p className="text-[11px] text-muted-foreground">Упавшие заказы повторяются автоматически (раз в минуту, до 5 раз), затем — кнопкой ↻. Отмена чека — вручную на кассе (публичный API Rosta отмену не поддерживает).</p>
               {orderLog.map(o => (
                 <div key={o.id} className="flex items-center gap-2 text-sm border-b border-border/50 py-2 last:border-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${o.status === 'created' || o.status === 'closed' ? 'bg-accent' : o.status === 'failed' ? 'bg-destructive' : o.status === 'cancelled' ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
@@ -356,6 +368,7 @@ export function PartnerRostaSection({ shopId }: { shopId: string }) {
                     </p>
                     <p className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString('ru')}{o.error ? ` · ${o.error}` : ''}</p>
                   </div>
+                  {o.status === 'failed' && !o.is_test && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'retry')} disabled={busy === 'retry' + o.id} title="Повторить"><RefreshCw size={15} /></Button>}
                 </div>
               ))}
             </section>

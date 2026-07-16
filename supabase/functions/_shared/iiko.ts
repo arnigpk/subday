@@ -6,6 +6,7 @@
 // Все такие места помечены комментарием PILOT.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { failFields, successFields } from './posRetry.ts';
 
 export const IIKO_BASE = 'https://api-ru.iiko.services';
 
@@ -236,7 +237,8 @@ export interface CreateOrderArgs {
   autoClose: boolean;          // true — оплата обработана (сумма=итог) ⇒ заказ закрывается
   fiscalizeExternally?: boolean; // помечать чек фискализированным извне
   endpoint?: OrderEndpoint;    // 'order' (касса) | 'delivery' (доставка/самовывоз)
-  externalNumber?: string;     // идемпотентность/связка (redemption_id)
+  externalNumber?: string;     // связка (redemption_id) — номер для персонала
+  orderId?: string;            // СТАБИЛЬНЫЙ GUID заказа = redemption_id → iiko сам отсекает дубль при ретрае
 }
 
 /**
@@ -261,6 +263,7 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
       organizationId: a.organizationId,
       terminalGroupId: a.terminalGroupId,
       order: {
+        ...(a.orderId ? { id: a.orderId } : {}),
         ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
         // iiko: НЕЛЬЗЯ слать оба — только orderTypeId ИЛИ orderServiceType.
         // Если партнёр выбрал тип заказа — шлём его; иначе самовывоз DeliveryByClient
@@ -280,6 +283,7 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
     organizationId: a.organizationId,
     terminalGroupId: a.terminalGroupId,
     order: {
+      ...(a.orderId ? { id: a.orderId } : {}),
       ...(a.externalNumber ? { externalNumber: a.externalNumber } : {}),
       ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : {}),
       items,
@@ -292,110 +296,130 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
 
 /**
  * Создать заказ iiko по факту списания (идемпотентно по redemption_id).
- * Никогда не бросает — возвращает результат; вызывающий не должен падать из-за iiko.
+ * Первая попытка: столбим строку журнала и запускаем ядро runIikoOrder.
+ * Никогда не бросает.
  */
 export async function processRedemptionOrder(
   supabase: SupabaseClient,
   p: { redemptionId: string; shopId: string; address: string | null; subscriptionTypeId: string | null },
 ): Promise<{ ok: boolean; status: string; skipped?: boolean; error?: string }> {
   try {
-    // 1) Интеграция активна?
-    const { data: integ } = await supabase
-      .from('iiko_integrations')
-      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally, access_token, token_expires_at')
-      .eq('shop_id', p.shopId)
-      .maybeSingle();
+    const { data: integ } = await supabase.from('iiko_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle();
     if (!integ || !integ.is_active) return { ok: true, status: 'skipped', skipped: true };
 
-    // 2) Идемпотентность: пытаемся застолбить строку журнала на это списание.
+    // Идемпотентность: одна строка на списание (UNIQUE redemption_id).
     const { data: inserted, error: insErr } = await supabase
       .from('iiko_order_log')
-      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address, subscription_type_id: p.subscriptionTypeId, status: 'pending', organization_id: integ.organization_id })
+      .insert({ redemption_id: p.redemptionId, shop_id: p.shopId, address: p.address, subscription_type_id: p.subscriptionTypeId, status: 'pending', attempts: 0 })
       .select('id')
       .maybeSingle();
-    if (insErr || !inserted) {
-      // Уже есть строка на это списание (дубль скан/ретрай) — не создаём второй заказ.
-      return { ok: true, status: 'duplicate', skipped: true };
-    }
-    const logId = inserted.id;
-    const fail = async (error: string) => {
-      await supabase.from('iiko_order_log').update({ status: 'failed', error, updated_at: new Date().toISOString() }).eq('id', logId);
-      return { ok: false, status: 'failed', error };
-    };
+    if (insErr || !inserted) return { ok: true, status: 'duplicate', skipped: true }; // дубль скана — второй заказ не создаём
+    return await runIikoOrder(supabase, inserted.id, 0);
+  } catch (e) {
+    return { ok: false, status: 'failed', error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
-    if (!integ.organization_id || !integ.payment_type_id) return await fail('Интеграция не настроена (организация/оплата)');
+/**
+ * Ядро создания заказа iiko по существующей строке журнала (первая попытка ИЛИ ретрай).
+ * Идемпотентность двойной защитой: (1) если iiko_order_id уже записан — заказ создан,
+ * повторно НЕ создаём; (2) передаём стабильный order.id = redemption_id, и iiko сам
+ * отсекает дубль (ошибку «already exists» трактуем как успех). Никогда не бросает.
+ */
+export async function runIikoOrder(
+  supabase: SupabaseClient, logId: string, attempts: number,
+): Promise<{ ok: boolean; status: string; error?: string }> {
+  const fail = async (error: string, autoRetry = true) => {
+    await supabase.from('iiko_order_log').update(failFields(attempts, autoRetry, error)).eq('id', logId);
+    return { ok: false, status: 'failed', error };
+  };
+  try {
+    const { data: log } = await supabase.from('iiko_order_log')
+      .select('redemption_id, shop_id, address, subscription_type_id, iiko_order_id').eq('id', logId).maybeSingle();
+    if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
 
-    // 3) Касса по адресу
+    const { data: integ } = await supabase.from('iiko_integrations')
+      .select('shop_id, api_login, app_id, api_key, client_secret, organization_id, payment_type_id, payment_type_kind, auto_close, is_active, order_endpoint, fiscalize_externally, access_token, token_expires_at')
+      .eq('shop_id', log.shop_id).maybeSingle();
+    if (!integ || !integ.is_active) return await fail('Интеграция iiko выключена', false);
+    if (!integ.organization_id || !integ.payment_type_id) return await fail('Интеграция не настроена (организация/оплата)', false);
+
+    // Касса по адресу (или единственная).
     let term: { terminal_group_id: string; order_type_id: string | null; auto_close: boolean | null } | null = null;
-    if (p.address) {
-      const { data } = await supabase.from('iiko_terminals')
-        .select('terminal_group_id, order_type_id, auto_close')
-        .eq('shop_id', p.shopId).eq('address', p.address).maybeSingle();
+    if (log.address) {
+      const { data } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close')
+        .eq('shop_id', log.shop_id).eq('address', log.address).maybeSingle();
       term = data;
     }
     if (!term) {
-      // одна касса на кофейню — берём единственную
-      const { data: all } = await supabase.from('iiko_terminals')
-        .select('terminal_group_id, order_type_id, auto_close').eq('shop_id', p.shopId);
+      const { data: all } = await supabase.from('iiko_terminals').select('terminal_group_id, order_type_id, auto_close').eq('shop_id', log.shop_id);
       if (all && all.length === 1) term = all[0];
     }
-    if (!term) return await fail('Не найдена касса для адреса');
+    if (!term) return await fail('Не найдена касса для адреса', false);
 
-    // 4) Позиция меню по тарифу
-    if (!p.subscriptionTypeId) return await fail('Не определён тариф списания');
-    const { data: map } = await supabase.from('iiko_menu_map')
-      .select('iiko_product_id, iiko_product_name, iiko_price')
-      .eq('shop_id', p.shopId).eq('subscription_type_id', p.subscriptionTypeId).maybeSingle();
-    if (!map) return await fail('Тариф не привязан к позиции меню');
-    if (map.iiko_price == null) return await fail('У позиции нет цены — перепривяжите тариф');
+    if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
+    const { data: map } = await supabase.from('iiko_menu_map').select('iiko_product_id, iiko_product_name, iiko_price')
+      .eq('shop_id', log.shop_id).eq('subscription_type_id', log.subscription_type_id).maybeSingle();
+    if (!map) return await fail('Тариф не привязан к позиции меню', false);
+    if (map.iiko_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
-    // 5) Токен + создание заказа
     const token = await getValidToken(supabase, integ);
     const autoClose = term.auto_close ?? integ.auto_close;
-    const res = await createOrder(token, {
-      organizationId: integ.organization_id,
-      terminalGroupId: term.terminal_group_id,
-      orderTypeId: term.order_type_id,
-      productId: map.iiko_product_id,
-      price: Number(map.iiko_price),
-      paymentTypeId: integ.payment_type_id,
-      paymentTypeKind: integ.payment_type_kind || 'Card',
-      autoClose,
-      fiscalizeExternally: !!integ.fiscalize_externally,
-      endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
-      externalNumber: p.redemptionId,
-    });
 
-    // Дожидаемся реального результата создания (async на кассе) — иначе ошибки
-    // (напр. неверный тип заказа/стоп-лист) остаются невидимыми.
+    // Стабильный GUID заказа = redemption_id → защита от дубля на кассе при ретрае.
+    const stableId = log.redemption_id || undefined;
+    let res: { correlationId?: string; orderId?: string };
+    try {
+      res = await createOrder(token, {
+        organizationId: integ.organization_id,
+        terminalGroupId: term.terminal_group_id,
+        orderTypeId: term.order_type_id,
+        productId: map.iiko_product_id,
+        price: Number(map.iiko_price),
+        paymentTypeId: integ.payment_type_id,
+        paymentTypeKind: integ.payment_type_kind || 'Card',
+        autoClose,
+        fiscalizeExternally: !!integ.fiscalize_externally,
+        endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
+        externalNumber: log.redemption_id || undefined,
+        orderId: stableId,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // iiko уже создал этот заказ (тот же order.id) — дубль отсечён, считаем успехом.
+      if (/already.*exist|уже.*существ/i.test(msg)) {
+        await supabase.from('iiko_order_log').update(successFields({
+          status: 'created', iiko_order_id: log.iiko_order_id, terminal_group_id: term.terminal_group_id,
+          iiko_product_id: map.iiko_product_id, iiko_product_name: map.iiko_product_name, auto_close: autoClose,
+        })).eq('id', logId);
+        return { ok: true, status: 'created' };
+      }
+      return await fail(friendlyIiko(msg));
+    }
+
     const result = res.correlationId
       ? await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId)
       : { ok: true } as { ok: boolean; pending?: boolean; error?: string };
 
+    if (result.ok || result.pending) {
+      await supabase.from('iiko_order_log').update(successFields({
+        status: 'created', correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
+        terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
+        iiko_product_name: map.iiko_product_name, auto_close: autoClose,
+      })).eq('id', logId);
+      return { ok: true, status: 'created' };
+    }
+    // Заказ ушёл в iiko, но подтверждён ошибкой (стоп-лист и т.п.). iiko_order_id пишем —
+    // при ретрае с тем же order.id iiko отсечёт дубль.
     await supabase.from('iiko_order_log').update({
-      status: result.ok || result.pending ? 'created' : 'failed',
-      correlation_id: res.correlationId || null,
-      iiko_order_id: res.orderId || null,
-      terminal_group_id: term.terminal_group_id,
-      iiko_product_id: map.iiko_product_id,
-      iiko_product_name: map.iiko_product_name,
-      auto_close: autoClose,
-      error: result.ok ? null : (result.error || null),
-      updated_at: new Date().toISOString(),
+      ...failFields(attempts, true, result.error || 'iiko отклонил заказ'),
+      correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
+      terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
+      iiko_product_name: map.iiko_product_name, auto_close: autoClose,
     }).eq('id', logId);
-
-    return result.ok || result.pending
-      ? { ok: true, status: 'created' }
-      : { ok: false, status: 'failed', error: result.error };
+    return { ok: false, status: 'failed', error: result.error };
   } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    // мягкая пометка последней pending-строки как failed
-    try {
-      await supabase.from('iiko_order_log')
-        .update({ status: 'failed', error, updated_at: new Date().toISOString() })
-        .eq('redemption_id', p.redemptionId).eq('status', 'pending');
-    } catch { /* ignore */ }
-    return { ok: false, status: 'failed', error };
+    return await fail(e instanceof Error ? e.message : String(e));
   }
 }
 

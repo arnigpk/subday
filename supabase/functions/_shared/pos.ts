@@ -2,9 +2,9 @@
 // Скан и отмена ходят сюда, а дальше — в нужного провайдера.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { processRedemptionOrder, getValidToken, cancelOrder as iikoCancel } from './iiko.ts';
-import { processPosterRedemption, cancelOrder as posterCancel } from './poster.ts';
-import { processRostaRedemption, cancelOrder as rostaCancel } from './rosta.ts';
+import { processRedemptionOrder, runIikoOrder, getValidToken, cancelOrder as iikoCancel } from './iiko.ts';
+import { processPosterRedemption, runPosterOrder, cancelOrder as posterCancel } from './poster.ts';
+import { processRostaRedemption, runRostaOrder, cancelOrder as rostaCancel } from './rosta.ts';
 
 export interface RedemptionParams {
   redemptionId: string;
@@ -30,6 +30,36 @@ export async function dispatchRedemptionOrder(supabase: SupabaseClient, p: Redem
     });
   }
   return processRedemptionOrder(supabase, p); // iiko (внутри проверяет активность)
+}
+
+/**
+ * Ретрай одного заказа из журнала (крон ИЛИ ручная кнопка).
+ * Сначала АТОМАРНО захватываем строку (failed→pending) через claim_pos_order_retry —
+ * это исключает двойную отправку при гонках. Затем запускаем ядро нужного провайдера,
+ * которое само не пересоздаёт уже созданный заказ (защита по pos_order_id / order.id).
+ */
+export async function retryPosOrder(
+  supabase: SupabaseClient, logId: string, manual: boolean,
+): Promise<{ ok: boolean; status: string; error?: string; skipped?: boolean }> {
+  const { data: claimed } = await supabase.rpc('claim_pos_order_retry', { _id: logId, _manual: manual });
+  const row = Array.isArray(claimed) ? claimed[0] : claimed;
+  if (!row) return { ok: false, status: 'skipped', skipped: true, error: 'Строка недоступна для ретрая (уже создан/в работе/исчерпан лимит)' };
+  const attempts: number = row.attempts ?? 0;
+  if (row.provider === 'poster') return runPosterOrder(supabase, logId, attempts);
+  if (row.provider === 'rosta') return runRostaOrder(supabase, logId, attempts);
+  return runIikoOrder(supabase, logId, attempts);
+}
+
+/** Список заказов, которым пора авто-ретрай (для крона). */
+export async function dueRetryLogIds(supabase: SupabaseClient, limit = 50): Promise<string[]> {
+  const nowIso = new Date().toISOString();
+  const { data } = await supabase.from('iiko_order_log')
+    .select('id, next_retry_at')
+    .eq('status', 'failed').eq('auto_retry', true).eq('is_test', false).lt('attempts', 5)
+    .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
+    .order('next_retry_at', { ascending: true, nullsFirst: true })
+    .limit(limit);
+  return (data || []).map((r: { id: string }) => r.id);
 }
 
 /** Отмена заказа из журнала — по провайдеру строки. */
