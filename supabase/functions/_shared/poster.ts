@@ -75,22 +75,30 @@ export interface PosterOrderArgs {
 }
 
 /** Создать онлайн-заказ в Poster (падает на терминал точки). */
-export async function createOrder(token: string, a: PosterOrderArgs): Promise<{ incomingOrderId?: string; status?: number }> {
+export async function createOrder(token: string, a: PosterOrderArgs): Promise<{ incomingOrderId?: string; transactionId?: string; status?: number }> {
   const body: Record<string, unknown> = {
     spot_id: a.spotId,
-    phone: a.phone || '+70000000000',
+    // Poster требует ВАЛИДНЫЙ телефон (нулевой префикс отвергает). Плейсхолдер выноса.
+    phone: a.phone || '+77770000000',
     products: [{ product_id: a.productId, count: 1, price: a.priceKopecks }],
   };
   // Предоплата (заказ закрыт). Без автозакрытия — payment не передаём (кассир закроет).
   if (a.autoClose) body.payment = { type: 1, sum: a.priceKopecks, currency: a.currency };
-  const res = await posterPost<{ incoming_order_id?: string | number; status?: number }>(token, 'incomingOrders.createIncomingOrder', body);
-  return { incomingOrderId: res?.incoming_order_id != null ? String(res.incoming_order_id) : undefined, status: res?.status };
+  const res = await posterPost<{ incoming_order_id?: string | number; transaction_id?: string | number; status?: number }>(token, 'incomingOrders.createIncomingOrder', body);
+  return {
+    incomingOrderId: res?.incoming_order_id != null ? String(res.incoming_order_id) : undefined,
+    transactionId: res?.transaction_id != null ? String(res.transaction_id) : undefined,
+    status: res?.status,
+  };
 }
 
-/** Отмена онлайн-заказа (статус 7 = отменён) → уходит с терминала. */
-export async function cancelOrder(token: string, incomingOrderId: string): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Отмена заказа = удаление ТРАНЗАКЦИИ (transactions.removeTransaction) → уходит с кассы.
+ * (changeIncomingOrderStatus нашему приложению недоступен — «Method Not Allowed».)
+ */
+export async function cancelOrder(token: string, transactionId: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    await posterPost(token, 'incomingOrders.changeIncomingOrderStatus', { incoming_order_id: incomingOrderId, status: 7 });
+    await posterPost(token, 'transactions.removeTransaction', { transaction_id: transactionId });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -141,7 +149,7 @@ export async function processPosterRedemption(
 
     await supabase.from('iiko_order_log').update({
       status: 'created',
-      pos_order_id: res.incomingOrderId || null,
+      pos_order_id: res.transactionId || null,
       iiko_product_id: map.poster_product_id,
       iiko_product_name: map.poster_product_name,
       auto_close: integ.auto_close,
@@ -184,7 +192,7 @@ export async function createPosterTestOrder(
     await supabase.from('iiko_order_log').insert({
       redemption_id: null, is_test: true, provider: 'poster', shop_id: p.shopId,
       subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.poster_product_id,
-      iiko_product_name: map.poster_product_name, pos_order_id: res.incomingOrderId || null,
+      iiko_product_name: map.poster_product_name, pos_order_id: res.transactionId || null,
       status: 'created', auto_close: integ.auto_close,
     });
     return { ok: true };
