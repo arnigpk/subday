@@ -165,6 +165,8 @@ export type Database = {
           status: string
           auto_close: boolean | null
           is_test: boolean
+          provider: string
+          pos_order_id: string | null
           error: string | null
           created_at: string
           updated_at: string
@@ -184,6 +186,8 @@ export type Database = {
           status?: string
           auto_close?: boolean | null
           is_test?: boolean
+          provider?: string
+          pos_order_id?: string | null
           error?: string | null
           created_at?: string
           updated_at?: string
@@ -203,7 +207,81 @@ export type Database = {
           status?: string
           auto_close?: boolean | null
           is_test?: boolean
+          provider?: string
+          pos_order_id?: string | null
           error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poster_integrations: {
+        Row: {
+          shop_id: string
+          api_token: string
+          account_name: string | null
+          spot_id: string | null
+          spot_name: string | null
+          currency: string
+          auto_close: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          shop_id: string
+          api_token: string
+          account_name?: string | null
+          spot_id?: string | null
+          spot_name?: string | null
+          currency?: string
+          auto_close?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          shop_id?: string
+          api_token?: string
+          account_name?: string | null
+          spot_id?: string | null
+          spot_name?: string | null
+          currency?: string
+          auto_close?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poster_menu_map: {
+        Row: {
+          id: string
+          shop_id: string
+          subscription_type_id: string
+          poster_product_id: string
+          poster_product_name: string | null
+          poster_price: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          subscription_type_id: string
+          poster_product_id: string
+          poster_product_name?: string | null
+          poster_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          subscription_type_id?: string
+          poster_product_id?: string
+          poster_product_name?: string | null
+          poster_price?: number | null
           created_at?: string
           updated_at?: string
         }

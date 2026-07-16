@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createEdgeLogger } from '../_shared/edgeLogger.ts';
-import { processRedemptionOrder } from '../_shared/iiko.ts';
+import { dispatchRedemptionOrder } from '../_shared/pos.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
 
       // iiko: гостевой кофе тоже падает в кассу — по тарифу, из которого он выдан.
       if (guestRedemption?.id && grant?.subscription_type_id) {
-        const gOrder = processRedemptionOrder(supabase, {
+        const gOrder = dispatchRedemptionOrder(supabase, {
           redemptionId: guestRedemption.id, shopId, address: shopAddress,
           subscriptionTypeId: grant.subscription_type_id,
         }).catch((e) => { console.error('iiko guest order error:', e); });
@@ -441,7 +441,7 @@ Deno.serve(async (req) => {
     // iiko: падение заказа в кассу «на вынос» + (опц.) автозакрытие. В фоне —
     // не держим баристу; сбой iiko НЕ влияет на списание (оно уже подтверждено).
     if (insertedRedemption?.id && (matchingSub as any)?.subscription_type_id) {
-      const orderPromise = processRedemptionOrder(supabase, {
+      const orderPromise = dispatchRedemptionOrder(supabase, {
         redemptionId: insertedRedemption.id,
         shopId,
         address: shopAddress,

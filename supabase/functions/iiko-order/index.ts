@@ -1,8 +1,9 @@
-// Кабинет: повтор неудавшегося заказа и отмена заказа iiko.
+// Кабинет: повтор неудавшегося заказа и отмена заказа (iiko ИЛИ Poster — по провайдеру строки).
 // Доступ — только партнёр кофейни, к которой относится заказ (или админ).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { processRedemptionOrder, getValidToken, cancelOrder, IikoError } from '../_shared/iiko.ts';
+import { IikoError } from '../_shared/iiko.ts';
+import { dispatchRedemptionOrder, cancelPosOrder } from '../_shared/pos.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
     if (!logId) return json({ error: 'logId required' }, 400);
 
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('id, redemption_id, shop_id, address, subscription_type_id, organization_id, iiko_order_id, status')
+      .select('id, redemption_id, shop_id, address, subscription_type_id, provider, organization_id, iiko_order_id, pos_order_id, status')
       .eq('id', logId).maybeSingle();
     if (!log) return json({ error: 'Заказ не найден' }, 404);
 
@@ -43,28 +44,18 @@ Deno.serve(async (req) => {
       if (!log.redemption_id) return json({ error: 'Нет привязки к списанию' }, 400);
       // сносим прошлую (неудавшуюся) строку, чтобы идемпотентность не заблокировала повтор
       await supabase.from('iiko_order_log').delete().eq('id', logId);
-      const res = await processRedemptionOrder(supabase, {
+      const res = await dispatchRedemptionOrder(supabase, {
         redemptionId: log.redemption_id, shopId: log.shop_id, address: log.address, subscriptionTypeId: log.subscription_type_id,
       });
       return json({ success: res.ok, status: res.status, error: res.error });
     }
 
     if (action === 'cancel') {
-      let cancelled = false, note: string | undefined;
-      if (log.iiko_order_id && log.organization_id) {
-        const { data: integ } = await supabase.from('iiko_integrations')
-          .select('shop_id, api_login, app_id, api_key, client_secret, access_token, token_expires_at').eq('shop_id', log.shop_id).maybeSingle();
-        if (integ) {
-          const token = await getValidToken(supabase, integ);
-          const r = await cancelOrder(token, log.organization_id, log.iiko_order_id);
-          cancelled = r.ok;
-          if (!r.ok) note = `Отмена в iiko не выполнена (${r.error}). Возможно, чек уже фискализирован — отмените вручную в iiko.`;
-        }
-      } else {
-        note = 'Заказ ещё не создан в iiko — отменяем только запись.';
-      }
+      const r = await cancelPosOrder(supabase, log);
+      const note = r.ok ? undefined
+        : `Отмена не выполнена (${r.error}). Возможно, заказ уже закрыт/фискализирован — отмените вручную в POS.`;
       await supabase.from('iiko_order_log').update({ status: 'cancelled', error: note || null, updated_at: new Date().toISOString() }).eq('id', logId);
-      return json({ success: true, cancelledInIiko: cancelled, note });
+      return json({ success: true, cancelledInPos: r.ok, note });
     }
 
     return json({ error: 'Unknown action' }, 400);
