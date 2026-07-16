@@ -287,6 +287,102 @@ export type Database = {
         }
         Relationships: []
       }
+      rosta_integrations: {
+        Row: {
+          shop_id: string
+          api_key: string
+          tradepoint_id: string | null
+          tradepoint_name: string | null
+          cashbox_id: string | null
+          cashbox_name: string | null
+          payment_method_id: string | null
+          payment_method_name: string | null
+          user_id: string | null
+          user_name: string | null
+          price_type_id: string | null
+          price_type_name: string | null
+          auto_open_shift: boolean
+          currency: string
+          auto_close: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          shop_id: string
+          api_key: string
+          tradepoint_id?: string | null
+          tradepoint_name?: string | null
+          cashbox_id?: string | null
+          cashbox_name?: string | null
+          payment_method_id?: string | null
+          payment_method_name?: string | null
+          user_id?: string | null
+          user_name?: string | null
+          price_type_id?: string | null
+          price_type_name?: string | null
+          auto_open_shift?: boolean
+          currency?: string
+          auto_close?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          shop_id?: string
+          api_key?: string
+          tradepoint_id?: string | null
+          tradepoint_name?: string | null
+          cashbox_id?: string | null
+          cashbox_name?: string | null
+          payment_method_id?: string | null
+          payment_method_name?: string | null
+          user_id?: string | null
+          user_name?: string | null
+          price_type_id?: string | null
+          price_type_name?: string | null
+          auto_open_shift?: boolean
+          currency?: string
+          auto_close?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rosta_menu_map: {
+        Row: {
+          id: string
+          shop_id: string
+          subscription_type_id: string
+          rosta_item_id: string
+          rosta_item_name: string | null
+          rosta_price: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          subscription_type_id: string
+          rosta_item_id: string
+          rosta_item_name?: string | null
+          rosta_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          subscription_type_id?: string
+          rosta_item_id?: string
+          rosta_item_name?: string | null
+          rosta_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_banner_events: {
         Row: {
           banner_id: string

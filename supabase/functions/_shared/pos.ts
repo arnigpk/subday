@@ -1,9 +1,10 @@
-// Диспетчер POS: у партнёра активна ОДНА интеграция (Poster ИЛИ iiko).
+// Диспетчер POS: у партнёра активна ОДНА интеграция (Poster ИЛИ iiko ИЛИ Rosta).
 // Скан и отмена ходят сюда, а дальше — в нужного провайдера.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { processRedemptionOrder, getValidToken, cancelOrder as iikoCancel } from './iiko.ts';
 import { processPosterRedemption, cancelOrder as posterCancel } from './poster.ts';
+import { processRostaRedemption, cancelOrder as rostaCancel } from './rosta.ts';
 
 export interface RedemptionParams {
   redemptionId: string;
@@ -12,12 +13,19 @@ export interface RedemptionParams {
   subscriptionTypeId: string | null;
 }
 
-/** Создать заказ у активного провайдера. Оба варианта сами «скипают», если не активны. */
+/** Создать заказ у активного провайдера. Каждый вариант сам «скипает», если не активен. */
 export async function dispatchRedemptionOrder(supabase: SupabaseClient, p: RedemptionParams) {
-  const { data: poster } = await supabase.from('poster_integrations')
-    .select('is_active').eq('shop_id', p.shopId).maybeSingle();
+  const [{ data: poster }, { data: rosta }] = await Promise.all([
+    supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle(),
+    supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).maybeSingle(),
+  ]);
   if (poster?.is_active) {
     return processPosterRedemption(supabase, {
+      redemptionId: p.redemptionId, shopId: p.shopId, subscriptionTypeId: p.subscriptionTypeId,
+    });
+  }
+  if (rosta?.is_active) {
+    return processRostaRedemption(supabase, {
       redemptionId: p.redemptionId, shopId: p.shopId, subscriptionTypeId: p.subscriptionTypeId,
     });
   }
@@ -35,6 +43,9 @@ export async function cancelPosOrder(
       .select('api_token').eq('shop_id', log.shop_id).maybeSingle();
     if (!integ?.api_token) return { ok: false, error: 'Нет токена Poster' };
     return posterCancel(integ.api_token, log.pos_order_id);
+  }
+  if (log.provider === 'rosta') {
+    return rostaCancel(); // публичный API Rosta не умеет отменять чек
   }
   // iiko
   if (!log.iiko_order_id || !log.organization_id) return { ok: false, error: 'Заказ iiko ещё не создан — отменять нечего' };

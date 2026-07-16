@@ -104,10 +104,11 @@ export function PartnerPosterSection({ shopId }: { shopId: string }) {
     if (v) {
       if (!integ?.spot_id) { toast.error('Выберите точку'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
-      // 1 активная интеграция на партнёра — гасим iiko.
+      // 1 активная интеграция на партнёра — гасим iiko и Rosta.
       await supabase.from('iiko_integrations').update({ is_active: false }).eq('shop_id', shopId);
+      await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId);
     }
-    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko выключен)' : 'Poster выключен');
+    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko и Rosta выключены)' : 'Poster выключен');
   };
 
   const disconnect = async () => {
