@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Loader2, Plug, MapPin, CreditCard, ListChecks, Trash2, RefreshCw, XCircle, CheckCircle2, Search } from 'lucide-react';
+import { PartnerPosterSection } from '@/components/partner/PartnerPosterSection';
 
 interface Org { id: string; name: string }
 interface Term { id: string; name: string; address?: string }
@@ -48,6 +49,14 @@ export default function PartnerIntegrationPage() {
   const [testSubType, setTestSubType] = useState('');
   const [testAddress, setTestAddress] = useState('');
   const [loaded, setLoaded] = useState<{ pay?: boolean; terminals?: boolean; products?: boolean }>({});
+  const [provider, setProvider] = useState<'iiko' | 'poster'>('iiko');
+
+  // Если у кофейни есть/активна интеграция Poster — открываем сразу её вкладку.
+  useEffect(() => {
+    if (!shopId) return;
+    supabase.from('poster_integrations').select('is_active').eq('shop_id', shopId).maybeSingle()
+      .then(({ data }) => { if (data) setProvider('poster'); });
+  }, [shopId]);
 
   const load = useCallback(async () => {
     if (!shopId) return;
@@ -165,8 +174,10 @@ export default function PartnerIntegrationPage() {
       if (!integ?.organization_id || !integ?.payment_type_id) { toast.error('Выберите организацию и способ оплаты'); return; }
       if (Object.keys(terminalsCfg).length === 0) { toast.error('Настройте хотя бы одну кассу'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
+      // 1 активная интеграция на партнёра — гасим Poster.
+      await supabase.from('poster_integrations').update({ is_active: false }).eq('shop_id', shopId!);
     }
-    await saveInteg({ is_active: v }, v ? 'Интеграция включена' : 'Интеграция выключена');
+    await saveInteg({ is_active: v }, v ? 'Интеграция включена (Poster выключен)' : 'Интеграция выключена');
   };
 
   const disconnect = async () => {
@@ -219,10 +230,25 @@ export default function PartnerIntegrationPage() {
       <div className="max-w-2xl mx-auto px-4 space-y-5 pb-10">
         <div className="flex items-center gap-2 pt-2">
           <Plug className="text-primary" size={22} />
-          <h2 className="text-xl font-bold text-foreground">Интеграция · iiko</h2>
-          {integ?.is_active && <span className="ml-auto text-xs px-2 py-1 rounded-full bg-accent/15 text-accent font-semibold">Включена</span>}
+          <h2 className="text-xl font-bold text-foreground">Интеграция POS</h2>
         </div>
 
+        {/* Выбор провайдера — активна одна интеграция на кофейню */}
+        <div className="grid grid-cols-2 gap-2">
+          {(['iiko', 'poster'] as const).map(pv => (
+            <button
+              key={pv}
+              onClick={() => setProvider(pv)}
+              className={`h-11 rounded-xl text-sm font-semibold border transition-colors ${provider === pv ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border hover:bg-secondary/70'}`}
+            >
+              {pv === 'iiko' ? 'iiko' : 'Poster'}
+            </button>
+          ))}
+        </div>
+
+        {provider === 'poster' && shopId && <PartnerPosterSection shopId={shopId} />}
+
+        {provider === 'iiko' && (<>
         {/* 1. Подключение */}
         <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
           <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>
@@ -460,6 +486,7 @@ export default function PartnerIntegrationPage() {
             )}
           </>
         )}
+        </>)}
       </div>
     </PartnerLayout>
   );
