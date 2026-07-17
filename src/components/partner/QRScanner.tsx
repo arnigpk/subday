@@ -69,7 +69,8 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
   if (lastSerialScannedRef.current === raw) return;
   try {
     const data = JSON.parse(raw);
-    if (data.type === 'subday_redeem') {
+    // USB-сканер принимает и обычные списания, и предзаказы (оба идут в один onScan).
+    if (data.type === 'subday_redeem' || data.type === 'subday_preorder') {
       lastSerialScannedRef.current = raw;
       // Сбрасываем через 3 секунды чтобы тот же QR можно было снова использовать
       if (serialScanTimeoutRef.current) clearTimeout(serialScanTimeoutRef.current);

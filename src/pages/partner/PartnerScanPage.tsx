@@ -136,73 +136,25 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       }
 
       if (data.type === 'subday_preorder') {
+        // Единый серверный путь: валидация + выдача + падение заказа в POS по тарифу
+        // предзаказа (partner-scan-preorder). Работает и с камеры, и с USB-сканера.
         try {
-          const { data: preorder, error: fetchErr } = await supabase
-            .from('preorders')
-            .select('id, status, shop_id, coffee_name, syrup, user_id, qr_scanned')
-            .eq('qr_code', data.qrCode)
-            .maybeSingle();
-
-          if (fetchErr || !preorder) {
-            setResult({ success: false, message: 'Предзаказ не найден' });
-            resetProcessing();
-            return;
+          const { data: response, error } = await supabase.functions.invoke('partner-scan-preorder', {
+            body: { qrCode: data.qrCode, shopId },
+          });
+          if (error) {
+            setResult({ success: false, message: 'Ошибка при обработке. Попробуйте ещё раз.' });
+          } else if (response?.error) {
+            setResult({ success: false, message: response.error });
+          } else if (response?.success === true) {
+            setResult({ success: true, message: 'Предзаказ выдан!', drinkName: response.drinkName });
+            setShowConfetti(true);
+            playSuccessSound();
+            vibrateSuccess();
+            setTimeout(() => setShowConfetti(false), 2000);
+          } else {
+            setResult({ success: false, message: 'Выдача не подтверждена. Попробуйте ещё раз.' });
           }
-          if (preorder.shop_id !== shopId) {
-            setResult({ success: false, message: 'Этот предзаказ для другой кофейни' });
-            resetProcessing();
-            return;
-          }
-          if (preorder.status === 'cancelled') {
-            setResult({ success: false, message: 'Этот предзаказ отменён' });
-            resetProcessing();
-            return;
-          }
-          if (preorder.status === 'expired') {
-            setResult({ success: false, message: 'Этот предзаказ закрыт (истёк срок)' });
-            resetProcessing();
-            return;
-          }
-          if (preorder.status === 'completed' || preorder.qr_scanned) {
-            setResult({ success: false, message: 'Этот QR-код уже использован' });
-            resetProcessing();
-            return;
-          }
-
-          const { data: { user } } = await supabase.auth.getUser();
-          // .select() подтверждает, что реально обновлена строка. Если 0 строк
-          // (qr_scanned уже true — гонка/повторный скан) — НЕ показываем ложный успех.
-          const { data: updatedPreorder, error: updateErr } = await supabase
-            .from('preorders')
-            .update({
-              status: 'completed',
-              completed_by: user?.id,
-              completed_at: new Date().toISOString(),
-              qr_scanned: true,
-            })
-            .eq('id', preorder.id)
-            .eq('qr_scanned', false)
-            .select('id');
-
-          if (updateErr) {
-            setResult({ success: false, message: 'Ошибка при обновлении предзаказа' });
-            resetProcessing();
-            return;
-          }
-          if (!updatedPreorder || updatedPreorder.length === 0) {
-            setResult({ success: false, message: 'Этот QR-код уже использован' });
-            resetProcessing();
-            return;
-          }
-
-          const drinkDesc = preorder.syrup
-            ? `${preorder.coffee_name} + ${preorder.syrup}`
-            : preorder.coffee_name;
-          setResult({ success: true, message: 'Предзаказ выдан!', drinkName: drinkDesc });
-          setShowConfetti(true);
-          playSuccessSound();
-          vibrateSuccess();
-          setTimeout(() => setShowConfetti(false), 2000);
         } catch (err) {
           console.error('Preorder scan error:', err);
           setResult({ success: false, message: 'Ошибка обработки предзаказа' });
