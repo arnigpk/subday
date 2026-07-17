@@ -139,16 +139,20 @@ export async function getTerminalGroups(token: string, organizationId: string) {
 }
 
 /**
- * Жив ли терминал (на связи с iiko Cloud). Если касса офлайн, заказ уходит в облако,
- * но НЕ доходит до физической кассы. true — жив; false — офлайн/нет в ответе; null — не проверили.
+ * Жив ли терминал (на связи с iiko Cloud).
+ *  true       — касса явно онлайн;
+ *  false      — касса ЯВНО офлайн (iiko вернул isAlive:false) → заказ не дойдёт, блокируем + ретрай;
+ *  'unknown'  — кассы нет в ответе is_alive (старый сервер / не delivery-терминал / рассинхрон
+ *               плагинов). НЕ блокируем — is_alive ненадёжна на таких кассах; просто предупреждаем.
+ *  null       — проверка не удалась (сеть) — не блокируем.
  */
-export async function getTerminalAlive(token: string, organizationId: string, terminalGroupId: string): Promise<boolean | null> {
+export async function getTerminalAlive(token: string, organizationId: string, terminalGroupId: string): Promise<boolean | 'unknown' | null> {
   try {
     const d = await iikoPost<{ isAliveStatus?: Array<{ terminalGroupId: string; isAlive: boolean }> }>(
       token, '/api/1/terminal_groups/is_alive', { organizationIds: [organizationId], terminalGroupIds: [terminalGroupId] },
     );
     const st = (d.isAliveStatus || []).find(x => x.terminalGroupId === terminalGroupId);
-    if (!st) return false; // у живых касс статус присутствует; отсутствие = не на связи
+    if (!st) return 'unknown'; // отсутствие статуса ≠ офлайн (частый случай на старых серверах)
     return !!st.isAlive;
   } catch {
     return null; // не смогли проверить — не блокируем создание
@@ -398,10 +402,14 @@ export async function runIikoOrder(
 
     const token = await getValidToken(supabase, integ);
 
-    // Пред-проверка: касса на связи с облаком? Если офлайн — заказ в кассу НЕ дойдёт,
-    // не рапортуем ложный успех. autoRetry=true → когда касса вернётся онлайн, авто-ретрай допинает.
+    // Пред-проверка: касса на связи с облаком? ЯВНЫЙ офлайн (isAlive:false) — блокируем + ретрай.
+    // 'unknown' (кассы нет в ответе is_alive) НЕ блокируем — is_alive ненадёжна на старых серверах;
+    // но добавим предупреждение к успеху: облако могло принять заказ, а старая касса — нет.
     const alive = await getTerminalAlive(token, integ.organization_id, term.terminal_group_id);
     if (alive === false) return await fail('Касса iiko офлайн (не на связи с облаком iiko) — заказ не дойдёт до кассы. Включите кассу и проверьте связь с iiko Cloud.', true);
+    const aliveNote = alive === 'unknown'
+      ? 'Заказ принят облаком iiko. Если на кассе не появился — проверьте кассу: частая причина, что версия iikoServer старее версии плагинов (рассинхрон), из-за чего облачный заказ не материализуется на кассе.'
+      : null;
 
     const autoClose = term.auto_close ?? integ.auto_close;
 
@@ -428,7 +436,7 @@ export async function runIikoOrder(
       // iiko уже создал этот заказ (тот же order.id) — дубль отсечён, считаем успехом.
       if (/already.*exist|уже.*существ/i.test(msg)) {
         await supabase.from('iiko_order_log').update(successFields({
-          status: 'created', iiko_order_id: log.iiko_order_id, organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id,
+          status: 'created', error: aliveNote, iiko_order_id: log.iiko_order_id, organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id,
           iiko_product_id: map.iiko_product_id, iiko_product_name: map.iiko_product_name, auto_close: autoClose,
         })).eq('id', logId);
         return { ok: true, status: 'created' };
@@ -442,7 +450,7 @@ export async function runIikoOrder(
 
     if (result.ok || result.pending) {
       await supabase.from('iiko_order_log').update(successFields({
-        status: 'created', correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
+        status: 'created', error: aliveNote, correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
         organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
         iiko_product_name: map.iiko_product_name, auto_close: autoClose,
       })).eq('id', logId);
@@ -496,9 +504,13 @@ export async function createTestOrder(
 
     const token = await getValidToken(supabase, integ);
 
-    // Касса на связи? Иначе тестовый заказ не дойдёт до кассы (частая причина «не падает»).
+    // Касса на связи? ЯВНЫЙ офлайн — блокируем. 'unknown' (нет в ответе is_alive) не блокируем,
+    // но предупреждаем: частая причина «не падает» на старых серверах — рассинхрон версий.
     const alive = await getTerminalAlive(token, integ.organization_id, term.terminal_group_id);
     if (alive === false) return { ok: false, error: 'Касса iiko офлайн (не на связи с облаком iiko) — заказ не дойдёт до кассы. Включите кассу / проверьте связь iiko Cloud (iikoTransport).' };
+    const aliveNote = alive === 'unknown'
+      ? 'Тест отправлен. Если на кассе не появился — версия iikoServer старее версии плагинов (рассинхрон), из-за чего облачный заказ не материализуется. Проверьте/обновите iiko на кассе.'
+      : null;
 
     const res = await createOrder(token, {
       organizationId: integ.organization_id,
@@ -536,10 +548,10 @@ export async function createTestOrder(
       iiko_order_id: res.orderId || null,
       status: (r.ok || r.pending) ? 'created' : 'failed',
       auto_close: term.auto_close ?? integ.auto_close,
-      error: r.ok ? null : (r.error || null),
+      error: r.ok ? aliveNote : (r.error || null),
     });
 
-    if (r.ok) return { ok: true, correlationId: res.correlationId };
+    if (r.ok) return { ok: true, correlationId: res.correlationId, error: aliveNote || undefined };
     if (r.pending) return { ok: true, correlationId: res.correlationId, error: 'отправлено, iiko ещё обрабатывает — проверьте кассу' };
     return { ok: false, error: r.error };
   } catch (e) {
