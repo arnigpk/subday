@@ -138,6 +138,23 @@ export async function getTerminalGroups(token: string, organizationId: string) {
   return groups.flatMap(g => g.items || []).filter(t => (seen.has(t.id) ? false : (seen.add(t.id), true)));
 }
 
+/**
+ * Жив ли терминал (на связи с iiko Cloud). Если касса офлайн, заказ уходит в облако,
+ * но НЕ доходит до физической кассы. true — жив; false — офлайн/нет в ответе; null — не проверили.
+ */
+export async function getTerminalAlive(token: string, organizationId: string, terminalGroupId: string): Promise<boolean | null> {
+  try {
+    const d = await iikoPost<{ isAliveStatus?: Array<{ terminalGroupId: string; isAlive: boolean }> }>(
+      token, '/api/1/terminal_groups/is_alive', { organizationIds: [organizationId], terminalGroupIds: [terminalGroupId] },
+    );
+    const st = (d.isAliveStatus || []).find(x => x.terminalGroupId === terminalGroupId);
+    if (!st) return false; // у живых касс статус присутствует; отсутствие = не на связи
+    return !!st.isAlive;
+  } catch {
+    return null; // не смогли проверить — не блокируем создание
+  }
+}
+
 export async function getPaymentTypes(token: string, organizationId: string) {
   const d = await iikoPost<{ paymentTypes: Array<{ id: string; code: string; name: string; paymentTypeKind: string }> }>(
     token, '/api/1/payment_types', { organizationIds: [organizationId] },
@@ -380,6 +397,12 @@ export async function runIikoOrder(
     if (map.iiko_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
     const token = await getValidToken(supabase, integ);
+
+    // Пред-проверка: касса на связи с облаком? Если офлайн — заказ в кассу НЕ дойдёт,
+    // не рапортуем ложный успех. autoRetry=true → когда касса вернётся онлайн, авто-ретрай допинает.
+    const alive = await getTerminalAlive(token, integ.organization_id, term.terminal_group_id);
+    if (alive === false) return await fail('Касса iiko офлайн (не на связи с облаком iiko) — заказ не дойдёт до кассы. Включите кассу и проверьте связь с iiko Cloud.', true);
+
     const autoClose = term.auto_close ?? integ.auto_close;
 
     // Стабильный GUID заказа = redemption_id → защита от дубля на кассе при ретрае.
@@ -472,6 +495,11 @@ export async function createTestOrder(
     if (map.iiko_price == null) return { ok: false, error: 'У позиции нет цены' };
 
     const token = await getValidToken(supabase, integ);
+
+    // Касса на связи? Иначе тестовый заказ не дойдёт до кассы (частая причина «не падает»).
+    const alive = await getTerminalAlive(token, integ.organization_id, term.terminal_group_id);
+    if (alive === false) return { ok: false, error: 'Касса iiko офлайн (не на связи с облаком iiko) — заказ не дойдёт до кассы. Включите кассу / проверьте связь iiko Cloud (iikoTransport).' };
+
     const res = await createOrder(token, {
       organizationId: integ.organization_id,
       terminalGroupId: term.terminal_group_id,
@@ -533,6 +561,8 @@ export function friendlyIiko(msg: string): string {
   if (/stop.?list|стоп-?лист/i.test(msg)) return 'Позиция сейчас в стоп-листе на кассе.';
   if (/not.*alive|terminal.*offline|касса.*недоступ/i.test(msg)) return 'Касса офлайн — заказ не принят.';
   if (/shift|смена.*не открыт|no.*opened.*session/i.test(msg)) return 'На кассе не открыта смена.';
+  if (/version.*incompatible|minimal allowed version|is incompatible for this url/i.test(msg))
+    return 'Версия iiko на кассе устарела для этой операции — обновите iikoServer (нужна новее) или отмените/проведите вручную на кассе.';
   return msg;
 }
 
