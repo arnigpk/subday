@@ -380,7 +380,10 @@ export default function PartnerIntegrationPage() {
                         <option value={terminalsCfg[addr].order_type_id}>{terminalsCfg[addr].order_type_name}</option>
                       )}
                       {orderTypes
-                        .filter(o => (integ?.order_endpoint || 'order') === 'delivery' ? o.orderServiceType !== 'Common' : o.orderServiceType === 'Common')
+                        // Модель «Самовывоз/вынос» → ТОЛЬКО тип самовывоза (DeliveryPickUp).
+                        // Курьерскую доставку (DeliveryByCourier) не показываем: она требует адрес
+                        // клиента, которого мы не передаём, и заказ падает. Модель «на кассу» → Common.
+                        .filter(o => (integ?.order_endpoint || 'order') === 'delivery' ? o.orderServiceType === 'DeliveryPickUp' : o.orderServiceType === 'Common')
                         .map(o => <option key={o.id} value={o.id}>{o.name} ({o.orderServiceType})</option>)}
                     </select>
                   </div>
