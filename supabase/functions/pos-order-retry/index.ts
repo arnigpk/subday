@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { retryPosOrder, dueRetryLogIds } from '../_shared/pos.ts';
+import { setWorkerEnv } from '../_shared/env.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,7 @@ Deno.serve(async (req) => {
   try {
     let workerEnv: Record<string, string> = {};
     try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    setWorkerEnv(workerEnv); // секреты iiko для авто-ретрая (обновление токена)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
 

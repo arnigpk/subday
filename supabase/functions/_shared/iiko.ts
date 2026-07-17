@@ -7,6 +7,7 @@
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { failFields, successFields } from './posRetry.ts';
+import { getEnv } from './env.ts';
 
 export const IIKO_BASE = 'https://api-ru.iiko.services';
 
@@ -37,16 +38,13 @@ export interface IikoCreds {
   client_secret?: string | null;
 }
 
-function globalEnv(name: string): string | undefined {
-  try { return Deno.env.get(name) || undefined; } catch { return undefined; }
-}
-
 export async function iikoAuth(creds: IikoCreds | string, workerEnv: Record<string, string> = {}): Promise<string> {
   const c: IikoCreds = typeof creds === 'string' ? { api_login: creds } : creds;
 
   if (c.api_key) {
-    const appId = c.app_id || globalEnv('IIKO_APP_ID') || workerEnv['IIKO_APP_ID'];
-    const clientSecret = c.client_secret || globalEnv('IIKO_CLIENT_SECRET') || workerEnv['IIKO_CLIENT_SECRET'];
+    // getEnv читает и Deno.env, и x-worker-env (self-hosted). workerEnv — доп. подстраховка.
+    const appId = c.app_id || getEnv('IIKO_APP_ID') || workerEnv['IIKO_APP_ID'];
+    const clientSecret = c.client_secret || getEnv('IIKO_CLIENT_SECRET') || workerEnv['IIKO_CLIENT_SECRET'];
     if (!appId || !clientSecret) {
       throw new IikoError(
         'iiko v2: не настроены appId/clientSecret приложения subday (iiko Developer Portal). Обратитесь в поддержку subday.',
@@ -128,10 +126,16 @@ export async function getOrganizations(token: string) {
 }
 
 export async function getTerminalGroups(token: string, organizationId: string) {
-  const d = await iikoPost<{ terminalGroups: Array<{ organizationId: string; items: Array<{ id: string; name: string; address?: string }> }> }>(
-    token, '/api/1/terminal_groups', { organizationIds: [organizationId], includeDisabled: false },
-  );
-  return (d.terminalGroups || []).flatMap(g => g.items || []);
+  // includeDisabled: true — у многих партнёров касса помечена «отключённой»/не delivery-терминал,
+  // но она реальна и должна быть видна в кабинете (иначе «интеграция не видит кассы»). iiko
+  // возвращает их в terminalGroups (обычные) + terminalGroupsInSleep (спящие) при includeDisabled=true.
+  const d = await iikoPost<{
+    terminalGroups?: Array<{ organizationId: string; items: Array<{ id: string; name: string; address?: string }> }>;
+    terminalGroupsInSleep?: Array<{ organizationId: string; items: Array<{ id: string; name: string; address?: string }> }>;
+  }>(token, '/api/1/terminal_groups', { organizationIds: [organizationId], includeDisabled: true });
+  const groups = [...(d.terminalGroups || []), ...(d.terminalGroupsInSleep || [])];
+  const seen = new Set<string>();
+  return groups.flatMap(g => g.items || []).filter(t => (seen.has(t.id) ? false : (seen.add(t.id), true)));
 }
 
 export async function getPaymentTypes(token: string, organizationId: string) {

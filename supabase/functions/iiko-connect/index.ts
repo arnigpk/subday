@@ -7,6 +7,7 @@ import {
   iikoAuth, getValidToken, getOrganizations, getTerminalGroups,
   getOrderTypes, getPaymentTypes, getProducts, createTestOrder, IikoError,
 } from '../_shared/iiko.ts';
+import { setWorkerEnv } from '../_shared/env.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,7 @@ Deno.serve(async (req) => {
   try {
     let workerEnv: Record<string, string> = {};
     try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
+    setWorkerEnv(workerEnv); // секреты iiko (appId/clientSecret) доступны глубже в _shared
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
     const supabase = createClient(supabaseUrl!, serviceKey!);
