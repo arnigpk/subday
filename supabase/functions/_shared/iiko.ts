@@ -405,7 +405,7 @@ export async function runIikoOrder(
       // iiko уже создал этот заказ (тот же order.id) — дубль отсечён, считаем успехом.
       if (/already.*exist|уже.*существ/i.test(msg)) {
         await supabase.from('iiko_order_log').update(successFields({
-          status: 'created', iiko_order_id: log.iiko_order_id, terminal_group_id: term.terminal_group_id,
+          status: 'created', iiko_order_id: log.iiko_order_id, organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id,
           iiko_product_id: map.iiko_product_id, iiko_product_name: map.iiko_product_name, auto_close: autoClose,
         })).eq('id', logId);
         return { ok: true, status: 'created' };
@@ -420,7 +420,7 @@ export async function runIikoOrder(
     if (result.ok || result.pending) {
       await supabase.from('iiko_order_log').update(successFields({
         status: 'created', correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
-        terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
+        organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
         iiko_product_name: map.iiko_product_name, auto_close: autoClose,
       })).eq('id', logId);
       return { ok: true, status: 'created' };
@@ -430,7 +430,7 @@ export async function runIikoOrder(
     await supabase.from('iiko_order_log').update({
       ...failFields(attempts, true, result.error || 'iiko отклонил заказ'),
       correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
-      terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
+      organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
       iiko_product_name: map.iiko_product_name, auto_close: autoClose,
     }).eq('id', logId);
     return { ok: false, status: 'failed', error: result.error };

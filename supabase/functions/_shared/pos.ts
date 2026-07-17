@@ -86,12 +86,14 @@ export async function cancelPosOrder(
   if (log.provider === 'rosta') {
     return rostaCancel(); // публичный API Rosta не умеет отменять чек
   }
-  // iiko
-  if (!log.iiko_order_id || !log.organization_id) return { ok: false, error: 'Заказ iiko ещё не создан — отменять нечего' };
+  // iiko — организацию берём из интеграции (в журнале старых/новых заказов её могло не быть).
+  if (!log.iiko_order_id) return { ok: false, error: 'Заказ iiko ещё не создан — отменять нечего' };
   const { data: integ } = await supabase.from('iiko_integrations')
-    .select('shop_id, api_login, app_id, api_key, client_secret, access_token, token_expires_at')
+    .select('shop_id, address, organization_id, api_login, app_id, api_key, client_secret, access_token, token_expires_at')
     .eq('shop_id', log.shop_id).eq('address', addrKey).maybeSingle();
   if (!integ) return { ok: false, error: 'Интеграция iiko не найдена' };
+  const orgId = log.organization_id || integ.organization_id;
+  if (!orgId) return { ok: false, error: 'Не определена организация iiko' };
   const token = await getValidToken(supabase, integ);
-  return iikoCancel(token, log.organization_id, log.iiko_order_id);
+  return iikoCancel(token, orgId, log.iiko_order_id);
 }
