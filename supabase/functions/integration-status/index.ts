@@ -82,7 +82,7 @@ async function posterStatus(supabase: any, shopId: string, address: string): Pro
   items.push({ key: 'spot', label: 'Точка (касса)', status: integ.spot_id ? 'ok' : 'error', detail: integ.spot_name || 'Не выбрана' });
   const menu = await menuCount(supabase, 'poster_menu_map', shopId, address);
   items.push({ key: 'menu', label: 'Меню', status: menu > 0 ? 'ok' : 'error', detail: menu > 0 ? `${menu} позиц.` : 'Не привязано' });
-  items.push({ key: 'autoclose', label: 'Автозакрытие', status: 'off', detail: integ.auto_close ? 'Вкл' : 'Выкл' });
+  items.push({ key: 'autoclose', label: 'Автозакрытие', status: integ.auto_close ? 'ok' : 'off', detail: integ.auto_close ? 'Вкл' : 'Выкл' });
   items.push({ key: 'active', label: 'Интеграция', status: integ.is_active ? 'ok' : 'off', detail: integ.is_active ? 'Активна' : 'Выключена' });
   return items;
 }
