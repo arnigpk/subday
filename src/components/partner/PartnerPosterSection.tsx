@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Loader2, MapPin, ListChecks, Trash2, XCircle, CheckCircle2, Search, RefreshCw } from 'lucide-react';
+import { IntegrationStatus } from '@/components/partner/IntegrationStatus';
 
 interface Spot { id: string; name: string; address?: string }
 interface Product { id: string; name: string; price: number | null } // price в копейках
@@ -155,6 +156,7 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
 
   return (
     <div className="space-y-5">
+      <IntegrationStatus shopId={shopId} address={address} provider="poster" />
       {/* 1. Подключение */}
       <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Loader2, MapPin, CreditCard, ListChecks, Trash2, CheckCircle2, Search, User, RefreshCw } from 'lucide-react';
+import { IntegrationStatus } from '@/components/partner/IntegrationStatus';
 
 interface Tradepoint { id: string; name: string }
 interface Cashbox { id: string; name: string; tradepointId?: string | null }
@@ -182,6 +183,7 @@ export function PartnerRostaSection({ shopId, address }: { shopId: string; addre
 
   return (
     <div className="space-y-5">
+      <IntegrationStatus shopId={shopId} address={address} provider="rosta" />
       {/* 1. Подключение */}
       <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>

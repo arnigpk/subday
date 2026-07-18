@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Plug, MapPin, CreditCard, ListChecks, Trash2, RefreshCw, XCircle, CheckCircle2, Search } from 'lucide-react';
 import { PartnerPosterSection } from '@/components/partner/PartnerPosterSection';
 import { PartnerRostaSection } from '@/components/partner/PartnerRostaSection';
+import { IntegrationStatus } from '@/components/partner/IntegrationStatus';
 
 interface Org { id: string; name: string }
 interface Term { id: string; name: string; address?: string }
@@ -280,6 +281,8 @@ export default function PartnerIntegrationPage() {
         {provider === 'rosta' && shopId && <PartnerRostaSection shopId={shopId} address={address} />}
 
         {provider === 'iiko' && (<>
+        {/* Статус интеграции — реальные живые проверки, авто-обновление 5 мин */}
+        {shopId && <IntegrationStatus shopId={shopId} address={address} provider="iiko" />}
         {/* 1. Подключение */}
         <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
           <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>
