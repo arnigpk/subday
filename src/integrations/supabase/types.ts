@@ -419,18 +419,21 @@ export type Database = {
           created_at: string
           event_type: string
           id: string
+          user_id: string | null
         }
         Insert: {
           banner_id: string
           created_at?: string
           event_type: string
           id?: string
+          user_id?: string | null
         }
         Update: {
           banner_id?: string
           created_at?: string
           event_type?: string
           id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -446,6 +449,20 @@ export type Database = {
         Row: {
           audience_types: string[]
           autoplay_delay: number
+          weight: number
+          daily_limit: number
+          min_interval_minutes: number
+          view_budget: number
+          click_limit: number
+          days_of_week: number[] | null
+          hour_from: number | null
+          hour_to: number | null
+          target_subscription_type_ids: string[] | null
+          ab_split: number
+          caption_b: string | null
+          image_url_b: string | null
+          views_total: number
+          clicks_total: number
           caption: string | null
           city: string | null
           country: string | null
@@ -464,6 +481,20 @@ export type Database = {
         Insert: {
           audience_types?: string[]
           autoplay_delay?: number
+          weight?: number
+          daily_limit?: number
+          min_interval_minutes?: number
+          view_budget?: number
+          click_limit?: number
+          days_of_week?: number[] | null
+          hour_from?: number | null
+          hour_to?: number | null
+          target_subscription_type_ids?: string[] | null
+          ab_split?: number
+          caption_b?: string | null
+          image_url_b?: string | null
+          views_total?: number
+          clicks_total?: number
           caption?: string | null
           city?: string | null
           country?: string | null
@@ -482,6 +513,20 @@ export type Database = {
         Update: {
           audience_types?: string[]
           autoplay_delay?: number
+          weight?: number
+          daily_limit?: number
+          min_interval_minutes?: number
+          view_budget?: number
+          click_limit?: number
+          days_of_week?: number[] | null
+          hour_from?: number | null
+          hour_to?: number | null
+          target_subscription_type_ids?: string[] | null
+          ab_split?: number
+          caption_b?: string | null
+          image_url_b?: string | null
+          views_total?: number
+          clicks_total?: number
           caption?: string | null
           city?: string | null
           country?: string | null
@@ -1520,6 +1565,20 @@ export type Database = {
       }
       subflow_ads: {
         Row: {
+          weight: number
+          min_interval_minutes: number
+          view_budget: number
+          click_limit: number
+          days_of_week: number[] | null
+          hour_from: number | null
+          hour_to: number | null
+          target_subscription_type_ids: string[] | null
+          ab_split: number
+          title_b: string | null
+          content_b: string | null
+          image_url_b: string | null
+          views_total: number
+          clicks_total: number
           audience_types: string[]
           city: string | null
           content: string
@@ -1540,6 +1599,20 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          weight?: number
+          min_interval_minutes?: number
+          view_budget?: number
+          click_limit?: number
+          days_of_week?: number[] | null
+          hour_from?: number | null
+          hour_to?: number | null
+          target_subscription_type_ids?: string[] | null
+          ab_split?: number
+          title_b?: string | null
+          content_b?: string | null
+          image_url_b?: string | null
+          views_total?: number
+          clicks_total?: number
           audience_types?: string[]
           city?: string | null
           content: string
@@ -1560,6 +1633,20 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          weight?: number
+          min_interval_minutes?: number
+          view_budget?: number
+          click_limit?: number
+          days_of_week?: number[] | null
+          hour_from?: number | null
+          hour_to?: number | null
+          target_subscription_type_ids?: string[] | null
+          ab_split?: number
+          title_b?: string | null
+          content_b?: string | null
+          image_url_b?: string | null
+          views_total?: number
+          clicks_total?: number
           audience_types?: string[]
           city?: string | null
           content?: string

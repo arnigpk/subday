@@ -23,6 +23,7 @@ import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { AudienceTypeSelector, type AudienceType, audienceOptions } from '@/components/admin/AudienceTypeSelector';
+import { AdTargetingFields, emptyTargeting, type AdTargetingValues } from '@/components/admin/AdTargetingFields';
 
 interface AdBanner {
   id: string;
@@ -76,6 +77,10 @@ export default function AdminBannersPage() {
     ends_at: undefined as Date | undefined,
     audience_types: ['all'] as AudienceType[],
   });
+  // Расширенные настройки показа баннера (вес, лимиты, дни/часы, тариф, A/B)
+  const [targeting, setTargeting] = useState<AdTargetingValues>(emptyTargeting);
+  const [captionB, setCaptionB] = useState('');
+  const [imageUrlB, setImageUrlB] = useState('');
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ['admin-banners'],
@@ -169,6 +174,9 @@ export default function AdminBannersPage() {
       ends_at: undefined,
       audience_types: ['all'],
     });
+    setTargeting(emptyTargeting);
+    setCaptionB('');
+    setImageUrlB('');
     setEditingBanner(null);
   };
 
@@ -195,6 +203,21 @@ export default function AdminBannersPage() {
       ends_at: (banner as any).ends_at ? new Date((banner as any).ends_at) : undefined,
       audience_types: (banner as any).audience_types?.length > 0 ? (banner as any).audience_types : ['all'],
     });
+    const b = banner as unknown as Record<string, unknown>;
+    setTargeting({
+      weight: (b.weight as number) ?? 1,
+      daily_limit: (b.daily_limit as number) ?? 0,
+      min_interval_minutes: (b.min_interval_minutes as number) ?? 0,
+      view_budget: (b.view_budget as number) ?? 0,
+      click_limit: (b.click_limit as number) ?? 0,
+      days_of_week: (b.days_of_week as number[]) ?? [],
+      hour_from: (b.hour_from as number | null) ?? null,
+      hour_to: (b.hour_to as number | null) ?? null,
+      target_subscription_type_ids: (b.target_subscription_type_ids as string[]) ?? [],
+      ab_split: (b.ab_split as number) ?? 0,
+    });
+    setCaptionB((b.caption_b as string) || '');
+    setImageUrlB((b.image_url_b as string) || '');
     setIsDialogOpen(true);
   };
 
@@ -262,6 +285,19 @@ export default function AdminBannersPage() {
         starts_at: formData.starts_at ? formData.starts_at.toISOString() : null,
         ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
         audience_types: formData.audience_types,
+        // Расширенные настройки показа
+        weight: targeting.weight,
+        daily_limit: targeting.daily_limit,
+        min_interval_minutes: targeting.min_interval_minutes,
+        view_budget: targeting.view_budget,
+        click_limit: targeting.click_limit,
+        days_of_week: targeting.days_of_week.length ? targeting.days_of_week : null,
+        hour_from: targeting.hour_from,
+        hour_to: targeting.hour_to,
+        target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
+        ab_split: targeting.ab_split,
+        caption_b: captionB.trim() || null,
+        image_url_b: imageUrlB.trim() || null,
       };
 
       if (editingBanner) {
@@ -680,6 +716,24 @@ export default function AdminBannersPage() {
                   value={formData.audience_types}
                   onChange={(v) => setFormData(prev => ({ ...prev, audience_types: v }))}
                 />
+
+                {/* Показ и ограничения: вес, лимиты, бюджеты, дни/часы, тариф, A/B */}
+                <AdTargetingFields value={targeting} onChange={setTargeting} />
+
+                {/* Вариант B (используется, если доля A/B > 0) */}
+                {targeting.ab_split > 0 && (
+                  <div className="space-y-3 rounded-xl border border-border p-3">
+                    <p className="text-sm font-semibold text-foreground">Вариант B (A/B-тест)</p>
+                    <div>
+                      <Label>Подпись B</Label>
+                      <Input value={captionB} onChange={e => setCaptionB(e.target.value)} placeholder="Пусто — как в варианте A" />
+                    </div>
+                    <div>
+                      <Label>Картинка B (URL)</Label>
+                      <Input value={imageUrlB} onChange={e => setImageUrlB(e.target.value)} placeholder="Пусто — как в варианте A" />
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   onClick={handleSubmit}

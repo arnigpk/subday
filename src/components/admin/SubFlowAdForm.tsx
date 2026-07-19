@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
+import { AdTargetingFields, emptyTargeting, type AdTargetingValues } from './AdTargetingFields';
 import { Plus, Loader2, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -91,6 +92,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
+  // Расширенные настройки показа (вес, бюджеты, дни/часы, тариф, A/B)
+  const [targeting, setTargeting] = useState<AdTargetingValues>(emptyTargeting);
+  const [titleB, setTitleB] = useState('');
+  const [contentB, setContentB] = useState('');
+  const [imageUrlB, setImageUrlB] = useState('');
 
   useEffect(() => {
     if (editingAd) {
@@ -103,6 +109,22 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
       setIsActive(editingAd.is_active);
       setStartsAt(editingAd.starts_at ? new Date(editingAd.starts_at) : undefined);
       setEndsAt(editingAd.ends_at ? new Date(editingAd.ends_at) : undefined);
+      const ad = editingAd as unknown as Record<string, unknown>;
+      setTargeting({
+        weight: (ad.weight as number) ?? 1,
+        daily_limit: (ad.daily_limit as number) ?? 0,
+        min_interval_minutes: (ad.min_interval_minutes as number) ?? 0,
+        view_budget: (ad.view_budget as number) ?? 0,
+        click_limit: (ad.click_limit as number) ?? 0,
+        days_of_week: (ad.days_of_week as number[]) ?? [],
+        hour_from: (ad.hour_from as number | null) ?? null,
+        hour_to: (ad.hour_to as number | null) ?? null,
+        target_subscription_type_ids: (ad.target_subscription_type_ids as string[]) ?? [],
+        ab_split: (ad.ab_split as number) ?? 0,
+      });
+      setTitleB((ad.title_b as string) || '');
+      setContentB((ad.content_b as string) || '');
+      setImageUrlB((ad.image_url_b as string) || '');
       setAudienceTypes((editingAd as any).audience_types?.length > 0 ? (editingAd as any).audience_types : ['all']);
       setCountry((editingAd as any).country || '');
       setCity((editingAd as any).city || '');
@@ -147,6 +169,10 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
     setAudienceTypes(['all']);
     setCountry('');
     setCity('');
+    setTargeting(emptyTargeting);
+    setTitleB('');
+    setContentB('');
+    setImageUrlB('');
   };
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
@@ -214,6 +240,19 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         audience_types: audienceTypes,
         country: country || null,
         city: city || null,
+        // Расширенные настройки показа
+        weight: targeting.weight,
+        min_interval_minutes: targeting.min_interval_minutes,
+        view_budget: targeting.view_budget,
+        click_limit: targeting.click_limit,
+        days_of_week: targeting.days_of_week.length ? targeting.days_of_week : null,
+        hour_from: targeting.hour_from,
+        hour_to: targeting.hour_to,
+        target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
+        ab_split: targeting.ab_split,
+        title_b: titleB.trim() || null,
+        content_b: contentB.trim() || null,
+        image_url_b: imageUrlB.trim() || null,
       };
 
       if (editingAd) {
@@ -450,6 +489,28 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
 
         {/* Audience types */}
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
+
+        {/* Показ и ограничения: вес, бюджеты, дни/часы, тариф, A/B */}
+        <AdTargetingFields value={targeting} onChange={setTargeting} showDailyLimit={false} />
+
+        {/* Вариант B (используется, если доля A/B > 0) */}
+        {targeting.ab_split > 0 && (
+          <div className="space-y-3 rounded-xl border border-border p-3">
+            <p className="text-sm font-semibold text-foreground">Вариант B (A/B-тест)</p>
+            <div>
+              <Label>Заголовок B</Label>
+              <Input value={titleB} onChange={e => setTitleB(e.target.value)} placeholder="Пусто — как в варианте A" />
+            </div>
+            <div>
+              <Label>Текст B</Label>
+              <Textarea value={contentB} onChange={e => setContentB(e.target.value)} rows={3} placeholder="Пусто — как в варианте A" />
+            </div>
+            <div>
+              <Label>Картинка B (URL)</Label>
+              <Input value={imageUrlB} onChange={e => setImageUrlB(e.target.value)} placeholder="Пусто — как в варианте A" />
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <Switch checked={isActive} onCheckedChange={setIsActive} />

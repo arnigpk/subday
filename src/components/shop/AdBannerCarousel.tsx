@@ -8,8 +8,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
+import { useAdEligibility, type UserAdStat } from '@/hooks/useAdEligibility';
+import {
+  matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
+  matchesSubscriptionTarget, withinDailyLimit, withinMinInterval, weightedOrder, pickAbVariant,
+  type TargetableAd,
+} from '@/lib/adTargeting';
 
-interface AdBanner {
+interface AdBanner extends TargetableAd {
   id: string;
   image_url: string;
   caption: string | null;
@@ -19,28 +25,55 @@ interface AdBanner {
   sort_order: number;
   autoplay_delay: number;
   display_location: string;
-  country: string | null;
-  city: string | null;
-  audience_types: string[];
-  starts_at: string | null;
-  ends_at: string | null;
+  caption_b?: string | null;
+  image_url_b?: string | null;
 }
 
 function preloadImages(urls: string[]) {
-  urls.forEach(url => {
-    const img = new Image();
-    img.src = url;
-  });
+  urls.forEach(url => { const img = new Image(); img.src = url; });
 }
 
-interface AdBannerCarouselProps {
-  location?: 'home' | 'shops';
+interface AdBannerCarouselProps { location?: 'home' | 'shops' }
+
+/** Слайд: показ засчитываем ТОЛЬКО когда баннер реально виден (не при рендере). */
+function BannerSlide({ banner, image, caption, hasLink, onVisible, onClick }: {
+  banner: AdBanner; image: string; caption: string | null; hasLink: boolean;
+  onVisible: (id: string) => void; onClick: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const firedRef = useRef(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || firedRef.current) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const io = new IntersectionObserver(entries => {
+      const e = entries[0];
+      if (e?.isIntersecting && e.intersectionRatio >= 0.5) {
+        // Виден минимум 1 сек — только тогда это настоящий показ.
+        timer = setTimeout(() => { if (!firedRef.current) { firedRef.current = true; onVisible(banner.id); } }, 1000);
+      } else if (timer) { clearTimeout(timer); timer = null; }
+    }, { threshold: [0, 0.5, 1] });
+    io.observe(el);
+    return () => { io.disconnect(); if (timer) clearTimeout(timer); };
+  }, [banner.id, onVisible]);
+
+  return (
+    <div className="flex-[0_0_100%] min-w-0" ref={ref}>
+      <div className={`relative ${hasLink ? 'cursor-pointer' : ''}`} onClick={onClick}>
+        <img src={image} alt={caption || 'Рекламный баннер'} className="w-full h-32 object-cover rounded-2xl" />
+        {caption && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-b-2xl">
+            <p className="text-white text-sm font-medium truncate text-center">{caption}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [autoplayDelay, setAutoplayDelay] = useState(4000);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const viewedBanners = useRef<Set<string>>(new Set());
   const preloadedRef = useRef(false);
@@ -48,180 +81,150 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
+  const { userId, userSubTypeIds, isLoading: isEligLoading, loadStats, noteView } = useAdEligibility('banner');
+  const [perUser, setPerUser] = useState<Map<string, UserAdStat> | null>(null);
 
-  // Fetch all active banners (no audience filtering here)
   const { data: allBanners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ad_banners')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-      
+      const { data, error } = await supabase.from('ad_banners').select('*').eq('is_active', true).order('sort_order', { ascending: true });
       if (error) throw error;
-      
       const now = new Date();
-      return ((data as AdBanner[]) || []).filter(banner => {
-        const locationMatch = banner.display_location === location || banner.display_location === 'both';
-        const countryMatch = !banner.country || banner.country === userCountry;
-        const cityMatch = !banner.city || !userCity || banner.city === userCity;
-        const startsOk = !banner.starts_at || new Date(banner.starts_at) <= now;
-        const endsOk = !banner.ends_at || new Date(banner.ends_at) > now;
-        return locationMatch && countryMatch && cityMatch && startsOk && endsOk;
-      });
+      return ((data as AdBanner[]) || []).filter(b =>
+        (b.display_location === location || b.display_location === 'both') &&
+        matchesGeo(b, userCountry, userCity) &&
+        matchesDateRange(b, now) &&
+        matchesDayOfWeek(b, now) &&
+        matchesHours(b, now) &&
+        withinBudget(b),
+      );
     },
     staleTime: 60 * 1000,
   });
 
-  // Apply audience filtering reactively (re-runs when matchesAudience updates)
-  const banners = useMemo(() => {
-    if (isAudienceLoading) return [];
-    return allBanners.filter(banner => matchesAudience(banner.audience_types));
-  }, [allBanners, matchesAudience, isAudienceLoading]);
+  // Аудитория + таргет на тариф (реактивно).
+  const targeted = useMemo(() => {
+    if (isAudienceLoading || isEligLoading) return [];
+    return allBanners.filter(b => matchesAudience(b.audience_types || ['all']) && matchesSubscriptionTarget(b, userSubTypeIds));
+  }, [allBanners, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds]);
 
-  // Preload all banner images when data is loaded
+  // Персональные лимиты (дневной лимит + частотный кап) — грузим один раз на набор.
+  useEffect(() => {
+    let cancelled = false;
+    const ids = targeted.map(b => b.id);
+    if (ids.length === 0 || !userId) { setPerUser(new Map()); return; }
+    loadStats(ids).then(m => { if (!cancelled) setPerUser(m); });
+    return () => { cancelled = true; };
+  }, [targeted, userId, loadStats]);
+
+  // Итоговый список: лимиты + взвешенная ротация внутри одинакового sort_order.
+  const banners = useMemo(() => {
+    if (perUser === null) return [];
+    const now = new Date();
+    const eligible = targeted.filter(b => {
+      const st = perUser.get(b.id);
+      return withinDailyLimit(b, st?.todayViews || 0) && withinMinInterval(b, st?.lastViewAt || null, now);
+    });
+    const groups = new Map<number, AdBanner[]>();
+    eligible.forEach(b => { const k = b.sort_order ?? 0; groups.set(k, [...(groups.get(k) || []), b]); });
+    return [...groups.keys()].sort((a, b) => a - b).flatMap(k => weightedOrder(groups.get(k)!, userId || 'anon'));
+  }, [targeted, perUser, userId]);
+
+  // A/B-вариант креатива (стабильный для пользователя).
+  const creativeOf = useCallback((b: AdBanner) => {
+    const v = pickAbVariant(b, userId);
+    return v === 'B'
+      ? { image: b.image_url_b || b.image_url, caption: b.caption_b ?? b.caption }
+      : { image: b.image_url, caption: b.caption };
+  }, [userId]);
+
   useEffect(() => {
     if (banners.length > 0 && !preloadedRef.current) {
       preloadedRef.current = true;
-      const imageUrls = banners.map(b => b.image_url);
-      preloadImages(imageUrls);
-      
+      preloadImages(banners.map(b => creativeOf(b).image));
       const firstImg = new Image();
       firstImg.onload = () => setImagesLoaded(true);
       firstImg.onerror = () => setImagesLoaded(true);
-      firstImg.src = banners[0].image_url;
+      firstImg.src = creativeOf(banners[0]).image;
     }
-  }, [banners]);
+  }, [banners, creativeOf]);
 
-  useEffect(() => {
-    if (banners.length > 0 && banners[0].autoplay_delay) {
-      setAutoplayDelay(banners[0].autoplay_delay * 1000);
-    }
-  }, [banners]);
-
-  const autoplayPlugin = Autoplay({
-    delay: autoplayDelay,
+  // Задержка прокрутки — ИНДИВИДУАЛЬНАЯ для каждого слайда (раньше бралась только у первого).
+  const delaysRef = useRef<number[]>([]);
+  useEffect(() => { delaysRef.current = banners.map(b => (b.autoplay_delay || 4) * 1000); }, [banners]);
+  const autoplayPlugin = useMemo(() => Autoplay({
+    delay: (scrollSnaps: number[]) => scrollSnaps.map((_, i) => delaysRef.current[i] ?? 4000),
     stopOnInteraction: false,
     stopOnMouseEnter: true,
-  });
+  }), []);
 
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: 'center' },
-    [autoplayPlugin]
-  );
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'center' }, [autoplayPlugin]);
 
   const trackView = useCallback(async (bannerId: string) => {
     if (viewedBanners.current.has(bannerId)) return;
     viewedBanners.current.add(bannerId);
-    
+    noteView(bannerId); // сразу учитываем в лимитах
     try {
-      await supabase
-        .from('ad_banner_events')
-        .insert({ banner_id: bannerId, event_type: 'view' });
-    } catch (error) {
-      console.error('Failed to track banner view:', error);
-    }
-  }, []);
+      await supabase.from('ad_banner_events').insert({ banner_id: bannerId, event_type: 'view', user_id: userId });
+    } catch (error) { console.error('Failed to track banner view:', error); }
+  }, [noteView, userId]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    const index = emblaApi.selectedScrollSnap();
-    setSelectedIndex(index);
-    
-    if (banners[index]) {
-      trackView(banners[index].id);
-    }
-  }, [emblaApi, banners, trackView]);
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
     onSelect();
     emblaApi.on('select', onSelect);
-    return () => {
-      emblaApi.off('select', onSelect);
-    };
+    emblaApi.on('reInit', onSelect);
+    return () => { emblaApi.off('select', onSelect); emblaApi.off('reInit', onSelect); };
   }, [emblaApi, onSelect]);
 
-  useEffect(() => {
-    if (emblaApi && autoplayPlugin) {
-      autoplayPlugin.reset();
-    }
-  }, [autoplayDelay, emblaApi]);
+  useEffect(() => { if (emblaApi) emblaApi.reInit(); }, [banners.length, emblaApi]);
 
   const handleBannerClick = async (banner: AdBanner) => {
     try {
-      await supabase
-        .from('ad_banner_events')
-        .insert({ banner_id: banner.id, event_type: 'click' });
-    } catch (error) {
-      console.error('Failed to track banner click:', error);
-    }
-    
-    if (banner.shop_id) {
-      navigate(`/shops/${banner.shop_id}`);
-    } else if (banner.external_url) {
-      openWithDeepLink(banner.external_url);
-    }
+      await supabase.from('ad_banner_events').insert({ banner_id: banner.id, event_type: 'click', user_id: userId });
+    } catch (error) { console.error('Failed to track banner click:', error); }
+    if (banner.shop_id) navigate(`/shops/${banner.shop_id}`);
+    else if (banner.external_url) openWithDeepLink(banner.external_url);
   };
 
-  const hasLink = (banner: AdBanner) => {
-    return banner.shop_id || banner.external_url;
-  };
+  const hasLink = (banner: AdBanner) => !!(banner.shop_id || banner.external_url);
 
-  if (isLoading || isAudienceLoading || (banners.length > 0 && !imagesLoaded)) {
-    return (
-      <div className="w-full mb-4">
-        <Skeleton className="w-full h-32 rounded-2xl" />
-      </div>
-    );
+  if (isLoading || isAudienceLoading || isEligLoading || perUser === null || (banners.length > 0 && !imagesLoaded)) {
+    return <div className="w-full mb-4"><Skeleton className="w-full h-32 rounded-2xl" /></div>;
   }
-
-  if (banners.length === 0) {
-    return null;
-  }
+  if (banners.length === 0) return null;
 
   return (
     <div className="w-full mb-4">
       <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
         <div className="flex">
-          {banners.map((banner) => (
-            <div
-              key={banner.id}
-              className="flex-[0_0_100%] min-w-0"
-            >
-              <div 
-                className={`relative ${hasLink(banner) ? 'cursor-pointer' : ''}`}
+          {banners.map(banner => {
+            const c = creativeOf(banner);
+            return (
+              <BannerSlide
+                key={banner.id}
+                banner={banner}
+                image={c.image}
+                caption={c.caption}
+                hasLink={hasLink(banner)}
+                onVisible={trackView}
                 onClick={() => handleBannerClick(banner)}
-              >
-                <img
-                  src={banner.image_url}
-                  alt={banner.caption || 'Рекламный баннер'}
-                  className="w-full h-32 object-cover rounded-2xl"
-                />
-                {banner.caption && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-b-2xl">
-                    <p className="text-white text-sm font-medium truncate text-center">
-                      {banner.caption}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+              />
+            );
+          })}
         </div>
       </div>
-      
       {banners.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-2">
           {banners.map((_, index) => (
             <button
               key={index}
-              className={`w-1.5 h-1.5 rounded-full transition-all ${
-                index === selectedIndex
-                  ? 'bg-primary w-4'
-                  : 'bg-muted-foreground/30'
-              }`}
+              className={`w-1.5 h-1.5 rounded-full transition-all ${index === selectedIndex ? 'bg-primary w-4' : 'bg-muted-foreground/30'}`}
               onClick={() => emblaApi?.scrollTo(index)}
             />
           ))}

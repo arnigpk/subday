@@ -8,6 +8,11 @@ import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { getBlockedUserIds } from '@/lib/subflowModeration';
+import { useAdEligibility } from '@/hooks/useAdEligibility';
+import {
+  matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
+  matchesSubscriptionTarget, withinDailyLimit, withinMinInterval, weightedOrder,
+} from '@/lib/adTargeting';
 import { Loader2 } from 'lucide-react';
 
 interface Post {
@@ -72,6 +77,8 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   const [posts, setPosts] = useState<Post[]>([]);
   const [rawAds, setRawAds] = useState<RawSubFlowAd[]>([]);
   const [filteredAds, setFilteredAds] = useState<SubFlowAd[]>([]);
+  // Показы за сегодня/последний показ по объявлению — для точного соблюдения лимита
+  const [adStats, setAdStats] = useState<Map<string, { todayViews: number; lastViewAt: Date | null }>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -83,6 +90,8 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     getBlockedUserIds().then(ids => { blockedIdsRef.current = ids; });
   }, [currentUserId]);
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
+  // Таргет на тариф + персональные лимиты (дневной лимит, частотный кап)
+  const { userSubTypeIds, isLoading: isEligLoading, loadStats, noteView } = useAdEligibility('subflow');
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
@@ -202,31 +211,32 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
 
   const { loadMoreRef } = useInfiniteScroll({ onLoadMore: loadMore, hasMore, isLoading: isLoadingMore });
 
-  // Fetch raw ads (no audience filtering - that's done reactively below)
+  // Fetch raw ads (audience/limits applied reactively below)
   const fetchAds = useCallback(async () => {
     const { data } = await supabase
       .from('subflow_ads')
-      .select('id, title, content, image_url, link_type, link_value, shop_id, shop_name, frequency, daily_limit, starts_at, ends_at, audience_types, country, city')
+      .select('*')
       .eq('is_active', true);
-    
-    // Client-side filter by date range and country/city
-    const filtered = ((data as RawSubFlowAd[]) || []).filter(ad => {
-      if (ad.starts_at && new Date(ad.starts_at) > new Date()) return false;
-      if (ad.ends_at && new Date(ad.ends_at) < new Date()) return false;
-      if (ad.country && ad.country !== userCountry) return false;
-      if (ad.city && userCity && ad.city !== userCity) return false;
-      return true;
-    });
+
+    // Единые правила: даты, гео, дни недели, часы, бюджет показов/кликов.
+    const now = new Date();
+    const filtered = ((data as RawSubFlowAd[]) || []).filter(ad =>
+      matchesDateRange(ad, now) &&
+      matchesGeo(ad, userCountry, userCity) &&
+      matchesDayOfWeek(ad, now) &&
+      matchesHours(ad, now) &&
+      withinBudget(ad),
+    );
     setRawAds(filtered);
   }, [userCountry, userCity]);
 
-  // Reactively filter by audience when matchesAudience updates
+  // Аудитория + таргет на конкретные тарифы (реактивно)
   const audienceFilteredAds = useMemo(() => {
-    if (isAudienceLoading) return [];
-    return rawAds.filter(ad => matchesAudience(ad.audience_types));
-  }, [rawAds, matchesAudience, isAudienceLoading]);
+    if (isAudienceLoading || isEligLoading) return [];
+    return rawAds.filter(ad => matchesAudience(ad.audience_types) && matchesSubscriptionTarget(ad, userSubTypeIds));
+  }, [rawAds, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds]);
 
-  // Apply daily limit filtering on top of audience-filtered ads
+  // Персональные лимиты: дневной лимит + частотный кап (не чаще 1 раза в N минут)
   useEffect(() => {
     const applyDailyLimits = async () => {
       if (!currentUserId || audienceFilteredAds.length === 0) {
@@ -234,39 +244,19 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         return;
       }
 
-      const adsWithLimit = audienceFilteredAds.filter(a => a.daily_limit > 0);
-      if (adsWithLimit.length === 0) {
-        setFilteredAds(audienceFilteredAds);
-        return;
-      }
-
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const { data: todayEvents } = await supabase
-        .from('subflow_ad_events')
-        .select('ad_id')
-        .eq('user_id', currentUserId)
-        .eq('event_type', 'view')
-        .gte('created_at', todayStart.toISOString())
-        .in('ad_id', adsWithLimit.map(a => a.id));
-
-      const viewCounts = new Map<string, number>();
-      (todayEvents || []).forEach((e: any) => {
-        viewCounts.set(e.ad_id, (viewCounts.get(e.ad_id) || 0) + 1);
-      });
-
+      const stats = await loadStats(audienceFilteredAds.map(a => a.id));
+      setAdStats(stats);
+      const now = new Date();
       const filtered = audienceFilteredAds.filter(ad => {
-        if (ad.daily_limit <= 0) return true;
-        const todayViews = viewCounts.get(ad.id) || 0;
-        return todayViews < ad.daily_limit;
+        const st = stats.get(ad.id);
+        return withinDailyLimit(ad, st?.todayViews || 0) && withinMinInterval(ad, st?.lastViewAt || null, now);
       });
 
       setFilteredAds(filtered);
     };
 
     applyDailyLimits();
-  }, [audienceFilteredAds, currentUserId]);
+  }, [audienceFilteredAds, currentUserId, loadStats]);
 
   useEffect(() => {
     fetchPosts(true);
@@ -337,26 +327,32 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     );
   }
 
-  // Build feed with ads inserted at configured frequency, respecting daily limits
-  // Pre-compute which ads go where, tracking per-ad render count vs daily_limit
+  // Расстановка рекламы в ленте:
+  //  • частота — позиция кратна frequency;
+  //  • дневной лимит соблюдается ТОЧНО: учитываем уже показанное сегодня (остаток лимита),
+  //    поэтому лишних повторов не будет — ровно столько раз, сколько задано;
+  //  • при нескольких кандидатах на позицию — взвешенная ротация (weight), а не «первое из списка».
   const buildAdPlacements = (): Map<number, SubFlowAd> => {
     const placements = new Map<number, SubFlowAd>();
     if (filteredAds.length === 0) return placements;
 
-    // Track how many times each ad has been placed in this render
-    const renderCounts = new Map<string, number>();
+    // Остаток дневного лимита = лимит − уже показано сегодня (0 = безлимит).
+    const remaining = new Map<string, number>();
+    filteredAds.forEach(ad => {
+      const dl = ad.daily_limit || 0;
+      const usedToday = adStats.get(ad.id)?.todayViews || 0;
+      remaining.set(ad.id, dl > 0 ? Math.max(0, dl - usedToday) : Number.POSITIVE_INFINITY);
+    });
 
     for (let i = 0; i < posts.length; i++) {
-      for (const ad of filteredAds) {
-        if (ad.frequency > 0 && (i + 1) % ad.frequency === 0) {
-          const shown = renderCounts.get(ad.id) || 0;
-          // If daily_limit > 0, cap placements to daily_limit
-          if (ad.daily_limit > 0 && shown >= ad.daily_limit) continue;
-          renderCounts.set(ad.id, shown + 1);
-          placements.set(i, ad);
-          break; // only one ad per position
-        }
-      }
+      const candidates = filteredAds.filter(ad =>
+        ad.frequency > 0 && (i + 1) % ad.frequency === 0 && (remaining.get(ad.id) ?? 0) > 0,
+      );
+      if (candidates.length === 0) continue;
+      const chosen = weightedOrder(candidates, `${currentUserId || 'anon'}:${i}`)[0];
+      if (!chosen) continue;
+      placements.set(i, chosen);
+      remaining.set(chosen.id, (remaining.get(chosen.id) ?? 0) - 1);
     }
     return placements;
   };
@@ -380,7 +376,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
             />
             {adToShow && (
               <div className="mt-4">
-                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} currentUserId={currentUserId} />
+                <SubFlowAdPost key={`ad-${adToShow.id}-${index}`} ad={adToShow} currentUserId={currentUserId} onViewed={noteView} />
               </div>
             )}
           </div>

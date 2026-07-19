@@ -9,6 +9,7 @@ import { SubFlowAdComments } from './SubFlowAdComments';
 import { toast } from 'sonner';
 import { useVibration } from '@/hooks/useVibration';
 import { ReactionBurst } from './ReactionBurst';
+import { pickAbVariant } from '@/lib/adTargeting';
 
 interface SubFlowAd {
   id: string;
@@ -19,20 +20,34 @@ interface SubFlowAd {
   link_value: string | null;
   shop_id: string | null;
   shop_name: string | null;
+  // A/B-вариант креатива (необязательный)
+  ab_split?: number | null;
+  title_b?: string | null;
+  content_b?: string | null;
+  image_url_b?: string | null;
 }
 
 interface SubFlowAdPostProps {
   ad: SubFlowAd;
   currentUserId?: string | null;
+  /** Локально учесть показ (чтобы дневной лимит сработал сразу). */
+  onViewed?: (adId: string) => void;
 }
 
 const PRIMARY_REACTIONS = ['💚', '👍', '🔥', '🚀', '⚡️'];
 const EXTRA_REACTIONS = ['🤣', '😍', '🥶', '🤩', '😮', '🙌', '🙏', '☕', '🎯', '🤝'];
 const MAX_REACTIONS_PER_USER = 2;
 
-export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(function SubFlowAdPost({ ad, currentUserId }, ref) {
+export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(function SubFlowAdPost({ ad, currentUserId, onViewed }, ref) {
   const navigate = useNavigate();
   const viewTracked = useRef(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // A/B-вариант креатива: стабилен для пользователя (иначе статистика A/B размывается).
+  const variant = pickAbVariant(ad, currentUserId ?? null);
+  const shownTitle = variant === 'B' ? (ad.title_b ?? ad.title) : ad.title;
+  const shownContent = variant === 'B' ? (ad.content_b ?? ad.content) : ad.content;
+  const shownImage = variant === 'B' ? (ad.image_url_b ?? ad.image_url) : ad.image_url;
   const { vibrateShort } = useVibration();
   
   const [localReactions, setLocalReactions] = useState<Record<string, number>>({});
@@ -122,22 +137,35 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
     return () => { supabase.removeChannel(channel); };
   }, [ad.id]);
 
-  // Track view on mount
+  // Показ засчитываем ТОЛЬКО когда реклама реально видна (≥50% минимум 1 сек),
+  // а не при рендере — иначе показы завышались и зря съедали дневной лимит.
   useEffect(() => {
-    if (viewTracked.current) return;
-    viewTracked.current = true;
+    const el = rootRef.current;
+    if (!el || viewTracked.current) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      supabase.from('subflow_ad_events').insert({
-        ad_id: ad.id,
-        user_id: data.user.id,
-        event_type: 'view',
-      }).then(({ error }) => {
-        if (error) console.error('Ad view track error:', error);
+    const fire = () => {
+      if (viewTracked.current) return;
+      viewTracked.current = true;
+      onViewed?.(ad.id);
+      supabase.auth.getUser().then(({ data }) => {
+        if (!data.user) return;
+        supabase.from('subflow_ad_events').insert({
+          ad_id: ad.id, user_id: data.user.id, event_type: 'view',
+        }).then(({ error }) => { if (error) console.error('Ad view track error:', error); });
       });
-    });
-  }, [ad.id]);
+    };
+
+    const io = new IntersectionObserver(entries => {
+      const e = entries[0];
+      if (e?.isIntersecting && e.intersectionRatio >= 0.5) {
+        timer = setTimeout(fire, 1000);
+      } else if (timer) { clearTimeout(timer); timer = null; }
+    }, { threshold: [0, 0.5, 1] });
+
+    io.observe(el);
+    return () => { io.disconnect(); if (timer) clearTimeout(timer); };
+  }, [ad.id, onViewed]);
 
   const trackClick = async () => {
     const { data } = await supabase.auth.getUser();
@@ -226,7 +254,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
   };
 
   return (
-    <div ref={ref} className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
+    <div ref={(node) => { rootRef.current = node; if (typeof ref === 'function') ref(node); else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node; }} className="card-static animate-slide-up border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent shadow-md">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shadow-sm">
@@ -234,7 +262,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
           </div>
           <div>
             <p className="text-sm font-bold text-foreground tracking-tight">
-              {ad.title || ad.shop_name || 'subday'}
+              {shownTitle || ad.shop_name || 'subday'}
             </p>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-accent/40 text-accent font-bold uppercase tracking-wider">
               реклама
@@ -243,11 +271,11 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
         </div>
       </div>
 
-      <p className="text-[15px] text-foreground leading-relaxed mb-3 whitespace-pre-wrap font-medium">{ad.content}</p>
+      <p className="text-[15px] text-foreground leading-relaxed mb-3 whitespace-pre-wrap font-medium">{shownContent}</p>
 
-      {ad.image_url && (
+      {shownImage && (
         <div className="mb-3 -mx-4 overflow-hidden">
-          <img src={ad.image_url} alt="Реклама" className="w-full object-cover" loading="lazy" />
+          <img src={shownImage} alt="Реклама" className="w-full object-cover" loading="lazy" />
         </div>
       )}
 
