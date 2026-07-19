@@ -239,6 +239,12 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   // Персональные лимиты: дневной лимит + частотный кап (не чаще 1 раза в N минут)
   useEffect(() => {
     const applyDailyLimits = async () => {
+      // Пока не знаем, кто смотрит, рекламу не показываем: иначе она успеет
+      // отрендериться и засчитать показ в обход дневного лимита.
+      if (isEligLoading) {
+        setFilteredAds([]);
+        return;
+      }
       if (!currentUserId || audienceFilteredAds.length === 0) {
         setFilteredAds(audienceFilteredAds);
         return;
@@ -256,7 +262,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     };
 
     applyDailyLimits();
-  }, [audienceFilteredAds, currentUserId, loadStats]);
+  }, [audienceFilteredAds, currentUserId, loadStats, isEligLoading]);
 
   useEffect(() => {
     fetchPosts(true);
