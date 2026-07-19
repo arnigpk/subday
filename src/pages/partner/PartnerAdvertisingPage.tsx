@@ -7,6 +7,7 @@ import { Megaphone, TrendingUp, Users, Target, Sparkles, CheckCircle2, Loader2 }
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerActiveAds } from '@/components/partner/PartnerActiveAds';
+import { PartnerAdResults } from '@/components/partner/PartnerAdResults';
 
 export default function PartnerAdvertisingPage() {
   const { shopName, shopId } = usePartnerAuth();
@@ -167,6 +168,8 @@ export default function PartnerAdvertisingPage() {
         )}
 
         {/* Active Ads Section */}
+        <PartnerAdResults shopId={shopId} />
+
         <PartnerActiveAds shopId={shopId} />
       </div>
     </PartnerLayout>

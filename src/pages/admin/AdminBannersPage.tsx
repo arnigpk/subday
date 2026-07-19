@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdsGlobalCapsCard } from '@/components/admin/AdsGlobalCapsCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -215,6 +216,11 @@ export default function AdminBannersPage() {
       hour_to: (b.hour_to as number | null) ?? null,
       target_subscription_type_ids: (b.target_subscription_type_ids as string[]) ?? [],
       ab_split: (b.ab_split as number) ?? 0,
+      behavior_target: (b.behavior_target as string) ?? 'any',
+      behavior_days: (b.behavior_days as number) ?? 30,
+      exclude_visited_days: (b.exclude_visited_days as number) ?? 0,
+      target_competitor_shop_ids: (b.target_competitor_shop_ids as string[]) ?? [],
+      pacing: (b.pacing as string) ?? 'asap',
     });
     setCaptionB((b.caption_b as string) || '');
     setImageUrlB((b.image_url_b as string) || '');
@@ -296,6 +302,11 @@ export default function AdminBannersPage() {
         hour_to: targeting.hour_to,
         target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
         ab_split: targeting.ab_split,
+        behavior_target: targeting.behavior_target,
+        behavior_days: targeting.behavior_days,
+        exclude_visited_days: targeting.exclude_visited_days,
+        target_competitor_shop_ids: targeting.target_competitor_shop_ids.length ? targeting.target_competitor_shop_ids : null,
+        pacing: targeting.pacing,
         caption_b: captionB.trim() || null,
         image_url_b: imageUrlB.trim() || null,
       };
@@ -439,6 +450,8 @@ export default function AdminBannersPage() {
               </Button>
             )}
           </div>
+
+          <AdsGlobalCapsCard />
 
           {/* Summary KPIs */}
           {!bannersLoading && !bannerStatsLoading && banners.length > 0 && (
@@ -718,7 +731,14 @@ export default function AdminBannersPage() {
                 />
 
                 {/* Показ и ограничения: вес, лимиты, бюджеты, дни/часы, тариф, A/B */}
-                <AdTargetingFields value={targeting} onChange={setTargeting} />
+                <AdTargetingFields
+                  value={targeting}
+                  onChange={setTargeting}
+                  shopId={formData.shop_id || null}
+                  country={formData.country || null}
+                  city={formData.city || null}
+                  audienceTypes={formData.audience_types}
+                />
 
                 {/* Вариант B (используется, если доля A/B > 0) */}
                 {targeting.ab_split > 0 && (

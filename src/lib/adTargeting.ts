@@ -24,6 +24,88 @@ export interface TargetableAd {
   ab_split?: number | null;
   views_total?: number | null;
   clicks_total?: number | null;
+  shop_id?: string | null;
+  behavior_target?: string | null;      // any | new | lapsed | active
+  behavior_days?: number | null;
+  exclude_visited_days?: number | null;
+  target_competitor_shop_ids?: string[] | null;
+  pacing?: string | null;               // asap | even
+}
+
+/** Отношение пользователя к кофейне: когда был последний раз и был ли вообще. */
+export interface ShopAffinity {
+  /** shop_id -> время последнего списания. Кофейни без визитов в карте отсутствуют. */
+  lastVisitByShop: Map<string, Date>;
+}
+
+const daysAgo = (d: Date, now: Date) => (now.getTime() - d.getTime()) / 86_400_000;
+
+/**
+ * Поведенческий таргет по своим данным о посещениях:
+ *   new    — в этой кофейне не был ни разу;
+ *   lapsed — был, но не приходил behavior_days;
+ *   active — приходил за последние behavior_days.
+ * Плюс исключение недавних гостей и таргет «ходит к конкурентам».
+ */
+export function matchesBehavior(
+  ad: TargetableAd,
+  affinity: ShopAffinity | null,
+  now: Date = new Date(),
+): boolean {
+  const target = ad.behavior_target || 'any';
+  const comps = ad.target_competitor_shop_ids || [];
+  const excl = ad.exclude_visited_days || 0;
+
+  // Ничего поведенческого не настроено — правило не применяем.
+  if (target === 'any' && comps.length === 0 && excl === 0) return true;
+  // Настроено, но данных о пользователе нет — не показываем: иначе таргет
+  // молча превращается в «показать всем».
+  if (!affinity) return false;
+
+  const window = ad.behavior_days ?? 30;
+
+  if (comps.length > 0) {
+    const visitedCompetitor = comps.some(id => {
+      const last = affinity.lastVisitByShop.get(id);
+      return !!last && daysAgo(last, now) <= Math.max(window, 30);
+    });
+    if (!visitedCompetitor) return false;
+  }
+
+  if (ad.shop_id) {
+    const last = affinity.lastVisitByShop.get(ad.shop_id) || null;
+
+    if (excl > 0 && last && daysAgo(last, now) <= excl) return false;
+
+    if (target === 'new' && last) return false;
+    if (target === 'lapsed' && (!last || daysAgo(last, now) <= window)) return false;
+    if (target === 'active' && (!last || daysAgo(last, now) > window)) return false;
+  } else if (target !== 'any') {
+    // Поведение считается относительно кофейни; без неё правило бессмысленно.
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Равномерная открутка: бюджет показов растягивается на срок кампании, чтобы
+ * недельная кампания не сгорала за первый вечер. Без бюджета или без обеих
+ * дат растягивать нечего.
+ */
+export function withinPacing(ad: TargetableAd, now: Date = new Date()): boolean {
+  if ((ad.pacing || 'asap') !== 'even') return true;
+  const budget = ad.view_budget || 0;
+  if (budget <= 0 || !ad.starts_at || !ad.ends_at) return true;
+
+  const start = new Date(ad.starts_at).getTime();
+  const end = new Date(ad.ends_at).getTime();
+  if (!(end > start)) return true;
+
+  const elapsed = (now.getTime() - start) / (end - start);
+  const allowedByNow = budget * Math.min(1, Math.max(0, elapsed));
+  // Небольшой аванс, иначе в самом начале кампании показов не будет вовсе.
+  return (ad.views_total || 0) < Math.max(1, allowedByNow);
 }
 
 /** Начало «сегодня» в рабочей таймзоне (для дневных лимитов). */

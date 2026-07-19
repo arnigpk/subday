@@ -12,6 +12,7 @@ import { useAdEligibility } from '@/hooks/useAdEligibility';
 import {
   matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
   matchesSubscriptionTarget, withinDailyLimit, withinMinInterval, weightedOrder,
+  matchesBehavior, withinPacing,
 } from '@/lib/adTargeting';
 import { Loader2 } from 'lucide-react';
 
@@ -91,7 +92,10 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   }, [currentUserId]);
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
   // Таргет на тариф + персональные лимиты (дневной лимит, частотный кап)
-  const { userSubTypeIds, isLoading: isEligLoading, loadStats, noteView } = useAdEligibility('subflow');
+  const {
+    userSubTypeIds, isLoading: isEligLoading, affinity,
+    loadStats, loadTotalToday, capExhausted, noteView,
+  } = useAdEligibility('subflow');
   const { profile } = useUserStatsContext();
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
@@ -225,16 +229,22 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       matchesGeo(ad, userCountry, userCity) &&
       matchesDayOfWeek(ad, now) &&
       matchesHours(ad, now) &&
-      withinBudget(ad),
+      withinBudget(ad) &&
+      withinPacing(ad, now),
     );
     setRawAds(filtered);
   }, [userCountry, userCity]);
 
-  // Аудитория + таргет на конкретные тарифы (реактивно)
+  // Аудитория + таргет на тарифы + поведение относительно кофейни (реактивно)
   const audienceFilteredAds = useMemo(() => {
     if (isAudienceLoading || isEligLoading) return [];
-    return rawAds.filter(ad => matchesAudience(ad.audience_types) && matchesSubscriptionTarget(ad, userSubTypeIds));
-  }, [rawAds, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds]);
+    const now = new Date();
+    return rawAds.filter(ad =>
+      matchesAudience(ad.audience_types) &&
+      matchesSubscriptionTarget(ad, userSubTypeIds) &&
+      matchesBehavior(ad, affinity, now),
+    );
+  }, [rawAds, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds, affinity]);
 
   // Персональные лимиты: дневной лимит + частотный кап (не чаще 1 раза в N минут)
   useEffect(() => {
@@ -250,6 +260,13 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         return;
       }
 
+      // Общий потолок реклам на человека — поверх лимитов отдельных объявлений.
+      const totalToday = await loadTotalToday();
+      if (capExhausted(totalToday)) {
+        setFilteredAds([]);
+        return;
+      }
+
       const stats = await loadStats(audienceFilteredAds.map(a => a.id));
       setAdStats(stats);
       const now = new Date();
@@ -262,7 +279,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     };
 
     applyDailyLimits();
-  }, [audienceFilteredAds, currentUserId, loadStats, isEligLoading]);
+  }, [audienceFilteredAds, currentUserId, loadStats, isEligLoading, loadTotalToday, capExhausted]);
 
   useEffect(() => {
     fetchPosts(true);

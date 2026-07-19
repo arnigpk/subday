@@ -121,6 +121,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         hour_to: (ad.hour_to as number | null) ?? null,
         target_subscription_type_ids: (ad.target_subscription_type_ids as string[]) ?? [],
         ab_split: (ad.ab_split as number) ?? 0,
+        behavior_target: (ad.behavior_target as string) ?? 'any',
+        behavior_days: (ad.behavior_days as number) ?? 30,
+        exclude_visited_days: (ad.exclude_visited_days as number) ?? 0,
+        target_competitor_shop_ids: (ad.target_competitor_shop_ids as string[]) ?? [],
+        pacing: (ad.pacing as string) ?? 'asap',
       });
       setTitleB((ad.title_b as string) || '');
       setContentB((ad.content_b as string) || '');
@@ -250,6 +255,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         hour_to: targeting.hour_to,
         target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
         ab_split: targeting.ab_split,
+        behavior_target: targeting.behavior_target,
+        behavior_days: targeting.behavior_days,
+        exclude_visited_days: targeting.exclude_visited_days,
+        target_competitor_shop_ids: targeting.target_competitor_shop_ids.length ? targeting.target_competitor_shop_ids : null,
+        pacing: targeting.pacing,
         title_b: titleB.trim() || null,
         content_b: contentB.trim() || null,
         image_url_b: imageUrlB.trim() || null,
@@ -491,7 +501,15 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
 
         {/* Показ и ограничения: вес, бюджеты, дни/часы, тариф, A/B */}
-        <AdTargetingFields value={targeting} onChange={setTargeting} showDailyLimit={false} />
+        <AdTargetingFields
+          value={targeting}
+          onChange={setTargeting}
+          showDailyLimit={false}
+          shopId={linkType === 'shop' ? selectedShopId || null : null}
+          country={country || null}
+          city={city || null}
+          audienceTypes={audienceTypes}
+        />
 
         {/* Вариант B (используется, если доля A/B > 0) */}
         {targeting.ab_split > 0 && (

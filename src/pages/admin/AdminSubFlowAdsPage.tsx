@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdsGlobalCapsCard } from '@/components/admin/AdsGlobalCapsCard';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -254,6 +255,7 @@ export default function AdminSubFlowAdsPage() {
 
       {activeTab === 'create' && (
         <div className="space-y-6">
+          {canManage && <AdsGlobalCapsCard />}
           {canManage && (
             <SubFlowAdForm
               shops={shops}

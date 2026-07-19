@@ -413,6 +413,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ads_settings: {
+        Row: {
+          id: boolean
+          max_ads_per_day: number
+          max_ads_per_session: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          max_ads_per_day?: number
+          max_ads_per_session?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          max_ads_per_day?: number
+          max_ads_per_session?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_banner_events: {
         Row: {
           banner_id: string
@@ -463,6 +484,12 @@ export type Database = {
           image_url_b: string | null
           views_total: number
           clicks_total: number
+          behavior_target: string
+          behavior_days: number
+          exclude_visited_days: number
+          target_competitor_shop_ids: string[] | null
+          pacing: string
+          special_offer_id: string | null
           caption: string | null
           city: string | null
           country: string | null
@@ -495,6 +522,12 @@ export type Database = {
           image_url_b?: string | null
           views_total?: number
           clicks_total?: number
+          behavior_target?: string
+          behavior_days?: number
+          exclude_visited_days?: number
+          target_competitor_shop_ids?: string[] | null
+          pacing?: string
+          special_offer_id?: string | null
           caption?: string | null
           city?: string | null
           country?: string | null
@@ -527,6 +560,12 @@ export type Database = {
           image_url_b?: string | null
           views_total?: number
           clicks_total?: number
+          behavior_target?: string
+          behavior_days?: number
+          exclude_visited_days?: number
+          target_competitor_shop_ids?: string[] | null
+          pacing?: string
+          special_offer_id?: string | null
           caption?: string | null
           city?: string | null
           country?: string | null
@@ -1579,6 +1618,12 @@ export type Database = {
           image_url_b: string | null
           views_total: number
           clicks_total: number
+          behavior_target: string
+          behavior_days: number
+          exclude_visited_days: number
+          target_competitor_shop_ids: string[] | null
+          pacing: string
+          special_offer_id: string | null
           audience_types: string[]
           city: string | null
           content: string
@@ -1613,6 +1658,12 @@ export type Database = {
           image_url_b?: string | null
           views_total?: number
           clicks_total?: number
+          behavior_target?: string
+          behavior_days?: number
+          exclude_visited_days?: number
+          target_competitor_shop_ids?: string[] | null
+          pacing?: string
+          special_offer_id?: string | null
           audience_types?: string[]
           city?: string | null
           content: string
@@ -1647,6 +1698,12 @@ export type Database = {
           image_url_b?: string | null
           views_total?: number
           clicks_total?: number
+          behavior_target?: string
+          behavior_days?: number
+          exclude_visited_days?: number
+          target_competitor_shop_ids?: string[] | null
+          pacing?: string
+          special_offer_id?: string | null
           audience_types?: string[]
           city?: string | null
           content?: string

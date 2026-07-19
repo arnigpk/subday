@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfAdsDay } from '@/lib/adTargeting';
+import { startOfAdsDay, type ShopAffinity } from '@/lib/adTargeting';
 
 export type AdKind = 'subflow' | 'banner';
 
 export interface UserAdStat { todayViews: number; lastViewAt: Date | null }
+
+/** Общий потолок показов рекламы на пользователя, поверх лимитов объявлений. */
+export interface AdsCaps { maxPerDay: number; maxPerSession: number }
 
 /**
  * Персональные данные для правил показа рекламы:
@@ -17,7 +20,10 @@ export function useAdEligibility(kind: AdKind) {
   const [userId, setUserId] = useState<string | null>(null);
   const [userSubTypeIds, setUserSubTypeIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [affinity, setAffinity] = useState<ShopAffinity | null>(null);
+  const [caps, setCaps] = useState<AdsCaps>({ maxPerDay: 0, maxPerSession: 0 });
   const statsCache = useRef<Map<string, UserAdStat>>(new Map());
+  const sessionShown = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,14 +31,51 @@ export function useAdEligibility(kind: AdKind) {
       const { data: { user } } = await supabase.auth.getUser();
       if (cancelled) return;
       setUserId(user?.id || null);
+
+      const capsPromise = supabase
+        .from('ads_settings')
+        .select('max_ads_per_day, max_ads_per_session')
+        .maybeSingle();
+
       if (user) {
-        const { data } = await supabase
-          .from('user_subscriptions')
-          .select('subscription_type_id')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
-        if (!cancelled) {
-          setUserSubTypeIds(((data || []).map(r => r.subscription_type_id).filter(Boolean)) as string[]);
+        const [subsRes, redRes, capsRes] = await Promise.all([
+          supabase.from('user_subscriptions')
+            .select('subscription_type_id')
+            .eq('user_id', user.id)
+            .eq('is_active', true),
+          // История посещений — основа поведенческого таргета.
+          supabase.from('redemptions')
+            .select('shop_id, redeemed_at')
+            .eq('user_id', user.id)
+            .not('shop_id', 'is', null)
+            .order('redeemed_at', { ascending: false })
+            .limit(1000),
+          capsPromise,
+        ]);
+        if (cancelled) return;
+
+        setUserSubTypeIds(((subsRes.data || []).map(r => r.subscription_type_id).filter(Boolean)) as string[]);
+
+        const lastVisitByShop = new Map<string, Date>();
+        for (const r of (redRes.data || []) as { shop_id: string; redeemed_at: string }[]) {
+          if (!r.shop_id || lastVisitByShop.has(r.shop_id)) continue; // отсортировано по убыванию
+          lastVisitByShop.set(r.shop_id, new Date(r.redeemed_at));
+        }
+        setAffinity({ lastVisitByShop });
+        if (capsRes.data) {
+          setCaps({
+            maxPerDay: capsRes.data.max_ads_per_day || 0,
+            maxPerSession: capsRes.data.max_ads_per_session || 0,
+          });
+        }
+      } else {
+        const capsRes = await capsPromise;
+        if (cancelled) return;
+        if (capsRes.data) {
+          setCaps({
+            maxPerDay: capsRes.data.max_ads_per_day || 0,
+            maxPerSession: capsRes.data.max_ads_per_session || 0,
+          });
         }
       }
       if (!cancelled) setIsLoading(false);
@@ -83,11 +126,39 @@ export function useAdEligibility(kind: AdKind) {
     return result;
   }, [userId, kind]);
 
+  /**
+   * Общий потолок: сколько всего реклам этого типа человек уже видел сегодня.
+   * Работает поверх лимитов отдельных объявлений — чтобы пять разных кампаний
+   * не выдали пять реклам подряд «по правилам».
+   */
+  const loadTotalToday = useCallback(async (): Promise<number> => {
+    if (!userId || caps.maxPerDay <= 0) return 0;
+    const table = kind === 'subflow' ? 'subflow_ad_events' : 'ad_banner_events';
+    const { count } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('event_type', 'view')
+      .gte('created_at', startOfAdsDay().toISOString());
+    return count || 0;
+  }, [userId, kind, caps.maxPerDay]);
+
+  /** Исчерпан ли общий потолок (за день или за текущую сессию). */
+  const capExhausted = useCallback((totalToday: number): boolean => {
+    if (caps.maxPerSession > 0 && sessionShown.current >= caps.maxPerSession) return true;
+    if (caps.maxPerDay > 0 && totalToday + sessionShown.current >= caps.maxPerDay) return true;
+    return false;
+  }, [caps]);
+
   /** Локально учесть показ, который только что произошёл (чтобы лимит сработал сразу). */
   const noteView = useCallback((adId: string) => {
     const cur = statsCache.current.get(adId) || { todayViews: 0, lastViewAt: null };
     statsCache.current.set(adId, { todayViews: cur.todayViews + 1, lastViewAt: new Date() });
+    sessionShown.current += 1;
   }, []);
 
-  return { userId, userSubTypeIds, isLoading, loadStats, noteView, statsCache };
+  return {
+    userId, userSubTypeIds, isLoading, affinity, caps,
+    loadStats, loadTotalToday, capExhausted, noteView, statsCache,
+  };
 }

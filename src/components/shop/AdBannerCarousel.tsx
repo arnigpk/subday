@@ -12,6 +12,7 @@ import { useAdEligibility, type UserAdStat } from '@/hooks/useAdEligibility';
 import {
   matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
   matchesSubscriptionTarget, withinDailyLimit, withinMinInterval, weightedOrder, pickAbVariant,
+  matchesBehavior, withinPacing,
   type TargetableAd,
 } from '@/lib/adTargeting';
 
@@ -81,8 +82,12 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
   const { matchesAudience, isLoading: isAudienceLoading } = useUserAudienceMatch();
-  const { userId, userSubTypeIds, isLoading: isEligLoading, loadStats, noteView } = useAdEligibility('banner');
+  const {
+    userId, userSubTypeIds, isLoading: isEligLoading, affinity,
+    loadStats, loadTotalToday, capExhausted, noteView,
+  } = useAdEligibility('banner');
   const [perUser, setPerUser] = useState<Map<string, UserAdStat> | null>(null);
+  const [capReached, setCapReached] = useState(false);
 
   const { data: allBanners = [], isLoading } = useQuery({
     queryKey: ['ad-banners', location, userCountry],
@@ -96,30 +101,42 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
         matchesDateRange(b, now) &&
         matchesDayOfWeek(b, now) &&
         matchesHours(b, now) &&
-        withinBudget(b),
+        withinBudget(b) &&
+        withinPacing(b, now),
       );
     },
     staleTime: 60 * 1000,
   });
 
-  // Аудитория + таргет на тариф (реактивно).
+  // Аудитория + таргет на тариф + поведение относительно кофейни (реактивно).
   const targeted = useMemo(() => {
     if (isAudienceLoading || isEligLoading) return [];
-    return allBanners.filter(b => matchesAudience(b.audience_types || ['all']) && matchesSubscriptionTarget(b, userSubTypeIds));
-  }, [allBanners, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds]);
+    const now = new Date();
+    return allBanners.filter(b =>
+      matchesAudience(b.audience_types || ['all']) &&
+      matchesSubscriptionTarget(b, userSubTypeIds) &&
+      matchesBehavior(b, affinity, now),
+    );
+  }, [allBanners, matchesAudience, isAudienceLoading, isEligLoading, userSubTypeIds, affinity]);
 
-  // Персональные лимиты (дневной лимит + частотный кап) — грузим один раз на набор.
+  // Персональные лимиты (дневной лимит + частотный кап) + общий потолок реклам.
   useEffect(() => {
     let cancelled = false;
     const ids = targeted.map(b => b.id);
     if (ids.length === 0 || !userId) { setPerUser(new Map()); return; }
-    loadStats(ids).then(m => { if (!cancelled) setPerUser(m); });
+    (async () => {
+      const totalToday = await loadTotalToday();
+      if (cancelled) return;
+      if (capExhausted(totalToday)) { setPerUser(new Map()); setCapReached(true); return; }
+      const m = await loadStats(ids);
+      if (!cancelled) { setCapReached(false); setPerUser(m); }
+    })();
     return () => { cancelled = true; };
-  }, [targeted, userId, loadStats]);
+  }, [targeted, userId, loadStats, loadTotalToday, capExhausted]);
 
   // Итоговый список: лимиты + взвешенная ротация внутри одинакового sort_order.
   const banners = useMemo(() => {
-    if (perUser === null) return [];
+    if (perUser === null || capReached) return [];
     const now = new Date();
     const eligible = targeted.filter(b => {
       const st = perUser.get(b.id);
@@ -128,7 +145,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     const groups = new Map<number, AdBanner[]>();
     eligible.forEach(b => { const k = b.sort_order ?? 0; groups.set(k, [...(groups.get(k) || []), b]); });
     return [...groups.keys()].sort((a, b) => a - b).flatMap(k => weightedOrder(groups.get(k)!, userId || 'anon'));
-  }, [targeted, perUser, userId]);
+  }, [targeted, perUser, userId, capReached]);
 
   // A/B-вариант креатива (стабильный для пользователя).
   const creativeOf = useCallback((b: AdBanner) => {
