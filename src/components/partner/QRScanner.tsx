@@ -21,6 +21,25 @@ function waitForElementReady(id: string, timeout = 3000): Promise<boolean> {
   });
 }
 
+// Ждём, пока видеопоток реально начнёт отдавать кадры (readyState >= 2 —
+// HAVE_CURRENT_DATA), а не просто фиксированную паузу вслепую. На быстрых
+// устройствах кадры идут почти сразу — рестарт случится раньше maxWaitMs,
+// на медленных — не позже потолка. Не гарантия того, что внутренний цикл
+// декодера html5-qrcode "прогрелся" (это состояние снаружи не видно), но
+// честный нижний порог вместо случайного числа.
+function waitForVideoFrame(containerId: string, maxWaitMs: number): Promise<void> {
+  return new Promise(resolve => {
+    const start = Date.now();
+    const check = () => {
+      const video = document.querySelector<HTMLVideoElement>(`#${containerId} video`);
+      if (video && video.readyState >= 2 && video.videoWidth > 0) { resolve(); return; }
+      if (Date.now() - start > maxWaitMs) { resolve(); return; }
+      requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
 async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'unavailable'> {
   if (!Capacitor.isNativePlatform()) return 'unavailable';
   try {
@@ -185,7 +204,7 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       // видит один непрерывный лоадер, а затем сразу рабочий сканер.
       if (!didAutoRestartRef.current) {
         didAutoRestartRef.current = true;
-        await new Promise(r => setTimeout(r, 800));
+        await waitForVideoFrame('qr-reader', 150);
         // Пользователь мог за это время уйти со страницы или переключиться
         // на USB-сканер — тогда камеру поднимать заново не нужно.
         if (!mountedRef.current || mode !== 'camera') return;
