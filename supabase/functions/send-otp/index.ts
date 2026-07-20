@@ -104,12 +104,36 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Cooldown 60 сек на номер (не на канал — иначе переключение sms/whatsapp
+    // его обходит). Честный клиент сам ждёт 59 сек перед повтором, так что это
+    // не мешает обычному использованию — закрывает только прямые вызовы API
+    // в обход интерфейса и защищает общий SMSC/Infobip-аккаунт от всплеска.
+    const COOLDOWN_SECONDS = 60
+    const { data: recentOtp } = await supabase
+      .from('otp_codes')
+      .select('created_at')
+      .eq('phone', formattedPhone)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (recentOtp) {
+      const elapsedMs = Date.now() - new Date(recentOtp.created_at).getTime()
+      const remaining = Math.ceil(COOLDOWN_SECONDS - elapsedMs / 1000)
+      if (remaining > 0) {
+        return new Response(
+          JSON.stringify({ error: `Код уже отправлен. Повторите через ${remaining} сек.`, cooldown: remaining }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
     // Delete old codes and insert new one
     await supabase.from('otp_codes').delete().eq('phone', formattedPhone)
-    
+
     const { error: insertError } = await supabase.from('otp_codes').insert({
       phone: formattedPhone, code, expires_at: expiresAt.toISOString(),
     })

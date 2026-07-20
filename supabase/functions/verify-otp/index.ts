@@ -123,14 +123,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify OTP
-    const { data: otpData, error: otpError } = await supabase
+    // Ищем по ТЕЛЕФОНУ (не по коду), чтобы можно было считать попытки на код,
+    // который ввели неверно, — при поиске "phone+code" неверный код просто не
+    // находил бы строку, и перебор 4-значного кода (10 000 вариантов, окно 5
+    // минут) не имел бы ограничения по попыткам.
+    const MAX_ATTEMPTS = 5
+    const { data: otpRow, error: otpError } = await supabase
       .from('otp_codes')
       .select('*')
       .eq('phone', formattedPhone)
-      .eq('code', code)
       .eq('verified', false)
       .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (otpError) {
@@ -141,12 +146,37 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!otpData) {
+    if (!otpRow) {
       return new Response(
         JSON.stringify({ error: 'Неверный или просроченный код' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    if (otpRow.attempts >= MAX_ATTEMPTS) {
+      return new Response(
+        JSON.stringify({ error: 'Слишком много попыток. Запросите новый код.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (otpRow.code !== code) {
+      const { data: updated } = await supabase
+        .from('otp_codes')
+        .update({ attempts: otpRow.attempts + 1 })
+        .eq('id', otpRow.id)
+        .select('attempts')
+        .maybeSingle()
+      const left = MAX_ATTEMPTS - (updated?.attempts ?? otpRow.attempts + 1)
+      return new Response(
+        JSON.stringify({
+          error: left > 0 ? `Неверный код. Осталось попыток: ${left}` : 'Неверный код. Запросите новый.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const otpData = otpRow
 
     // Mark OTP as used (don't await - fire and forget)
     supabase.from('otp_codes').update({ verified: true }).eq('id', otpData.id).then(() => {})
