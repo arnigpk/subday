@@ -3,7 +3,7 @@ import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Megaphone, TrendingUp, Users, Target, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { Megaphone, TrendingUp, Users, Target, Sparkles, CheckCircle2, Loader2, UserPlus, MapPin, Clock, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerActiveAds } from '@/components/partner/PartnerActiveAds';
@@ -47,95 +47,153 @@ export default function PartnerAdvertisingPage() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Реклама</h2>
-            <p className="text-xs text-muted-foreground">Продвижение вашей кофейни</p>
+            <p className="text-xs text-muted-foreground">Привлечение гостей и отчёт по результату</p>
           </div>
         </div>
 
-        {/* Main ad block */}
+        {/* Главное отличие: результат считается в реальных гостях */}
         <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles size={18} className="text-accent" />
-              Реклама в приложении subday
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Разместите рекламу вашей кофейни в приложении и привлеките новых постоянных клиентов! 
-              Ваш баннер увидят тысячи пользователей subday.
-            </p>
-
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <TrendingUp size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Раздел «Кофейни»</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Ваш рекламный баннер в верхней части раздела «Кофейни» — первое, что видят пользователи при выборе заведения.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Users size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Главная страница</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Баннер в нижней части главной страницы — охватывает всю аудиторию приложения при каждом визите.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Увеличьте узнаваемость вашей кофейни и привлекайте новых гостей каждый день благодаря рекламе в subday!
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* SubFlow targeted ad */}
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Target size={18} className="text-primary" />
-              Таргетированная реклама в #subFlow
+              <UserPlus size={18} className="text-accent" />
+              Вы видите не показы, а гостей
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              <span className="font-semibold text-foreground">#subFlow</span> — это эксклюзивная социальная сеть внутри subday, 
-              доступная только пользователям с активной подпиской. Это ваша самая лояльная и платёжеспособная аудитория!
+              subday знает не только, кто увидел рекламу, но и кто после неё пришёл в вашу кофейню
+              и списал напиток. Поэтому в отчёте ниже — не абстрактный охват, а живые люди.
             </p>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-xl bg-secondary/50 text-center">
-                <p className="text-lg font-bold text-foreground">🎯</p>
-                <p className="text-xs text-muted-foreground mt-1">Точное попадание в ЦА</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-secondary/50 text-center">
-                <p className="text-lg font-bold text-foreground">💎</p>
-                <p className="text-xs text-muted-foreground mt-1">Премиум аудитория</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-secondary/50 text-center">
-                <p className="text-lg font-bold text-foreground">📈</p>
-                <p className="text-xs text-muted-foreground mt-1">Рост постоянных клиентов</p>
-              </div>
-              <div className="p-2.5 rounded-xl bg-secondary/50 text-center">
-                <p className="text-lg font-bold text-foreground">☕</p>
-                <p className="text-xs text-muted-foreground mt-1">Увеличение дохода</p>
-              </div>
+            <div className="space-y-2">
+              {[
+                ['Новые гости', 'Сколько человек пришли к вам впервые — раньше их у вас не было'],
+                ['Дошли до кофейни', 'Сколько всего увидевших рекламу дошли и списали напиток за 7 и 14 дней'],
+                ['Срок до визита', 'Через сколько в среднем человек приходит после рекламы'],
+              ].map(([title, text]) => (
+                <div key={title} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CheckCircle2 size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{text}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Увеличьте свой доход и приток постоянных клиентов с рекламой в subday. 
-              Мы подберём оптимальный формат продвижения именно для вашей кофейни!
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Один человек считается один раз, даже если потом заходил многократно, — повторные
+              приходы показаны отдельно. Показ засчитывается, только когда реклама реально была
+              на экране, а не просто загрузилась.
             </p>
           </CardContent>
         </Card>
+
+        {/* Кому показывать */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Target size={18} className="text-primary" />
+              Реклама идёт не всем подряд
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Мы настраиваем показ под вашу задачу, чтобы бюджет не уходил на тех, кто и так
+              к вам ходит:
+            </p>
+
+            <div className="space-y-2">
+              {[
+                [<Users key="i" size={16} className="text-primary" />, 'Кто у вас ещё не был',
+                 'Привлечение новых гостей — реклама не тратится на постоянных'],
+                [<TrendingUp key="i" size={16} className="text-primary" />, 'Кто был, но давно не приходил',
+                 'Возврат ушедших гостей — обычно самый отзывчивый сегмент'],
+                [<MapPin key="i" size={16} className="text-primary" />, 'Кто ходит в соседние кофейни',
+                 'Показ гостям выбранных заведений в вашем городе'],
+                [<Clock key="i" size={16} className="text-primary" />, 'В нужные дни и часы',
+                 'Например, только утром в будни — под утренний кофе'],
+              ].map(([icon, title, text], i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{title as string}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{text as string}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Также доступен таргет по городу, тарифу подписки и отношению к ней —
+              например, только на действующих подписчиков.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Форматы и подбор креатива */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Sparkles size={18} className="text-accent" />
+              Форматы размещения
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Megaphone size={16} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Баннер</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    В разделе «Кофейни» — при выборе заведения, и на главной — при каждом заходе
+                    в приложение. Можно разместить в одном месте или в обоих.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary/50">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Target size={16} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Пост в #subFlow</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Реклама внутри ленты #subFlow — соцсети subday для подписчиков. Выглядит
+                    как обычный пост, с картинкой, текстом и ссылкой на вашу кофейню.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-secondary/50 p-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <FlaskConical size={15} className="text-primary" />
+                Подбор креатива
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Можно запустить два варианта рекламы одновременно и увидеть, какой приводит
+                больше гостей. Каждый человек видит только один вариант, поэтому сравнение честное.
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Частоту показов мы ограничиваем, чтобы реклама не примелькалась: есть лимит на
+              человека в день и общий потолок в приложении.
+            </p>
+          </CardContent>
+        </Card>
+
+        <p className="text-xs text-muted-foreground text-center leading-relaxed px-2">
+          Оставьте заявку — менеджер subday подберёт формат и настройки показа
+          под вашу задачу и бюджет.
+        </p>
 
         {/* CTA */}
         <Button
