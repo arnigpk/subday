@@ -16,6 +16,12 @@ const formatRemainingTime = (value: number): string => {
 export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Первый кадр загружается рядом с видео при публикации (`<video>.poster.jpg`).
+  // Показываем его сразу — картинка появляется мгновенно, пока видео ещё качается.
+  // Если постера нет (старые посты) — браузер просто игнорирует ссылку, без ошибки.
+  const posterSrc = useMemo(() => `${src.split('?')[0]}.poster.jpg`, [src]);
+  const [posterFailed, setPosterFailed] = useState(false);
+  const [isUnsupported, setIsUnsupported] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
@@ -197,7 +203,21 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
     const onTimeUpdate = () => setCurrentTime(video.currentTime || 0);
     const onLoadedMetadata = () => { setDuration(video.duration || 0); setCurrentTime(video.currentTime || 0); };
     const onDurationChange = () => setDuration(video.duration || 0);
-    const onError = () => { setIsPlaying(false); setShowPlayButton(true); setShowNativeControls(true); setIsBuffering(false); };
+    const onError = () => {
+      setIsPlaying(false);
+      setIsBuffering(false);
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) — браузер не умеет этот кодек/контейнер.
+      // Кнопка «play» тут бесполезна: сколько ни жми, декодера всё равно нет.
+      const code = videoRef.current?.error?.code;
+      if (code === 4 || code === 3 /* MEDIA_ERR_DECODE */) {
+        setIsUnsupported(true);
+        setShowPlayButton(false);
+        setShowNativeControls(false);
+      } else {
+        setShowPlayButton(true);
+        setShowNativeControls(true);
+      }
+    };
     const onWaiting = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
     const onPlaying = () => setIsBuffering(false);
@@ -237,6 +257,7 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
         <video
           ref={videoRef}
           src={src}
+          poster={posterFailed ? undefined : posterSrc}
           className="w-full max-h-[28rem] object-contain bg-black/5 dark:bg-white/5 rounded-sm"
           loop
           muted
@@ -249,8 +270,31 @@ export function SubFlowVideoPlayer({ src, className = '' }: SubFlowVideoPlayerPr
           x5-video-orientation="portraint"
         />
       ) : (
-        <div className="w-full max-h-[28rem] aspect-video bg-black/5 dark:bg-white/5 rounded-sm flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+        /* До подгрузки видео показываем тот же постер — карточка не «прыгает»
+           при замене заглушки на <video>, т.к. картинка уже та же самая. */
+        <div className="relative w-full max-h-[28rem] aspect-video bg-black/5 dark:bg-white/5 rounded-sm overflow-hidden">
+          {!posterFailed && (
+            <img
+              src={posterSrc}
+              alt=""
+              aria-hidden="true"
+              className="w-full h-full object-contain"
+              onError={() => setPosterFailed(true)}
+            />
+          )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+          </div>
+        </div>
+      )}
+
+      {/* Формат не поддерживается этим браузером (частый случай: снятое на
+          iPhone видео в HEVC/H.265 не декодируется в Android WebView).
+          Показываем постер и честное объяснение вместо вечного спиннера. */}
+      {isUnsupported && loadSrc && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px] rounded-sm px-4">
+          <p className="text-white text-sm font-medium text-center">Видео не открывается на этом устройстве</p>
+          <p className="text-white/70 text-xs text-center">Формат не поддерживается браузером</p>
         </div>
       )}
 

@@ -11,6 +11,7 @@ import { SubFlowComments } from './SubFlowComments';
 import { SubFlowImageViewer } from './SubFlowImageViewer';
 import { SubFlowVideoPlayer } from './SubFlowVideoPlayer';
 import { isVideoUrl } from '@/utils/imageCompression';
+import { getThumbUrl } from '@/utils/mediaUrl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -571,7 +572,15 @@ export function SubFlowPost({ post, currentUserId, onUpdate, animationDelay, has
               )}
               <img
                 ref={postImgRef}
-                src={images[currentImageIndex]}
+                src={getThumbUrl(images[currentImageIndex], { width: 1080, quality: 72 })}
+                onError={(e) => {
+                  // Трансформация могла не сработать (напр. файла нет — она
+                  // отвечает 400). Откатываемся на оригинал, чтобы картинка
+                  // в любом случае показалась.
+                  const img = e.currentTarget;
+                  const original = images[currentImageIndex];
+                  if (img.src !== original) img.src = original;
+                }}
                 alt={`Post image ${currentImageIndex + 1}`}
                 className={`w-full max-h-[28rem] object-contain select-none transition-opacity duration-300 bg-black/5 dark:bg-white/5 rounded-sm ${
                   imageLoaded[currentImageIndex] ? 'opacity-100' : 'opacity-0'

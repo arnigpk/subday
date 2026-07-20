@@ -8,6 +8,7 @@ import { prefetchStoriesForUsers } from '@/hooks/useStoriesCache';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { getBlockedUserIds } from '@/lib/subflowModeration';
+import { readFeedCache, writeFeedCache } from '@/lib/subflowFeedCache';
 import { useAdEligibility } from '@/hooks/useAdEligibility';
 import {
   matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
@@ -81,6 +82,10 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   // Показы за сегодня/последний показ по объявлению — для точного соблюдения лимита
   const [adStats, setAdStats] = useState<Map<string, { todayViews: number; lastViewAt: Date | null }>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  // Пришли ли уже свежие данные с сервера. Нужен, чтобы кеш (который читается
+  // асинхронно, после появления currentUserId) НИКОГДА не перезаписал более
+  // актуальную ленту, если запрос успел вернуться раньше.
+  const freshLoadedRef = useRef(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastCreatedAtRef = useRef<string | null>(null);
@@ -104,15 +109,11 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
     try {
       if (isInitial) {
         setIsLoading(true);
-        setPosts([]);
+        // ВНИМАНИЕ: список НЕ очищаем — иначе при обновлении ленты экран моргал
+        // бы пустотой поверх уже показанных постов (в т.ч. восстановленных из
+        // кеша). Массив заменяется целиком по приходу свежих данных.
         lastCreatedAtRef.current = null;
         setHasMore(true);
-        // Актуализируем список заблокированных на КАЖДОЙ первичной загрузке —
-        // иначе только что заблокированный автор оставался бы виден в ленте до
-        // перемонтирования (blockedIdsRef иначе грузится один раз при mount).
-        if (currentUserId) {
-          try { blockedIdsRef.current = await getBlockedUserIds(); } catch { /* оставляем прежний список */ }
-        }
       } else {
         setIsLoadingMore(true);
       }
@@ -131,7 +132,18 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
         query = query.lt('created_at', lastCreatedAtRef.current);
       }
 
-      const { data: postsRaw, error: postsError } = await query;
+      // Список заблокированных и сами посты друг от друга не зависят — раньше
+      // блокировки ждались ПЕРЕД запросом постов, теряя целый круг обращения.
+      // Актуализируем блокировки на каждой первичной загрузке: иначе только что
+      // заблокированный автор оставался бы виден до перемонтирования.
+      const [{ data: postsRaw, error: postsError }, blockedResult] = await Promise.all([
+        query,
+        isInitial && currentUserId
+          ? getBlockedUserIds().catch(() => null) // null = оставить прежний список
+          : Promise.resolve(null),
+      ]);
+
+      if (blockedResult) blockedIdsRef.current = blockedResult;
 
       if (postsError) throw postsError;
 
@@ -139,7 +151,13 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       const postsData = (postsRaw || []).filter((p: any) => !blockedIdsRef.current.has(p.user_id));
 
       if (!postsRaw || postsRaw.length === 0) {
-        if (isInitial) setPosts([]);
+        if (isInitial) {
+          freshLoadedRef.current = true;
+          setPosts([]);
+          // Чистим кеш: иначе при следующем заходе он показал бы посты,
+          // которых на сервере уже нет.
+          writeFeedCache<Post>(currentUserId, shopFilter, []);
+        }
         setHasMore(false);
         setIsLoading(false);
         setIsLoadingMore(false);
@@ -152,19 +170,18 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       setHasMore(postsRaw.length === POSTS_PER_PAGE);
 
       const userIds = [...new Set(postsData.map(p => p.user_id))];
-      
-      const { data: profilesData } = await supabase
-        .from('public_profiles')
-        .select('user_id, name, avatar_url, subflow_nickname')
-        .in('user_id', userIds);
-
-      const profilesMap = new Map((profilesData || []).map(p => [p.user_id, p]));
-
       const postIds = postsData.map(p => p.id);
-      const [{ data: reactionsData }, { data: commentsData }] = await Promise.all([
+
+      // Профили, реакции и комментарии зависят только от уже полученных постов,
+      // но не друг от друга — раньше профили ждались отдельным кругом перед
+      // остальными. Теперь все три идут одновременно.
+      const [{ data: profilesData }, { data: reactionsData }, { data: commentsData }] = await Promise.all([
+        supabase.from('public_profiles').select('user_id, name, avatar_url, subflow_nickname').in('user_id', userIds),
         supabase.from('subflow_reactions').select('*').in('post_id', postIds),
         supabase.from('subflow_comments').select('post_id').in('post_id', postIds),
       ]);
+
+      const profilesMap = new Map((profilesData || []).map(p => [p.user_id, p]));
 
       const reactionsMap = new Map<string, { counts: Record<string, number>; userReactions: string[] }>();
       postIds.forEach(id => { reactionsMap.set(id, { counts: {}, userReactions: [] }); });
@@ -199,8 +216,15 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       const postUserIds = [...new Set(enrichedPosts.map(p => p.user_id))];
       prefetchStoriesForUsers(postUserIds);
 
-      if (isInitial) setPosts(enrichedPosts);
-      else setPosts(prev => [...prev, ...enrichedPosts]);
+      if (isInitial) {
+        freshLoadedRef.current = true; // с этого момента кеш ленту не трогает
+        setPosts(enrichedPosts);
+        // В кеш кладём только первую страницу — при следующем заходе она
+        // покажется мгновенно (свежие данные всё равно догрузятся поверх).
+        writeFeedCache(currentUserId, shopFilter, enrichedPosts);
+      } else {
+        setPosts(prev => [...prev, ...enrichedPosts]);
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -282,6 +306,16 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   }, [audienceFilteredAds, currentUserId, loadStats, isEligLoading, loadTotalToday, capExhausted]);
 
   useEffect(() => {
+    // Мгновенный показ из кеша, пока идёт свежий запрос. Ключ кеша зависит от
+    // currentUserId, который приходит асинхронно, — поэтому читаем здесь, а не
+    // при первом рендере, иначе для вошедшего пользователя ключ был бы «anon».
+    if (!freshLoadedRef.current) {
+      const cached = readFeedCache<Post>(currentUserId, shopFilter);
+      if (cached && !freshLoadedRef.current) {
+        setPosts(cached);
+        setIsLoading(false); // скелетон не нужен — лента уже на экране
+      }
+    }
     fetchPosts(true);
     fetchAds();
   }, [refreshTrigger, currentUserId, shopFilter]);
@@ -323,7 +357,16 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
               user_reactions: [], comments_count: 0,
             };
             if (!shopFilter || newPost.shop_id === shopFilter) {
-              setPosts(prev => [enrichedPost, ...prev]);
+              setPosts(prev => {
+                // Защита от дублей: событие может прийти на пост, который уже
+                // есть в ленте (перезапуск подписки, гонка с обычной загрузкой,
+                // показ из кеша). Без этой проверки пост задваивался бы.
+                if (prev.some(p => p.id === enrichedPost.id)) return prev;
+                // Автора мог заблокировать текущий пользователь — realtime про
+                // это не знает, фильтруем так же, как при обычной загрузке.
+                if (blockedIdsRef.current.has(enrichedPost.user_id)) return prev;
+                return [enrichedPost, ...prev];
+              });
             }
           });
       })
