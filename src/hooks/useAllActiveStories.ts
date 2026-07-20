@@ -40,7 +40,7 @@ export function useAllActiveStories(currentUserId: string | null) {
     const userIds = [...new Set(data.map(s => s.user_id))];
 
     const [profilesRes, viewedRes] = await Promise.all([
-      supabase.from('profiles').select('user_id, name, avatar_url').in('user_id', userIds),
+      supabase.from('public_profiles').select('user_id, name, avatar_url').in('user_id', userIds),
       currentUserId
         ? supabase.from('story_views').select('story_id').eq('user_id', currentUserId)
         : Promise.resolve({ data: [] as { story_id: string }[] }),

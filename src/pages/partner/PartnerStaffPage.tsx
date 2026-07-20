@@ -96,18 +96,19 @@ export default function PartnerStaffPage() {
     setFoundUser(null);
 
     try {
-      // Search for user by public_id
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, name, phone, public_id')
-        .eq('public_id', searchPhone.trim())
-        .maybeSingle();
+      // Поиск по 6-значному коду идёт через RPC: код перебираем, поэтому телефон
+      // сервер отдаёт только в маскированном виде — подтвердить человека хватает.
+      const { data: rows, error } = await supabase.rpc('find_user_by_public_id', {
+        _public_id: searchPhone.trim(),
+      });
 
       if (error) {
         console.error('Search error:', error);
         toast.error('Ошибка поиска');
         return;
       }
+
+      const data = Array.isArray(rows) ? rows[0] : null;
 
       if (!data) {
         toast.error('Пользователь не найден');
@@ -124,7 +125,7 @@ export default function PartnerStaffPage() {
       setFoundUser({
         userId: data.user_id,
         name: data.name,
-        phone: data.phone,
+        phone: data.phone_masked || "",
       });
     } catch (error) {
       console.error('Search error:', error);
@@ -234,7 +235,7 @@ export default function PartnerStaffPage() {
                 <p className="font-medium text-foreground">
                   {foundUser.name || 'Без имени'}
                 </p>
-                <p className="text-sm text-muted-foreground">{foundUser.phone.startsWith('+telegram_') ? 'TG' : foundUser.phone}</p>
+                <p className="text-sm text-muted-foreground">{foundUser.phone}</p>
               </div>
               <Button onClick={handleAddBarista} disabled={isAdding} size="sm">
                 {isAdding ? (

@@ -154,7 +154,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       const userIds = [...new Set(postsData.map(p => p.user_id))];
       
       const { data: profilesData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('user_id, name, avatar_url, subflow_nickname')
         .in('user_id', userIds);
 
@@ -311,7 +311,7 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
       .channel('subflow-realtime-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subflow_posts' }, (payload) => {
         const newPost = payload.new as any;
-        supabase.from('profiles').select('user_id, name, avatar_url, subflow_nickname').eq('user_id', newPost.user_id).single()
+        supabase.from('public_profiles').select('user_id, name, avatar_url, subflow_nickname').eq('user_id', newPost.user_id).single()
           .then(({ data: profile }) => {
             const displayName = profile?.subflow_nickname || profile?.name || 'Пользователь';
             const enrichedPost: Post = {

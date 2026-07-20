@@ -26,7 +26,7 @@ export async function getBlockedUsers(): Promise<BlockedUser[]> {
     if (!blocks || blocks.length === 0) return [];
     const ids = blocks.map((b: any) => b.blocked_id);
     const { data: profiles } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('user_id, name, avatar_url')
       .in('user_id', ids);
     return ids.map((id: string) => {

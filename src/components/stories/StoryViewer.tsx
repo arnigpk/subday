@@ -265,7 +265,7 @@ export function StoryViewer(props: StoryViewerProps) {
     const likerSet = new Set((likesData || []).map(l => l.user_id));
     const userIds = viewsData.map(v => v.user_id);
     const { data: profiles } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('user_id, name, avatar_url, subflow_nickname')
       .in('user_id', userIds);
     const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));

@@ -205,7 +205,7 @@ export function SubFlowNotifications({ userId, onNavigateToPost, onOpenStory }: 
 
     const actorIds = [...new Set(notifs.map(n => n.actor_id))];
     const { data: profiles } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('user_id, name, avatar_url, subflow_nickname')
       .in('user_id', actorIds);
 

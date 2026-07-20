@@ -47,7 +47,7 @@ export function SubFlowAdComments({ adId, currentUserId }: SubFlowAdCommentsProp
 
       const userIds = [...new Set((commentsData as any[]).map((c: any) => c.user_id))];
       const { data: profilesData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('user_id, name, avatar_url, subflow_nickname')
         .in('user_id', userIds);
 
@@ -93,7 +93,7 @@ export function SubFlowAdComments({ adId, currentUserId }: SubFlowAdCommentsProp
         const newC = payload.new as any;
 
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('user_id, name, avatar_url, subflow_nickname')
           .eq('user_id', newC.user_id)
           .single();

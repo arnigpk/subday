@@ -244,15 +244,30 @@ export async function getProducts(token: string, organizationId: string, supabas
     /* иначе (нет внешнего меню / сбой /api/2/menu) — пробуем номенклатуру */
   }
 
-  // 2) Фолбэк — номенклатура (когда внешнего меню нет вовсе).
-  const d = await iikoPost<{ products: Array<{ id: string; name: string; sizePrices?: Array<{ price?: { currentPrice?: number } }> }> }>(
-    token, '/api/1/nomenclature', { organizationId },
-  );
-  return (d.products || []).map(p => ({
-    id: p.id,
-    name: p.name,
-    price: p.sizePrices?.[0]?.price?.currentPrice ?? null,
-  }));
+  // 2) Фолбэк — номенклатура из бек-офиса (когда внешнего меню нет вовсе).
+  //
+  // ВНИМАНИЕ: iiko отключает /api/1/nomenclature с 1 ноября 2026 — после этой
+  // даты метод начнёт возвращать ошибку. Актуальный путь (/api/2/menu → by_id)
+  // у нас основной и работает выше; сюда попадаем, только если у организации
+  // вообще не заведено внешнее меню. Поэтому при сбое даём партнёру понятную
+  // инструкцию, а не сырую ошибку iiko.
+  try {
+    const d = await iikoPost<{ products: Array<{ id: string; name: string; sizePrices?: Array<{ price?: { currentPrice?: number } }> }> }>(
+      token, '/api/1/nomenclature', { organizationId },
+    );
+    return (d.products || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      price: p.sizePrices?.[0]?.price?.currentPrice ?? null,
+    }));
+  } catch (e) {
+    throw new IikoError(
+      'Не удалось загрузить меню: у организации не настроено внешнее меню iiko. ' +
+      'Создайте его в iikoWeb (Меню → Внешние меню) и повторите — с 1 ноября 2026 ' +
+      'iiko принимает только этот способ.',
+      e instanceof IikoError ? e.status : 502,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

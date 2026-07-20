@@ -165,7 +165,7 @@ export default function BaristaShiftHistory() {
       if (userIds.size > 0) {
         const uids = Array.from(userIds);
         const [{ data: profiles }, { data: userSubs }] = await Promise.all([
-          supabase.from('profiles').select('user_id, name, public_id').in('user_id', uids),
+          supabase.from('public_profiles').select('user_id, name, public_id').in('user_id', uids),
           supabase.from('user_subscriptions')
             .select('user_id, subscription_type_id, created_at')
             .in('user_id', uids)

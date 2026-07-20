@@ -49,7 +49,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
       // Get user profiles with nickname
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
       const { data: profilesData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('user_id, name, avatar_url, subflow_nickname')
         .in('user_id', userIds);
 
@@ -98,7 +98,7 @@ export function SubFlowComments({ postId, currentUserId, hasActiveSubscription }
         
         // Fetch author info
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('user_id, name, avatar_url, subflow_nickname')
           .eq('user_id', newComment.user_id)
           .single();
