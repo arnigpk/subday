@@ -439,6 +439,7 @@ export type Database = {
           banner_id: string
           created_at: string
           event_type: string
+          ab_variant: string | null
           id: string
           user_id: string | null
         }
@@ -446,6 +447,7 @@ export type Database = {
           banner_id: string
           created_at?: string
           event_type: string
+          ab_variant: string | null
           id?: string
           user_id?: string | null
         }
@@ -453,6 +455,7 @@ export type Database = {
           banner_id?: string
           created_at?: string
           event_type?: string
+          ab_variant?: string | null
           id?: string
           user_id?: string | null
         }
@@ -1543,6 +1546,7 @@ export type Database = {
           ad_id: string
           created_at: string
           event_type: string
+          ab_variant: string | null
           id: string
           user_id: string
         }
@@ -1550,6 +1554,7 @@ export type Database = {
           ad_id: string
           created_at?: string
           event_type: string
+          ab_variant: string | null
           id?: string
           user_id: string
         }
@@ -1557,6 +1562,7 @@ export type Database = {
           ad_id?: string
           created_at?: string
           event_type?: string
+          ab_variant?: string | null
           id?: string
           user_id?: string
         }

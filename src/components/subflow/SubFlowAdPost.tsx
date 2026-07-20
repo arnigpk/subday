@@ -151,7 +151,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
       supabase.auth.getUser().then(({ data }) => {
         if (!data.user) return;
         supabase.from('subflow_ad_events').insert({
-          ad_id: ad.id, user_id: data.user.id, event_type: 'view',
+          ad_id: ad.id, user_id: data.user.id, event_type: 'view', ab_variant: variant,
         }).then(({ error }) => { if (error) console.error('Ad view track error:', error); });
       });
     };
@@ -171,7 +171,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
     const { data } = await supabase.auth.getUser();
     if (data.user) {
       await supabase.from('subflow_ad_events').insert({
-        ad_id: ad.id, user_id: data.user.id, event_type: 'click',
+        ad_id: ad.id, user_id: data.user.id, event_type: 'click', ab_variant: variant,
       });
     }
   };

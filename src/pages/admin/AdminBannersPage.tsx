@@ -596,6 +596,7 @@ export default function AdminBannersPage() {
                       <SelectItem value="both">На главной и в кофейнях</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Где показывать баннер: на главной, в списке кофеен или везде</p>
                 </div>
 
                 {/* Autoplay delay */}
@@ -610,7 +611,7 @@ export default function AdminBannersPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, autoplay_delay: Math.max(1, Math.min(30, parseInt(e.target.value) || 4)) }))}
                     className="mt-1.5"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">От 1 до 30 секунд</p>
+                  <p className="text-xs text-muted-foreground mt-1">Сколько секунд баннер висит перед перелистыванием. От 1 до 30. У каждого баннера своё значение</p>
                 </div>
 
                 {/* Sort order */}
@@ -624,6 +625,7 @@ export default function AdminBannersPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
                     className="mt-1.5"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Меньше число — раньше в карусели. У баннеров с одинаковым порядком очерёдность решает вес</p>
                 </div>
 
                 {/* Active switch */}
@@ -635,6 +637,7 @@ export default function AdminBannersPage() {
                     onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground -mt-2">Выключенный баннер не показывается, но настройки и статистика сохраняются</p>
 
                 {/* Scheduling dates */}
                 <div className="grid grid-cols-2 gap-3">
@@ -725,12 +728,16 @@ export default function AdminBannersPage() {
                 </div>
 
                 {/* Audience types */}
+                <p className="text-xs text-muted-foreground">Гео считается по профилю пользователя. Если выбран город, а у человека он не указан, баннер он не увидит</p>
+
                 <AudienceTypeSelector
                   value={formData.audience_types}
                   onChange={(v) => setFormData(prev => ({ ...prev, audience_types: v }))}
                 />
 
                 {/* Показ и ограничения: вес, лимиты, бюджеты, дни/часы, тариф, A/B */}
+                <p className="text-xs text-muted-foreground">Аудитория по отношению к подписке: есть активная, нет подписки, скоро истекает, новички, спящие. Несколько вариантов работают как «или»</p>
+
                 <AdTargetingFields
                   value={targeting}
                   onChange={setTargeting}

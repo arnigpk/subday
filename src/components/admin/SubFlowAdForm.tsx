@@ -296,11 +296,13 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         <div>
           <Label>Название</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название рекламодателя (отображается над меткой «реклама»)" />
+          <p className="text-[11px] text-muted-foreground mt-1">Имя рекламодателя — показывается в ленте над меткой «реклама»</p>
         </div>
 
         <div>
           <Label>Текст рекламы *</Label>
           <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст рекламного поста..." rows={3} />
+          <p className="text-[11px] text-muted-foreground mt-1">Основной текст поста. Обязательное поле</p>
         </div>
 
         <div>
@@ -321,6 +323,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         <div>
           <Label>Или URL изображения</Label>
           <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+          <p className="text-[11px] text-muted-foreground mt-1">Если картинка уже лежит в интернете — вставьте ссылку вместо загрузки файла</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -376,6 +379,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">Реклама встаёт в ленту после каждого N-го поста. Чем меньше число — тем чаще</p>
           </div>
 
           {frequency === 0 && (
@@ -397,6 +401,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">Сколько раз в сутки один человек может увидеть эту рекламу</p>
           </div>
 
           {dailyLimit === -1 && (
@@ -497,8 +502,17 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
           </div>
         </div>
 
+        <p className="text-[11px] text-muted-foreground">
+          Гео считается по профилю пользователя. Если выбран город, а у человека город не указан,
+          рекламу он не увидит
+        </p>
+
         {/* Audience types */}
         <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} />
+        <p className="text-[11px] text-muted-foreground">
+          Аудитория по отношению к подписке: есть активная, нет подписки, скоро истекает,
+          новички (до 7 дней), спящие. Несколько вариантов работают как «или»
+        </p>
 
         {/* Показ и ограничения: вес, бюджеты, дни/часы, тариф, A/B */}
         <AdTargetingFields
@@ -515,6 +529,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         {targeting.ab_split > 0 && (
           <div className="space-y-3 rounded-xl border border-border p-3">
             <p className="text-sm font-semibold text-foreground">Вариант B (A/B-тест)</p>
+            <p className="text-[11px] text-muted-foreground">
+              Второй креатив для сравнения. Заполняйте только то, что должно отличаться от варианта A —
+              пустые поля берутся из него. Один человек всегда видит один и тот же вариант,
+              а результаты A и B считаются отдельно в отчёте.
+            </p>
             <div>
               <Label>Заголовок B</Label>
               <Input value={titleB} onChange={e => setTitleB(e.target.value)} placeholder="Пусто — как в варианте A" />
@@ -530,9 +549,15 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <Switch checked={isActive} onCheckedChange={setIsActive} />
-          <Label>Активна</Label>
+        <div>
+          <div className="flex items-center gap-2">
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+            <Label>Активна</Label>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Выключенная реклама не показывается никому, но настройки и статистика сохраняются.
+            Если заданы даты, они включат и выключат её сами
+          </p>
         </div>
 
         <div className="flex gap-2">

@@ -37,9 +37,9 @@ function preloadImages(urls: string[]) {
 interface AdBannerCarouselProps { location?: 'home' | 'shops' }
 
 /** Слайд: показ засчитываем ТОЛЬКО когда баннер реально виден (не при рендере). */
-function BannerSlide({ banner, image, caption, hasLink, onVisible, onClick }: {
-  banner: AdBanner; image: string; caption: string | null; hasLink: boolean;
-  onVisible: (id: string) => void; onClick: () => void;
+function BannerSlide({ banner, image, caption, variant, hasLink, onVisible, onClick }: {
+  banner: AdBanner; image: string; caption: string | null; variant: 'A' | 'B'; hasLink: boolean;
+  onVisible: (id: string, variant: 'A' | 'B') => void; onClick: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const firedRef = useRef(false);
@@ -51,12 +51,12 @@ function BannerSlide({ banner, image, caption, hasLink, onVisible, onClick }: {
       const e = entries[0];
       if (e?.isIntersecting && e.intersectionRatio >= 0.5) {
         // Виден минимум 1 сек — только тогда это настоящий показ.
-        timer = setTimeout(() => { if (!firedRef.current) { firedRef.current = true; onVisible(banner.id); } }, 1000);
+        timer = setTimeout(() => { if (!firedRef.current) { firedRef.current = true; onVisible(banner.id, variant); } }, 1000);
       } else if (timer) { clearTimeout(timer); timer = null; }
     }, { threshold: [0, 0.5, 1] });
     io.observe(el);
     return () => { io.disconnect(); if (timer) clearTimeout(timer); };
-  }, [banner.id, onVisible]);
+  }, [banner.id, onVisible, variant]);
 
   return (
     <div className="flex-[0_0_100%] min-w-0" ref={ref}>
@@ -151,8 +151,8 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const creativeOf = useCallback((b: AdBanner) => {
     const v = pickAbVariant(b, userId);
     return v === 'B'
-      ? { image: b.image_url_b || b.image_url, caption: b.caption_b ?? b.caption }
-      : { image: b.image_url, caption: b.caption };
+      ? { variant: v, image: b.image_url_b || b.image_url, caption: b.caption_b ?? b.caption }
+      : { variant: v, image: b.image_url, caption: b.caption };
   }, [userId]);
 
   useEffect(() => {
@@ -177,12 +177,14 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'center' }, [autoplayPlugin]);
 
-  const trackView = useCallback(async (bannerId: string) => {
+  const trackView = useCallback(async (bannerId: string, abVariant: 'A' | 'B') => {
     if (viewedBanners.current.has(bannerId)) return;
     viewedBanners.current.add(bannerId);
     noteView(bannerId); // сразу учитываем в лимитах
     try {
-      await supabase.from('ad_banner_events').insert({ banner_id: bannerId, event_type: 'view', user_id: userId });
+      await supabase.from('ad_banner_events').insert({
+        banner_id: bannerId, event_type: 'view', user_id: userId, ab_variant: abVariant,
+      });
     } catch (error) { console.error('Failed to track banner view:', error); }
   }, [noteView, userId]);
 
@@ -203,7 +205,10 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
 
   const handleBannerClick = async (banner: AdBanner) => {
     try {
-      await supabase.from('ad_banner_events').insert({ banner_id: banner.id, event_type: 'click', user_id: userId });
+      await supabase.from('ad_banner_events').insert({
+        banner_id: banner.id, event_type: 'click', user_id: userId,
+        ab_variant: creativeOf(banner).variant,
+      });
     } catch (error) { console.error('Failed to track banner click:', error); }
     if (banner.shop_id) navigate(`/shops/${banner.shop_id}`);
     else if (banner.external_url) openWithDeepLink(banner.external_url);
@@ -228,6 +233,7 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
                 banner={banner}
                 image={c.image}
                 caption={c.caption}
+                variant={c.variant}
                 hasLink={hasLink(banner)}
                 onVisible={trackView}
                 onClick={() => handleBannerClick(banner)}

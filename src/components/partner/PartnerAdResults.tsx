@@ -23,6 +23,14 @@ interface AdPerformanceRow {
   revenue_14d: number;
   avg_hours_to_visit: number | null;
   conv_rate_14d: number;
+  views_a: number;
+  clicks_a: number;
+  views_b: number;
+  clicks_b: number;
+  ctr_a: number;
+  ctr_b: number;
+  conv_a: number;
+  conv_b: number;
 }
 
 interface Props {
@@ -142,6 +150,26 @@ export function PartnerAdResults({ shopId }: Props) {
                 hint={r.revenue_14d > 0 ? `на ${money(r.revenue_14d)}` : undefined}
               />
             </div>
+
+            {/* Сравнение креативов показываем только если A/B реально идёт */}
+            {r.views_b > 0 && (
+              <div className="rounded-xl bg-secondary/50 p-2.5">
+                <p className="text-[11px] font-semibold text-foreground mb-1.5">Сравнение вариантов</p>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  {([
+                    ['Вариант A', r.views_a, r.clicks_a, r.ctr_a, r.conv_a],
+                    ['Вариант B', r.views_b, r.clicks_b, r.ctr_b, r.conv_b],
+                  ] as const).map(([label, v, c, ctr, conv]) => (
+                    <div key={label} className="rounded-lg bg-background/60 p-2">
+                      <p className="font-semibold text-foreground">{label}</p>
+                      <p className="text-muted-foreground">Показы: <b className="text-foreground">{v}</b></p>
+                      <p className="text-muted-foreground">Клики: <b className="text-foreground">{c}</b> ({ctr}%)</p>
+                      <p className="text-muted-foreground">Дошли: <b className="text-foreground">{conv}</b></p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
               <span>Показы: <b className="text-foreground">{r.views.toLocaleString('ru-RU')}</b></span>
