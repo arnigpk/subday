@@ -24,7 +24,7 @@ import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { AudienceTypeSelector, type AudienceType, audienceOptions } from '@/components/admin/AudienceTypeSelector';
-import { AdTargetingFields, emptyTargeting, type AdTargetingValues } from '@/components/admin/AdTargetingFields';
+import { AdTargetingFields, emptyTargeting, normalizeTargeting, type AdTargetingValues } from '@/components/admin/AdTargetingFields';
 
 interface AdBanner {
   id: string;
@@ -277,6 +277,10 @@ export default function AdminBannersPage() {
         effectiveIsActive = false;
       }
 
+      // Без кофейни поведенческий таргет не применяется — сбрасываем, иначе
+      // баннер сохранится в состоянии «не показывать никому».
+      const targetingToSave = normalizeTargeting(targeting, formData.shop_id || null);
+
       const bannerData = {
         image_url: formData.image_url,
         caption: formData.caption || null,
@@ -292,21 +296,21 @@ export default function AdminBannersPage() {
         ends_at: formData.ends_at ? formData.ends_at.toISOString() : null,
         audience_types: formData.audience_types,
         // Расширенные настройки показа
-        weight: targeting.weight,
-        daily_limit: targeting.daily_limit,
-        min_interval_minutes: targeting.min_interval_minutes,
-        view_budget: targeting.view_budget,
-        click_limit: targeting.click_limit,
-        days_of_week: targeting.days_of_week.length ? targeting.days_of_week : null,
-        hour_from: targeting.hour_from,
-        hour_to: targeting.hour_to,
-        target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
-        ab_split: targeting.ab_split,
-        behavior_target: targeting.behavior_target,
-        behavior_days: targeting.behavior_days,
-        exclude_visited_days: targeting.exclude_visited_days,
-        target_competitor_shop_ids: targeting.target_competitor_shop_ids.length ? targeting.target_competitor_shop_ids : null,
-        pacing: targeting.pacing,
+        weight: targetingToSave.weight,
+        daily_limit: targetingToSave.daily_limit,
+        min_interval_minutes: targetingToSave.min_interval_minutes,
+        view_budget: targetingToSave.view_budget,
+        click_limit: targetingToSave.click_limit,
+        days_of_week: targetingToSave.days_of_week.length ? targetingToSave.days_of_week : null,
+        hour_from: targetingToSave.hour_from,
+        hour_to: targetingToSave.hour_to,
+        target_subscription_type_ids: targetingToSave.target_subscription_type_ids.length ? targetingToSave.target_subscription_type_ids : null,
+        ab_split: targetingToSave.ab_split,
+        behavior_target: targetingToSave.behavior_target,
+        behavior_days: targetingToSave.behavior_days,
+        exclude_visited_days: targetingToSave.exclude_visited_days,
+        target_competitor_shop_ids: targetingToSave.target_competitor_shop_ids.length ? targetingToSave.target_competitor_shop_ids : null,
+        pacing: targetingToSave.pacing,
         caption_b: captionB.trim() || null,
         image_url_b: imageUrlB.trim() || null,
       };
@@ -745,6 +749,7 @@ export default function AdminBannersPage() {
                   country={formData.country || null}
                   city={formData.city || null}
                   audienceTypes={formData.audience_types}
+                  hasBothDates={!!formData.starts_at && !!formData.ends_at}
                 />
 
                 {/* Вариант B (используется, если доля A/B > 0) */}

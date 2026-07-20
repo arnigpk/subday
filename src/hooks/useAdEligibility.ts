@@ -10,6 +10,13 @@ export interface UserAdStat { todayViews: number; lastViewAt: Date | null }
 export interface AdsCaps { maxPerDay: number; maxPerSession: number }
 
 /**
+ * Счётчик показов за сессию — ОДИН на всё приложение, а не на каждый вызов хука.
+ * Иначе баннеры и лента считали бы отдельно, и «не больше N за сессию»
+ * превращалось бы в N в каждом месте.
+ */
+const sessionShown = { count: 0 };
+
+/**
  * Персональные данные для правил показа рекламы:
  *  • тарифы пользователя (для таргета на подписку);
  *  • сколько раз он видел объявление СЕГОДНЯ (дневной лимит);
@@ -23,7 +30,6 @@ export function useAdEligibility(kind: AdKind) {
   const [affinity, setAffinity] = useState<ShopAffinity | null>(null);
   const [caps, setCaps] = useState<AdsCaps>({ maxPerDay: 0, maxPerSession: 0 });
   const statsCache = useRef<Map<string, UserAdStat>>(new Map());
-  const sessionShown = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,20 +139,26 @@ export function useAdEligibility(kind: AdKind) {
    */
   const loadTotalToday = useCallback(async (): Promise<number> => {
     if (!userId || caps.maxPerDay <= 0) return 0;
-    const table = kind === 'subflow' ? 'subflow_ad_events' : 'ad_banner_events';
-    const { count } = await supabase
-      .from(table)
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('event_type', 'view')
-      .gte('created_at', startOfAdsDay().toISOString());
-    return count || 0;
-  }, [userId, kind, caps.maxPerDay]);
+    const dayStart = startOfAdsDay().toISOString();
+    // Считаем ОБА типа рекламы: потолок общий на человека, а не отдельный
+    // для баннеров и отдельный для ленты.
+    const count = async (table: 'subflow_ad_events' | 'ad_banner_events') => {
+      const { count: c } = await supabase
+        .from(table)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('event_type', 'view')
+        .gte('created_at', dayStart);
+      return c || 0;
+    };
+    const [subflow, banner] = await Promise.all([count('subflow_ad_events'), count('ad_banner_events')]);
+    return subflow + banner;
+  }, [userId, caps.maxPerDay]);
 
   /** Исчерпан ли общий потолок (за день или за текущую сессию). */
   const capExhausted = useCallback((totalToday: number): boolean => {
-    if (caps.maxPerSession > 0 && sessionShown.current >= caps.maxPerSession) return true;
-    if (caps.maxPerDay > 0 && totalToday + sessionShown.current >= caps.maxPerDay) return true;
+    if (caps.maxPerSession > 0 && sessionShown.count >= caps.maxPerSession) return true;
+    if (caps.maxPerDay > 0 && totalToday + sessionShown.count >= caps.maxPerDay) return true;
     return false;
   }, [caps]);
 
@@ -154,7 +166,7 @@ export function useAdEligibility(kind: AdKind) {
   const noteView = useCallback((adId: string) => {
     const cur = statsCache.current.get(adId) || { todayViews: 0, lastViewAt: null };
     statsCache.current.set(adId, { todayViews: cur.todayViews + 1, lastViewAt: new Date() });
-    sessionShown.current += 1;
+    sessionShown.count += 1;
   }, []);
 
   return {

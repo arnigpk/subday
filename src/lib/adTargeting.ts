@@ -184,6 +184,23 @@ export function withinMinInterval(ad: TargetableAd, lastViewAt: Date | null, now
   return now.getTime() - lastViewAt.getTime() >= mins * 60_000;
 }
 
+/**
+ * Приводит настройки к рабочему виду перед сохранением.
+ *
+ * Поведенческий таргет считается ОТНОСИТЕЛЬНО кофейни объявления. Если ссылку
+ * переключили с кофейни на внешнюю, shop_id обнуляется, а behavior_target
+ * остаётся — и объявление тихо перестаёт показываться кому бы то ни было
+ * (matchesBehavior вернёт false). Поэтому без кофейни сбрасываем зависящие
+ * от неё правила. Таргет на чужие кофейни при этом сохраняется: ему своя
+ * кофейня не нужна.
+ */
+export function normalizeTargeting<T extends {
+  behavior_target: string; behavior_days: number; exclude_visited_days: number;
+}>(v: T, shopId: string | null): T {
+  if (shopId) return v;
+  return { ...v, behavior_target: 'any', behavior_days: 30, exclude_visited_days: 0 };
+}
+
 /** Частота «случайно»: место в ленте выбирает система, а не админ. */
 export const RANDOM_FREQUENCY = -1;
 

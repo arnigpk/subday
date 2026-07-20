@@ -29,6 +29,8 @@ export const emptyTargeting: AdTargetingValues = {
   target_competitor_shop_ids: [], pacing: 'asap',
 };
 
+export { normalizeTargeting } from '@/lib/adTargeting';
+
 const BEHAVIORS = [
   { v: 'any',    l: 'Всем',           hint: 'Без учёта посещений' },
   { v: 'new',    l: 'Не был ни разу', hint: 'Привлечение новых гостей' },
@@ -52,10 +54,12 @@ interface Props {
   country?: string | null;
   city?: string | null;
   audienceTypes?: string[];
+  /** Заданы ли обе даты кампании — от них зависит равномерная открутка. */
+  hasBothDates?: boolean;
 }
 
 export function AdTargetingFields({
-  value, onChange, showDailyLimit = true, shopId, country, city, audienceTypes,
+  value, onChange, showDailyLimit = true, shopId, country, city, audienceTypes, hasBothDates = false,
 }: Props) {
   const [subTypes, setSubTypes] = useState<{ id: string; name: string }[]>([]);
   const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
@@ -296,9 +300,16 @@ export function AdTargetingFields({
             );
           })}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          «Равномерно» растягивает бюджет показов на срок кампании — нужны бюджет и обе даты
-        </p>
+        {value.pacing === 'even' && (value.view_budget <= 0 || !hasBothDates) ? (
+          <p className="text-[11px] text-amber-600 dark:text-amber-500 mt-1">
+            Не сработает: для равномерной открутки нужны и бюджет показов, и обе даты
+            {value.view_budget <= 0 ? ' (бюджет не задан)' : ' (даты не заданы)'}
+          </p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground mt-1">
+            «Равномерно» растягивает бюджет показов на срок кампании — нужны бюджет и обе даты
+          </p>
+        )}
       </div>
 
       {/* Оценка охвата */}

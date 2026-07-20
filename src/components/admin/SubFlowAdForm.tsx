@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { AdTargetingFields, emptyTargeting, type AdTargetingValues } from './AdTargetingFields';
+import { AdTargetingFields, emptyTargeting, normalizeTargeting, type AdTargetingValues } from './AdTargetingFields';
 import { RANDOM_FREQUENCY, RANDOM_BLOCK_SIZE } from '@/lib/adTargeting';
 import { Plus, Loader2, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -220,9 +220,17 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         else { setIsSaving(false); return; }
       }
 
-      const actualFrequency = frequency === 0 ? parseInt(customFrequency) || 10 : frequency;
-      const actualDailyLimit = dailyLimit === -1 ? parseInt(customDailyLimit) || 0 : dailyLimit;
+      // Кастомная частота — только положительная: «-1» совпало бы с признаком
+      // «Случайно», а любое другое отрицательное значение убило бы показ вовсе.
+      const actualFrequency = frequency === 0
+        ? Math.max(1, parseInt(customFrequency) || 10)
+        : frequency;
+      const actualDailyLimit = dailyLimit === -1 ? Math.max(0, parseInt(customDailyLimit) || 0) : dailyLimit;
       const selectedShop = shops.find(s => s.id === selectedShopId);
+      const adShopId = linkType === 'shop' ? selectedShopId || null : null;
+      // Без кофейни поведенческий таргет не работает — сбрасываем, иначе
+      // объявление сохранится в состоянии «не показывать никому».
+      const targetingToSave = normalizeTargeting(targeting, adShopId);
 
       // Determine is_active based on scheduling
       let effectiveIsActive = isActive;
@@ -248,20 +256,20 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
         country: country || null,
         city: city || null,
         // Расширенные настройки показа
-        weight: targeting.weight,
-        min_interval_minutes: targeting.min_interval_minutes,
-        view_budget: targeting.view_budget,
-        click_limit: targeting.click_limit,
-        days_of_week: targeting.days_of_week.length ? targeting.days_of_week : null,
-        hour_from: targeting.hour_from,
-        hour_to: targeting.hour_to,
-        target_subscription_type_ids: targeting.target_subscription_type_ids.length ? targeting.target_subscription_type_ids : null,
-        ab_split: targeting.ab_split,
-        behavior_target: targeting.behavior_target,
-        behavior_days: targeting.behavior_days,
-        exclude_visited_days: targeting.exclude_visited_days,
-        target_competitor_shop_ids: targeting.target_competitor_shop_ids.length ? targeting.target_competitor_shop_ids : null,
-        pacing: targeting.pacing,
+        weight: targetingToSave.weight,
+        min_interval_minutes: targetingToSave.min_interval_minutes,
+        view_budget: targetingToSave.view_budget,
+        click_limit: targetingToSave.click_limit,
+        days_of_week: targetingToSave.days_of_week.length ? targetingToSave.days_of_week : null,
+        hour_from: targetingToSave.hour_from,
+        hour_to: targetingToSave.hour_to,
+        target_subscription_type_ids: targetingToSave.target_subscription_type_ids.length ? targetingToSave.target_subscription_type_ids : null,
+        ab_split: targetingToSave.ab_split,
+        behavior_target: targetingToSave.behavior_target,
+        behavior_days: targetingToSave.behavior_days,
+        exclude_visited_days: targetingToSave.exclude_visited_days,
+        target_competitor_shop_ids: targetingToSave.target_competitor_shop_ids.length ? targetingToSave.target_competitor_shop_ids : null,
+        pacing: targetingToSave.pacing,
         title_b: titleB.trim() || null,
         content_b: contentB.trim() || null,
         image_url_b: imageUrlB.trim() || null,
@@ -529,6 +537,7 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
           country={country || null}
           city={city || null}
           audienceTypes={audienceTypes}
+          hasBothDates={!!startsAt && !!endsAt}
         />
 
         {/* Вариант B (используется, если доля A/B > 0) */}
