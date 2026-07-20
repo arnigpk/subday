@@ -12,7 +12,7 @@ import { useAdEligibility } from '@/hooks/useAdEligibility';
 import {
   matchesDateRange, matchesGeo, matchesDayOfWeek, matchesHours, withinBudget,
   matchesSubscriptionTarget, withinDailyLimit, withinMinInterval, weightedOrder,
-  matchesBehavior, withinPacing,
+  matchesBehavior, withinPacing, isRandomFrequency, matchesRandomSlot, adsDayKey,
 } from '@/lib/adTargeting';
 import { Loader2 } from 'lucide-react';
 
@@ -351,13 +351,17 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
   }
 
   // Расстановка рекламы в ленте:
-  //  • частота — позиция кратна frequency;
+  //  • частота — позиция кратна frequency; «случайно» (-1) — место выбирает система,
+  //    но детерминированно (см. matchesRandomSlot), иначе реклама прыгала бы при догрузке;
   //  • дневной лимит соблюдается ТОЧНО: учитываем уже показанное сегодня (остаток лимита),
   //    поэтому лишних повторов не будет — ровно столько раз, сколько задано;
   //  • при нескольких кандидатах на позицию — взвешенная ротация (weight), а не «первое из списка».
   const buildAdPlacements = (): Map<number, SubFlowAd> => {
     const placements = new Map<number, SubFlowAd>();
     if (filteredAds.length === 0) return placements;
+
+    // Seed «пользователь + день»: у разных людей места разные, назавтра — перетасовка.
+    const randomSeed = `${currentUserId || 'anon'}:${adsDayKey()}`;
 
     // Остаток дневного лимита = лимит − уже показано сегодня (0 = безлимит).
     const remaining = new Map<string, number>();
@@ -369,7 +373,11 @@ export function SubFlowFeed({ refreshTrigger, currentUserId, shopFilter, hasActi
 
     for (let i = 0; i < posts.length; i++) {
       const candidates = filteredAds.filter(ad =>
-        ad.frequency > 0 && (i + 1) % ad.frequency === 0 && (remaining.get(ad.id) ?? 0) > 0,
+        (remaining.get(ad.id) ?? 0) > 0 && (
+          isRandomFrequency(ad)
+            ? matchesRandomSlot(ad.id, randomSeed, i)
+            : ad.frequency > 0 && (i + 1) % ad.frequency === 0
+        ),
       );
       if (candidates.length === 0) continue;
       const chosen = weightedOrder(candidates, `${currentUserId || 'anon'}:${i}`)[0];

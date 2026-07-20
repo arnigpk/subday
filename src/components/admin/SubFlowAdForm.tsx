@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { AdTargetingFields, emptyTargeting, type AdTargetingValues } from './AdTargetingFields';
+import { RANDOM_FREQUENCY, RANDOM_BLOCK_SIZE } from '@/lib/adTargeting';
 import { Plus, Loader2, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -53,6 +54,7 @@ const FREQUENCY_OPTIONS = [
   { value: 10, label: 'Каждые 10 постов' },
   { value: 15, label: 'Каждые 15 постов' },
   { value: 20, label: 'Каждые 20 постов' },
+  { value: RANDOM_FREQUENCY, label: 'Случайно' },
   { value: 0, label: 'Кастомно' },
 ];
 
@@ -379,7 +381,11 @@ export function SubFlowAdForm({ shops, editingAd, onSaved, onCancel }: SubFlowAd
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">Реклама встаёт в ленту после каждого N-го поста. Чем меньше число — тем чаще</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {frequency === RANDOM_FREQUENCY
+                ? `Место выбирает система: в среднем одна вставка на ${RANDOM_BLOCK_SIZE} постов, но позиция каждый раз разная — может выпасть и первым постом, и последним. У разных людей места разные, раз в сутки перетасовывается`
+                : 'Реклама встаёт в ленту после каждого N-го поста. Чем меньше число — тем чаще'}
+            </p>
           </div>
 
           {frequency === 0 && (

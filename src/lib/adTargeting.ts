@@ -184,6 +184,49 @@ export function withinMinInterval(ad: TargetableAd, lastViewAt: Date | null, now
   return now.getTime() - lastViewAt.getTime() >= mins * 60_000;
 }
 
+/** Частота «случайно»: место в ленте выбирает система, а не админ. */
+export const RANDOM_FREQUENCY = -1;
+
+/** Блок для случайной вставки: в среднем одна реклама на столько постов. */
+export const RANDOM_BLOCK_SIZE = 10;
+
+export function isRandomFrequency(ad: { frequency?: number | null }): boolean {
+  return (ad.frequency ?? 0) === RANDOM_FREQUENCY;
+}
+
+/**
+ * Позиция случайной вставки внутри блока.
+ *
+ * Она псевдослучайна, но ДЕТЕРМИНИРОВАНА: зависит только от объявления, seed
+ * и номера блока. Это принципиально — лента догружается порциями и
+ * перерисовывается, и настоящий Math.random() переставлял бы рекламу на новое
+ * место при каждой перерисовке. Тогда один и тот же показ засчитывался бы
+ * несколько раз, а дневной лимит и бюджет «протекали» бы.
+ *
+ * Seed задаёт пользователь + день, поэтому у разных людей места разные,
+ * а на следующий день позиции перетасовываются заново.
+ */
+export function randomSlotIndex(
+  adId: string, seed: string, block: number, blockSize: number = RANDOM_BLOCK_SIZE,
+): number {
+  const offset = stableHash(`${adId}:${seed}:${block}`) % blockSize;
+  return block * blockSize + offset;
+}
+
+/** Попадает ли позиция i на случайный слот этого объявления. */
+export function matchesRandomSlot(
+  adId: string, seed: string, i: number, blockSize: number = RANDOM_BLOCK_SIZE,
+): boolean {
+  if (i < 0) return false;
+  const block = Math.floor(i / blockSize);
+  return randomSlotIndex(adId, seed, block, blockSize) === i;
+}
+
+/** Ключ дня для seed — чтобы позиции менялись раз в сутки, а не при каждом рендере. */
+export function adsDayKey(now: Date = new Date()): string {
+  return startOfAdsDay(now).toISOString().slice(0, 10);
+}
+
 /** Стабильный хеш (одна и та же пара user+ad всегда даёт один результат). */
 function stableHash(s: string): number {
   let h = 0;
