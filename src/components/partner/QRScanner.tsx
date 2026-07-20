@@ -132,8 +132,6 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
     scanTimeoutRef.current = setTimeout(() => { lastScannedRef.current = null; }, 1500);
   }, [onScan]);
 
-  const startScannerRef = useRef<(() => void) | null>(null);
-
   const startScanner = useCallback(async () => {
     stopScannerCleanup();
     if (!mountedRef.current) return;
@@ -178,21 +176,29 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       // disableFlip: false → читаем и зеркально отражённые коды.
       await scanner.start({ facingMode: 'environment' }, { fps: 25, aspectRatio: 1, disableFlip: false }, handleScan, () => {});
       if (!mountedRef.current) { scanner.stop().catch(() => {}); return; }
+
+      // html5-qrcode часто не начинает распознавание с первого старта —
+      // видео идёт, а декодер молчит. Чинит только полный перезапуск.
+      // Делаем его СРАЗУ, ещё под спиннером "Запускаем камеру..." (isScanning
+      // ещё не выставлен), и только потом показываем сканер пользователю —
+      // так он не видит, что камера открылась и тут же перезапустилась:
+      // видит один непрерывный лоадер, а затем сразу рабочий сканер.
+      if (!didAutoRestartRef.current) {
+        didAutoRestartRef.current = true;
+        await new Promise(r => setTimeout(r, 800));
+        // Пользователь мог за это время уйти со страницы или переключиться
+        // на USB-сканер — тогда камеру поднимать заново не нужно.
+        if (!mountedRef.current || mode !== 'camera') return;
+        try { await scanner.stop(); scanner.clear(); } catch { /* игнор — всё равно пересоздаём */ }
+        scannerRef.current = null;
+        if (!mountedRef.current || mode !== 'camera') return;
+        await startScanner(); // тот же полный путь запуска, что и раньше
+        return;
+      }
+
       setIsScanning(true);
       setError(null);
       localStorage.setItem(CAMERA_GRANTED_KEY, 'true');
-
-      // html5-qrcode часто не начинает распознавание с первого старта —
-      // видео идёт, а декодер молчит. Ручной перезапуск это чинит, поэтому
-      // делаем один автоматический перезапуск сразу после первого старта.
-      if (!didAutoRestartRef.current) {
-        didAutoRestartRef.current = true;
-        setTimeout(() => {
-          if (!mountedRef.current) return;
-          if (mode !== 'camera') return;
-          startScannerRef.current?.();
-        }, 800);
-      }
     } catch (err: any) {
       scannerRef.current = null;
       if (!mountedRef.current) return;
@@ -211,9 +217,6 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
       if (mountedRef.current) setIsStarting(false);
     }
   }, [handleScan]);
-useEffect(() => {
-    startScannerRef.current = startScanner;
-  }, [startScanner]);
   // ─── Рендер ──────────────────────────────────────────────────────────────
 
   const serialConnected = serialStatus === 'connected';
