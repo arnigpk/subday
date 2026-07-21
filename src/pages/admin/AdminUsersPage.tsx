@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store, Gift } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store, Gift, Snowflake } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -62,8 +62,8 @@ interface UserWithStats {
   role?: UserRole;
   role_id?: string;
   shop_id?: string | null;
-  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
-  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null } | null;
+  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
+  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
 }
 
 interface SubscriptionType {
@@ -99,7 +99,7 @@ function formatExpiryLabel(expiresAt: string | null): string {
 }
 
 function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
-  sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null };
+  sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null; is_frozen?: boolean; freeze_until?: string | null };
   icon: React.ReactNode;
   type: string;
   canManage: boolean;
@@ -107,13 +107,21 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
   onResetDailyLimit: () => void;
 }) {
   const effectiveLimit = sub.daily_limit_override ?? sub.daily_limit;
+  // Заморожена = флаг + срок в будущем (cron сам снимает заморозку по истечении).
+  const isFrozenNow = !!sub.is_frozen && !!sub.freeze_until && new Date(sub.freeze_until) > new Date();
 
   return (
-    <div className="bg-secondary/50 rounded-lg px-3 py-2 space-y-1">
+    <div className={`rounded-lg px-3 py-2 space-y-1 ${isFrozenNow ? 'bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-200 dark:ring-sky-900' : 'bg-secondary/50'}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {icon}
           <span className="text-sm font-medium">{sub.name}</span>
+          {isFrozenNow && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 text-[11px] font-medium px-2 py-0.5">
+              <Snowflake className="w-3 h-3" />
+              Заморожена до {new Date(sub.freeze_until!).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
@@ -214,12 +222,25 @@ export default function AdminUsersPage() {
     try {
       // If subscription filter is active, first get relevant user_ids
       let subscribedUserIds: string[] | null = null;
-      if (subscriptionFilter !== 'all') {
+      if (subscriptionFilter === 'has_subscription' || subscriptionFilter === 'no_subscription') {
         const { data: subUsers } = await supabase
           .from('user_subscriptions')
           .select('user_id')
           .eq('is_active', true);
         subscribedUserIds = [...new Set((subUsers || []).map(s => s.user_id))];
+      }
+
+      // Фильтр «Заморозка»: активная подписка с флагом заморозки и сроком в
+      // будущем (та же семантика, что в сканере: is_frozen && freeze_until > now).
+      let frozenUserIds: string[] | null = null;
+      if (subscriptionFilter === 'frozen') {
+        const { data: frozen } = await supabase
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('is_active', true)
+          .eq('is_frozen', true)
+          .gt('freeze_until', new Date().toISOString());
+        frozenUserIds = [...new Set((frozen || []).map(s => s.user_id))];
       }
 
       let query = supabase
@@ -237,7 +258,15 @@ export default function AdminUsersPage() {
       }
 
       // Subscription filter
-      if (subscriptionFilter === 'has_subscription' && subscribedUserIds) {
+      if (subscriptionFilter === 'frozen') {
+        if (!frozenUserIds || frozenUserIds.length === 0) {
+          setUsers([]);
+          setTotalCount(0);
+          setIsLoading(false);
+          return;
+        }
+        query = query.in('user_id', frozenUserIds);
+      } else if (subscriptionFilter === 'has_subscription' && subscribedUserIds) {
         if (subscribedUserIds.length === 0) {
           setUsers([]);
           setTotalCount(0);
@@ -299,7 +328,7 @@ export default function AdminUsersPage() {
           .in('user_id', userIds),
         supabase
           .from('user_subscriptions')
-          .select('id, user_id, expires_at, is_active, daily_limit_override, subscription_types(name, type, daily_limit)')
+          .select('id, user_id, expires_at, is_active, daily_limit_override, is_frozen, freeze_until, subscription_types(name, type, daily_limit)')
           .in('user_id', userIds)
           .eq('is_active', true),
       ]);
@@ -307,18 +336,21 @@ export default function AdminUsersPage() {
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
       const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
       
-      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null };
+      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null };
       const coffeeSubMap = new Map<string, SubInfo>();
       const lunchSubMap = new Map<string, SubInfo>();
       for (const sub of (subsResult.data || [])) {
         const subType = sub.subscription_types as unknown as { name: string; type: string; daily_limit: number | null } | null;
         if (!subType) continue;
+        const raw = sub as { daily_limit_override?: number | null; is_frozen?: boolean | null; freeze_until?: string | null };
         const info: SubInfo = {
           name: subType.name,
           expires_at: sub.expires_at,
           sub_id: sub.id,
           daily_limit: subType.daily_limit,
-          daily_limit_override: (sub as any).daily_limit_override ?? null,
+          daily_limit_override: raw.daily_limit_override ?? null,
+          is_frozen: raw.is_frozen ?? false,
+          freeze_until: raw.freeze_until ?? null,
         };
         if (subType.type === 'coffee') {
           coffeeSubMap.set(sub.user_id, info);
@@ -720,16 +752,19 @@ export default function AdminUsersPage() {
                 { value: 'all', label: 'Все' },
                 { value: 'has_subscription', label: 'Есть подписка' },
                 { value: 'no_subscription', label: 'Нет подписки' },
+                { value: 'frozen', label: 'Заморозка', icon: true },
               ].map((filter) => (
                 <Button
                   key={filter.value}
                   variant={subscriptionFilter === filter.value ? 'default' : 'outline'}
                   size="sm"
+                  className={filter.value === 'frozen' && subscriptionFilter !== 'frozen' ? 'text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900' : undefined}
                   onClick={() => {
                     setSubscriptionFilter(filter.value);
                     setPage(0);
                   }}
                 >
+                  {filter.icon && <Snowflake className="w-3.5 h-3.5 mr-1" />}
                   {filter.label}
                 </Button>
               ))}
@@ -800,6 +835,18 @@ export default function AdminUsersPage() {
                           ) : (
                             <span className="text-green-600 text-sm">Активен</span>
                           )}
+                          {(() => {
+                            const now = new Date();
+                            const frozen = [user.coffee_subscription, user.lunch_subscription].some(
+                              s => s?.is_frozen && s.freeze_until && new Date(s.freeze_until) > now,
+                            );
+                            return frozen ? (
+                              <div className="flex items-center gap-1 mt-1 text-sky-600 dark:text-sky-400">
+                                <Snowflake className="w-3 h-3" />
+                                <span className="text-xs font-medium">Заморозка</span>
+                              </div>
+                            ) : null;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
