@@ -50,8 +50,24 @@ const GiftCoffeePage = lazy(() => import("./pages/GiftCoffeePage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 import PayReturnPage from "./pages/PayReturnPage";
 
-// Register service worker for PWA  
-if ('serviceWorker' in navigator) {
+// Service worker.
+// На ВЕБЕ — обычный PWA-кеш (офлайн, быстрый старт).
+// В НАТИВНОМ приложении (iOS/Android) ассеты уже лежат локально в бандле и
+// всегда свежие. Workbox-SW сверху только кешировал бы их повторно и при
+// обновлении .ipa/.apk мог отдавать СТАРЫЕ куски интерфейса из кеша, пока SW
+// не обновится, — из-за этого после апдейта часть экранов оставалась старой.
+// Поэтому на нативе SW не регистрируем, а если он остался от прежних сборок —
+// снимаем его и чистим кеши, чтобы устройство «вылечилось» само.
+if (Capacitor.isNativePlatform()) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => regs.forEach(r => r.unregister()))
+      .catch(() => { /* нет прав/поддержки — не критично */ });
+  }
+  if (typeof caches !== 'undefined' && caches.keys) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+  }
+} else if ('serviceWorker' in navigator) {
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({ immediate: true });
   });
