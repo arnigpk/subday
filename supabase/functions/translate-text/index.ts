@@ -43,15 +43,15 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY not configured");
     }
 
-    // Порядок моделей важен:
-    //  • gemini-2.0-flash — надёжный переводчик, без «thinking», отдаёт контент;
-    //  • gemini-2.5-flash-lite — дешёвый запас (иногда галлюцинирует, поэтому не первый);
-    //  • gemini-2.5-flash — последним: через OpenAI-endpoint часто отдаёт ПУСТОЙ
-    //    ответ (весь бюджет уходит в thinking, completion_tokens=0).
-    // ВНИМАНИЕ: если у ключа GEMINI_API_KEY исчерпана квота (429), переводить
-    // нечем — на всех моделях будет ошибка. Автоперевод (TT) тогда показывает
-    // русский как есть. Лечится восстановлением квоты/биллинга Gemini.
-    const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
+    // Порядок моделей (актуально для текущего free-tier ключа):
+    //  • gemini-2.0-flash-lite — БЕЗ «thinking», стабильно отдаёт контент, хорошо
+    //    переводит и не галлюцинирует (в отличие от снятой 2.5-flash-lite);
+    //  • gemini-flash-lite-latest / gemini-flash-latest — запас, если у lite
+    //    кончится минутная квота. (Пиннованные 2.5-flash / 2.5-flash-lite новым
+    //    ключам отдают 404 «no longer available to new users».)
+    // Если ВСЕ модели упадут (429/пусто) — функция вернёт 500, а автоперевод (TT)
+    // на клиенте покажет русский как есть (безопасный фолбэк, не мусор).
+    const MODELS = ["gemini-2.0-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"];
 
     const parseTranslations = (content: string): string[] | null => {
       const lines = content.split('\n').filter((l: string) => l.trim());
