@@ -7,17 +7,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Plus, Search, Loader2 } from 'lucide-react';
+import {
+  Building2, Plus, Search, Loader2, Trash2, UserMinus, Users, ChevronDown, ChevronUp, Coffee,
+} from 'lucide-react';
 
-interface Account { id: string; name: string; admin_user_id: string; contact_name: string | null; contact_phone: string | null; created_at: string; }
-interface Allocation { id: string; account_id: string; subscription_type_id: string; seats_total: number; }
 interface SubType { id: string; name: string; }
+interface AdminAllocation { id: string; tier: string; seats_total: number; seats_used: number; expires_at: string | null; }
+interface AdminSeat { seat_id: string; tier: string; name: string | null; public_id: string | null; assigned_at: string; redemptions: number; }
+interface AdminAccount {
+  id: string; name: string; contact_name: string | null; contact_phone: string | null;
+  admin_user_id: string | null; owner_name: string | null; owner_public_id: string | null;
+  is_active: boolean; created_at: string; seats_total: number; seats_used: number;
+  allocations: AdminAllocation[]; seats: AdminSeat[];
+}
+
+const fmtDate = (s: string | null) =>
+  s ? new Date(s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 export default function AdminB2BPage() {
   const { toast } = useToast();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [subTypes, setSubTypes] = useState<SubType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Создание аккаунта
   const [name, setName] = useState('');
@@ -33,14 +45,15 @@ export default function AdminB2BPage() {
   const [allocSeats, setAllocSeats] = useState<Record<string, string>>({});
 
   const load = async () => {
-    const [accRes, allocRes, stRes] = await Promise.all([
-      supabase.from('b2b_accounts').select('*').order('created_at', { ascending: false }),
-      supabase.from('b2b_allocations').select('id, account_id, subscription_type_id, seats_total'),
+    setLoading(true);
+    const [ovRes, stRes] = await Promise.all([
+      supabase.rpc('b2b_admin_overview'),
       supabase.from('subscription_types').select('id, name').eq('is_active', true).order('price'),
     ]);
-    setAccounts((accRes.data as Account[]) || []);
-    setAllocations((allocRes.data as Allocation[]) || []);
+    if (ovRes.error) toast({ title: 'Ошибка загрузки', description: ovRes.error.message, variant: 'destructive' });
+    setAccounts((ovRes.data as unknown as AdminAccount[]) || []);
     setSubTypes((stRes.data as SubType[]) || []);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -87,11 +100,42 @@ export default function AdminB2BPage() {
     load();
   };
 
-  const tierName = (id: string) => subTypes.find(s => s.id === id)?.name || id;
+  const deleteAllocation = async (allocId: string, tier: string, used: number) => {
+    if (!confirm(`Удалить пул «${tier}»?${used > 0 ? ` У ${used} сотрудников подписка станет неактивной.` : ''}`)) return;
+    const { error } = await supabase.rpc('b2b_admin_delete_allocation', { p_allocation_id: allocId });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Пул удалён' });
+    load();
+  };
+
+  const revokeSeat = async (seatId: string, empName: string | null) => {
+    if (!confirm(`Отозвать место у «${empName || 'сотрудника'}»? Подписка станет неактивной.`)) return;
+    const { error } = await supabase.rpc('b2b_revoke_seat', { p_seat_id: seatId });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Место отозвано' });
+    load();
+  };
+
+  const revokeOwner = async (accountId: string, ownerName: string | null) => {
+    if (!confirm(`Забрать доступ в кабинет у «${ownerName || 'владельца'}»? Данные бизнеса сохранятся, но он больше не сможет войти в кабинет B2B.`)) return;
+    const { error } = await supabase.rpc('b2b_admin_revoke_owner', { p_account_id: accountId });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Доступ владельца снят' });
+    load();
+  };
+
+  const deleteAccount = async (accountId: string, accName: string, used: number) => {
+    if (!confirm(`Удалить бизнес «${accName}» полностью?${used > 0 ? ` У ${used} сотрудников подписки станут неактивными.` : ''} Это действие необратимо.`)) return;
+    const { error } = await supabase.rpc('b2b_admin_delete_account', { p_account_id: accountId });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Бизнес удалён' });
+    load();
+  };
 
   return (
     <AdminLayout title="B2B — Корпоративные подписки">
       <div className="space-y-6">
+        {/* Создание аккаунта */}
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Plus size={18} />Новый бизнес-аккаунт</CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -115,42 +159,121 @@ export default function AdminB2BPage() {
           </CardContent>
         </Card>
 
-        <div className="space-y-3">
-          {accounts.map(acc => {
-            const accAllocs = allocations.filter(a => a.account_id === acc.id);
-            return (
-              <Card key={acc.id}>
-                <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Building2 size={18} className="text-primary" />
-                    <p className="font-semibold text-foreground">{acc.name}</p>
-                  </div>
-                  {acc.contact_name && <p className="text-xs text-muted-foreground">{acc.contact_name} · {acc.contact_phone}</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {accAllocs.length === 0 && <span className="text-xs text-muted-foreground">Пулы не выданы</span>}
-                    {accAllocs.map(a => (
-                      <span key={a.id} className="text-xs bg-secondary rounded-lg px-2 py-1">{tierName(a.subscription_type_id)}: {a.seats_total} мест</span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 items-end border-t pt-3">
-                    <div className="flex-1">
-                      <Label className="text-xs">Тариф</Label>
-                      <Select value={allocTier[acc.id] || ''} onValueChange={v => setAllocTier(p => ({ ...p, [acc.id]: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
-                        <SelectContent>{subTypes.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
+        {/* Список бизнесов */}
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Загрузка…</p>
+        ) : accounts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Бизнес-аккаунтов пока нет.</p>
+        ) : (
+          <div className="space-y-3">
+            {accounts.map(acc => {
+              const isOpen = expanded[acc.id];
+              const occ = acc.seats_total > 0 ? Math.round((acc.seats_used / acc.seats_total) * 100) : 0;
+              return (
+                <Card key={acc.id} className={acc.is_active ? '' : 'opacity-60'}>
+                  <CardContent className="pt-4 space-y-3">
+                    {/* Шапка бизнеса */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 size={18} className="text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground truncate">{acc.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {acc.owner_name ? `${acc.owner_name}${acc.owner_public_id ? ` · ID ${acc.owner_public_id}` : ''}` : <span className="text-amber-600">Владелец не назначен</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-foreground tabular-nums">{acc.seats_used} / {acc.seats_total}</p>
+                        <p className="text-[10px] text-muted-foreground">мест занято</p>
+                      </div>
                     </div>
-                    <div className="w-24">
-                      <Label className="text-xs">Мест</Label>
-                      <Input type="number" min={1} value={allocSeats[acc.id] || ''} onChange={e => setAllocSeats(p => ({ ...p, [acc.id]: e.target.value }))} placeholder="100" />
+
+                    {/* Прогресс занятости */}
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${occ}%` }} />
                     </div>
-                    <Button onClick={() => addAllocation(acc.id)}>Выдать пул</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+
+                    {/* Пулы (чипы) */}
+                    <div className="flex flex-wrap gap-2">
+                      {acc.allocations.length === 0 && <span className="text-xs text-muted-foreground">Пулы не выданы</span>}
+                      {acc.allocations.map(a => (
+                        <span key={a.id} className="inline-flex items-center gap-1.5 text-xs bg-secondary rounded-lg pl-2 pr-1 py-1">
+                          <span>{a.tier}: {a.seats_used}/{a.seats_total}</span>
+                          <button onClick={() => deleteAllocation(a.id, a.tier, a.seats_used)} className="text-muted-foreground hover:text-destructive p-0.5" title="Удалить пул">
+                            <Trash2 size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Выдать пул */}
+                    <div className="flex gap-2 items-end border-t pt-3">
+                      <div className="flex-1">
+                        <Label className="text-xs">Тариф</Label>
+                        <Select value={allocTier[acc.id] || ''} onValueChange={v => setAllocTier(p => ({ ...p, [acc.id]: v }))}>
+                          <SelectTrigger><SelectValue placeholder="Выберите" /></SelectTrigger>
+                          <SelectContent>{subTypes.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-24">
+                        <Label className="text-xs">Мест</Label>
+                        <Input type="number" min={1} value={allocSeats[acc.id] || ''} onChange={e => setAllocSeats(p => ({ ...p, [acc.id]: e.target.value }))} placeholder="100" />
+                      </div>
+                      <Button onClick={() => addAllocation(acc.id)}>Выдать пул</Button>
+                    </div>
+
+                    {/* Раскрытие: сотрудники + опасные действия */}
+                    <button
+                      onClick={() => setExpanded(p => ({ ...p, [acc.id]: !p[acc.id] }))}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Users size={13} />
+                      Сотрудники ({acc.seats.length}) и управление
+                      {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+
+                    {isOpen && (
+                      <div className="space-y-2 pt-1">
+                        {acc.seats.length === 0 && <p className="text-xs text-muted-foreground">Мест ещё не выдано.</p>}
+                        {acc.seats.map(s => (
+                          <div key={s.seat_id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {s.name || 'Без имени'}
+                                {s.public_id && <span className="text-xs text-muted-foreground font-mono ml-2">ID {s.public_id}</span>}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-2">
+                                <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{s.tier}</span>
+                                <span className="inline-flex items-center gap-1"><Coffee size={10} />{s.redemptions}</span>
+                                <span>выдано {fmtDate(s.assigned_at)}</span>
+                              </p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => revokeSeat(s.seat_id, s.name)} title="Отозвать место">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+
+                        {/* Опасные действия по аккаунту */}
+                        <div className="flex flex-wrap gap-2 border-t pt-3">
+                          {acc.admin_user_id && (
+                            <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:text-amber-700" onClick={() => revokeOwner(acc.id, acc.owner_name)}>
+                              <UserMinus className="w-4 h-4 mr-1" />Забрать доступ владельца
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" className="text-destructive border-destructive/40 hover:text-destructive" onClick={() => deleteAccount(acc.id, acc.name, acc.seats_used)}>
+                            <Trash2 className="w-4 h-4 mr-1" />Удалить бизнес
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

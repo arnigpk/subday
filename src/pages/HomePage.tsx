@@ -8,6 +8,7 @@ import { TopShopsCarousel } from '@/components/home/TopShopsCarousel';
 import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useB2BAuth } from '@/hooks/useB2BAuth';
 import { useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
@@ -25,6 +26,7 @@ export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
   const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
+  const { isB2BAdmin } = useB2BAuth();
   const navigate = useNavigate();
   const { prefetchAll } = usePrefetch();
   const queryClient = useQueryClient();
@@ -77,6 +79,15 @@ export default function HomePage() {
                     aria-label="Панель управления"
                   >
                     💻
+                  </button>
+                )}
+                {isB2BAdmin && (
+                  <button
+                    onClick={() => navigate('/b2b')}
+                    className="text-2xl leading-none"
+                    aria-label="Кабинет B2B"
+                  >
+                    🏢
                   </button>
                 )}
               </div>

@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store, Gift, Snowflake } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, CalendarDays, Coffee, UtensilsCrossed, RefreshCw, CreditCard, Plus, X, Store, Gift, Snowflake, Building2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
@@ -64,6 +64,8 @@ interface UserWithStats {
   shop_id?: string | null;
   coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
   lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
+  b2b_owner_of?: string | null;   // название бизнеса, если пользователь — админ B2B-аккаунта
+  b2b_seat?: { account: string; tier: string } | null; // выданное B2B-место
 }
 
 interface SubscriptionType {
@@ -316,8 +318,8 @@ export default function AdminUsersPage() {
 
       const userIds = profiles.map(p => p.user_id);
       
-      // Fetch stats, roles and subscriptions in parallel
-      const [statsResult, rolesResult, subsResult] = await Promise.all([
+      // Fetch stats, roles, subscriptions and B2B links in parallel
+      const [statsResult, rolesResult, subsResult, b2bOwnersResult, b2bSeatsResult] = await Promise.all([
         supabase
           .from('user_stats')
           .select('user_id, coffee_remaining, drinks_remaining, guest_coffees, guest_expires_at, total_cups, current_streak')
@@ -331,10 +333,31 @@ export default function AdminUsersPage() {
           .select('id, user_id, expires_at, is_active, daily_limit_override, is_frozen, freeze_until, subscription_types(name, type, daily_limit)')
           .in('user_id', userIds)
           .eq('is_active', true),
+        // Владельцы B2B-аккаунтов среди показанных пользователей.
+        supabase
+          .from('b2b_accounts')
+          .select('admin_user_id, name')
+          .in('admin_user_id', userIds),
+        // Сотрудники с активным B2B-местом (название бизнеса + тариф).
+        supabase
+          .from('b2b_seats')
+          .select('employee_user_id, b2b_accounts(name), b2b_allocations(subscription_types(name))')
+          .in('employee_user_id', userIds)
+          .eq('status', 'active'),
       ]);
 
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
       const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
+      const b2bOwnerMap = new Map<string, string>();
+      for (const a of (b2bOwnersResult.data || [])) {
+        if (a.admin_user_id) b2bOwnerMap.set(a.admin_user_id, a.name);
+      }
+      const b2bSeatMap = new Map<string, { account: string; tier: string }>();
+      for (const s of (b2bSeatsResult.data || [])) {
+        const acc = (s as any).b2b_accounts as { name: string } | null;
+        const tier = ((s as any).b2b_allocations as { subscription_types: { name: string } | null } | null)?.subscription_types?.name;
+        b2bSeatMap.set((s as any).employee_user_id, { account: acc?.name || 'Бизнес', tier: tier || 'Подписка' });
+      }
       
       type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null };
       const coffeeSubMap = new Map<string, SubInfo>();
@@ -377,6 +400,8 @@ export default function AdminUsersPage() {
           shop_id: roleData?.shop_id,
           coffee_subscription: coffeeSubMap.get(profile.user_id) || null,
           lunch_subscription: lunchSubMap.get(profile.user_id) || null,
+          b2b_owner_of: b2bOwnerMap.get(profile.user_id) || null,
+          b2b_seat: b2bSeatMap.get(profile.user_id) || null,
         };
       });
 
@@ -828,6 +853,18 @@ export default function AdminUsersPage() {
                               <span className="text-xs text-primary font-medium">
                                 {ROLE_LABELS[user.role]}
                               </span>
+                            </div>
+                          )}
+                          {user.b2b_owner_of && (
+                            <div className="flex items-center gap-1 mb-1" title={`Владелец B2B: ${user.b2b_owner_of}`}>
+                              <Building2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate max-w-[120px]">B2B: {user.b2b_owner_of}</span>
+                            </div>
+                          )}
+                          {user.b2b_seat && (
+                            <div className="flex items-center gap-1 mb-1" title={`B2B-место от «${user.b2b_seat.account}»`}>
+                              <Building2 className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                              <span className="text-xs text-teal-600 dark:text-teal-400 font-medium truncate max-w-[130px]">B2B-место · {user.b2b_seat.tier}</span>
                             </div>
                           )}
                           {user.is_blocked ? (
