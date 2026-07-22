@@ -720,38 +720,65 @@ export type Database = {
       app_messages: {
         Row: {
           audience_types: string[]
+          button_action: string
+          button_label: string | null
+          button_value: string | null
           content: string
           created_at: string
           created_by: string
           daily_frequency: number
+          display_style: string
+          emoji: string | null
+          ends_at: string | null
           frequency_type: string
           id: string
+          image_url: string | null
           is_active: boolean
+          media_type: string
           scheduled_at: string | null
+          title: string | null
           updated_at: string
         }
         Insert: {
           audience_types?: string[]
+          button_action?: string
+          button_label?: string | null
+          button_value?: string | null
           content: string
           created_at?: string
           created_by: string
           daily_frequency?: number
+          display_style?: string
+          emoji?: string | null
+          ends_at?: string | null
           frequency_type?: string
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          media_type?: string
           scheduled_at?: string | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
           audience_types?: string[]
+          button_action?: string
+          button_label?: string | null
+          button_value?: string | null
           content?: string
           created_at?: string
           created_by?: string
           daily_frequency?: number
+          display_style?: string
+          emoji?: string | null
+          ends_at?: string | null
           frequency_type?: string
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          media_type?: string
           scheduled_at?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
