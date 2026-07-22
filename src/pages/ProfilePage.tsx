@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { TT } from '@/components/TT';
 import { Capacitor } from '@capacitor/core';
 import { Link } from 'react-router-dom';
 import { useVibration } from '@/hooks/useVibration';
@@ -542,8 +543,8 @@ export default function ProfilePage() {
                       <IconDeviceMobile size={18} className="text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Push-уведомления</p>
-                      <p className="text-xs text-muted-foreground">Системные уведомления</p>
+                      <p className="text-sm font-semibold text-foreground"><TT text="Push-уведомления" /></p>
+                      <p className="text-xs text-muted-foreground"><TT text="Системные уведомления" /></p>
                     </div>
                   </div>
                   <Switch
@@ -559,8 +560,8 @@ export default function ProfilePage() {
                       <IconVolume size={18} className="text-accent" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Звук #subFlow</p>
-                      <p className="text-xs text-muted-foreground">Звук при новых уведомлениях</p>
+                      <p className="text-sm font-semibold text-foreground"><TT text="Звук #subFlow" /></p>
+                      <p className="text-xs text-muted-foreground"><TT text="Звук при новых уведомлениях" /></p>
                     </div>
                   </div>
                   <Switch
@@ -576,8 +577,8 @@ export default function ProfilePage() {
                       <IconDeviceMobileVibration size={18} className="text-destructive" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Вибрация</p>
-                      <p className="text-xs text-muted-foreground">Вибрация при уведомлениях</p>
+                      <p className="text-sm font-semibold text-foreground"><TT text="Вибрация" /></p>
+                      <p className="text-xs text-muted-foreground"><TT text="Вибрация при уведомлениях" /></p>
                     </div>
                   </div>
                   <Switch
@@ -593,8 +594,8 @@ export default function ProfilePage() {
                       <IconMapPinFilled size={18} className="text-primary" />
                     </div>
                     <div className="pr-2">
-                      <p className="text-sm font-semibold text-foreground">Кофейни рядом</p>
-                      <p className="text-xs text-muted-foreground">Push, когда вы рядом с кофейней</p>
+                      <p className="text-sm font-semibold text-foreground"><TT text="Кофейни рядом" /></p>
+                      <p className="text-xs text-muted-foreground"><TT text="Push, когда вы рядом с кофейней" /></p>
                     </div>
                   </div>
                   <Switch
@@ -622,7 +623,7 @@ export default function ProfilePage() {
                   <IconBan size={20} className="text-destructive shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground">Заблокированные</p>
-                    <p className="text-xs text-muted-foreground">Пользователи, которых вы заблокировали в #subFlow</p>
+                    <p className="text-xs text-muted-foreground"><TT text="Пользователи, которых вы заблокировали в #subFlow" /></p>
                   </div>
                   <IconChevronRight size={18} className="text-muted-foreground shrink-0" />
                 </button>
@@ -632,8 +633,8 @@ export default function ProfilePage() {
                 >
                   <IconBrandWhatsapp size={20} className="text-[#25D366] shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">Обратиться в поддержку</p>
-                    <p className="text-xs text-muted-foreground">Напишите нам в WhatsApp — ответим быстро</p>
+                    <p className="font-semibold text-foreground"><TT text="Обратиться в поддержку" /></p>
+                    <p className="text-xs text-muted-foreground"><TT text="Напишите нам в WhatsApp — ответим быстро" /></p>
                   </div>
                   <IconChevronRight size={18} className="text-muted-foreground shrink-0" />
                 </button>
@@ -656,7 +657,7 @@ export default function ProfilePage() {
                   </div>
                 ) : blockedUsers.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    Вы никого не блокировали
+                    <TT text="Вы никого не блокировали" />
                   </p>
                 ) : (
                   blockedUsers.map((u) => (
@@ -670,7 +671,7 @@ export default function ProfilePage() {
                         onClick={() => handleUnblock(u.blocked_id)}
                         className="shrink-0 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/70 text-xs font-semibold text-foreground transition-colors"
                       >
-                        Разблокировать
+                        <TT text="Разблокировать" />
                       </button>
                     </div>
                   ))
@@ -689,10 +690,10 @@ export default function ProfilePage() {
               </DialogHeader>
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  На время заморозки подписка приостановлена, а срок её действия продлевается на выбранное количество дней.
+                  <TT text="На время заморозки подписка приостановлена, а срок её действия продлевается на выбранное количество дней." />
                 </p>
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-2">Срок заморозки</p>
+                  <p className="text-sm font-medium text-foreground mb-2"><TT text="Срок заморозки" /></p>
                   <div className="grid grid-cols-3 gap-2">
                     {[7, 10, 14].map(d => (
                       <button
@@ -720,11 +721,11 @@ export default function ProfilePage() {
           <Dialog open={showUnfreezeDialog} onOpenChange={setShowUnfreezeDialog}>
             <DialogContent className="max-w-sm rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold">Разморозить подписку прямо сейчас?</DialogTitle>
+                <DialogTitle className="text-lg font-bold"><TT text="Разморозить подписку прямо сейчас?" /></DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Подписка снова станет активной ровно на тот срок, что оставался на момент заморозки.
+                  <TT text="Подписка снова станет активной ровно на тот срок, что оставался на момент заморозки." />
                 </p>
                 <div className="flex gap-2">
                   <button

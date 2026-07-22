@@ -1,5 +1,6 @@
 import { ShareButton } from '@/components/ShareButton';
 import { useState, useEffect, useMemo } from 'react';
+import { TT } from '@/components/TT';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -227,7 +228,7 @@ export default function ShopDetailPage() {
               }`}
             >
               <ShoppingBag size={18} />
-              {isCurrentlyOpen ? 'Сделать предзаказ' : 'Предзаказ доступен после открытия'}
+              <TT text={isCurrentlyOpen ? 'Сделать предзаказ' : 'Предзаказ доступен после открытия'} />
             </button>
           </div>
         )}
@@ -276,7 +277,7 @@ export default function ShopDetailPage() {
             </button>
           ) : stats.coffeeRemaining <= 0 && stats.drinksRemaining <= 0 ? (
             <button onClick={() => navigate('/packages')} className="btn-accent w-full text-lg">
-              Оформить подписку
+              <TT text="Оформить подписку" />
             </button>
           ) : (
             <button onClick={handleRedeem} className="btn-accent w-full text-lg">
