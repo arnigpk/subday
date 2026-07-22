@@ -94,6 +94,9 @@ const AdminMessagesPage = lazy(() => import("./pages/admin/AdminMessagesPage"));
 
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
+const AdminB2BPage = lazy(() => import("./pages/admin/AdminB2BPage"));
+const B2BDashboardPage = lazy(() => import("./pages/b2b/B2BDashboardPage"));
+const B2BProtectedRoute = lazy(() => import("@/components/b2b/B2BProtectedRoute").then(m => ({ default: m.B2BProtectedRoute })));
 const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
 const PartnerScanPage = lazy(() => import("./pages/partner/PartnerScanPage"));
 const PartnerHistoryPage = lazy(() => import("./pages/partner/PartnerHistoryPage"));
@@ -324,7 +327,7 @@ function PlatformGuard({ children, isTelegramMiniApp }: { children: ReactNode; i
   const location = useLocation();
   const isNative = Capacitor.isNativePlatform();
   const isBrowser = !isTelegramMiniApp && !isNative;
-  const isAllowed = location.pathname.startsWith('/admin') || location.pathname.startsWith('/partner');
+  const isAllowed = location.pathname.startsWith('/admin') || location.pathname.startsWith('/partner') || location.pathname.startsWith('/b2b');
 
   if (BLOCK_BROWSER_ACCESS && isBrowser && !isAllowed) {
     return <WebBlockedScreen />;
@@ -614,6 +617,8 @@ const AppContent = () => {
             <Route path="/admin/subflow-ads" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubFlowAdsPage /></AdminProtectedRoute>} />
             <Route path="/admin/qr-settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminQRSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/messages" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminMessagesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/b2b" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminB2BPage /></AdminProtectedRoute>} />
+            <Route path="/b2b" element={<B2BProtectedRoute><B2BDashboardPage /></B2BProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
             
             {/* Partner Routes */}

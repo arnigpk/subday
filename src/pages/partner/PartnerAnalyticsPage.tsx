@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { BarChart3, Users, UserPlus, RefreshCw, Coins, Coffee, Clock, CalendarDays } from 'lucide-react';
+import { BarChart3, Users, UserPlus, RefreshCw, Coffee, Clock, CalendarDays } from 'lucide-react';
 
 interface Analytics {
   total: number;
@@ -28,7 +28,6 @@ const PERIODS = [
 ];
 
 const DOW_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const money = (v: number) => `${Math.round(v).toLocaleString('ru-RU')} ₸`;
 
 function Metric({ icon, label, value, hint, accent }: {
   icon: React.ReactNode; label: string; value: string; hint?: string; accent?: boolean;
@@ -111,14 +110,13 @@ export default function PartnerAnalyticsPage() {
         ) : (
           <>
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">Гости и оборот</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Гости и визиты</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-2">
                   <Metric accent icon={<Users size={13} />} label="Всего списаний" value={data.total.toLocaleString('ru-RU')} />
                   <Metric icon={<Users size={13} />} label="Уникальных гостей" value={data.unique_guests.toLocaleString('ru-RU')} />
                   <Metric icon={<UserPlus size={13} />} label="Новых гостей" value={data.new_guests.toLocaleString('ru-RU')} hint="Раньше у вас не были" />
                   <Metric icon={<RefreshCw size={13} />} label="Вернувшихся" value={data.returning_guests.toLocaleString('ru-RU')} hint={`${convRate}% возвращаются`} />
-                  <Metric icon={<Coins size={13} />} label="Оборот за период" value={money(data.revenue)} />
                   <Metric icon={<Coffee size={13} />} label="Кофе / прочее" value={`${data.coffee_cnt} / ${data.other_cnt}`} />
                 </div>
               </CardContent>
