@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' | 'new_users' | 'inactive';
@@ -71,10 +71,15 @@ export function useUserAudienceMatch() {
    * Returns true if the user matches ANY of the given audience types.
    * If audienceTypes contains 'all' or is empty, always returns true.
    */
-  const matchesAudience = (audienceTypes: string[] | null | undefined): boolean => {
+  // ВАЖНО: мемоизируем по matchedTypes. Без useCallback функция была новой на
+  // каждый рендер — из-за этого в ленте пересчитывался список реклам и эффект
+  // лимитов гонялся без конца: реклама показывалась, через ~1 сек её показ
+  // засчитывался, и следующий прогон убирал её (дневной лимит) — реклама
+  // «исчезала на глазах». Со стабильной ссылкой прогон идёт один раз.
+  const matchesAudience = useCallback((audienceTypes: string[] | null | undefined): boolean => {
     if (!audienceTypes || audienceTypes.length === 0 || audienceTypes.includes('all')) return true;
     return audienceTypes.some(t => matchedTypes.has(t as AudienceType));
-  };
+  }, [matchedTypes]);
 
   return { matchedTypes, matchesAudience, isLoading };
 }
