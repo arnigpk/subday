@@ -43,9 +43,15 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY not configured");
     }
 
-    // Цепочка моделей: flash-lite часто перегружена (503) и иногда выдаёт мусор —
-    // при ошибке или невалидном ответе пробуем следующую модель.
-    const MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"];
+    // Порядок моделей важен:
+    //  • gemini-2.0-flash — надёжный переводчик, без «thinking», отдаёт контент;
+    //  • gemini-2.5-flash-lite — дешёвый запас (иногда галлюцинирует, поэтому не первый);
+    //  • gemini-2.5-flash — последним: через OpenAI-endpoint часто отдаёт ПУСТОЙ
+    //    ответ (весь бюджет уходит в thinking, completion_tokens=0).
+    // ВНИМАНИЕ: если у ключа GEMINI_API_KEY исчерпана квота (429), переводить
+    // нечем — на всех моделях будет ошибка. Автоперевод (TT) тогда показывает
+    // русский как есть. Лечится восстановлением квоты/биллинга Gemini.
+    const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
     const parseTranslations = (content: string): string[] | null => {
       const lines = content.split('\n').filter((l: string) => l.trim());
