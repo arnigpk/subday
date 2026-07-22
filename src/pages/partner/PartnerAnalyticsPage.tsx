@@ -6,16 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { BarChart3, Users, UserPlus, RefreshCw, Coffee, Clock, CalendarDays } from 'lucide-react';
+import { BarChart3, Users, UserPlus, RefreshCw, Coffee, UtensilsCrossed, TrendingUp, Repeat, Clock, CalendarDays } from 'lucide-react';
 
 interface Analytics {
   total: number;
   unique_guests: number;
   new_guests: number;
   returning_guests: number;
-  revenue: number;
-  coffee_cnt: number;
-  other_cnt: number;
+  drinks_cnt: number;
+  lunch_cnt: number;
+  avg_per_day: number;
+  visits_per_guest: number;
   by_hour: { h: number; c: number }[];
   by_dow: { d: number; c: number }[];
   by_tier: { name: string; c: number }[];
@@ -117,7 +118,10 @@ export default function PartnerAnalyticsPage() {
                   <Metric icon={<Users size={13} />} label="Уникальных гостей" value={data.unique_guests.toLocaleString('ru-RU')} />
                   <Metric icon={<UserPlus size={13} />} label="Новых гостей" value={data.new_guests.toLocaleString('ru-RU')} hint="Раньше у вас не были" />
                   <Metric icon={<RefreshCw size={13} />} label="Вернувшихся" value={data.returning_guests.toLocaleString('ru-RU')} hint={`${convRate}% возвращаются`} />
-                  <Metric icon={<Coffee size={13} />} label="Кофе / прочее" value={`${data.coffee_cnt} / ${data.other_cnt}`} />
+                  <Metric icon={<TrendingUp size={13} />} label="В среднем в день" value={data.avg_per_day.toLocaleString('ru-RU')} hint="Списаний за сутки" />
+                  <Metric icon={<Repeat size={13} />} label="Визитов на гостя" value={data.visits_per_guest.toLocaleString('ru-RU')} hint="Как часто возвращаются" />
+                  <Metric icon={<Coffee size={13} />} label="Напитки" value={data.drinks_cnt.toLocaleString('ru-RU')} />
+                  <Metric icon={<UtensilsCrossed size={13} />} label="Ланч" value={data.lunch_cnt.toLocaleString('ru-RU')} hint={data.lunch_cnt === 0 ? 'Появится с запуском ланча' : undefined} />
                 </div>
               </CardContent>
             </Card>

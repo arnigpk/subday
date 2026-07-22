@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { Building2, Users, UserCheck, Coffee, Search, Loader2, Trash2, LogOut } from 'lucide-react';
+import {
+  Building2, Users, UserCheck, Coffee, Search, Loader2, Trash2, LogOut,
+  User, Copy, LayoutGrid, CalendarDays, Sparkles,
+} from 'lucide-react';
 
 interface Allocation { id: string; tier: string; seats_total: number; seats_used: number; seats_free: number; expires_at: string | null; }
 interface Seat { seat_id: string; tier: string; name: string | null; assigned_at: string; redemptions: number; last_visit: string | null; }
@@ -18,6 +21,16 @@ interface Overview {
   seats: Seat[];
   stats: { active_seats: number; employees_used: number; total_redemptions: number };
 }
+
+const fmtDate = (s: string | null) =>
+  s ? new Date(s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—';
+
+// Инициалы для аватара сотрудника.
+const initials = (name: string | null) => {
+  if (!name) return '👤';
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] || '').concat(parts[1]?.[0] || '').toUpperCase() || '👤';
+};
 
 export default function B2BDashboardPage() {
   const qc = useQueryClient();
@@ -60,7 +73,7 @@ export default function B2BDashboardPage() {
       const { data, error } = await supabase.rpc('b2b_assign_seat', { p_allocation_id: allocId, p_employee_user_id: found.user_id });
       if (error) throw error;
       const r = data as { ok?: boolean };
-      if (r?.ok) { toast.success('Место выдано, подписка активна'); setFound(null); setSearch(''); refresh(); }
+      if (r?.ok) { toast.success('Место выдано, сотрудник получит уведомление'); setFound(null); setSearch(''); setAllocId(''); refresh(); }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Не удалось выдать место');
     } finally { setIsAssigning(false); }
@@ -81,7 +94,7 @@ export default function B2BDashboardPage() {
   const logout = async () => { await supabase.auth.signOut(); window.location.href = '/'; };
 
   if (isLoading) {
-    return <div className="p-4"><Skeleton className="h-64 w-full" /></div>;
+    return <div className="p-4 space-y-4"><Skeleton className="h-32 w-full rounded-2xl" /><Skeleton className="h-40 w-full rounded-2xl" /></div>;
   }
 
   if (!data?.ok) {
@@ -94,6 +107,12 @@ export default function B2BDashboardPage() {
       </div>
     );
   }
+
+  // Сводка по всем пулам — для «геройского» блока сверху.
+  const totalSeats = data.allocations.reduce((s, a) => s + a.seats_total, 0);
+  const usedSeats = data.allocations.reduce((s, a) => s + a.seats_used, 0);
+  const freeSeats = Math.max(0, totalSeats - usedSeats);
+  const occupancy = totalSeats > 0 ? Math.round((usedSeats / totalSeats) * 100) : 0;
 
   return (
     <div className="min-safe-screen bg-background">
@@ -112,25 +131,25 @@ export default function B2BDashboardPage() {
       </header>
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto">
-        {/* Пулы мест */}
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Пулы подписок</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {data.allocations.length === 0 && <p className="text-sm text-muted-foreground">Пулы ещё не выданы.</p>}
-            {data.allocations.map(a => (
-              <div key={a.id} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{a.tier}</span>
-                  <span className="text-muted-foreground">{a.seats_used} / {a.seats_total} занято</span>
-                </div>
-                <div className="h-2.5 bg-secondary/60 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${(a.seats_used / a.seats_total) * 100}%` }} />
-                </div>
-                <p className="text-[11px] text-muted-foreground">Свободно: {a.seats_free}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {/* Геройский блок — общая занятость пула */}
+        <div
+          className="rounded-2xl p-5 text-white relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, hsl(82 60% 32%), hsl(160 45% 26%))' }}
+        >
+          <div className="absolute -right-6 -top-6 opacity-10"><Sparkles size={120} /></div>
+          <p className="text-[13px] font-medium opacity-90">Занято мест</p>
+          <div className="flex items-end gap-2 mt-1">
+            <span className="text-4xl font-black leading-none">{usedSeats}</span>
+            <span className="text-lg font-semibold opacity-80 mb-0.5">/ {totalSeats}</span>
+          </div>
+          <div className="h-2 bg-white/20 rounded-full overflow-hidden mt-3">
+            <div className="h-full bg-white rounded-full transition-all" style={{ width: `${occupancy}%` }} />
+          </div>
+          <div className="flex items-center justify-between mt-2 text-[12px] opacity-90">
+            <span>{occupancy}% пула используется</span>
+            <span>Свободно: {freeSeats}</span>
+          </div>
+        </div>
 
         {/* Статистика */}
         <div className="grid grid-cols-3 gap-2">
@@ -151,19 +170,45 @@ export default function B2BDashboardPage() {
           </div>
         </div>
 
+        {/* Пулы мест */}
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><LayoutGrid size={16} className="text-primary" />Пулы подписок</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {data.allocations.length === 0 && <p className="text-sm text-muted-foreground">Пулы ещё не выданы. Обратитесь в subday.</p>}
+            {data.allocations.map(a => (
+              <div key={a.id} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-foreground">{a.tier}</span>
+                  <span className="text-muted-foreground tabular-nums">{a.seats_used} / {a.seats_total}</span>
+                </div>
+                <div className="h-2.5 bg-secondary/60 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${a.seats_total > 0 ? (a.seats_used / a.seats_total) * 100 : 0}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Свободно: <span className="font-semibold text-foreground">{a.seats_free}</span></span>
+                  {a.expires_at && <span>до {fmtDate(a.expires_at)}</span>}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         {/* Выдать место */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Выдать место сотруднику</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><UserCheck size={16} className="text-primary" />Выдать место сотруднику</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
             <div className="flex gap-2">
               <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="ID (6 цифр) или телефон" onKeyDown={e => e.key === 'Enter' && handleSearch()} />
               <Button onClick={handleSearch} disabled={isSearching}>{isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</Button>
             </div>
             {found && (
-              <div className="rounded-lg bg-secondary p-3 space-y-2">
-                <div>
-                  <p className="font-medium text-foreground">{found.name || 'Без имени'}</p>
-                  <p className="text-xs text-muted-foreground">{found.phone_masked}</p>
+              <div className="rounded-xl bg-secondary p-3 space-y-2 border border-primary/20">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">{initials(found.name)}</div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{found.name || 'Без имени'}</p>
+                    <p className="text-xs text-muted-foreground">{found.phone_masked}</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Select value={allocId} onValueChange={setAllocId}>
@@ -174,26 +219,66 @@ export default function B2BDashboardPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button onClick={handleAssign} disabled={isAssigning}>{isAssigning ? '...' : 'Выдать'}</Button>
+                  <Button onClick={handleAssign} disabled={isAssigning}>{isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Выдать'}</Button>
                 </div>
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground">Сотрудник должен быть зарегистрирован в приложении subday. Подписка активируется сразу.</p>
+
+            {/* Подсказка: откуда взять ID сотрудника */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <p className="text-sm font-medium text-foreground mb-3">Где сотруднику взять свой ID?</p>
+              <div className="bg-card rounded-xl p-3 border border-border shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User size={20} className="text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">Айдана</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 animate-pulse">
+                        ID: 123456
+                      </span>
+                      <Copy size={10} className="text-accent" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2 ml-[52px]">
+                  <span className="text-accent text-xs">↑</span>
+                  <span className="text-[11px] text-muted-foreground">Профиль в приложении subday — под именем, можно скопировать</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                Сотрудник должен быть зарегистрирован в subday. Подписка активируется сразу, ему придёт уведомление.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {/* Сотрудники */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Сотрудники ({data.seats.length})</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users size={16} className="text-primary" />Сотрудники ({data.seats.length})</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {data.seats.length === 0 && <p className="text-sm text-muted-foreground">Мест ещё не выдано.</p>}
+            {data.seats.length === 0 && (
+              <div className="text-center py-6">
+                <Users className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Мест ещё не выдано.</p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">Найдите сотрудника выше и выдайте ему место.</p>
+              </div>
+            )}
             {data.seats.map(s => (
-              <div key={s.seat_id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{s.name || 'Без имени'}</p>
-                  <p className="text-[11px] text-muted-foreground">{s.tier} · {s.redemptions} списаний</p>
+              <div key={s.seat_id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-foreground shrink-0">{initials(s.name)}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground truncate">{s.name || 'Без имени'}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">{s.tier}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
+                    <span className="inline-flex items-center gap-1"><Coffee size={11} />{s.redemptions} списаний</span>
+                    <span className="inline-flex items-center gap-1"><CalendarDays size={11} />выдано {fmtDate(s.assigned_at)}</span>
+                  </div>
                 </div>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleRevoke(s.seat_id, s.name)}>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleRevoke(s.seat_id, s.name)} aria-label="Отозвать место">
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
