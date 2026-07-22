@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft, Megaphone, ClipboardList, ChevronDown, Check, Store, Plug } from 'lucide-react';
+import { LayoutDashboard, QrCode, History, Users, LogOut, ChevronLeft, Megaphone, ClipboardList, ChevronDown, Check, Store, Plug, BarChart3 } from 'lucide-react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,7 @@ export function PartnerLayout({ children }: PartnerLayoutProps) {
         { path: '/partner/history', icon: History, label: 'История' },
         { path: '/partner/staff', icon: Users, label: 'Сотрудники' },
         { path: '/partner/advertising', icon: Megaphone, label: 'Реклама' },
+        { path: '/partner/analytics', icon: BarChart3, label: 'Аналитика' },
         { path: '/partner/integration', icon: Plug, label: 'Интеграция' },
       ]
     : isBarista
