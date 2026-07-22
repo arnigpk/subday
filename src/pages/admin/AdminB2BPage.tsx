@@ -14,11 +14,12 @@ import {
 interface SubType { id: string; name: string; }
 interface AdminAllocation { id: string; tier: string; seats_total: number; seats_used: number; expires_at: string | null; }
 interface AdminSeat { seat_id: string; tier: string; name: string | null; public_id: string | null; assigned_at: string; redemptions: number; }
+interface AdminConsumedSeat { seat_id: string; tier: string; name: string | null; public_id: string | null; revoked_at: string | null; }
 interface AdminAccount {
   id: string; name: string; contact_name: string | null; contact_phone: string | null;
   admin_user_id: string | null; owner_name: string | null; owner_public_id: string | null;
   is_active: boolean; created_at: string; seats_total: number; seats_used: number;
-  allocations: AdminAllocation[]; seats: AdminSeat[];
+  allocations: AdminAllocation[]; seats: AdminSeat[]; consumed_seats: AdminConsumedSeat[];
 }
 
 const fmtDate = (s: string | null) =>
@@ -254,6 +255,19 @@ export default function AdminB2BPage() {
                             </Button>
                           </div>
                         ))}
+
+                        {/* Потраченные места (слот пула израсходован) */}
+                        {acc.consumed_seats?.length > 0 && (
+                          <div className="space-y-1.5 border-t pt-3">
+                            <p className="text-[11px] text-muted-foreground">Использованные места (слот потрачен, в пул не вернулся):</p>
+                            {acc.consumed_seats.map(s => (
+                              <div key={s.seat_id} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-1.5">
+                                <span className="truncate">{s.name || 'Без имени'}{s.public_id && <span className="font-mono ml-1">ID {s.public_id}</span>} · {s.tier}</span>
+                                <span className="ml-auto shrink-0">отозвано {fmtDate(s.revoked_at)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Опасные действия по аккаунту */}
                         <div className="flex flex-wrap gap-2 border-t pt-3">

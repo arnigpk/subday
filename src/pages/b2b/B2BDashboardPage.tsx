@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,17 +10,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
   Building2, Users, Search, Loader2, Trash2, LogOut, User, Copy,
-  TrendingUp, Sparkles, BarChart3, LayoutGrid, UserPlus, Award,
+  TrendingUp, Sparkles, BarChart3, LayoutGrid, UserPlus, Award, ChevronLeft, CheckCircle2,
 } from 'lucide-react';
 
 interface Allocation { id: string; tier: string; seats_total: number; seats_used: number; seats_free: number; expires_at: string | null; }
 interface Seat { seat_id: string; tier: string; name: string | null; assigned_at: string; redemptions: number; redemptions_30d: number; last_visit: string | null; }
+interface ConsumedSeat { seat_id: string; tier: string; name: string | null; redemptions: number; revoked_at: string | null; }
 interface Report { visits_30d: number; adoption_pct: number; monthly: { label: string; c: number }[]; }
 interface Overview {
   ok: boolean; error?: string;
   account: { id: string; name: string };
   allocations: Allocation[];
   seats: Seat[];
+  consumed_seats: ConsumedSeat[];
   stats: { active_seats: number; employees_used: number; total_redemptions: number };
   report: Report;
 }
@@ -42,6 +45,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 
 export default function B2BDashboardPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
   const [search, setSearch] = useState('');
   const [found, setFound] = useState<{ user_id: string; name: string | null; phone_masked: string | null } | null>(null);
@@ -135,7 +139,16 @@ export default function B2BDashboardPage() {
       {/* Премиальная шапка */}
       <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border">
         <div className="safe-area-top" />
-        <div className="px-5 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
+        <div className="px-5 pt-2 max-w-2xl mx-auto">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft size={14} />
+            <span>В приложение</span>
+          </button>
+        </div>
+        <div className="px-5 pb-3.5 pt-1.5 flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-foreground text-background flex items-center justify-center shrink-0">
               <Building2 size={18} />
@@ -316,6 +329,27 @@ export default function B2BDashboardPage() {
                 ))}
               </CardContent>
             </Card>
+
+            {/* Использованные (потраченные) места */}
+            {data.consumed_seats?.length > 0 && (
+              <Card className="rounded-2xl border-dashed">
+                <CardContent className="pt-5 space-y-2">
+                  <Eyebrow>Использованные места</Eyebrow>
+                  <p className="text-[11px] text-muted-foreground -mt-1">
+                    Подписка отозвана после использования — место в пуле уже потрачено и не возвращается.
+                  </p>
+                  {data.consumed_seats.map(s => (
+                    <div key={s.seat_id} className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2">
+                      <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-muted-foreground truncate">{s.name || 'Без имени'} · {s.tier}</p>
+                        <p className="text-[11px] text-muted-foreground/70">использовал {s.redemptions} · отозвано {fmtDate(s.revoked_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
 
