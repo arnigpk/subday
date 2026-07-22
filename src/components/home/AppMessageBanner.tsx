@@ -214,16 +214,21 @@ export function AppMessageBanner() {
               </p>
 
               {hasButton ? (
-                <button
-                  onClick={() => handleAction(msg)}
-                  className="btn-accent mt-5 w-full h-11 rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
-                >
-                  {msg.button_label}
-                </button>
+                <div className="mt-6 w-full flex justify-center">
+                  {/* Кнопка по ширине текста — зелёное свечение обхватывает
+                      именно надпись, а не всю карточку. Пилюля с лёгким
+                      блеском и отзывчивым нажатием. */}
+                  <button
+                    onClick={() => handleAction(msg)}
+                    className="inline-flex items-center justify-center max-w-full px-9 py-3.5 rounded-full bg-accent text-accent-foreground font-bold text-[15px] tracking-wide shadow-glow transition-all duration-200 hover:brightness-105 active:scale-95"
+                  >
+                    <span className="truncate">{msg.button_label}</span>
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => handleDismiss(msg.id)}
-                  className="mt-5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="mt-6 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Понятно
                 </button>

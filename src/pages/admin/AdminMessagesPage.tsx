@@ -14,7 +14,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useToast } from '@/hooks/use-toast';
 import { uploadWithProgress } from '@/utils/xhrUpload';
 import { compressImage } from '@/utils/imageCompression';
-import { Plus, Trash2, MessageSquare, Clock, Eye, EyeOff, Users, MousePointerClick, Loader2, X as XIcon, ImagePlus } from 'lucide-react';
+import { Plus, Trash2, MessageSquare, Clock, Eye, EyeOff, Users, MousePointerClick, Loader2, X as XIcon, ImagePlus, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -52,6 +52,13 @@ const BUTTON_ACTIONS = [
   { value: 'external', label: 'Внешняя ссылка' },
 ];
 
+// ISO -> строка для <input type="datetime-local"> в ЛОКАЛЬНОМ времени.
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [analytics, setAnalytics] = useState<Record<string, MessageAnalytics>>({});
@@ -62,6 +69,7 @@ export default function AdminMessagesPage() {
   const { toast } = useToast();
 
   // ── Form state ────────────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [mediaType, setMediaType] = useState<'none' | 'emoji' | 'image'>('none');
@@ -170,7 +178,7 @@ export default function AdminMessagesPage() {
     }
 
     setIsSaving(true);
-    const { error } = await supabase.from('app_messages').insert({
+    const payload = {
       title: title.trim() || null,
       content: content.trim(),
       media_type: mediaType,
@@ -184,20 +192,57 @@ export default function AdminMessagesPage() {
       daily_frequency: frequencyType === 'daily' ? dailyFrequency : 1,
       scheduled_at: useSchedule && scheduledAt ? new Date(scheduledAt).toISOString() : null,
       ends_at: useEndDate && endsAt ? new Date(endsAt).toISOString() : null,
-      display_style: 'modal',
-      is_active: true,
-      created_by: session?.user?.id || '',
-    });
-    if (error) {
-      toast({ title: 'Ошибка создания', description: error.message, variant: 'destructive' });
+    };
+
+    let error;
+    if (editingId) {
+      // Редактирование: display_style/created_by не трогаем.
+      ({ error } = await supabase.from('app_messages')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', editingId));
     } else {
-      toast({ title: '✅ Сообщение создано' });
+      ({ error } = await supabase.from('app_messages').insert({
+        ...payload,
+        display_style: 'modal',
+        is_active: true,
+        created_by: session?.user?.id || '',
+      }));
+    }
+
+    if (error) {
+      toast({ title: editingId ? 'Ошибка сохранения' : 'Ошибка создания', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: editingId ? '✅ Сообщение обновлено' : '✅ Сообщение создано' });
       resetForm();
     }
     setIsSaving(false);
   };
 
+  // Загрузить существующее сообщение в форму для редактирования.
+  const openEdit = (msg: AppMessage) => {
+    setEditingId(msg.id);
+    setTitle(msg.title || '');
+    setContent(msg.content);
+    setMediaType((['none', 'emoji', 'image'].includes(msg.media_type) ? msg.media_type : 'none') as 'none' | 'emoji' | 'image');
+    setEmoji(msg.emoji || '');
+    setImageUrl(msg.image_url || '');
+    setUseButton(!!msg.button_label);
+    setButtonLabel(msg.button_label || '');
+    setButtonAction(msg.button_action || 'dismiss');
+    setButtonValue(msg.button_value || '');
+    setAudienceTypes((msg.audience_types?.length ? msg.audience_types : ['all']) as AudienceType[]);
+    setFrequencyType(msg.frequency_type || 'once');
+    setDailyFrequency(msg.daily_frequency || 1);
+    setUseSchedule(!!msg.scheduled_at);
+    setScheduledAt(msg.scheduled_at ? toLocalInput(msg.scheduled_at) : '');
+    setUseEndDate(!!msg.ends_at);
+    setEndsAt(msg.ends_at ? toLocalInput(msg.ends_at) : '');
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const resetForm = () => {
+    setEditingId(null);
     setTitle('');
     setContent('');
     setMediaType('none');
@@ -256,11 +301,13 @@ export default function AdminMessagesPage() {
             {content || 'Текст сообщения появится здесь…'}
           </p>
           {useButton && buttonLabel ? (
-            <div className="btn-accent mt-4 w-full h-9 rounded-xl font-semibold text-xs flex items-center justify-center">
-              {buttonLabel}
+            <div className="mt-5 w-full flex justify-center">
+              <div className="inline-flex items-center justify-center max-w-full px-6 py-2.5 rounded-full bg-accent text-accent-foreground font-bold text-xs tracking-wide shadow-glow">
+                <span className="truncate">{buttonLabel}</span>
+              </div>
             </div>
           ) : (
-            <span className="mt-4 text-xs font-medium text-muted-foreground">Понятно</span>
+            <span className="mt-5 text-xs font-medium text-muted-foreground">Понятно</span>
           )}
         </div>
       </div>
@@ -280,7 +327,7 @@ export default function AdminMessagesPage() {
         {showForm && isSuperAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Создать сообщение</CardTitle>
+              <CardTitle className="text-lg">{editingId ? 'Редактировать сообщение' : 'Создать сообщение'}</CardTitle>
               <p className="text-sm text-muted-foreground">Окно по центру экрана. Справа — как увидит пользователь.</p>
             </CardHeader>
             <CardContent>
@@ -403,7 +450,7 @@ export default function AdminMessagesPage() {
 
                   <div className="flex gap-2 pt-2">
                     <Button onClick={handleCreate} disabled={isSaving || isUploading}>
-                      {isSaving ? 'Создаём…' : 'Создать сообщение'}
+                      {isSaving ? 'Сохраняем…' : editingId ? 'Сохранить изменения' : 'Создать сообщение'}
                     </Button>
                     <Button variant="outline" onClick={resetForm}>Отмена</Button>
                   </div>
@@ -478,6 +525,9 @@ export default function AdminMessagesPage() {
                       </div>
                       {isSuperAdmin && (
                         <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(msg)} title="Редактировать">
+                            <Pencil className="w-4 h-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => toggleActive(msg)} title={msg.is_active ? 'Деактивировать' : 'Активировать'}>
                             {msg.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </Button>
