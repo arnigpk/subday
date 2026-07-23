@@ -18,35 +18,41 @@ export function GetCoffeeButton({ activeTab }: GetCoffeeButtonProps) {
   const { t } = useLanguage();
 
   const hasGuestCoffee = stats.guestCoffees > 0 && stats.guestExpiresAt && new Date(stats.guestExpiresAt) > new Date();
-  
+
   // Check if user has active subscription for the current tab type
   const hasActiveSubForType = activeSubscriptions.some(s => s.subscription_type === activeTab);
-  
-  const isDisabled = isLoading || isLimitLoading || (isLimitReached && !hasGuestCoffee) || (!hasActiveSubForType && !hasGuestCoffee);
+
+  // Гостевой кофе применим только на вкладке «Кофе».
+  const guestApplies = hasGuestCoffee && activeTab === 'coffee';
+  const noSubForType = !hasActiveSubForType && !guestApplies;
+  // Настоящий disabled — только загрузка или исчерпанный дневной лимит.
+  // Без подписки кнопка лишь ВЫГЛЯДИТ неактивной: клик ведёт на страницу подписок.
+  const isDisabled = isLoading || isLimitLoading || (hasActiveSubForType && isLimitReached && !hasGuestCoffee);
+  const looksInactive = isDisabled || noSubForType;
 
   const handleClick = () => {
     if (isDisabled) return;
-    
-    if (hasGuestCoffee && activeTab === 'coffee') {
-      navigate('/redeem', { state: { drinkType: 'coffee', drinkName: 'Кофе', isGuestCoffee: true } });
-    } else if (!hasActiveSubForType) {
+
+    if (noSubForType) {
       toast.info(t('home.pleaseSubscribe'));
       navigate('/packages');
+    } else if (guestApplies) {
+      navigate('/redeem', { state: { drinkType: 'coffee', drinkName: 'Кофе', isGuestCoffee: true } });
     } else {
       navigate('/redeem', { state: { drinkType: activeTab } });
     }
   };
 
   return (
-    <div 
-      className="block w-full animate-slide-up" 
+    <div
+      className="block w-full animate-slide-up"
       style={{ animationDelay: '0.05s' }}
     >
-      <button 
+      <button
         onClick={handleClick}
         disabled={isDisabled}
         className={`w-full btn-accent flex items-center justify-center gap-3 text-xl disabled:opacity-50 disabled:cursor-not-allowed ${
-          !isLimitReached || hasGuestCoffee ? 'animate-pulse-glow' : ''
+          looksInactive ? 'opacity-50' : 'animate-pulse-glow'
         }`}
       >
         <QrCode size={28} strokeWidth={2.5} />
