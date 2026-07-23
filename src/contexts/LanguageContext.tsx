@@ -30,6 +30,8 @@ const translations: Record<string, Record<Language, string>> = {
   'balance.drinks': { ru: 'Ланч', kz: 'Ланч', en: 'Lunch', uz: 'Tushlik', kg: 'Ланч' },
   'balance.remaining': { ru: 'По подписке осталось', kz: 'Жазылым бойынша қалды', en: 'Remaining on plan', uz: 'Obuna bo\'yicha qoldi', kg: 'Жазылуу боюнча калды' },
   'balance.of': { ru: 'из', kz: 'ішінен', en: 'of', uz: 'dan', kg: 'ичинен' },
+  'balance.unitDrinks': { ru: 'напитков', kz: 'сусын', en: 'drinks', uz: 'ichimlik', kg: 'суусундук' },
+  'balance.unitLunch': { ru: 'ланчей', kz: 'ланч', en: 'lunches', uz: 'tushlik', kg: 'ланч' },
   'balance.dailyLimitReached': { ru: 'У вас закончился дневной лимит, попробуйте завтра', kz: 'Күндік лимит біткен, ертең байқап көріңіз', en: 'Daily limit reached, try again tomorrow', uz: 'Kunlik limit tugadi, ertaga urinib ko\'ring', kg: 'Күндүк лимит бүттү, эртең аракет кылыңыз' },
   'balance.todayRemaining': { ru: 'Сегодня осталось:', kz: 'Бүгін қалды:', en: 'Today remaining:', uz: 'Bugun qoldi:', kg: 'Бүгүн калды:' },
   'balance.noSubscription': { ru: 'У вас нет подписки 😢', kz: 'Сізде жазылым жоқ 😢', en: 'You have no plan 😢', uz: 'Sizda obuna yo\'q 😢', kg: 'Сизде жазылуу жок 😢' },

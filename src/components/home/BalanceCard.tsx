@@ -60,10 +60,12 @@ export function BalanceCard({ activeTab, onTabChange }: BalanceCardProps) {
   const typeIsExpiringSoon = typeDaysRemaining !== null && typeDaysRemaining <= 7 && typeDaysRemaining > 0;
 
   const formatRemainingText = () => {
+    // Единица измерения — чтобы было ясно, что это количество напитков/ланчей, а не дней.
+    const unit = isCoffee ? t('balance.unitDrinks') : t('balance.unitLunch');
     if (language === 'kz') {
-      return `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} қалды`;
+      return `Жазылым бойынша ${total}-${getKzSuffix(total)} ${remaining} ${unit} қалды`;
     }
-    return `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total}`;
+    return `${t('balance.remaining')} ${remaining} ${t('balance.of')} ${total} ${unit}`;
   };
 
   const formatDailyAvailable = () => {
