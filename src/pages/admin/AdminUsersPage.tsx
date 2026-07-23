@@ -347,7 +347,10 @@ export default function AdminUsersPage() {
       ]);
 
       const statsMap = new Map(statsResult.data?.map(s => [s.user_id, s]) || []);
-      const rolesMap = new Map(rolesResult.data?.map(r => [r.user_id, r]) || []);
+      // b2b_admin — служебная роль B2B-кабинета, ею управляет раздел «B2B», а не
+      // общий переключатель ролей. Исключаем её из определения основной роли,
+      // иначе у B2B-владельца показывался бы «щит» без подписи и пустая выпадашка.
+      const rolesMap = new Map((rolesResult.data || []).filter(r => r.role !== 'b2b_admin').map(r => [r.user_id, r]));
       const b2bOwnerMap = new Map<string, string>();
       for (const a of (b2bOwnersResult.data || [])) {
         if (a.admin_user_id) b2bOwnerMap.set(a.admin_user_id, a.name);

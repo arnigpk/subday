@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Building2, Plus, Search, Loader2, Trash2, UserMinus, Users, ChevronDown, ChevronUp, Coffee,
+  Building2, Plus, Search, Loader2, Trash2, UserMinus, UserPlus, Users, ChevronDown, ChevronUp, Coffee,
 } from 'lucide-react';
 
 interface SubType { id: string; name: string; }
@@ -44,6 +44,12 @@ export default function AdminB2BPage() {
   // Выдача пула
   const [allocTier, setAllocTier] = useState<Record<string, string>>({});
   const [allocSeats, setAllocSeats] = useState<Record<string, string>>({});
+
+  // Выдача места сотруднику (в разрезе аккаунта)
+  const [empQuery, setEmpQuery] = useState<Record<string, string>>({});
+  const [empFound, setEmpFound] = useState<Record<string, { user_id: string; name: string | null; phone_masked: string | null } | null>>({});
+  const [empBusy, setEmpBusy] = useState<Record<string, boolean>>({});
+  const [empAlloc, setEmpAlloc] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -99,6 +105,38 @@ export default function AdminB2BPage() {
     toast({ title: `Выдано мест: ${seats}` });
     setAllocSeats(prev => ({ ...prev, [accountId]: '' }));
     load();
+  };
+
+  const searchEmp = async (accId: string) => {
+    const q = (empQuery[accId] || '').trim();
+    if (!q) return;
+    setEmpBusy(p => ({ ...p, [accId]: true }));
+    setEmpFound(p => ({ ...p, [accId]: null }));
+    try {
+      const { data, error } = await supabase.rpc('b2b_find_employee', { p_query: q });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (!row) { toast({ title: 'Сотрудник не найден', description: 'Должен быть зарегистрирован в subday', variant: 'destructive' }); return; }
+      setEmpFound(p => ({ ...p, [accId]: row }));
+    } catch (e) {
+      toast({ title: 'Ошибка поиска', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+    } finally { setEmpBusy(p => ({ ...p, [accId]: false })); }
+  };
+
+  const assignEmp = async (accId: string) => {
+    const found = empFound[accId];
+    const alloc = empAlloc[accId];
+    if (!found || !alloc) { toast({ title: 'Найдите сотрудника и выберите пул', variant: 'destructive' }); return; }
+    const { data, error } = await supabase.rpc('b2b_assign_seat', { p_allocation_id: alloc, p_employee_user_id: found.user_id });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    const r = data as { ok?: boolean };
+    if (r?.ok) {
+      toast({ title: 'Место выдано, сотрудник получит уведомление' });
+      setEmpQuery(p => ({ ...p, [accId]: '' }));
+      setEmpFound(p => ({ ...p, [accId]: null }));
+      setEmpAlloc(p => ({ ...p, [accId]: '' }));
+      load();
+    }
   };
 
   const deleteAllocation = async (allocId: string, tier: string, used: number) => {
@@ -236,6 +274,44 @@ export default function AdminB2BPage() {
 
                     {isOpen && (
                       <div className="space-y-2 pt-1">
+                        {/* Выдать место сотруднику */}
+                        <div className="rounded-lg border border-dashed border-border p-3 space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground"><UserPlus size={14} className="text-primary" />Выдать место сотруднику</div>
+                          {acc.allocations.some(a => a.seats_total - a.seats_used > 0) ? (
+                            <>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={empQuery[acc.id] || ''}
+                                  onChange={e => setEmpQuery(p => ({ ...p, [acc.id]: e.target.value }))}
+                                  placeholder="ID (6 цифр) или телефон"
+                                  onKeyDown={e => e.key === 'Enter' && searchEmp(acc.id)}
+                                />
+                                <Button variant="outline" onClick={() => searchEmp(acc.id)} disabled={empBusy[acc.id]}>
+                                  {empBusy[acc.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                </Button>
+                              </div>
+                              {empFound[acc.id] && (
+                                <div className="rounded-lg bg-secondary p-2 space-y-2">
+                                  <p className="text-sm font-medium text-foreground">{empFound[acc.id]!.name || 'Без имени'} <span className="text-xs text-muted-foreground font-normal">{empFound[acc.id]!.phone_masked}</span></p>
+                                  <div className="flex gap-2">
+                                    <Select value={empAlloc[acc.id] || ''} onValueChange={v => setEmpAlloc(p => ({ ...p, [acc.id]: v }))}>
+                                      <SelectTrigger className="flex-1"><SelectValue placeholder="Пул" /></SelectTrigger>
+                                      <SelectContent>
+                                        {acc.allocations.filter(a => a.seats_total - a.seats_used > 0).map(a => (
+                                          <SelectItem key={a.id} value={a.id}>{a.tier} (свободно {a.seats_total - a.seats_used})</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button onClick={() => assignEmp(acc.id)}>Выдать</Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">Нет свободных мест. Добавьте пул выше.</p>
+                          )}
+                        </div>
+
                         {acc.seats.length === 0 && <p className="text-xs text-muted-foreground">Мест ещё не выдано.</p>}
                         {acc.seats.map(s => (
                           <div key={s.seat_id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
