@@ -51,6 +51,11 @@ export default function AdminB2BPage() {
   const [empBusy, setEmpBusy] = useState<Record<string, boolean>>({});
   const [empAlloc, setEmpAlloc] = useState<Record<string, string>>({});
 
+  // Смена/назначение админа бизнеса (владельца кабинета)
+  const [ownerCode, setOwnerCode] = useState<Record<string, string>>({});
+  const [ownerFound, setOwnerFound] = useState<Record<string, { user_id: string; name: string | null; phone_masked: string | null } | null>>({});
+  const [ownerBusy, setOwnerBusy] = useState<Record<string, boolean>>({});
+
   const load = async () => {
     setLoading(true);
     const [ovRes, stRes] = await Promise.all([
@@ -152,6 +157,34 @@ export default function AdminB2BPage() {
     const { error } = await supabase.rpc('b2b_revoke_seat', { p_seat_id: seatId });
     if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Место отозвано' });
+    load();
+  };
+
+  const searchOwner = async (accId: string) => {
+    const q = (ownerCode[accId] || '').trim();
+    if (!q) return;
+    setOwnerBusy(p => ({ ...p, [accId]: true }));
+    setOwnerFound(p => ({ ...p, [accId]: null }));
+    try {
+      const { data, error } = await supabase.rpc('find_user_by_public_id', { _public_id: q });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (!row) { toast({ title: 'Пользователь не найден', variant: 'destructive' }); return; }
+      setOwnerFound(p => ({ ...p, [accId]: row }));
+    } catch (e) {
+      toast({ title: 'Ошибка поиска', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+    } finally { setOwnerBusy(p => ({ ...p, [accId]: false })); }
+  };
+
+  const setOwner = async (accId: string, hasOwner: boolean) => {
+    const found = ownerFound[accId];
+    if (!found) { toast({ title: 'Найдите пользователя', variant: 'destructive' }); return; }
+    if (!confirm(`${hasOwner ? 'Сменить админа бизнеса на' : 'Назначить админом бизнеса'} «${found.name || 'Без имени'}»?\nВесь пул, выдачи и аналитика останутся. Прежний админ (если был) потеряет доступ в кабинет.`)) return;
+    const { error } = await supabase.rpc('b2b_admin_set_owner', { p_account_id: accId, p_new_admin_user_id: found.user_id });
+    if (error) { toast({ title: 'Ошибка', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: hasOwner ? 'Админ бизнеса сменён' : 'Админ бизнеса назначен' });
+    setOwnerCode(p => ({ ...p, [accId]: '' }));
+    setOwnerFound(p => ({ ...p, [accId]: null }));
     load();
   };
 
@@ -344,6 +377,33 @@ export default function AdminB2BPage() {
                             ))}
                           </div>
                         )}
+
+                        {/* Админ бизнеса (владелец кабинета): сменить/назначить */}
+                        <div className="rounded-lg border border-dashed border-border p-3 space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                            <Building2 size={14} className="text-primary" />Админ бизнеса (доступ в кабинет)
+                          </div>
+                          <p className="text-[11px] text-muted-foreground -mt-1">
+                            Текущий: {acc.owner_name ? `${acc.owner_name}${acc.owner_public_id ? ` · ID ${acc.owner_public_id}` : ''}` : <span className="text-amber-600">не назначен</span>}. Смена не затрагивает пул, выдачи и аналитику.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              value={ownerCode[acc.id] || ''}
+                              onChange={e => setOwnerCode(p => ({ ...p, [acc.id]: e.target.value }))}
+                              placeholder="ID нового админа (6 цифр)"
+                              onKeyDown={e => e.key === 'Enter' && searchOwner(acc.id)}
+                            />
+                            <Button variant="outline" onClick={() => searchOwner(acc.id)} disabled={ownerBusy[acc.id]}>
+                              {ownerBusy[acc.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                          {ownerFound[acc.id] && (
+                            <div className="flex items-center justify-between gap-2 rounded-lg bg-secondary p-2">
+                              <p className="text-sm font-medium text-foreground truncate">{ownerFound[acc.id]!.name || 'Без имени'} <span className="text-xs text-muted-foreground font-normal">{ownerFound[acc.id]!.phone_masked}</span></p>
+                              <Button size="sm" onClick={() => setOwner(acc.id, !!acc.admin_user_id)}>{acc.admin_user_id ? 'Сменить' : 'Назначить'}</Button>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Опасные действия по аккаунту */}
                         <div className="flex flex-wrap gap-2 border-t pt-3">
