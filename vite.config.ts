@@ -74,4 +74,27 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Vendor-split: стабильные библиотеки уезжают в отдельные чанки —
+        // грузятся параллельно и кэшируются между релизами (assets immutable),
+        // так что при деплое пользователь перекачивает только код приложения.
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return;
+          // Тяжёлые либы, нужные только на отдельных lazy-страницах, НЕ кладём в
+          // общий vendor (иначе они грузились бы при старте) — Rollup сам оставит
+          // их в чанке той страницы, которая их импортирует.
+          if (/node_modules[\\/](html5-qrcode|@dnd-kit|qrcode\.react|react-day-picker|input-otp|cmdk|vaul|react-resizable-panels|embla-carousel)/.test(id)) return;
+          // Отдельно выносим ТОЛЬКО библиотеки без зависимости от React —
+          // React и все react-зависимые либы обязаны жить в одном чанке,
+          // иначе interop ломается («Cannot read forwardRef of undefined»).
+          if (id.includes("@supabase")) return "vendor-supabase";
+          if (/node_modules[\\/](@firebase|firebase)[\\/]/.test(id)) return "vendor-firebase";
+          if (/node_modules[\\/]lottie-web[\\/]/.test(id)) return "vendor-lottie";
+          return "vendor";
+        },
+      },
+    },
+  },
 }));
