@@ -38,7 +38,6 @@ interface AdminLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
-  { icon: Banknote, label: 'Финансы', path: '/admin/finance', roles: ['superadmin', 'admin'] },
   { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
   { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
   { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
@@ -51,6 +50,7 @@ const navItems = [
   { icon: Bell, label: 'Рассылка PUSH', path: '/admin/push-broadcast', roles: ['superadmin', 'admin'] },
   { icon: MessageSquareText, label: 'Сообщения', path: '/admin/messages', roles: ['superadmin', 'admin'] },
   { icon: Building2, label: 'B2B', path: '/admin/b2b', roles: ['superadmin', 'admin'] },
+  { icon: Banknote, label: 'Финансы', path: '/admin/finance', roles: ['superadmin', 'admin'] },
   { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
   { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
   { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
