@@ -561,7 +561,8 @@ export default function AdminUsersPage() {
       const { data, error } = await supabase.rpc('activate_subscription', {
         _user_id: editingUser.user_id,
         _subscription_type_id: selectedSubscription,
-      });
+        _source: 'admin',
+      } as never);
 
       if (error) throw error;
 

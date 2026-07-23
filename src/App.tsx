@@ -95,6 +95,7 @@ const AdminMessagesPage = lazy(() => import("./pages/admin/AdminMessagesPage"));
 // Lazy-loaded partner pages
 const PartnerProtectedRoute = lazy(() => import("@/components/partner/PartnerProtectedRoute").then(m => ({ default: m.PartnerProtectedRoute })));
 const AdminB2BPage = lazy(() => import("./pages/admin/AdminB2BPage"));
+const AdminFinancePage = lazy(() => import("./pages/admin/AdminFinancePage"));
 const B2BDashboardPage = lazy(() => import("./pages/b2b/B2BDashboardPage"));
 const B2BProtectedRoute = lazy(() => import("@/components/b2b/B2BProtectedRoute").then(m => ({ default: m.B2BProtectedRoute })));
 const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
@@ -618,6 +619,7 @@ const AppContent = () => {
             <Route path="/admin/qr-settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminQRSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/messages" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminMessagesPage /></AdminProtectedRoute>} />
             <Route path="/admin/b2b" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminB2BPage /></AdminProtectedRoute>} />
+            <Route path="/admin/finance" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminFinancePage /></AdminProtectedRoute>} />
             <Route path="/b2b" element={<B2BProtectedRoute><B2BDashboardPage /></B2BProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSettingsPage /></AdminProtectedRoute>} />
             

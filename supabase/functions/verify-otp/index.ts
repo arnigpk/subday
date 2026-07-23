@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
           const { data: coffeeType } = await supabase
             .from('subscription_types').select('id').eq('type', 'coffee').eq('is_active', true).limit(1).maybeSingle()
           if (coffeeType?.id) {
-            await supabase.rpc('activate_subscription', { _user_id: signUpData.user.id, _subscription_type_id: coffeeType.id })
+            await supabase.rpc('activate_subscription', { _user_id: signUpData.user.id, _subscription_type_id: coffeeType.id, _source: 'signup' })
           }
         } catch { /* non-fatal */ }
       }

@@ -364,6 +364,7 @@ Deno.serve(async (req) => {
       const { data, error: activationError } = await supabase.rpc('activate_subscription', {
         _user_id: authUser.id,
         _subscription_type_id: pendingOrder.subscription_type_id,
+        _source: isSpecialOffer ? 'purchase_special' : 'purchase',
       });
 
       if (activationError) {

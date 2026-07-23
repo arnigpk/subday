@@ -20,7 +20,8 @@ import {
   Megaphone,
   QrCode,
   MessageSquareText,
-  Building2
+  Building2,
+  Banknote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface AdminLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
+  { icon: Banknote, label: 'Финансы', path: '/admin/finance', roles: ['superadmin', 'admin'] },
   { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
   { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
   { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
