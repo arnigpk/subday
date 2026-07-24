@@ -3,7 +3,7 @@
 // Доступ — только партнёр этой кофейни (или админ).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getSpots, getProducts, createPosterTestOrder, PosterError } from '../_shared/poster.ts';
+import { getSpots, getProducts, getPaymentMethods, getTablets, getEmployees, createPosterTestOrder, PosterError } from '../_shared/poster.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     const loadInteg = async () => {
       const { data } = await supabase.from('poster_integrations')
-        .select('shop_id, api_token, account_name, spot_id, currency, auto_close, is_active').eq('shop_id', shopId).eq('address', address).maybeSingle();
+        .select('shop_id, api_token, account_name, spot_id, spot_tablet_id, user_id, currency, auto_close, is_active').eq('shop_id', shopId).eq('address', address).maybeSingle();
       return data;
     };
 
@@ -63,6 +63,25 @@ Deno.serve(async (req) => {
         const spotId = (body.spotId as string) || integ.spot_id;
         if (!spotId) return json({ error: 'Не выбрана точка (spot)' }, 400);
         return json({ success: true, products: await getProducts(integ.api_token, spotId) });
+      }
+      case 'payment_methods': {
+        // Список способов оплаты + автоподстановка кассы (spot_tablet_id) и
+        // сотрудника (user_id) для transactions API, если ещё не заданы.
+        const methods = await getPaymentMethods(integ.api_token);
+        const patch: Record<string, unknown> = {};
+        if (!integ.spot_tablet_id) {
+          const tablets = await getTablets(integ.api_token);
+          const t = tablets.find(x => String(x.spotId) === String(integ.spot_id)) || tablets[0];
+          if (t) patch.spot_tablet_id = t.id;
+        }
+        if (!integ.user_id) {
+          const emps = await getEmployees(integ.api_token);
+          if (emps[0]) patch.user_id = emps[0].id;
+        }
+        if (Object.keys(patch).length > 0) {
+          await supabase.from('poster_integrations').update({ ...patch, updated_at: new Date().toISOString() }).eq('shop_id', shopId).eq('address', address);
+        }
+        return json({ success: true, paymentMethods: methods, tabletId: patch.spot_tablet_id ?? integ.spot_tablet_id, userId: patch.user_id ?? integ.user_id });
       }
       case 'test_order': {
         const r = await createPosterTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string, integrationAddress: address });

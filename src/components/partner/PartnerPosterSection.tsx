@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Loader2, MapPin, ListChecks, Trash2, XCircle, CheckCircle2, Search, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, ListChecks, Trash2, XCircle, CheckCircle2, Search, RefreshCw, CreditCard } from 'lucide-react';
 import { IntegrationStatus } from '@/components/partner/IntegrationStatus';
 
 interface Spot { id: string; name: string; address?: string }
@@ -29,11 +29,12 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [testSubType, setTestSubType] = useState('');
+  const [payMethods, setPayMethods] = useState<{ id: string; name: string; kind: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     const [i, s, mm, ol] = await Promise.all([
-      supabase.from('poster_integrations').select('shop_id, account_name, spot_id, spot_name, currency, auto_close, is_active').eq('shop_id', shopId).eq('address', address).maybeSingle(),
+      supabase.from('poster_integrations').select('shop_id, account_name, spot_id, spot_name, currency, auto_close, is_active, payment_method_id, payment_method_name, payment_method_kind, spot_tablet_id, user_id').eq('shop_id', shopId).eq('address', address).maybeSingle(),
       supabase.from('subscription_types').select('id, name, type').eq('is_active', true).order('sort_order'),
       supabase.from('poster_menu_map').select('*').eq('shop_id', shopId).eq('address', address),
       supabase.from('iiko_order_log').select('id, status, iiko_product_name, error, created_at, is_test, pos_order_id, auto_retry, attempts').eq('shop_id', shopId).eq('provider', 'poster').eq('integration_address', address).order('created_at', { ascending: false }).limit(30),
@@ -90,6 +91,17 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
   const selectSpot = async (spotId: string) => {
     const s = spots.find(x => x.id === spotId);
     if (s) await saveInteg({ spot_id: s.id, spot_name: s.name }, 'Точка выбрана');
+  };
+
+  const loadPayMethods = async () => {
+    setBusy('pay');
+    try { const d = await call('payment_methods'); setPayMethods(d.paymentMethods || []); if (!(d.paymentMethods || []).length) toast.info('Список способов пуст'); }
+    catch (e: any) { toast.error(e.message); } finally { setBusy(null); }
+  };
+  const selectPayMethod = async (id: string) => {
+    if (!id) { await saveInteg({ payment_method_id: null, payment_method_name: null, payment_method_kind: null }, 'Способ оплаты сброшен (закрытие как «третья сторона»)'); return; }
+    const m = payMethods.find(x => x.id === id);
+    if (m) await saveInteg({ payment_method_id: m.id, payment_method_name: m.name, payment_method_kind: m.kind }, `Способ оплаты: ${m.name}`);
   };
 
   const pickProduct = async (subTypeId: string, p: Product) => {
@@ -193,11 +205,33 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-foreground">Автозакрытие чека</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Вкл — заказ помечается предоплаченным (закрыт). Выкл — падает открытым, кассир закрывает.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Вкл — чек сразу закрывается (оплачивается). Выкл — падает открытым, кассир закрывает.</p>
               </div>
               <Switch checked={!!integ?.auto_close} onCheckedChange={v => saveInteg({ auto_close: v }, v ? 'Автозакрытие включено' : 'Автозакрытие выключено')} />
             </div>
           </section>
+
+          {/* 3b. Способ оплаты (для автозакрытия) */}
+          {integ?.auto_close && (
+            <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <h3 className="font-semibold text-foreground flex items-center gap-2"><CreditCard size={16} className="text-primary" /> Способ оплаты при закрытии</h3>
+              <p className="text-xs text-muted-foreground">
+                На какой способ закрывать чек subday. Если не выбрать — чек закрывается как «третья сторона» (как сейчас).
+                Касса и сотрудник подставятся автоматически. После выбора обязательно проверьте «Тестовым заказом».
+              </p>
+              <div className="flex gap-2">
+                <select className={selectCls} value={integ?.payment_method_id || ''} onChange={e => selectPayMethod(e.target.value)}>
+                  <option value="">Третья сторона (по умолчанию)</option>
+                  {integ?.payment_method_id && !payMethods.some(m => m.id === integ.payment_method_id) && <option value={integ.payment_method_id}>{integ.payment_method_name}</option>}
+                  {payMethods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                <Button variant="outline" onClick={loadPayMethods} disabled={busy === 'pay'}>{busy === 'pay' ? <Loader2 className="animate-spin" size={16} /> : 'Загрузить'}</Button>
+              </div>
+              {integ?.payment_method_id && (
+                <p className="text-[11px] text-accent">✓ Чек закроется на «{integ.payment_method_name}»{integ?.spot_tablet_id ? '' : ' · касса определится при первом заказе'}</p>
+              )}
+            </section>
+          )}
 
           {/* 4. Тарифы → позиции меню */}
           <section className="rounded-2xl border border-border bg-card p-4 space-y-3">

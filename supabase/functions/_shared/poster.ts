@@ -66,6 +66,69 @@ export async function getProducts(token: string, spotId: string) {
   }));
 }
 
+/** Способы оплаты заведения (settings.getPaymentMethods). Только активные. */
+export async function getPaymentMethods(token: string) {
+  const list = await posterGet<any[]>(token, 'settings.getPaymentMethods');
+  return (list || []).filter(m => Number(m.is_active) === 1).map(m => {
+    const pt = Number(m.payment_type);
+    const kind = pt === 1 ? 'cash' : pt === 2 ? 'card' : pt === 4 ? 'cert' : 'custom';
+    return { id: String(m.payment_method_id), name: m.title || `#${m.payment_method_id}`, kind };
+  });
+}
+
+/** Кассы-терминалы (access.getTablets) — нужен spot_tablet_id для transactions API. */
+export async function getTablets(token: string) {
+  const list = await posterGet<any[]>(token, 'access.getTablets');
+  return (list || []).map(t => ({ id: String(t.tablet_id), name: t.tablet_name || `Касса ${t.tablet_id}`, spotId: String(t.spot_id) }));
+}
+
+/** Сотрудники (access.getEmployees) — нужен user_id для создания чека. */
+export async function getEmployees(token: string) {
+  const list = await posterGet<any[]>(token, 'access.getEmployees');
+  return (list || []).map(u => ({ id: String(u.user_id), name: u.name || `Сотрудник ${u.user_id}` }));
+}
+
+export interface PosterMethodOrderArgs {
+  spotId: string;
+  tabletId: string;
+  userId: string;
+  productId: string;
+  priceKopecks: number;         // цена в копейках (как в menu_map); в transactions API делим на 100
+  method: { id: string; kind: string };
+}
+
+/**
+ * Закрытие чека на КОНКРЕТНЫЙ способ оплаты через transactions API.
+ * Создаёт транзакцию и СРАЗУ возвращает её id (через onCreated), чтобы вызывающий
+ * зафиксировал pos_order_id до добавления товара/закрытия — тогда ретрай не создаст
+ * дубль. Суммы в transactions API — в мажорных единицах (÷100).
+ */
+export async function createClosedOrderWithMethod(
+  token: string, a: PosterMethodOrderArgs, onCreated?: (txId: string) => Promise<void>,
+): Promise<{ transactionId: string }> {
+  const tr = await posterPost<{ transaction_id?: string | number }>(token, 'transactions.createTransaction', {
+    spot_id: a.spotId, spot_tablet_id: a.tabletId, user_id: a.userId, guests_count: 1,
+  });
+  const txId = String(tr?.transaction_id ?? '');
+  if (!txId) throw new PosterError('Poster не вернул transaction_id');
+  if (onCreated) await onCreated(txId); // фиксируем id до дальнейших шагов
+
+  await posterPost(token, 'transactions.addTransactionProduct', {
+    spot_id: a.spotId, spot_tablet_id: a.tabletId, transaction_id: txId,
+    product_id: a.productId, count: 1, price: a.priceKopecks / 100,
+  });
+
+  const payMajor = a.priceKopecks / 100;
+  const body: Record<string, unknown> = { spot_id: a.spotId, spot_tablet_id: a.tabletId, transaction_id: txId };
+  if (a.method.kind === 'cash') body.payed_cash = payMajor;
+  else if (a.method.kind === 'cert') body.payed_cert = payMajor;
+  else if (a.method.kind === 'custom') { body.payed_card = payMajor; body.payment_method_id = a.method.id; }
+  else body.payed_card = payMajor; // card
+  await posterPost(token, 'transactions.closeTransaction', body);
+
+  return { transactionId: txId };
+}
+
 export interface PosterOrderArgs {
   spotId: string;
   productId: string;
@@ -149,10 +212,14 @@ export async function runPosterOrder(
     const key = log.integration_address ?? '';
 
     const { data: integ } = await supabase.from('poster_integrations')
-      .select('api_token, spot_id, currency, auto_close, is_active').eq('shop_id', log.shop_id).eq('address', key).maybeSingle();
+      .select('api_token, spot_id, spot_tablet_id, user_id, currency, auto_close, is_active, payment_method_id, payment_method_kind')
+      .eq('shop_id', log.shop_id).eq('address', key).maybeSingle();
     if (!integ || !integ.is_active) return await fail('Интеграция Poster выключена', false);
     if (!integ.spot_id) return await fail('Poster: не выбрана точка (spot)', false);
     if (!log.subscription_type_id) return await fail('Не определён тариф списания', false);
+
+    // Способ оплаты выбран → закрываем чек на него через transactions API.
+    const useMethod = !!(integ.auto_close && integ.payment_method_id && integ.spot_tablet_id && integ.user_id);
 
     const { data: map } = await supabase.from('poster_menu_map')
       .select('poster_product_id, poster_product_name, poster_price')
@@ -160,14 +227,37 @@ export async function runPosterOrder(
     if (!map) return await fail('Тариф не привязан к позиции меню Poster', false);
     if (map.poster_price == null) return await fail('У позиции нет цены — перепривяжите тариф', false);
 
-    // ЗАЩИТА ОТ ДУБЛЯ: заказ уже создавался ранее — второй раз не отправляем.
+    // ЗАЩИТА ОТ ДУБЛЯ: заказ/чек уже создавался ранее — второй раз не создаём.
     if (log.pos_order_id) {
       await supabase.from('iiko_order_log').update(successFields({
-        status: 'created', iiko_product_id: map.poster_product_id, iiko_product_name: map.poster_product_name, auto_close: integ.auto_close,
+        status: useMethod ? 'closed' : 'created', iiko_product_id: map.poster_product_id, iiko_product_name: map.poster_product_name, auto_close: integ.auto_close,
       })).eq('id', logId);
-      return { ok: true, status: 'created' };
+      return { ok: true, status: useMethod ? 'closed' : 'created' };
     }
 
+    // ── Путь со способом оплаты: transactions API, чек закрывается на выбранный способ.
+    if (useMethod) {
+      try {
+        await createClosedOrderWithMethod(integ.api_token, {
+          spotId: integ.spot_id, tabletId: integ.spot_tablet_id!, userId: integ.user_id!,
+          productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
+          method: { id: integ.payment_method_id!, kind: integ.payment_method_kind || 'card' },
+        }, async (txId) => {
+          // Фиксируем id ДО добавления товара/закрытия — ретрай не создаст дубль.
+          await supabase.from('iiko_order_log').update({ pos_order_id: txId, updated_at: new Date().toISOString() }).eq('id', logId);
+        });
+      } catch (e) {
+        // Если транзакция успела создаться, pos_order_id уже записан — ретрай не создаст новую.
+        const apiRejected = e instanceof PosterError;
+        return await fail(e instanceof Error ? e.message : String(e), apiRejected);
+      }
+      await supabase.from('iiko_order_log').update(successFields({
+        status: 'closed', iiko_product_id: map.poster_product_id, iiko_product_name: map.poster_product_name, auto_close: true,
+      })).eq('id', logId);
+      return { ok: true, status: 'closed' };
+    }
+
+    // ── Обычный путь: incoming-order (без выбора способа; авто-предоплата = third_party).
     let res: { incomingOrderId?: string; transactionId?: string; status?: number };
     try {
       res = await createOrder(integ.api_token, {
@@ -199,7 +289,8 @@ export async function createPosterTestOrder(
   try {
     const key = p.integrationAddress ?? '';
     const { data: integ } = await supabase.from('poster_integrations')
-      .select('shop_id, api_token, spot_id, currency, auto_close').eq('shop_id', p.shopId).eq('address', key).maybeSingle();
+      .select('shop_id, api_token, spot_id, spot_tablet_id, user_id, currency, auto_close, payment_method_id, payment_method_kind')
+      .eq('shop_id', p.shopId).eq('address', key).maybeSingle();
     if (!integ) return { ok: false, error: 'Poster не подключён' };
     if (!integ.spot_id) return { ok: false, error: 'Не выбрана точка (spot)' };
 
@@ -209,16 +300,29 @@ export async function createPosterTestOrder(
     if (!map) return { ok: false, error: 'Тариф не привязан к позиции' };
     if (map.poster_price == null) return { ok: false, error: 'У позиции нет цены' };
 
-    const res = await createOrder(integ.api_token, {
-      spotId: integ.spot_id, productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
-      currency: integ.currency || 'KZT', autoClose: integ.auto_close,
-    });
+    const useMethod = !!(integ.auto_close && integ.payment_method_id && integ.spot_tablet_id && integ.user_id);
+    let posOrderId: string | null = null;
+    let status = 'created';
+    if (useMethod) {
+      const r = await createClosedOrderWithMethod(integ.api_token, {
+        spotId: integ.spot_id, tabletId: integ.spot_tablet_id, userId: integ.user_id,
+        productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
+        method: { id: integ.payment_method_id, kind: integ.payment_method_kind || 'card' },
+      });
+      posOrderId = r.transactionId; status = 'closed';
+    } else {
+      const res = await createOrder(integ.api_token, {
+        spotId: integ.spot_id, productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
+        currency: integ.currency || 'KZT', autoClose: integ.auto_close,
+      });
+      posOrderId = res.transactionId || null;
+    }
 
     await supabase.from('iiko_order_log').insert({
       redemption_id: null, is_test: true, provider: 'poster', shop_id: p.shopId,
       integration_address: key, subscription_type_id: p.subscriptionTypeId, iiko_product_id: map.poster_product_id,
-      iiko_product_name: map.poster_product_name, pos_order_id: res.transactionId || null,
-      status: 'created', auto_close: integ.auto_close,
+      iiko_product_name: map.poster_product_name, pos_order_id: posOrderId,
+      status, auto_close: integ.auto_close,
     });
     return { ok: true };
   } catch (e) {
