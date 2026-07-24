@@ -30,3 +30,27 @@ export function failFields(attempts: number, autoRetry: boolean, error: string):
 export function successFields(extra: Record<string, unknown> = {}): Record<string, unknown> {
   return { next_retry_at: null, error: null, updated_at: new Date().toISOString(), ...extra };
 }
+
+/**
+ * Метка заказа для бариста/кассира: «subday · <Имя гостя> · ID <код>».
+ * Кладётся в комментарий заказа (iiko/Poster) — чтобы у стойки сразу было видно,
+ * что это подписка subday и для какого гостя. Никогда не бросает: при любой
+ * ошибке возвращает безопасный фолбэк «subday» (на создание заказа не влияет).
+ */
+export async function buildBaristaLabel(
+  // deno-lint-ignore no-explicit-any
+  supabase: any, redemptionId: string | null | undefined,
+): Promise<{ comment: string; customerName: string }> {
+  const FALLBACK = { comment: 'subday', customerName: 'subday' };
+  if (!redemptionId) return { comment: 'subday · тест', customerName: 'subday' };
+  try {
+    const { data: r } = await supabase.from('redemptions').select('user_id').eq('id', redemptionId).maybeSingle();
+    if (!r?.user_id) return FALLBACK;
+    const { data: p } = await supabase.from('profiles').select('name, public_id').eq('user_id', r.user_id).maybeSingle();
+    const name = (p?.name || '').trim() || 'гость';
+    const idPart = p?.public_id ? ` · ID ${p.public_id}` : '';
+    return { comment: `subday · ${name}${idPart}`, customerName: name };
+  } catch {
+    return FALLBACK;
+  }
+}

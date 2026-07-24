@@ -6,7 +6,7 @@
 // Все такие места помечены комментарием PILOT.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { failFields, successFields } from './posRetry.ts';
+import { failFields, successFields, buildBaristaLabel } from './posRetry.ts';
 import { getEnv } from './env.ts';
 
 export const IIKO_BASE = 'https://api-ru.iiko.services';
@@ -289,6 +289,8 @@ export interface CreateOrderArgs {
   endpoint?: OrderEndpoint;    // 'order' (касса) | 'delivery' (доставка/самовывоз)
   externalNumber?: string;     // связка (redemption_id) — номер для персонала
   orderId?: string;            // СТАБИЛЬНЫЙ GUID заказа = redemption_id → iiko сам отсекает дубль при ретрае
+  comment?: string;            // метка для бариста: «subday · Гость · ID …»
+  customerName?: string;       // имя гостя (для delivery-заказа)
 }
 
 /**
@@ -306,7 +308,10 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
     isProcessedExternally: a.autoClose,
     isFiscalizedExternally: !!a.fiscalizeExternally,
   };
-  const items = [{ type: 'Product', productId: a.productId, amount: 1, price: a.price }];
+  // Метка бариста — в комментарий ПОЗИЦИИ (items[].comment). В iiko это
+  // подтверждённое поле; верхнеуровневого order.comment в схеме заказа нет,
+  // поэтому не рискуем им на живых кассах. Комментарий виден прямо на строке напитка.
+  const items = [{ type: 'Product', productId: a.productId, amount: 1, price: a.price, ...(a.comment ? { comment: a.comment } : {}) }];
 
   if (a.endpoint === 'delivery') {
     const body = {
@@ -320,7 +325,7 @@ export async function createOrder(token: string, a: CreateOrderArgs): Promise<{ 
         // (enum запроса deliveries/create; в справочнике он зовётся DeliveryPickUp).
         ...(a.orderTypeId ? { orderTypeId: a.orderTypeId } : { orderServiceType: 'DeliveryByClient' }),
         phone: '+77000000000',                  // обязательное поле; для выноса — плейсхолдер
-        customer: { name: 'subday' },
+        customer: { name: a.customerName || 'subday' },
         items,
         payments: [payment],
       },
@@ -428,6 +433,9 @@ export async function runIikoOrder(
 
     const autoClose = term.auto_close ?? integ.auto_close;
 
+    // Метка для бариста: «subday · Гость · ID …» (в комментарий заказа).
+    const label = await buildBaristaLabel(supabase, log.redemption_id);
+
     // Стабильный GUID заказа = redemption_id → защита от дубля на кассе при ретрае.
     const stableId = log.redemption_id || undefined;
     let res: { correlationId?: string; orderId?: string };
@@ -445,6 +453,8 @@ export async function runIikoOrder(
         endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
         externalNumber: log.redemption_id || undefined,
         orderId: stableId,
+        comment: label.comment,
+        customerName: label.customerName,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -539,6 +549,7 @@ export async function createTestOrder(
       fiscalizeExternally: !!integ.fiscalize_externally,
       endpoint: (integ.order_endpoint as OrderEndpoint) || 'order',
       externalNumber: `test-${Date.now()}`,
+      comment: 'subday · тест',
     });
     // Дожидаемся реального результата — тестовый заказ должен показать, что он
     // ДЕЙСТВИТЕЛЬНО упал на кассу (или конкретную ошибку iiko), а не просто «отправлен».

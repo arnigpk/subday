@@ -2,7 +2,7 @@
 // Авторизация — токен партнёра в query (?token=account:hash). Цены в КОПЕЙКАХ.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { failFields, successFields } from './posRetry.ts';
+import { failFields, successFields, buildBaristaLabel } from './posRetry.ts';
 
 export const POSTER_BASE = 'https://joinposter.com/api';
 
@@ -95,6 +95,7 @@ export interface PosterMethodOrderArgs {
   productId: string;
   priceKopecks: number;         // цена в копейках (как в menu_map); в transactions API делим на 100
   method: { id: string; kind: string };
+  comment?: string;             // метка для бариста
 }
 
 /**
@@ -118,6 +119,15 @@ export async function createClosedOrderWithMethod(
     product_id: a.productId, count: 1, price: a.priceKopecks / 100,
   });
 
+  // Метка для бариста (необязательно; сбой комментария не должен рушить заказ).
+  if (a.comment) {
+    try {
+      await posterPost(token, 'transactions.changeComment', {
+        spot_id: a.spotId, spot_tablet_id: a.tabletId, transaction_id: txId, comment: a.comment,
+      });
+    } catch { /* комментарий второстепенен — не мешаем закрытию чека */ }
+  }
+
   const payMajor = a.priceKopecks / 100;
   const body: Record<string, unknown> = { spot_id: a.spotId, spot_tablet_id: a.tabletId, transaction_id: txId };
   if (a.method.kind === 'cash') body.payed_cash = payMajor;
@@ -136,6 +146,7 @@ export interface PosterOrderArgs {
   currency: string;
   autoClose: boolean;      // true → payment.type=1 (предоплата → закрыт)
   phone?: string;
+  comment?: string;        // метка для бариста: «subday · Гость · ID …»
 }
 
 /** Создать онлайн-заказ в Poster (падает на терминал точки). */
@@ -145,6 +156,7 @@ export async function createOrder(token: string, a: PosterOrderArgs): Promise<{ 
     // Poster требует ВАЛИДНЫЙ телефон (нулевой префикс отвергает). Плейсхолдер выноса.
     phone: a.phone || '+77770000000',
     products: [{ product_id: a.productId, count: 1, price: a.priceKopecks }],
+    ...(a.comment ? { comment: a.comment } : {}),
   };
   // Предоплата (заказ закрыт). Без автозакрытия — payment не передаём (кассир закроет).
   if (a.autoClose) body.payment = { type: 1, sum: a.priceKopecks, currency: a.currency };
@@ -207,7 +219,7 @@ export async function runPosterOrder(
   };
   try {
     const { data: log } = await supabase.from('iiko_order_log')
-      .select('shop_id, integration_address, subscription_type_id, pos_order_id').eq('id', logId).maybeSingle();
+      .select('shop_id, integration_address, subscription_type_id, pos_order_id, redemption_id').eq('id', logId).maybeSingle();
     if (!log) return { ok: false, status: 'failed', error: 'Строка журнала не найдена' };
     const key = log.integration_address ?? '';
 
@@ -235,6 +247,9 @@ export async function runPosterOrder(
       return { ok: true, status: useMethod ? 'closed' : 'created' };
     }
 
+    // Метка для бариста: «subday · Гость · ID …».
+    const label = await buildBaristaLabel(supabase, log.redemption_id);
+
     // ── Путь со способом оплаты: transactions API, чек закрывается на выбранный способ.
     if (useMethod) {
       try {
@@ -242,6 +257,7 @@ export async function runPosterOrder(
           spotId: integ.spot_id, tabletId: integ.spot_tablet_id!, userId: integ.user_id!,
           productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
           method: { id: integ.payment_method_id!, kind: integ.payment_method_kind || 'card' },
+          comment: label.comment,
         }, async (txId) => {
           // Фиксируем id ДО добавления товара/закрытия — ретрай не создаст дубль.
           await supabase.from('iiko_order_log').update({ pos_order_id: txId, updated_at: new Date().toISOString() }).eq('id', logId);
@@ -262,7 +278,7 @@ export async function runPosterOrder(
     try {
       res = await createOrder(integ.api_token, {
         spotId: integ.spot_id, productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
-        currency: integ.currency || 'KZT', autoClose: integ.auto_close,
+        currency: integ.currency || 'KZT', autoClose: integ.auto_close, comment: label.comment,
       });
     } catch (e) {
       // PosterError = Poster ответил ошибкой (заказ НЕ создан) → авто-ретрай безопасен.
@@ -308,12 +324,13 @@ export async function createPosterTestOrder(
         spotId: integ.spot_id, tabletId: integ.spot_tablet_id, userId: integ.user_id,
         productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
         method: { id: integ.payment_method_id, kind: integ.payment_method_kind || 'card' },
+        comment: 'subday · тест',
       });
       posOrderId = r.transactionId; status = 'closed';
     } else {
       const res = await createOrder(integ.api_token, {
         spotId: integ.spot_id, productId: map.poster_product_id, priceKopecks: Number(map.poster_price),
-        currency: integ.currency || 'KZT', autoClose: integ.auto_close,
+        currency: integ.currency || 'KZT', autoClose: integ.auto_close, comment: 'subday · тест',
       });
       posOrderId = res.transactionId || null;
     }
