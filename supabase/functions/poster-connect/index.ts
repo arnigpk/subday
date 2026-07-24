@@ -3,7 +3,7 @@
 // Доступ — только партнёр этой кофейни (или админ).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getSpots, getProducts, getPaymentMethods, getTablets, getEmployees, createPosterTestOrder, PosterError } from '../_shared/poster.ts';
+import { getSpots, getProducts, getPaymentMethods, getTablets, getEmployees, createPosterTestOrder, syncPosterStatuses, PosterError } from '../_shared/poster.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,6 +86,11 @@ Deno.serve(async (req) => {
       case 'test_order': {
         const r = await createPosterTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string, integrationAddress: address });
         return json(r, r.ok ? 200 : 400);
+      }
+      case 'sync_statuses': {
+        // Сверить POS-статус недавних заказов с кассой (закрыт/отменён) — обновляет pos_status.
+        await syncPosterStatuses(supabase, shopId, address);
+        return json({ success: true });
       }
       default:
         return json({ error: 'Unknown action' }, 400);

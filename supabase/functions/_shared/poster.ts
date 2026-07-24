@@ -346,3 +346,46 @@ export async function createPosterTestOrder(
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/**
+ * Реальный статус транзакции Poster: 'open' | 'closed' | 'cancelled' | 'unknown'.
+ * dash.getTransaction.status: 0=новый, 1=распечатан (оба «открыт»), 2=закрыт, 3=удалён.
+ * Никогда не бросает: при любой ошибке — 'unknown' (тогда статус в кабинете не меняем).
+ */
+export async function getPosterOrderStatus(token: string, txId: string): Promise<'open' | 'closed' | 'cancelled' | 'unknown'> {
+  try {
+    const r = await posterGet<any>(token, 'dash.getTransaction', { transaction_id: txId });
+    const row = Array.isArray(r) ? r[0] : r;
+    const st = Number(row?.status);
+    if (st === 3) return 'cancelled';
+    if (st === 2) return 'closed';
+    if (st === 0 || st === 1) return 'open';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+
+/**
+ * Синхронизировать POS-статус недавних заказов Poster в журнал (pos_status).
+ * Проверяем только ещё не финализированные (pos_status null/'open'), лимит 30.
+ * Если касса сообщает 'cancelled' — заодно переводим наш статус в 'cancelled'.
+ * Никогда не бросает.
+ */
+export async function syncPosterStatuses(supabase: SupabaseClient, shopId: string, address: string): Promise<void> {
+  try {
+    const { data: integ } = await supabase.from('poster_integrations').select('api_token').eq('shop_id', shopId).eq('address', address).maybeSingle();
+    if (!integ?.api_token) return;
+    const { data: rows } = await supabase.from('iiko_order_log')
+      .select('id, pos_order_id')
+      .eq('shop_id', shopId).eq('provider', 'poster').eq('integration_address', address)
+      .in('status', ['created', 'closed']).not('pos_order_id', 'is', null)
+      .or('pos_status.is.null,pos_status.eq.open')
+      .order('created_at', { ascending: false }).limit(30);
+    for (const r of (rows || [])) {
+      const st = await getPosterOrderStatus(integ.api_token, r.pos_order_id as string);
+      if (st === 'unknown') continue;
+      const patch: Record<string, unknown> = { pos_status: st, updated_at: new Date().toISOString() };
+      if (st === 'cancelled') patch.status = 'cancelled';
+      await supabase.from('iiko_order_log').update(patch).eq('id', r.id);
+    }
+  } catch { /* синхронизация статуса второстепенна — не мешаем кабинету */ }
+}

@@ -5,7 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   iikoAuth, getValidToken, getOrganizations, getTerminalGroups,
-  getOrderTypes, getPaymentTypes, getProducts, createTestOrder, IikoError,
+  getOrderTypes, getPaymentTypes, getProducts, createTestOrder, syncIikoStatuses, IikoError,
 } from '../_shared/iiko.ts';
 import { setWorkerEnv } from '../_shared/env.ts';
 
@@ -130,6 +130,11 @@ Deno.serve(async (req) => {
           address: (body.testAddress as string) || address || null,
         });
         return json(r, r.ok ? 200 : 400);
+      }
+      case 'sync_statuses': {
+        // Сверить POS-статус недавних заказов с кассой iiko (закрыт/отменён).
+        await syncIikoStatuses(supabase, shopId, address || '');
+        return json({ success: true });
       }
       default:
         return json({ error: 'Unknown action' }, 400);

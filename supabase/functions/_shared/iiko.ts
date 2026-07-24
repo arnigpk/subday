@@ -657,3 +657,59 @@ export async function cancelOrder(token: string, organizationId: string, orderId
     }
   }
 }
+
+/**
+ * Реальный статус заказа iiko: 'open' | 'closed' | 'cancelled' | 'unknown'.
+ * Через /api/1/deliveries/by_id (этот же метод уже используем для errorInfo).
+ * Работает для заказов delivery-эндпоинта; для прочих/сбоя — 'unknown' (кабинет не трогаем).
+ * Никогда не бросает.
+ */
+export async function getIikoOrderStatus(token: string, orgId: string, orderId: string): Promise<'open' | 'closed' | 'cancelled' | 'unknown'> {
+  try {
+    const r = await iikoPost<{ orders?: Array<{ creationStatus?: string; deleted?: boolean; order?: { status?: string; deleted?: boolean } }> }>(
+      token, '/api/1/deliveries/by_id', { organizationId: orgId, orderIds: [orderId] },
+    );
+    const o = r.orders?.[0];
+    if (!o) return 'unknown';
+    if (o.creationStatus === 'Error') return 'cancelled'; // не материализовался на кассе
+    const s = String(o.order?.status || '').toLowerCase();
+    if (o.deleted === true || o.order?.deleted === true || s === 'cancelled') return 'cancelled';
+    if (s === 'closed' || s === 'delivered') return 'closed';
+    if (s) return 'open';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+
+/**
+ * Синхронизировать POS-статус недавних iiko-заказов в журнал (pos_status).
+ * Проверяем только ещё не финализированные, лимит 30. 'cancelled' на кассе → и наш статус 'cancelled'.
+ * Никогда не бросает.
+ */
+export async function syncIikoStatuses(supabase: SupabaseClient, shopId: string, _address: string): Promise<void> {
+  try {
+    // iiko может быть многоадресной — обходим все интеграции кофейни, каждую своим токеном.
+    const { data: integs } = await supabase.from('iiko_integrations')
+      .select('shop_id, address, api_login, app_id, api_key, client_secret, organization_id, access_token, token_expires_at')
+      .eq('shop_id', shopId);
+    for (const integ of (integs || [])) {
+      if (!integ?.organization_id) continue;
+      const { data: rows } = await supabase.from('iiko_order_log')
+        .select('id, iiko_order_id, pos_status')
+        .eq('shop_id', shopId).eq('integration_address', integ.address ?? '')
+        .or('provider.is.null,provider.eq.iiko')
+        .eq('status', 'created').not('iiko_order_id', 'is', null)
+        .order('created_at', { ascending: false }).limit(30);
+      const pending = (rows || []).filter(r => r.pos_status == null || r.pos_status === 'open');
+      if (pending.length === 0) continue;
+      let token: string;
+      try { token = await getValidToken(supabase, integ); } catch { continue; }
+      for (const r of pending) {
+        const st = await getIikoOrderStatus(token, integ.organization_id, r.iiko_order_id as string);
+        if (st === 'unknown') continue;
+        const patch: Record<string, unknown> = { pos_status: st, updated_at: new Date().toISOString() };
+        if (st === 'cancelled') patch.status = 'cancelled';
+        await supabase.from('iiko_order_log').update(patch).eq('id', r.id);
+      }
+    }
+  } catch { /* синхронизация статуса второстепенна */ }
+}
