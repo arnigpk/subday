@@ -6,7 +6,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   getTradepoints, getItems, getCashboxes, getPaymentMethods, getUsersFront, getPriceTypes,
-  createRostaTestOrder, RostaError,
+  createRostaTestOrder, syncRostaStatuses, RostaError,
 } from '../_shared/rosta.ts';
 
 const corsHeaders = {
@@ -75,6 +75,11 @@ Deno.serve(async (req) => {
       case 'test_order': {
         const r = await createRostaTestOrder(supabase, { shopId, subscriptionTypeId: body.subscriptionTypeId as string, integrationAddress: address });
         return json(r, r.ok ? 200 : 400);
+      }
+      case 'sync_statuses': {
+        // Сверить статус чеков с кассой (оплачен/открыт) — только для отображения.
+        await syncRostaStatuses(supabase, shopId, address);
+        return json({ success: true });
       }
       default:
         return json({ error: 'Unknown action' }, 400);

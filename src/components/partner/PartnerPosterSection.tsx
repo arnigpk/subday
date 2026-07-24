@@ -335,6 +335,8 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
                     <p className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString('ru')}{o.error ? ` · ${o.error}` : ''}</p>
                   </div>
                   {o.status === 'failed' && !o.is_test && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'retry')} disabled={busy === 'retry' + o.id} title="Повторить"><RefreshCw size={15} /></Button>}
+                  {/* Упал (касса была офлайн) — снять с отправки, чтобы после связи не ушёл дублем к ручному чеку */}
+                  {o.status === 'failed' && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'cancel')} disabled={busy === 'cancel' + o.id} title="Снять с отправки (пробить вручную на кассе)"><XCircle size={15} /></Button>}
                   {(o.status === 'created' || o.status === 'closed') && o.pos_status !== 'closed' && o.pos_status !== 'cancelled' && <Button size="sm" variant="ghost" onClick={() => orderAction(o, 'cancel')} disabled={busy === 'cancel' + o.id} title="Отменить"><XCircle size={15} /></Button>}
                 </div>
               ))}

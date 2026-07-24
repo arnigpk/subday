@@ -665,19 +665,39 @@ export async function cancelOrder(token: string, organizationId: string, orderId
  * Никогда не бросает.
  */
 export async function getIikoOrderStatus(token: string, orgId: string, orderId: string): Promise<'open' | 'closed' | 'cancelled' | 'unknown'> {
-  try {
-    const r = await iikoPost<{ orders?: Array<{ creationStatus?: string; deleted?: boolean; order?: { status?: string; deleted?: boolean } }> }>(
-      token, '/api/1/deliveries/by_id', { organizationId: orgId, orderIds: [orderId] },
-    );
-    const o = r.orders?.[0];
-    if (!o) return 'unknown';
+  type IikoOrderRow = { creationStatus?: string; deleted?: boolean; order?: { status?: string; deleted?: boolean } };
+  const map = (o?: IikoOrderRow): 'open' | 'closed' | 'cancelled' | null => {
+    if (!o) return null;
     if (o.creationStatus === 'Error') return 'cancelled'; // не материализовался на кассе
     const s = String(o.order?.status || '').toLowerCase();
-    if (o.deleted === true || o.order?.deleted === true || s === 'cancelled') return 'cancelled';
+    if (o.deleted === true || o.order?.deleted === true || s === 'deleted' || s === 'cancelled') return 'cancelled';
     if (s === 'closed' || s === 'delivered') return 'closed';
     if (s) return 'open';
-    return 'unknown';
-  } catch { return 'unknown'; }
+    return null;
+  };
+
+  // 1) Быстрые заказы на кассу (order_endpoint='order' — так работают все наши кофейни).
+  //    ВАЖНО: /api/1/order/by_id требует organizationIds (МАССИВ); с organizationId
+  //    отвечает 400. Раньше статус спрашивали только у deliveries/by_id, поэтому
+  //    такие заказы не находились и висели «открытыми» в кабинете.
+  try {
+    const r = await iikoPost<{ orders?: IikoOrderRow[] }>(
+      token, '/api/1/order/by_id', { organizationIds: [orgId], orderIds: [orderId] },
+    );
+    const m = map(r.orders?.[0]);
+    if (m) return m;
+  } catch { /* попробуем схему доставки */ }
+
+  // 2) Заказы доставки/самовывоза (order_endpoint='delivery').
+  try {
+    const r = await iikoPost<{ orders?: IikoOrderRow[] }>(
+      token, '/api/1/deliveries/by_id', { organizationId: orgId, orderIds: [orderId] },
+    );
+    const m = map(r.orders?.[0]);
+    if (m) return m;
+  } catch { /* ignore */ }
+
+  return 'unknown';
 }
 
 /**

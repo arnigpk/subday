@@ -51,10 +51,24 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'cancel') {
+      // Заказ НЕ дошёл до кассы (упал, id заказа в POS нет) — снимаем с отправки локально:
+      // кассу не дёргаем (там ничего нет), а статус 'cancelled' гасит авто-ретрай,
+      // чтобы после восстановления связи заказ не упал дублем к ручному чеку кассира.
+      const reachedPos = !!(log.iiko_order_id || log.pos_order_id);
+      if (!reachedPos) {
+        const note = 'Снят с отправки: на кассу не отправлялся (пробейте вручную на кассе).';
+        await supabase.from('iiko_order_log').update({
+          status: 'cancelled', error: note, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
+        }).eq('id', logId);
+        return json({ success: true, cancelledInPos: false, note });
+      }
+
       const r = await cancelPosOrder(supabase, log);
       const note = r.ok ? undefined
         : `Отмена не выполнена (${r.error}). Возможно, заказ уже закрыт/фискализирован — отмените вручную в POS.`;
-      await supabase.from('iiko_order_log').update({ status: 'cancelled', error: note || null, updated_at: new Date().toISOString() }).eq('id', logId);
+      await supabase.from('iiko_order_log').update({
+        status: 'cancelled', error: note || null, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
+      }).eq('id', logId);
       return json({ success: true, cancelledInPos: r.ok, note });
     }
 

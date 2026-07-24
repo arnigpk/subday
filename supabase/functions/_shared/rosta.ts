@@ -294,3 +294,41 @@ export async function createRostaTestOrder(
 export function cancelOrder(): { ok: boolean; error: string } {
   return { ok: false, error: 'Rosta API не поддерживает отмену чека — отмените вручную на кассе' };
 }
+
+/**
+ * Реальный статус чека Rosta: 'open' | 'closed' | 'unknown'.
+ * GET /orders/{id} → status.value: 0=Открыт, 1=Распечатан (оба «открыт»), 3=Оплачен.
+ * Отмены чека в API Rosta нет — статус нужен только для отображения в кабинете.
+ * Никогда не бросает.
+ */
+export async function getRostaOrderStatus(apiKey: string, orderId: string): Promise<'open' | 'closed' | 'unknown'> {
+  try {
+    const d = await rostaRequest<{ data?: { status?: { value?: number } } }>(apiKey, 'GET', `/orders/${orderId}`);
+    const v = Number(d?.data?.status?.value);
+    if (v === 3) return 'closed';
+    if (v === 0 || v === 1) return 'open';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+
+/**
+ * Синхронизировать POS-статус недавних чеков Rosta в журнал (pos_status).
+ * Только отображение («оплачен на кассе»); кнопки отмены у Rosta нет. Не бросает.
+ */
+export async function syncRostaStatuses(supabase: SupabaseClient, shopId: string, address: string): Promise<void> {
+  try {
+    const { data: integ } = await supabase.from('rosta_integrations').select('api_key').eq('shop_id', shopId).eq('address', address).maybeSingle();
+    if (!integ?.api_key) return;
+    const { data: rows } = await supabase.from('iiko_order_log')
+      .select('id, pos_order_id, pos_status')
+      .eq('shop_id', shopId).eq('provider', 'rosta').eq('integration_address', address)
+      .in('status', ['created', 'closed']).not('pos_order_id', 'is', null)
+      .order('created_at', { ascending: false }).limit(30);
+    const pending = (rows || []).filter(r => r.pos_status == null || r.pos_status === 'open');
+    for (const r of pending) {
+      const st = await getRostaOrderStatus(integ.api_key, r.pos_order_id as string);
+      if (st === 'unknown') continue;
+      await supabase.from('iiko_order_log').update({ pos_status: st, updated_at: new Date().toISOString() }).eq('id', r.id);
+    }
+  } catch { /* синхронизация статуса второстепенна */ }
+}
