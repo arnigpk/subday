@@ -1,6 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { perfMark } from "@/lib/perf";
+
+perfMark('main'); // бандл скачан (локально) и распарсен → это чистое время парса JS
 
 // Detect Telegram MiniApp and mark document for CSS adjustments.
 // Единый верхний отступ 40px для TMA на всех экранах (главная, админка,

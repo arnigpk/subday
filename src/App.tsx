@@ -1,5 +1,7 @@
-import { useState, useEffect, lazy, Suspense, useCallback, ReactNode } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, useRef, ReactNode } from 'react';
 import Lottie from 'lottie-react';
+import { perfMark, perfReport } from '@/lib/perf';
+import { PerfOverlay } from '@/components/PerfOverlay';
 import defaultPreloaderAnimation from '@/assets/preloader.json';
 
 import { Toaster } from "@/components/ui/toaster";
@@ -359,6 +361,9 @@ const AppContent = () => {
 
   const { vibrateShort, vibratePreloader } = useVibration();
 
+  // Замер (Слой 4): React смонтирован (первый эффект после первого рендера).
+  useEffect(() => { perfMark('app-mount'); }, []);
+
   // Soft ramp-up haptic that plays together with the splash/preloader on app open.
   useEffect(() => {
     vibratePreloader();
@@ -378,10 +383,11 @@ const AppContent = () => {
     const cfg = cachedNow?.config ?? null;
     const isEnabled = cfg?.enabled !== false;
     if (!isEnabled) {
+      perfMark('preloader-done');
       setIsPreloaderDone(true);
     } else {
       const dur = (cfg?.duration ?? 2) * 1000;
-      timer = setTimeout(() => setIsPreloaderDone(true), dur);
+      timer = setTimeout(() => { perfMark('preloader-done'); setIsPreloaderDone(true); }, dur);
     }
 
     // --- Фоновая ревалидация: обновляем кэш к следующему запуску (P2: без
@@ -488,6 +494,7 @@ const AppContent = () => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      perfMark('auth-ready');
       setIsAuthLoading(false);
     });
 
@@ -509,6 +516,17 @@ const AppContent = () => {
       vibrateShort();
     }
   }, [isLoading, vibrateShort]);
+
+  // Замер (Слой 4): приложение стало интерактивным (прелоадер ушёл И фон-загрузка
+  // завершилась) — фиксируем и печатаем отчёт один раз.
+  const perfDoneRef = useRef(false);
+  useEffect(() => {
+    if (!isLoading && !perfDoneRef.current) {
+      perfDoneRef.current = true;
+      perfMark('interactive');
+      perfReport();
+    }
+  }, [isLoading]);
   
   const { showOnboarding, maybeShowOnboarding, completeOnboarding } = useOnboarding();
 
@@ -649,6 +667,7 @@ const App = () => {
       <TooltipProvider>
         <LanguageProvider>
           <AppContent />
+          <PerfOverlay />
         </LanguageProvider>
       </TooltipProvider>
     </QueryClientProvider>

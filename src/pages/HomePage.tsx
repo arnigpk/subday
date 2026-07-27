@@ -71,7 +71,22 @@ export default function HomePage() {
                 }}
               />
               <div className="flex items-center gap-2">
-                <span className="text-2xl">🇰🇿</span>
+                <span
+                  className="text-2xl"
+                  onClick={() => {
+                    // Скрытый жест: 7 быстрых тапов по флагу включают/выключают
+                    // оверлей замеров старта (Слой 4). Обычные пользователи не заметят.
+                    const w = window as unknown as { __flagTaps?: number; __flagT?: number };
+                    const now = Date.now();
+                    w.__flagTaps = (now - (w.__flagT || 0) < 600 ? (w.__flagTaps || 0) : 0) + 1;
+                    w.__flagT = now;
+                    if (w.__flagTaps >= 7) {
+                      const on = localStorage.getItem('subday_perf') === '1';
+                      localStorage.setItem('subday_perf', on ? '0' : '1');
+                      location.reload();
+                    }
+                  }}
+                >🇰🇿</span>
                 {showAdminButton && (
                   <button
                     onClick={handleAdminClick}
