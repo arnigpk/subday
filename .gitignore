@@ -30,3 +30,4 @@ dist-ssr
 .env.local
 .env.*.local
 subday.rar
+.env.bak*
