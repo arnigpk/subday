@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/sonner';
 import { Send, Bell, Loader2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
+import { BroadcastProgress } from '@/components/admin/BroadcastProgress';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 import { AudiencePreview } from '@/components/admin/AudiencePreview';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -20,6 +21,8 @@ export default function AdminPushBroadcastPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
+  // id запущенной рассылки — по нему показываем живой прогресс отправки
+  const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(null);
 
   const handleSendPush = async () => {
     if (!title.trim()) {
@@ -68,6 +71,8 @@ export default function AdminPushBroadcastPage() {
           }
         }
       }
+
+      if (fcmResult?.broadcast_id) setActiveBroadcastId(fcmResult.broadcast_id as string);
 
       setTitle('');
       setMessage('');
@@ -165,6 +170,13 @@ export default function AdminPushBroadcastPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Живой прогресс текущей рассылки */}
+        <BroadcastProgress
+          broadcastId={activeBroadcastId}
+          type="push"
+          onFinished={() => setHistoryRefresh(prev => prev + 1)}
+        />
 
         {/* History */}
         <Card>

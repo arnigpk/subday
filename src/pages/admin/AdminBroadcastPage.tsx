@@ -12,6 +12,7 @@ import { Send, Users, User, Loader2, Search, MessageSquare, History } from 'luci
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
+import { BroadcastProgress } from '@/components/admin/BroadcastProgress';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 import { AudiencePreview } from '@/components/admin/AudiencePreview';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -33,6 +34,8 @@ export default function AdminBroadcastPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  // id запущенной рассылки — по нему показываем живой прогресс отправки
+  const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(null);
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
 
   // Audience filtering data
@@ -147,7 +150,8 @@ export default function AdminBroadcastPage() {
         toast.warning(data?.message || 'Нет получателей в выбранной аудитории');
       } else {
         // Рассылка теперь идёт в фоне (очередь) — не упирается в лимиты при любом объёме.
-        toast.success(`Рассылка запущена: ${total} получателей. Идёт отправка в фоне — прогресс виден в истории.`);
+        toast.success(`Рассылка запущена: ${total} получателей. Прогресс — ниже.`);
+        if (data?.broadcast_id) setActiveBroadcastId(data.broadcast_id as string);
         setMessage('');
         setSelectedUsers([]);
         setHistoryRefresh(prev => prev + 1);
@@ -340,6 +344,13 @@ export default function AdminBroadcastPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Живой прогресс текущей рассылки */}
+        <BroadcastProgress
+          broadcastId={activeBroadcastId}
+          type="telegram"
+          onFinished={() => setHistoryRefresh(prev => prev + 1)}
+        />
 
         {/* History section */}
         <Card>
