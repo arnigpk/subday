@@ -166,6 +166,10 @@ export default function RedeemPage() {
     if (openedStraightToScanner) navigate('/', { replace: true });
     else setShowShopScanner(false);
   }, [openedStraightToScanner, navigate]);
+  // Успех сканирования QR кофейни: гасим камеру и остаёмся на экране забора,
+  // чтобы показать ту же анимацию успеха, что и при сканировании бариста
+  // (навигация на главную здесь убила бы анимацию — это была регрессия).
+  // Сам показ анимации — в handleShopScanSuccess ниже, после её объявления.
   // Инициализируем userId синхронно из кеша — иначе при оффлайне QR не построится,
   // т.к. supabase.auth.getUser() может зависнуть/упасть без сети.
   const [userId, setUserId] = useState<string | null>(() => {
@@ -359,6 +363,13 @@ export default function RedeemPage() {
     refetch();
     setTimeout(() => setShowConfetti(false), 2000);
   }, [refetch, playSuccessSound, vibrateSuccess]);
+
+  // Успех при самостоятельном сканировании QR кофейни: сначала закрываем
+  // камеру (иначе оверлей перекрыл бы анимацию), затем показываем успех.
+  const handleShopScanSuccess = useCallback(() => {
+    setShowShopScanner(false);
+    handleRealtimeRedemption();
+  }, [handleRealtimeRedemption]);
 
   useEffect(() => {
     const initUser = async () => {
@@ -943,7 +954,7 @@ export default function RedeemPage() {
             drinkType={drinkType}
             isGuestCoffee={isGuestCoffee && hasGuestCoffee}
             onClose={closeShopScanner}
-            onRedeemed={handleRealtimeRedemption}
+            onRedeemed={handleShopScanSuccess}
           />
         </Suspense>
       )}

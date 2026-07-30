@@ -63,8 +63,9 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
         return;
       }
 
-      // Успех: закрываем камеру. Анимацию покажет общий обработчик списания.
-      onClose();
+      // Успех: НЕ трогаем onClose (он уводит на главную и убил бы анимацию).
+      // onRedeemed сам гасит камеру и показывает общую анимацию успеха на
+      // экране забора — как при обычном сканировании бариста.
       onRedeemed();
     } catch {
       toast.error('Нет связи. Проверьте интернет');
