@@ -4,7 +4,7 @@ import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, AlertTriangle, MapPin, QrCode } from 'lucide-react';
+import { Check, X, MapPin, QrCode } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
@@ -313,15 +313,9 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         <p className="px-4 text-center text-sm text-muted-foreground">
           Наведите камеру на QR-код клиента — код считается автоматически
         </p>
-        <div className="flex items-start gap-3 p-4 mx-4 bg-amber-500/10 rounded-xl">
-          <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground mb-1">Важно!</p>
-            <p className="text-muted-foreground">
-              QR-код действителен 1 минуту. Убедитесь, что клиент показывает свежий код.
-            </p>
-          </div>
-        </div>
+        {/* Блок «QR действителен 1 минуту» убран: срока у кода нет — timestamp
+            не входит в payload и сервером не проверяется, так что предупреждение
+            вводило бариста в заблуждение. */}
       </div>
 
       {shopId && showAddrDialog && (
