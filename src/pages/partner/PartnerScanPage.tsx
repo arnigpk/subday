@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { PartnerLayout } from '@/components/partner/PartnerLayout';
+import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, AlertTriangle, MapPin } from 'lucide-react';
+import { Check, X, AlertTriangle, MapPin, QrCode } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
@@ -37,6 +38,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   const [shopAddresses, setShopAddresses] = useState<string[]>([]);
   const [shiftAddress, setShiftAddress] = useState<string | null>(null);
   const [showAddrDialog, setShowAddrDialog] = useState(false);
+  const [showShopQR, setShowShopQR] = useState(false);
 
   const addrKey = (sid: string) => `barista_addr_${sid}`;
 
@@ -276,6 +278,22 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
             </div>
           </div>
         )}
+        {/* Второй способ забора: показать QR кофейни — его сканирует сам гость */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setShowShopQR(v => !v)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-foreground text-sm font-medium active:scale-95 transition-transform"
+          >
+            <QrCode size={16} className="text-primary" />
+            {showShopQR ? 'Скрыть QR кофейни' : 'Показать QR кофейни'}
+          </button>
+        </div>
+        {showShopQR && shopId && (
+          <div className="px-4 pb-2">
+            <ShopQRCode shopId={shopId} address={shiftAddress || ''} onClose={() => setShowShopQR(false)} />
+          </div>
+        )}
+
         <div className="px-4 relative">
           <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
           {result && (

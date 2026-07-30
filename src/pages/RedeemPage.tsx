@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff, Snowflake } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff, Snowflake, ScanLine } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -17,6 +17,8 @@ import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { TT } from '@/components/TT';
 import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
 import { haversineDistanceMeters } from '@/utils/haversine';
+import { lazy, Suspense } from 'react';
+const ShopQRScanner = lazy(() => import('@/components/redeem/ShopQRScanner').then(m => ({ default: m.ShopQRScanner })));
 
 interface QRSettings {
   qr_title: string;
@@ -153,6 +155,8 @@ export default function RedeemPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
+  // Кнопка «Сканировать» с главной открывает камеру сразу (state.openShopScanner).
+  const [showShopScanner, setShowShopScanner] = useState<boolean>(() => !!(location.state as { openShopScanner?: boolean } | null)?.openShopScanner);
   // Инициализируем userId синхронно из кеша — иначе при оффлайне QR не построится,
   // т.к. supabase.auth.getUser() может зависнуть/упасть без сети.
   const [userId, setUserId] = useState<string | null>(() => {
@@ -834,6 +838,18 @@ export default function RedeemPage() {
                 );
               })()}
               <p className="text-muted-foreground mb-1">{translatedBaristaText}</p>
+
+              {/* Второй способ: гость сам сканирует QR кофейни. Кнопка появляется
+                  только когда есть что списывать — иначе сканер бесполезен. */}
+              {qrCodeData && !isSubFrozen && (
+                <button
+                  onClick={() => setShowShopScanner(true)}
+                  className="mt-1 mb-1 inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-secondary text-foreground text-sm font-medium active:scale-95 transition-transform"
+                >
+                  <ScanLine size={16} className="text-primary" />
+                  <TT text="Сканировать QR кофейни" />
+                </button>
+              )}
               {/* Volume */}
               {(() => {
                 // В режиме гостевого кофе показываем только гостевой объём и НЕ
@@ -908,6 +924,20 @@ export default function RedeemPage() {
           )}
         </div>
       </div>
+
+      {/* Камера для сканирования QR кофейни (второй способ забора).
+          Успех показывается общей анимацией — её триггерит realtime-событие
+          о списании; onRedeemed — подстраховка, если событие не долетело. */}
+      {showShopScanner && (
+        <Suspense fallback={null}>
+          <ShopQRScanner
+            drinkType={drinkType}
+            isGuestCoffee={isGuestCoffee && hasGuestCoffee}
+            onClose={() => setShowShopScanner(false)}
+            onRedeemed={handleRealtimeRedemption}
+          />
+        </Suspense>
+      )}
     </AppLayout>
   );
 }

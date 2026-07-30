@@ -83,17 +83,60 @@ Deno.serve(async (req) => {
 
     const [body, { data: scannerRoles }] = await Promise.all([bodyPromise, rolePromise]);
 
-    if (!scannerRoles || scannerRoles.length === 0) {
-      return new Response(JSON.stringify({ error: 'У вас нет прав на сканирование' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // ДВА СПОСОБА СПИСАНИЯ. Дальше по коду логика ОДНА И ТА ЖЕ — различается
+    // только то, как мы получили (кто списывает, где и у кого):
+    //   1) shopToken отсутствует — классика: БАРИСТА сканирует QR гостя.
+    //      Права: роль partner/barista + кофейня из его списка.
+    //   2) shopToken передан — самообслуживание: ГОСТЬ сканирует QR кофейни.
+    //      Права: никакой роли не нужно, но:
+    //        • списываем ТОЛЬКО у себя (userId = auth.uid, из тела не берём);
+    //        • кофейню берём ИЗ ТОКЕНА (подделать нельзя, из тела не берём);
+    //        • разрешаем лишь там, где есть активная POS-интеграция.
+    // ─────────────────────────────────────────────────────────────────────────
+    const selfServiceToken = (body as ScanRequest & { shopToken?: string }).shopToken;
+    const isSelfService = !!selfServiceToken;
 
-    const { userId, shopId, drinkType, isGuestCoffee } = body;
+    let userId: string;
+    let shopId: string;
+    let selfAddress: string | undefined;
+    const { drinkType, isGuestCoffee } = body;
 
-    const allowedShopIds = scannerRoles.map((r: any) => r.shop_id).filter(Boolean);
-    if (!allowedShopIds.includes(shopId)) {
-      return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (isSelfService) {
+      const { data: resolved, error: resolveErr } = await supabase
+        .rpc('resolve_shop_qr', { p_token: selfServiceToken });
+      const r = resolved as { ok?: boolean; error?: string; shop_id?: string; address?: string; has_integration?: boolean } | null;
+
+      if (resolveErr || !r?.ok) {
+        const msg = r?.error === 'inactive'
+          ? 'Эта кофейня сейчас не принимает заказы'
+          : 'QR-код не распознан. Отсканируйте код кофейни ещё раз';
+        logger.warn('self_scan_bad_qr', { reason: r?.error ?? resolveErr?.message });
+        return new Response(JSON.stringify({ error: msg }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (!r.has_integration) {
+        return new Response(JSON.stringify({ error: 'В этой кофейне самообслуживание недоступно — покажите свой QR бариста' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      userId = scannerId;                 // только себе
+      shopId = r.shop_id as string;       // только из токена
+      selfAddress = r.address || undefined;
+    } else {
+      if (!scannerRoles || scannerRoles.length === 0) {
+        return new Response(JSON.stringify({ error: 'У вас нет прав на сканирование' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      userId = body.userId;
+      shopId = body.shopId;
+
+      const allowedShopIds = scannerRoles.map((r: any) => r.shop_id).filter(Boolean);
+      if (!allowedShopIds.includes(shopId)) {
+        return new Response(JSON.stringify({ error: 'Этот QR принадлежит другой кофейне' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     // Fetch stats + profile + shop + subscriptions in parallel (один слой round-trip'ов
@@ -115,7 +158,11 @@ Deno.serve(async (req) => {
     const shopName = shopResult.data?.name || 'Кофейня';
     const shiftActive = shiftResult.data?.expires_at ? new Date(shiftResult.data.expires_at) > new Date() : false;
     const shiftAddress = shiftActive ? (shiftResult.data?.address || null) : null;
-    const requestedAddress = typeof body.address === 'string' && body.address.trim() ? body.address.trim() : null;
+    // При самообслуживании адрес берём из QR-точки (там же, где физически висит код),
+    // а не из тела запроса — гость не должен влиять на маршрутизацию кассы.
+    const requestedAddress = isSelfService
+      ? (selfAddress && selfAddress.trim() ? selfAddress.trim() : null)
+      : (typeof body.address === 'string' && body.address.trim() ? body.address.trim() : null);
     const shopAddress = requestedAddress || shiftAddress || shopResult.data?.addresses?.[0] || shopResult.data?.address || null;
     const drinkName = drinkType === 'coffee' ? 'Кофе' : 'Ланч';
 
@@ -245,6 +292,7 @@ Deno.serve(async (req) => {
         drink_name: `Гостевой кофе от ID:${inviterPublicId}`,
         drink_type: 'coffee', subscription_name: guestSubscriptionName,
         scanned_by: scannerId,
+        scan_method: isSelfService ? 'self' : 'staff',
         subscription_type_id: grant?.subscription_type_id ?? null,
         payout_price: gSub?.price ?? null,
         payout_cups: gSub?.cups_count ?? null,
@@ -394,6 +442,7 @@ Deno.serve(async (req) => {
       shop_address: shopAddress || null,
       drink_name: drinkName, drink_type: drinkType, subscription_name: subscriptionName,
       scanned_by: scannerId,
+      scan_method: isSelfService ? 'self' : 'staff',
       subscription_type_id: (matchingSub as any)?.subscription_type_id ?? null,
       payout_price: payoutPrice, payout_cups: payoutCups, payout_percent: payoutPercent,
     }).select('id').single();

@@ -461,7 +461,7 @@ const AppContent = () => {
     
     attemptTelegramAuth();
   }, [isTelegramReady, isTelegramMiniApp, getInitData, telegramAuthAttempted]);
-  
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
