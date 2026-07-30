@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Coffee, MapPin, Clock, Plus, Pencil, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Coffee, MapPin, Clock, Plus, Pencil, Trash2, UtensilsCrossed, Plug, PlugZap } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
@@ -98,9 +98,66 @@ function parseCoordinates(coords: unknown): Coordinate[] {
   }));
 }
 
+// Статус POS-интеграции кофейни для админской пометки (только информация).
+interface IntegrationStatus {
+  active_count: number;
+  inactive_count: number;
+  providers: string[];
+}
+
+const PROVIDER_LABEL: Record<string, string> = { iiko: 'iiko', poster: 'Poster', rosta: 'Rosta' };
+
+/**
+ * Информационная пометка о POS-интеграции кофейни. Настраивается она в кабинете
+ * партнёра — здесь только видно, есть ли включённая интеграция.
+ * Зелёная = есть активная (с названием провайдера); серая = нет.
+ * «Настроена, но выключена» показываем отдельным оттенком, чтобы было понятно,
+ * что интеграция заведена, но сейчас не работает.
+ */
+function IntegrationBadge({ status }: { status?: IntegrationStatus }) {
+  const active = status && status.active_count > 0;
+  const configuredButOff = status && status.active_count === 0 && status.inactive_count > 0;
+
+  if (active) {
+    const names = status!.providers.map(p => PROVIDER_LABEL[p] || p).join(', ');
+    return (
+      <span
+        title={`Интеграция включена: ${names}`}
+        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      >
+        <PlugZap className="w-3 h-3" />
+        Интеграция{names ? ` · ${names}` : ''}
+      </span>
+    );
+  }
+
+  if (configuredButOff) {
+    return (
+      <span
+        title="Интеграция настроена, но сейчас выключена"
+        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      >
+        <Plug className="w-3 h-3" />
+        Интеграция выкл.
+      </span>
+    );
+  }
+
+  return (
+    <span
+      title="Интеграция не подключена"
+      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+    >
+      <Plug className="w-3 h-3" />
+      Без интеграции
+    </span>
+  );
+}
+
 export default function AdminShopsPage() {
   const { canManage } = useAdminAuth();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [integrations, setIntegrations] = useState<Record<string, IntegrationStatus>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -134,12 +191,28 @@ export default function AdminShopsPage() {
 
   useEffect(() => {
     fetchShops();
+    fetchIntegrations();
     const channel = supabase
       .channel('shops_realtime-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shops' }, () => fetchShops())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Статус интеграций — отдельной admin-only RPC, без секретных полей таблиц.
+  const fetchIntegrations = async () => {
+    const { data, error } = await supabase.rpc('get_shops_integration_status' as never);
+    if (error) { console.error('Error fetching integration status:', error); return; }
+    const map: Record<string, IntegrationStatus> = {};
+    for (const row of (data as unknown as (IntegrationStatus & { shop_id: string })[]) || []) {
+      map[row.shop_id] = {
+        active_count: row.active_count,
+        inactive_count: row.inactive_count,
+        providers: row.providers || [],
+      };
+    }
+    setIntegrations(map);
+  };
 
   const fetchShops = async () => {
     try {
@@ -436,11 +509,12 @@ export default function AdminShopsPage() {
                             </div>
                           )}
                           <div>
-                            <h3 className="font-semibold flex items-center gap-2">
+                            <h3 className="font-semibold flex items-center gap-2 flex-wrap">
                               {shop.name}
                               {!shop.is_active && (
                                 <span className="text-xs text-muted-foreground font-normal">(Неактивна)</span>
                               )}
+                              <IntegrationBadge status={integrations[shop.id]} />
                             </h3>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               {shop.address && (
