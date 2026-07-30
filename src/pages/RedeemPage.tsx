@@ -158,6 +158,9 @@ export default function RedeemPage() {
   // Кнопка «Сканировать» с главной открывает камеру сразу (state.openShopScanner).
   const openedStraightToScanner = !!(location.state as { openShopScanner?: boolean } | null)?.openShopScanner;
   const [showShopScanner, setShowShopScanner] = useState<boolean>(openedStraightToScanner);
+  // Имя кофейни, чей QR отсканирован (self-service). Приходит из ответа сервера
+  // и переопределяет геолокационное selectedShop на экране успеха.
+  const [scannedShopName, setScannedShopName] = useState<string | null>(null);
   // Если камеру открыли кнопкой «Сканировать» с главной, экран со своим QR
   // пользователь вообще не выбирал — закрытие должно вернуть его на главную,
   // а не показать чужой по смыслу QR. Если же сканер открыли уже с этого экрана,
@@ -366,7 +369,10 @@ export default function RedeemPage() {
 
   // Успех при самостоятельном сканировании QR кофейни: сначала закрываем
   // камеру (иначе оверлей перекрыл бы анимацию), затем показываем успех.
-  const handleShopScanSuccess = useCallback(() => {
+  // shopName берём из ответа сервера (кофейня из токена QR), чтобы на экране
+  // успеха показать именно её, а не ближайшую по геолокации selectedShop.
+  const handleShopScanSuccess = useCallback((shopName?: string) => {
+    if (shopName) setScannedShopName(shopName);
     setShowShopScanner(false);
     handleRealtimeRedemption();
   }, [handleRealtimeRedemption]);
@@ -925,7 +931,7 @@ export default function RedeemPage() {
                 <Check size={100} className="text-accent-foreground" strokeWidth={3} />
               </div>
               <p className="text-2xl font-black text-foreground mb-2">{t('redeem.success')}</p>
-              <p className="text-sm text-muted-foreground mb-2 px-2 break-words">{t('redeem.enjoy')}, {selectedShop?.name}!</p>
+              <p className="text-sm text-muted-foreground mb-2 px-2 break-words">{t('redeem.enjoy')}, {scannedShopName || selectedShop?.name}!</p>
               <div className="mt-8">
                 <button onClick={goHome} className="btn-primary">{t('redeem.goHome')}</button>
               </div>

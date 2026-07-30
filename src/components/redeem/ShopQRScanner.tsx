@@ -9,8 +9,12 @@ interface Props {
   drinkType: 'coffee' | 'drinks';
   isGuestCoffee: boolean;
   onClose: () => void;
-  /** вызывается при успешном списании (на случай, если realtime не долетел) */
-  onRedeemed: () => void;
+  /**
+   * Вызывается при успешном списании (на случай, если realtime не долетел).
+   * shopName — название кофейни, чей QR отсканирован (из токена, а не из
+   * геолокации), чтобы экран успеха показал именно её.
+   */
+  onRedeemed: (shopName?: string) => void;
 }
 
 /**
@@ -65,8 +69,9 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
 
       // Успех: НЕ трогаем onClose (он уводит на главную и убил бы анимацию).
       // onRedeemed сам гасит камеру и показывает общую анимацию успеха на
-      // экране забора — как при обычном сканировании бариста.
-      onRedeemed();
+      // экране забора — как при обычном сканировании бариста. Передаём имя
+      // кофейни из ответа сервера, чтобы успех показал именно её.
+      onRedeemed(typeof data?.shopName === 'string' ? data.shopName : undefined);
     } catch {
       toast.error('Нет связи. Проверьте интернет');
       setIsProcessing(false);

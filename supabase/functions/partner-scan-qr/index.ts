@@ -335,6 +335,10 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true, customerName: profile?.name || 'Клиент',
+        // shopName/shopId — из токена QR (self-service) или из выбранной кофейни
+        // (бариста). Нужны клиенту, чтобы на экране успеха показать именно ту
+        // кофейню, чей QR отсканирован, а не ближайшую по геолокации.
+        shopName, shopId,
         drinkName: subTypeResult?.data?.name ? `Гостевой кофе (${subTypeResult.data.name})` : 'Гостевой кофе',
         remaining: stats.guest_coffees - 1,
         isGuestRedemption: true,
@@ -510,6 +514,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true, customerName: profile?.name || 'Клиент',
+      // см. комментарий выше: имя/ id кофейни из токена QR для экрана успеха.
+      shopName, shopId,
       drinkName, remaining: newRemaining,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
