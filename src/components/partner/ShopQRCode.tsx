@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Download, RefreshCw, QrCode, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2, Download, RefreshCw, X, MapPin, ScanLine } from 'lucide-react';
 
 interface Props {
   shopId: string;
@@ -13,8 +12,8 @@ interface Props {
 }
 
 /**
- * QR кофейни для второго способа забора: гость сканирует его и списание проходит
- * само. В коде — только секретный токен точки, никаких данных о кофейне, поэтому
+ * QR кофейни для второго способа забора: гость сканирует его сам, и списание
+ * проходит без участия кассира. В коде — только секретный токен точки, поэтому
  * подделать чужой QR нельзя. Токен создаётся при первом открытии этого экрана.
  */
 export function ShopQRCode({ shopId, address = '', onClose }: Props) {
@@ -55,12 +54,11 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
     } finally { setBusy(false); }
   };
 
-  // Скачиваем как PNG: рисуем SVG на canvas в высоком разрешении, чтобы код
-  // хорошо читался и в печати (1024px с белым полем по краям).
+  // Скачиваем как PNG в высоком разрешении — чтобы код читался и в печати.
   const download = () => {
     const svg = wrapRef.current?.querySelector('svg');
     if (!svg) return;
-    const size = 1024, pad = 64;
+    const size = 1024, pad = 72;
     const xml = new XMLSerializer().serializeToString(svg);
     const img = new Image();
     img.onload = () => {
@@ -85,52 +83,77 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
   };
 
   const payload = token ? JSON.stringify({ t: 'subday_shop', k: token }) : null;
+  const warm = 'linear-gradient(135deg, hsl(14 82% 52%), hsl(4 74% 44%))';
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <QrCode size={18} className="text-primary" />
-          QR кофейни
-        </h3>
+    <div className="rounded-3xl overflow-hidden border border-border bg-card">
+      {/* Шапка — тёплый градиент, как у кнопок забора */}
+      <div className="px-5 py-4 text-white relative" style={{ background: warm }}>
         {onClose && (
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 -mr-1" aria-label="Закрыть">
-            <X size={18} />
+          <button onClick={onClose} aria-label="Закрыть"
+                  className="absolute right-3 top-3 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ background: 'hsl(0 0% 100% / 0.18)' }}>
+            <X size={16} />
           </button>
         )}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Распечатайте и поставьте на стойку. Гость сканирует его в приложении — списание
-        пройдёт само, как при обычном сканировании.
-        {address ? <> Код для точки: <b className="text-foreground">{address}</b>.</> : null}
-      </p>
-
-      <div ref={wrapRef} className="flex justify-center py-2">
-        {loading ? (
-          <div className="w-56 h-56 flex items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
-        ) : payload ? (
-          <div className="bg-white p-3 rounded-2xl border border-border">
-            <QRCodeSVG value={payload} size={224} level="M" includeMargin={false} bgColor="#FFFFFF" fgColor="#000000" />
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground py-10">QR недоступен</p>
+        <div className="flex items-center gap-2">
+          <ScanLine size={20} />
+          <p className="font-bold" style={{ fontSize: 'clamp(16px,4.5vw,19px)' }}>QR кофейни</p>
+        </div>
+        <p className="text-white/85 text-sm mt-1 pr-8">Гость сканирует его сам — списание пройдёт автоматически</p>
+        {address && (
+          <p className="text-white/75 text-xs mt-1.5 flex items-center gap-1">
+            <MapPin size={12} className="shrink-0" />
+            <span className="truncate">{address}</span>
+          </p>
         )}
       </div>
 
-      <div className="flex gap-2">
-        <Button onClick={download} disabled={!payload} className="flex-1">
-          <Download size={16} className="mr-2" />Скачать PNG
-        </Button>
-        <Button variant="outline" onClick={rotate} disabled={busy || !payload} title="Перевыпустить, если код утёк">
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-        </Button>
-      </div>
+      {/* Сам код */}
+      <div className="p-5 space-y-4">
+        <div ref={wrapRef} className="flex justify-center">
+          {loading ? (
+            <div className="w-64 h-64 rounded-2xl flex items-center justify-center bg-secondary/40">
+              <Loader2 className="animate-spin text-muted-foreground" />
+            </div>
+          ) : payload ? (
+            <div className="bg-white rounded-2xl p-4 shadow-sm border-2" style={{ borderColor: 'hsl(14 82% 52% / 0.25)' }}>
+              <QRCodeSVG value={payload} size={232} level="M" includeMargin={false} bgColor="#FFFFFF" fgColor="#1a1a1a" />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-16">QR недоступен</p>
+          )}
+        </div>
 
-      <p className="text-[11px] text-muted-foreground">
-        Самообслуживание работает только при включённой интеграции с кассой — заказ
-        должен попадать в POS автоматически.
-      </p>
+        <div className="flex gap-2">
+          <button
+            onClick={download}
+            disabled={!payload}
+            className="flex-1 rounded-2xl text-white font-bold py-3 active:scale-95 transition-transform disabled:opacity-50"
+            style={{ background: warm }}
+          >
+            <span className="inline-flex items-center gap-2"><Download size={17} />Скачать для печати</span>
+          </button>
+          <button
+            onClick={rotate}
+            disabled={busy || !payload}
+            title="Перевыпустить, если код утёк"
+            className="w-12 rounded-2xl border border-border flex items-center justify-center text-muted-foreground active:scale-95 transition-transform disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+          </button>
+        </div>
+
+        <div className="rounded-2xl bg-secondary/50 px-4 py-3 space-y-1.5">
+          <p className="text-xs text-muted-foreground leading-snug">
+            <b className="text-foreground">Как использовать:</b> распечатайте код и поставьте на стойку.
+            Гость открывает приложение → «Сканировать» → наводит камеру.
+          </p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Работает только при включённой интеграции с кассой — заказ должен попадать в POS автоматически.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

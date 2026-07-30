@@ -58,11 +58,15 @@ async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'u
 interface QRScannerProps {
   onScan: (data: string) => void;
   isProcessing: boolean;
+  /** USB-сканер нужен только персоналу кофейни; гостю его не показываем */
+  allowUsb?: boolean;
 }
 
-export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
+export function QRScanner({ onScan, isProcessing, allowUsb = true }: QRScannerProps) {
+  // Режим помнится между сессиями, но гостю USB недоступен: иначе, если на этом
+  // же устройстве бариста когда-то выбрал USB, гость открыл бы чужой экран.
   const savedMode = (localStorage.getItem(SCANNER_MODE_KEY) as 'camera' | 'usb') || 'camera';
-  const [mode, setMode] = useState<'camera' | 'usb'>(savedMode);
+  const [mode, setMode] = useState<'camera' | 'usb'>(allowUsb ? savedMode : 'camera');
 
   // ─── Камера ───────────────────────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
@@ -396,24 +400,9 @@ export function QRScanner({ onScan, isProcessing }: QRScannerProps) {
             )}
           </div>
 
-          {isScanning && !isProcessing && (
-            <div className="flex items-center gap-3 w-full">
-              <Button size="lg" onClick={startScanner} className="w-full">
-                ✅ Сканировать QR
-              </Button>
-            </div>
-          )}
-
-          {isScanning && !isProcessing && (
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-sm text-muted-foreground text-center">
-                Наведите камеру на QR-код клиента
-              </p>
-              <p className="text-xs text-red-500 text-center font-medium">
-                Нажмите ✅ Сканировать QR если код не сканируется!
-              </p>
-            </div>
-          )}
+          {/* Кнопка «Сканировать QR» и подсказки убраны: камера ловит код сама,
+              а текст под сканером задаёт экран-владелец (у партнёра свой,
+              у гостя свой) — иначе партнёрские надписи протекали к гостю. */}
         </>
       )}
     </div>

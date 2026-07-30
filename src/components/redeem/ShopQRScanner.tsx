@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
-import { X, Loader2, ScanLine } from 'lucide-react';
+import { X, Loader2, ScanLine, Coffee, UtensilsCrossed } from 'lucide-react';
 import { TT } from '@/components/TT';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * Второй способ забора: гость сам сканирует QR, который висит в кофейне.
+ * Второй способ забора: гость сам сканирует QR, который стоит в кофейне.
  * Списание делает тот же серверный обработчик, что и при сканировании бариста —
  * разница лишь в том, что кофейню мы берём из секретного токена в QR, а списываем
  * строго у себя. Успех показывается общей анимацией (realtime), как и раньше.
@@ -25,7 +25,7 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
   const handleScan = useCallback(async (raw: string) => {
     if (isProcessing) return;
 
-    // Достаём токен: поддерживаем и JSON-формат, и «голый» uuid, и ссылку —
+    // Достаём токен: поддерживаем JSON-формат, «голый» uuid и ссылку —
     // чтобы код читался, даже если кофейня распечатает его иначе.
     let token: string | null = null;
     const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -72,34 +72,56 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
     }
   }, [isProcessing, drinkType, isGuestCoffee, onClose, onRedeemed]);
 
+  const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
+
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'hsl(28 20% 8%)' }}>
       <div className="safe-area-top" />
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <ScanLine size={18} className="text-primary" />
-          <span className="font-semibold text-foreground"><TT text="Сканируйте QR кофейни" /></span>
+
+      {/* Шапка */}
+      <div className="px-5 pt-2 pb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-white font-bold leading-tight" style={{ fontSize: 'clamp(18px,5vw,22px)' }}>
+            <TT text="Сканируйте QR кофейни" />
+          </p>
+          <p className="text-white/55 text-sm mt-0.5 flex items-center gap-1.5">
+            <DrinkIcon size={14} />
+            <TT text={isGuestCoffee ? 'Гостевой кофе' : (drinkType === 'coffee' ? 'Списание напитка' : 'Списание ланча')} />
+          </p>
         </div>
-        <button onClick={onClose} aria-label="Закрыть" className="p-2 -mr-2 text-muted-foreground hover:text-foreground">
-          <X size={22} />
+        <button
+          onClick={onClose}
+          aria-label="Закрыть"
+          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white/80 active:scale-90 transition-transform"
+          style={{ background: 'hsl(0 0% 100% / 0.12)' }}
+        >
+          <X size={20} />
         </button>
       </div>
 
-      <div className="flex-1 min-h-0">
-        <QRScanner onScan={handleScan} isProcessing={isProcessing} />
+      {/* Камера в скруглённой рамке */}
+      <div className="flex-1 min-h-0 px-4">
+        <div className="relative w-full h-full rounded-3xl overflow-hidden" style={{ background: 'hsl(28 20% 12%)' }}>
+          <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} />
+
+          {isProcessing && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
+                 style={{ background: 'hsl(28 20% 8% / 0.82)', backdropFilter: 'blur(3px)' }}>
+              <Loader2 size={38} className="animate-spin" style={{ color: 'hsl(14 82% 55%)' }} />
+              <p className="text-white font-semibold"><TT text="Списываем…" /></p>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="px-5 py-4 text-center safe-area-bottom">
-        {isProcessing ? (
-          <p className="text-sm text-foreground flex items-center justify-center gap-2">
-            <Loader2 size={16} className="animate-spin text-primary" />
-            <TT text="Списываем…" />
+      {/* Подсказка */}
+      <div className="px-6 pt-4 pb-5 safe-area-bottom">
+        <div className="flex items-start gap-2.5 rounded-2xl px-4 py-3" style={{ background: 'hsl(0 0% 100% / 0.07)' }}>
+          <ScanLine size={17} className="shrink-0 mt-0.5" style={{ color: 'hsl(14 82% 58%)' }} />
+          <p className="text-white/70 leading-snug" style={{ fontSize: 'clamp(12px,3.4vw,14px)' }}>
+            <TT text="Наведите камеру на QR-код, который стоит на стойке кофейни. Списание пройдёт автоматически." />
           </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            <TT text="Наведите камеру на QR-код, который стоит на стойке кофейни" />
-          </p>
-        )}
+        </div>
       </div>
     </div>
   );
