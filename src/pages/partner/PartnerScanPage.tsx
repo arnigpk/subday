@@ -166,7 +166,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       }
 
       if (data.type !== 'subday_redeem') {
-        setResult({ success: false, message: 'Это не QR-код SubDay' });
+        setResult({ success: false, message: 'Это не QR-код subday' });
         resetProcessing();
         return;
       }

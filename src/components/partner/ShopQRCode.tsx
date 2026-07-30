@@ -83,12 +83,11 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
   };
 
   const payload = token ? JSON.stringify({ t: 'subday_shop', k: token }) : null;
-  const warm = 'linear-gradient(135deg, hsl(14 82% 52%), hsl(4 74% 44%))';
 
   return (
     <div className="rounded-3xl overflow-hidden border border-border bg-card">
-      {/* Шапка — тёплый градиент, как у кнопок забора */}
-      <div className="px-5 py-4 text-white relative" style={{ background: warm }}>
+      {/* Шапка — фирменный карамельный градиент приложения */}
+      <div className="px-5 py-4 text-white relative bg-gradient-caramel">
         {onClose && (
           <button onClick={onClose} aria-label="Закрыть"
                   className="absolute right-3 top-3 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
@@ -117,7 +116,7 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
               <Loader2 className="animate-spin text-muted-foreground" />
             </div>
           ) : payload ? (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border-2" style={{ borderColor: 'hsl(14 82% 52% / 0.25)' }}>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-primary/25">
               <QRCodeSVG value={payload} size={232} level="M" includeMargin={false} bgColor="#FFFFFF" fgColor="#1a1a1a" />
             </div>
           ) : (
@@ -129,8 +128,7 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
           <button
             onClick={download}
             disabled={!payload}
-            className="flex-1 rounded-2xl text-white font-bold py-3 active:scale-95 transition-transform disabled:opacity-50"
-            style={{ background: warm }}
+            className="flex-1 rounded-2xl bg-gradient-caramel text-white font-bold py-3 active:scale-95 transition-transform disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2"><Download size={17} />Скачать для печати</span>
           </button>

@@ -156,7 +156,16 @@ export default function RedeemPage() {
   const [status, setStatus] = useState<RedeemStatus>('ready');
   const [showConfetti, setShowConfetti] = useState(false);
   // Кнопка «Сканировать» с главной открывает камеру сразу (state.openShopScanner).
-  const [showShopScanner, setShowShopScanner] = useState<boolean>(() => !!(location.state as { openShopScanner?: boolean } | null)?.openShopScanner);
+  const openedStraightToScanner = !!(location.state as { openShopScanner?: boolean } | null)?.openShopScanner;
+  const [showShopScanner, setShowShopScanner] = useState<boolean>(openedStraightToScanner);
+  // Если камеру открыли кнопкой «Сканировать» с главной, экран со своим QR
+  // пользователь вообще не выбирал — закрытие должно вернуть его на главную,
+  // а не показать чужой по смыслу QR. Если же сканер открыли уже с этого экрана,
+  // закрытие возвращает сюда же.
+  const closeShopScanner = useCallback(() => {
+    if (openedStraightToScanner) navigate('/', { replace: true });
+    else setShowShopScanner(false);
+  }, [openedStraightToScanner, navigate]);
   // Инициализируем userId синхронно из кеша — иначе при оффлайне QR не построится,
   // т.к. supabase.auth.getUser() может зависнуть/упасть без сети.
   const [userId, setUserId] = useState<string | null>(() => {
@@ -933,7 +942,7 @@ export default function RedeemPage() {
           <ShopQRScanner
             drinkType={drinkType}
             isGuestCoffee={isGuestCoffee && hasGuestCoffee}
-            onClose={() => setShowShopScanner(false)}
+            onClose={closeShopScanner}
             onRedeemed={handleRealtimeRedemption}
           />
         </Suspense>

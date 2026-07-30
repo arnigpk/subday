@@ -54,7 +54,7 @@ function PolicyRu() {
       <p>
         Настоящая Политика конфиденциальности описывает, каким образом ТОО «Subday Group»
         (БИН 260240030635, далее — «Оператор») собирает, использует и защищает персональные
-        данные пользователей мобильного приложения SubDay (далее — «Приложение»).
+        данные пользователей мобильного приложения subday (далее — «Приложение»).
       </p>
 
       <h2 className="text-lg font-semibold">1. Какие данные собирает Оператор</h2>
@@ -143,7 +143,7 @@ function PolicyEn() {
       <h1 className="text-2xl font-bold">Privacy Policy</h1>
       <p>
         This Privacy Policy describes how Subday Group LLP (BIN 260240030635, hereinafter
-        the "Operator") collects, uses, and protects personal data of users of the SubDay
+        the "Operator") collects, uses, and protects personal data of users of the subday
         mobile application (hereinafter "Application").
       </p>
 

@@ -75,54 +75,54 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
   const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'hsl(28 20% 8%)' }}>
+    <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-y-auto">
       <div className="safe-area-top" />
 
-      {/* Шапка */}
-      <div className="px-5 pt-2 pb-4 flex items-start justify-between gap-3">
+      {/* Шапка — в тех же тонах, что остальные экраны приложения */}
+      <div className="px-5 pt-2 pb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-white font-bold leading-tight" style={{ fontSize: 'clamp(18px,5vw,22px)' }}>
+          <p className="text-foreground font-bold leading-tight" style={{ fontSize: 'clamp(17px,4.8vw,21px)' }}>
             <TT text="Сканируйте QR кофейни" />
           </p>
-          <p className="text-white/55 text-sm mt-0.5 flex items-center gap-1.5">
-            <DrinkIcon size={14} />
+          <p className="text-muted-foreground text-sm mt-0.5 flex items-center gap-1.5">
+            <DrinkIcon size={14} className="text-primary shrink-0" />
             <TT text={isGuestCoffee ? 'Гостевой кофе' : (drinkType === 'coffee' ? 'Списание напитка' : 'Списание ланча')} />
           </p>
         </div>
         <button
           onClick={onClose}
           aria-label="Закрыть"
-          className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white/80 active:scale-90 transition-transform"
-          style={{ background: 'hsl(0 0% 100% / 0.12)' }}
+          className="shrink-0 w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center active:scale-90 transition-transform"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
       </div>
 
-      {/* Камера в скруглённой рамке */}
-      <div className="flex-1 min-h-0 px-4">
-        <div className="relative w-full h-full rounded-3xl overflow-hidden" style={{ background: 'hsl(28 20% 12%)' }}>
+      {/* Камера квадратная — растягивать её нельзя, поэтому центрируем блок
+          «камера + подсказка» по вертикали: подсказка идёт сразу под кадром,
+          а свободное место распределяется сверху и снизу, а не зияет внизу. */}
+      <div className="flex-1 flex flex-col justify-center min-h-0 px-4">
+        <div className="relative rounded-2xl overflow-hidden border border-border">
           <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} />
 
           {isProcessing && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
-                 style={{ background: 'hsl(28 20% 8% / 0.82)', backdropFilter: 'blur(3px)' }}>
-              <Loader2 size={38} className="animate-spin" style={{ color: 'hsl(14 82% 55%)' }} />
-              <p className="text-white font-semibold"><TT text="Списываем…" /></p>
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/85 backdrop-blur-sm">
+              <Loader2 size={36} className="animate-spin text-primary" />
+              <p className="text-foreground font-semibold"><TT text="Списываем…" /></p>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Подсказка */}
-      <div className="px-6 pt-4 pb-5 safe-area-bottom">
-        <div className="flex items-start gap-2.5 rounded-2xl px-4 py-3" style={{ background: 'hsl(0 0% 100% / 0.07)' }}>
-          <ScanLine size={17} className="shrink-0 mt-0.5" style={{ color: 'hsl(14 82% 58%)' }} />
-          <p className="text-white/70 leading-snug" style={{ fontSize: 'clamp(12px,3.4vw,14px)' }}>
+        {/* Подсказка — сразу под кадром, а не прижата к нижнему краю экрана */}
+        <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-secondary/60 px-4 py-3">
+          <ScanLine size={17} className="shrink-0 mt-0.5 text-accent" />
+          <p className="text-muted-foreground leading-snug" style={{ fontSize: 'clamp(12px,3.4vw,14px)' }}>
             <TT text="Наведите камеру на QR-код, который стоит на стойке кофейни. Списание пройдёт автоматически." />
           </p>
         </div>
       </div>
+
+      <div className="safe-area-bottom" />
     </div>
   );
 }
