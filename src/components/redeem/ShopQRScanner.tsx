@@ -103,7 +103,7 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
           а свободное место распределяется сверху и снизу, а не зияет внизу. */}
       <div className="flex-1 flex flex-col justify-center min-h-0 px-4">
         <div className="relative rounded-2xl overflow-hidden border border-border">
-          <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} />
+          <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} autoStart />
 
           {isProcessing && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/85 backdrop-blur-sm">

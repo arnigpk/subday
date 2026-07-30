@@ -60,9 +60,17 @@ interface QRScannerProps {
   isProcessing: boolean;
   /** USB-сканер нужен только персоналу кофейни; гостю его не показываем */
   allowUsb?: boolean;
+  /**
+   * Запускать камеру сразу при открытии, не дожидаясь ранее выданного
+   * разрешения. Для гостя экран открывается по явному нажатию «Сканировать»,
+   * поэтому системный запрос должен выйти прямо там, а не после ещё одной
+   * кнопки. У бариста сканер живёт постоянно на странице — там прежнее
+   * поведение (стартуем только если разрешение уже давали).
+   */
+  autoStart?: boolean;
 }
 
-export function QRScanner({ onScan, isProcessing, allowUsb = true }: QRScannerProps) {
+export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = false }: QRScannerProps) {
   // Режим помнится между сессиями, но гостю USB недоступен: иначе, если на этом
   // же устройстве бариста когда-то выбрал USB, гость открыл бы чужой экран.
   const savedMode = (localStorage.getItem(SCANNER_MODE_KEY) as 'camera' | 'usb') || 'camera';
@@ -128,7 +136,7 @@ export function QRScanner({ onScan, isProcessing, allowUsb = true }: QRScannerPr
   // ─── Жизненный цикл ──────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    if (mode === 'camera' && localStorage.getItem(CAMERA_GRANTED_KEY)) {
+    if (mode === 'camera' && (autoStart || localStorage.getItem(CAMERA_GRANTED_KEY))) {
       startScanner();
     }
     return () => {
