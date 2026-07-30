@@ -59,7 +59,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Камера используется для сканирования QR-кодов клиентов в кабинете партнёра.</string>
+	<string>Камера нужна, чтобы отсканировать QR-код кофейни при получении напитка, а сотрудникам кофейни — QR-код клиента.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Доступ к фото нужен для загрузки изображений в посты #subFlow и аватар.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
