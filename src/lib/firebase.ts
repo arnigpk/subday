@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, type Messaging } from 'firebase/messaging';
+import { Capacitor } from '@capacitor/core';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDFeeZ8dzLh3P-flvJ1HpWZi5axN5LvNDI",
@@ -15,7 +16,10 @@ export const app = initializeApp(firebaseConfig);
 
 let messaging: Messaging | null = null;
 try {
-  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  // Только веб: на нативе (Capacitor) пуш идёт через @capacitor/push-notifications,
+  // веб-SDK Firebase Messaging там трогать нельзя — на части webview getMessaging
+  // бросает messaging/unsupported-browser (безобидно, но шумит в логах).
+  if (!Capacitor.isNativePlatform() && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     messaging = getMessaging(app);
   }
 } catch (err) {

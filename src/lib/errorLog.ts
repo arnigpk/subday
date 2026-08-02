@@ -11,6 +11,13 @@ const MAX_PER_SESSION = 15;
 let sentCount = 0;
 const seen = new Set<string>();
 
+// Известный безобидный шум — ожидаемые и уже обработанные состояния, которые
+// не являются ошибками и только засоряют лог. Не логируем их вовсе.
+const IGNORED_SUBSTRINGS = [
+  'messaging/unsupported-browser',   // браузер/webview без web-push — ожидаемо, есть фолбэк
+  'ResizeObserver loop',             // безвредное предупреждение браузера
+];
+
 interface ClientErrorReport {
   section?: string;
   message?: string;
@@ -21,6 +28,8 @@ interface ClientErrorReport {
 export function logClientError(report: ClientErrorReport): void {
   try {
     if (sentCount >= MAX_PER_SESSION) return;
+    // Отсекаем известный безобидный шум ещё до дедупа и отправки.
+    if (report.message && IGNORED_SUBSTRINGS.some(s => report.message!.includes(s))) return;
     const dedupKey = `${report.section || ''}|${report.message || ''}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
