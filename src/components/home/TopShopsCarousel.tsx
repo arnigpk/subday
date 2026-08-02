@@ -7,6 +7,7 @@ import { isAnyAddressOpen } from '@/utils/shopHours';
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
+import { getCache, CACHE_KEYS } from '@/utils/offlineCache';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 
@@ -37,11 +38,19 @@ export function TopShopsCarousel() {
   const userCountry = profile?.country || 'KZ';
   const userCity = profile?.city || null;
 
+  // Мгновенный показ «Кофейни рядом» из оффлайн-кеша: seed'им useQuery уже
+  // сохранёнными кофейнями, чтобы при переоткрытии не мелькал скелетон.
+  // initialDataUpdatedAt = время кеша → React Query видит, что данные устарели,
+  // и тихо обновляет их в фоне (stale-while-revalidate). Список кофеен не
+  // чувствителен, короткая устарелость безопасна.
+  const cachedShops = useMemo(() => getCache<Shop[]>(CACHE_KEYS.shops), []);
   const { data: shops = [], isLoading } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    initialData: cachedShops?.data,
+    initialDataUpdatedAt: cachedShops?.cachedAt,
   });
 
   useEffect(() => {

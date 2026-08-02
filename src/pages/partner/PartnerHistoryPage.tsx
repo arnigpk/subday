@@ -25,6 +25,8 @@ interface HistoryItem {
   subscriptionPrice: number;
   subscriptionCups: number;
   maxVolume: string | null;
+  // Статус заказа в кассе (POS). undefined — интеграции нет / заказ не создавался.
+  posStatus?: 'landed' | 'failed' | 'cancelled';
 }
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -86,12 +88,41 @@ export default function PartnerHistoryPage() {
       if (range.from) pQuery = pQuery.gte('created_at', range.from);
       if (range.to) pQuery = pQuery.lt('created_at', range.to);
 
+      // Статус POS-заказов кофейни (в кассе / ошибка / отменён) — единый лог
+      // iiko_order_log с provider. Партнёру виден по RLS (is_shop_partner).
+      let posQuery = supabase
+        .from('iiko_order_log')
+        .select('redemption_id, status')
+        .eq('shop_id', shopId)
+        .not('redemption_id', 'is', null)
+        .limit(1000);
+      if (range.from) posQuery = posQuery.gte('created_at', range.from);
+      if (range.to) posQuery = posQuery.lt('created_at', range.to);
+
       // Fetch all subscription types upfront - single reliable source
-      const [{ data: rData }, { data: pData }, { data: allSubTypes }] = await Promise.all([
+      const [{ data: rData }, { data: pData }, { data: allSubTypes }, { data: posData }] = await Promise.all([
         rQuery,
         pQuery,
         supabase.from('subscription_types').select('id, name, price, cups_count, max_volume, revenue_share_percent'),
+        posQuery,
       ]);
+
+      // redemption_id → статус в кассе. Приоритет: успешно попал (created/closed)
+      // важнее ошибки, ошибка важнее отмены — так партнёр видит финальный исход.
+      const rank = (s: string) => (s === 'created' || s === 'closed' ? 3 : s === 'failed' ? 2 : s === 'cancelled' ? 1 : 0);
+      const posByRedemption = new Map<string, 'landed' | 'failed' | 'cancelled'>();
+      const posRawRank = new Map<string, number>();
+      (posData as { redemption_id: string | null; status: string | null }[] | null)?.forEach(row => {
+        if (!row.redemption_id || !row.status) return;
+        const r = rank(row.status);
+        if (r > (posRawRank.get(row.redemption_id) ?? 0)) {
+          posRawRank.set(row.redemption_id, r);
+          posByRedemption.set(
+            row.redemption_id,
+            r === 3 ? 'landed' : r === 2 ? 'failed' : 'cancelled',
+          );
+        }
+      });
 
       const subTypeById = new Map<string, { name: string; price: number; cups: number; maxVolume: string | null }>();
       const subTypeByName = new Map<string, { price: number; cups: number; maxVolume: string | null }>();
@@ -154,6 +185,7 @@ export default function PartnerHistoryPage() {
           subscriptionPrice: typeByName?.price ?? userType?.price ?? 0,
           subscriptionCups: typeByName?.cups ?? userType?.cups ?? 0,
           maxVolume: typeByName?.maxVolume ?? userType?.maxVolume ?? null,
+          posStatus: posByRedemption.get(r.id),
         });
       });
 
@@ -256,6 +288,14 @@ export default function PartnerHistoryPage() {
       return { text: 'Предзаказ', className: 'bg-amber-500/10 text-amber-600' };
     }
     return null;
+  };
+
+  // Метка статуса в кассе (POS) — только для списаний, у которых был заказ.
+  const getPosBadge = (item: HistoryItem) => {
+    if (item.type !== 'redemption' || !item.posStatus) return null;
+    if (item.posStatus === 'landed') return { text: 'В кассе', className: 'bg-emerald-500/10 text-emerald-600' };
+    if (item.posStatus === 'failed') return { text: 'Ошибка кассы', className: 'bg-destructive/10 text-destructive' };
+    return { text: 'Отменён в кассе', className: 'bg-muted text-muted-foreground' };
   };
 
   const getItemIcon = (item: HistoryItem) => {
@@ -399,6 +439,14 @@ export default function PartnerHistoryPage() {
                         <p className="text-xs text-muted-foreground font-mono">ID: {item.customerPublicId}</p>
                       )}
                       <p className="text-sm text-muted-foreground">{item.drinkName}</p>
+                      {(() => {
+                        const pos = getPosBadge(item);
+                        return pos ? (
+                          <span className={`inline-block text-[11px] font-medium px-1.5 py-0.5 rounded mt-0.5 ${pos.className}`}>
+                            {pos.text}
+                          </span>
+                        ) : null;
+                      })()}
                       {item.shopAddress && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <MapPin size={10} />{item.shopAddress}

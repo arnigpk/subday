@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, UserPlus, RefreshCw, Banknote, CreditCard, CalendarDays, Info, Gift, TrendingUp } from 'lucide-react';
+import { Users, UserPlus, RefreshCw, Banknote, CreditCard, CalendarDays, Info, Gift, TrendingUp, Download } from 'lucide-react';
+import { downloadCSV } from '@/utils/exportCSV';
 
 interface Finance {
   active_now: number;
@@ -116,6 +117,38 @@ export default function AdminFinancePage() {
   const toggleSource = (s: string) =>
     setSources(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
+  // Выгрузка финансовой сводки за выбранный период в CSV (для бухгалтерии).
+  // Экспортируем именно то, что видно на экране: ключевые показатели, выручку
+  // по месяцам и по способам оплаты, активации по тарифам и источникам.
+  const exportFinanceCSV = () => {
+    if (!data) return;
+    const periodStr = `${dayLabel(range.from)} — ${dayLabel(range.to)}`;
+    const rows: (string | number)[][] = [];
+    rows.push(['Раздел', 'Показатель', 'Значение']);
+    rows.push(['Период', 'Диапазон', periodStr]);
+    rows.push(['Итоги', 'Выручка, ₸', data.revenue.total]);
+    rows.push(['Итоги', 'Платежей', data.revenue.count]);
+    rows.push(['Итоги', 'Активных подписок сейчас', data.active_now]);
+    rows.push(['Итоги', 'Всего активаций', data.activations_total]);
+    rows.push(['Итоги', 'Уникальных покупателей', data.unique_buyers]);
+    rows.push(['Итоги', 'Новых пользователей', data.new_users]);
+    rows.push(['Продления', 'Истекло', data.renewal.expired]);
+    rows.push(['Продления', 'Продлили', data.renewal.renewed]);
+    rows.push(['Продления', 'Доля продлений, %', data.renewal.rate_pct ?? '']);
+    rows.push(['Спецоффер', 'Сумма, ₸', data.revenue.special_offer.sum]);
+    rows.push(['Спецоффер', 'Количество', data.revenue.special_offer.n]);
+    (data.revenue.monthly || []).forEach(m => rows.push(['Выручка по месяцам', monthLabel(m.m), `${m.sum} ₸ (${m.n})`]));
+    (data.revenue.by_method || []).forEach(m => rows.push(['Выручка по способу оплаты', m.method, `${m.sum} ₸ (${m.n})`]));
+    (data.by_tier || []).forEach(t => rows.push(['Активации по тарифу', t.name, t.c]));
+    (data.by_source || []).forEach(s => rows.push(['Активации по источнику', SOURCE_LABELS[s.source] || s.source, s.c]));
+
+    downloadCSV(
+      `финансы_${range.from.slice(0, 10)}_${range.to.slice(0, 10)}.csv`,
+      rows[0] as string[],
+      rows.slice(1),
+    );
+  };
+
   const accountingSince = data?.revenue?.accounting_since
     ? new Date(data.revenue.accounting_since).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
@@ -150,6 +183,9 @@ export default function AdminFinancePage() {
                 </div>
               )}
               <span className="text-xs text-muted-foreground ml-auto tabular-nums">{dayLabel(range.from)} — {dayLabel(range.to)}</span>
+              <Button size="sm" variant="outline" onClick={exportFinanceCSV} disabled={!data} title="Выгрузить сводку в CSV">
+                <Download className="w-4 h-4 mr-1.5" />CSV
+              </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Источник:</span>
