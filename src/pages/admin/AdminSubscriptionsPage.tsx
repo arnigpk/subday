@@ -718,15 +718,19 @@ export default function AdminSubscriptionsPage() {
               </div>
             )}
 
+            {/* Функциональный апдейтер обязателен: при drag/add редактор «что входит»
+                зовёт onChange И onHintsChange в одном обработчике. С object-spread
+                (`{...formData}`) оба брали устаревший снимок, и второй вызов затирал
+                первый — из-за этого перетаскивание и «Добавить» не сохранялись. */}
             <SortableFeaturesEditor
               features={formData.features}
-              onChange={(features) => setFormData({ ...formData, features })}
+              onChange={(features) => setFormData(prev => ({ ...prev, features }))}
               hints={formData.featureHints}
-              onHintsChange={(featureHints) => setFormData({ ...formData, featureHints })}
+              onHintsChange={(featureHints) => setFormData(prev => ({ ...prev, featureHints }))}
             />
             <SortableFeaturesEditor
               features={formData.exclusions}
-              onChange={(exclusions) => setFormData({ ...formData, exclusions })}
+              onChange={(exclusions) => setFormData(prev => ({ ...prev, exclusions }))}
               label="Что не входит"
               placeholder="Исключение"
               variant="exclusion"
