@@ -11,6 +11,35 @@ interface Props {
   onClose?: () => void;
 }
 
+// Перенос текста по ширине для canvas: разбивает на строки, не длиннее maxWidth,
+// максимум maxLines; если не влезает — последнюю строку укорачивает с «…».
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && cur) {
+      lines.push(cur);
+      cur = w;
+      if (lines.length === maxLines) break;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  // Если весь текст не поместился — добавляем многоточие к последней строке.
+  if (lines.length === maxLines) {
+    let last = lines[maxLines - 1];
+    const joined = lines.join(' ');
+    if (joined.replace(/\s+/g, '') !== text.replace(/\s+/g, '')) {
+      while (last && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+      lines[maxLines - 1] = last + '…';
+    }
+  }
+  return lines;
+}
+
 /**
  * QR кофейни для второго способа забора: гость сканирует его сам, и списание
  * проходит без участия кассира. В коде — только секретный токен точки, поэтому
@@ -21,7 +50,8 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
   const [shopName, setShopName] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  // Отдельный ref именно на QR (в карточке теперь есть и иконки-SVG адреса).
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,21 +84,73 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
     } finally { setBusy(false); }
   };
 
-  // Скачиваем как PNG в высоком разрешении — чтобы код читался и в печати.
+  // Скачиваем как PNG в высоком разрешении: QR + под ним название и адрес
+  // кофейни — готовая наклейка на стойку, читается и в печати.
   const download = () => {
-    const svg = wrapRef.current?.querySelector('svg');
+    const svg = qrRef.current?.querySelector('svg');
     if (!svg) return;
-    const size = 1024, pad = 72;
+    const size = 1024, padX = 88, padTop = 88, padBottom = 76;
     const xml = new XMLSerializer().serializeToString(svg);
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = size + pad * 2; canvas.height = size + pad * 2;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      const width = size + padX * 2;
+      const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+      const nameFont = `bold 54px ${FONT}`;
+      const addrFont = `36px ${FONT}`;
+      const nameLineH = 66, addrLineH = 48;
+      const gapQrToDivider = 56, dividerToText = 46, nameToAddr = 14;
+
+      // Ширину задаём заранее — чтобы измерить перенос адреса по ширине QR.
+      canvas.width = width;
+      ctx.font = addrFont;
+      const addrLines = address ? wrapText(ctx, address, size, 2) : [];
+      const hasName = !!shopName;
+
+      // Считаем высоту текстового блока и итоговую высоту холста.
+      let textH = 0;
+      if (hasName || addrLines.length) {
+        textH = gapQrToDivider + 2 /* разделитель */ + dividerToText;
+        if (hasName) textH += nameLineH;
+        if (addrLines.length) textH += (hasName ? nameToAddr : 0) + addrLines.length * addrLineH;
+      }
+      canvas.height = padTop + size + textH + padBottom;
+
+      // Рисуем (смена размеров сбросила состояние контекста).
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, pad, pad, size, size);
+      ctx.drawImage(img, padX, padTop, size, size);
+
+      if (hasName || addrLines.length) {
+        const cx = canvas.width / 2;
+        let y = padTop + size + gapQrToDivider;
+        // Тонкий разделитель по центру.
+        ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padX + size * 0.16, y);
+        ctx.lineTo(padX + size * 0.84, y);
+        ctx.stroke();
+        y += dividerToText;
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        if (hasName) {
+          ctx.font = nameFont;
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillText(shopName, cx, y + 44);
+          y += nameLineH + (addrLines.length ? nameToAddr : 0);
+        }
+        if (addrLines.length) {
+          ctx.font = addrFont;
+          ctx.fillStyle = '#726a63';
+          addrLines.forEach((line, i) => ctx.fillText(line, cx, y + 34 + i * addrLineH));
+        }
+      }
+
       canvas.toBlob((blob) => {
         if (!blob) return;
         const a = document.createElement('a');
@@ -110,14 +192,36 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
 
       {/* Сам код */}
       <div className="p-5 space-y-4">
-        <div ref={wrapRef} className="flex justify-center">
+        <div className="flex justify-center">
           {loading ? (
             <div className="w-64 h-64 rounded-2xl flex items-center justify-center bg-secondary/40">
               <Loader2 className="animate-spin text-muted-foreground" />
             </div>
           ) : payload ? (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-primary/25">
-              <QRCodeSVG value={payload} size={232} level="M" includeMargin={false} bgColor="#FFFFFF" fgColor="#1a1a1a" />
+            // Белая карточка = готовая печатная наклейка: QR, тонкий разделитель,
+            // название кофейни и адрес. Цвета жёстко тёмные (не тема) — фон всегда
+            // белый и в приложении, и на печати.
+            <div className="bg-white rounded-2xl p-5 shadow-sm border-2 border-primary/25 flex flex-col items-center"
+                 style={{ maxWidth: 288 }}>
+              <div ref={qrRef}>
+                <QRCodeSVG value={payload} size={232} level="M" includeMargin={false} bgColor="#FFFFFF" fgColor="#1a1a1a" />
+              </div>
+              {(shopName || address) && (
+                <div className="w-full mt-3 pt-3 border-t border-black/10 text-center">
+                  {shopName && (
+                    <p className="font-bold leading-tight break-words" style={{ color: '#1a1a1a', fontSize: 15 }}>
+                      {shopName}
+                    </p>
+                  )}
+                  {address && (
+                    <p className="mt-1 leading-snug inline-flex items-start justify-center gap-1 break-words"
+                       style={{ color: '#726a63', fontSize: 12 }}>
+                      <MapPin size={11} className="shrink-0 mt-[2px]" />
+                      <span>{address}</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-16">QR недоступен</p>
