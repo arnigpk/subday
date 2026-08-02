@@ -2,8 +2,12 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { perfMark } from "@/lib/perf";
+import { installGlobalErrorLogging } from "@/lib/errorLog";
 
 perfMark('main'); // бандл скачан (локально) и распарсен → это чистое время парса JS
+
+// Глобальные ловушки ошибок (async/промисы) — вне React-дерева.
+installGlobalErrorLogging();
 
 // Detect Telegram MiniApp and mark document for CSS adjustments.
 // Единый верхний отступ 40px для TMA на всех экранах (главная, админка,

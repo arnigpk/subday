@@ -2,9 +2,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import { readFileSync } from "fs";
+
+// Версия из package.json — прокидываем в бандл, чтобы клиент мог сообщать её
+// в логах ошибок (какая сборка упала).
+const pkgVersion = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf-8")).version;
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkgVersion),
+  },
   server: {
     host: "::",
     port: 8080,

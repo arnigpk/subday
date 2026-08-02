@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { logClientError } from '@/lib/errorLog';
 
 interface Props {
   children: ReactNode;
@@ -40,11 +41,17 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Единая точка логирования — сюда позже можно подключить Sentry.
     console.error(
       `[ErrorBoundary${this.props.section ? ':' + this.props.section : ''}]`,
       error, info.componentStack,
     );
+    // Своё логирование в БД (fire-and-forget, не бросает).
+    logClientError({
+      section: this.props.section || 'app',
+      message: error?.message || String(error),
+      stack: error?.stack,
+      componentStack: info.componentStack || undefined,
+    });
   }
 
   private handleReload = () => {
