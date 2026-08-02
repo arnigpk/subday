@@ -242,17 +242,23 @@ export default function AdminShopsPage() {
       setShops(newOrder);
 
       try {
-        const updates = newOrder.map((shop, index) => ({
-          id: shop.id,
-          sort_order: index + 1,
-        }));
+        // Обновляем только те кофейни, у которых порядок реально изменился
+        // (между старой и новой позицией), и делаем это параллельно — вместо
+        // N последовательных round-trip'ов. Точечный UPDATE по id, только
+        // sort_order — остальные поля не трогаем, так безопаснее upsert'а.
+        const lo = Math.min(oldIndex, newIndex);
+        const hi = Math.max(oldIndex, newIndex);
+        const changed = newOrder
+          .map((shop, index) => ({ id: shop.id, sort_order: index + 1 }))
+          .filter((_, index) => index >= lo && index <= hi);
 
-        for (const update of updates) {
-          await supabase
-            .from('shops')
-            .update({ sort_order: update.sort_order })
-            .eq('id', update.id);
-        }
+        const results = await Promise.all(
+          changed.map((u) =>
+            supabase.from('shops').update({ sort_order: u.sort_order }).eq('id', u.id)
+          )
+        );
+        const failed = results.find((r) => r.error);
+        if (failed?.error) throw failed.error;
 
         toast({ title: 'Порядок сохранён' });
       } catch (error) {

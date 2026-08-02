@@ -30,6 +30,7 @@ import { PermissionsBootstrap } from "@/components/permissions/PermissionsBootst
 import { AppInstallBridge } from "@/components/AppInstallBridge";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Eager: только Главная (стартовый экран) и NotFound (крошечный фолбэк).
 import HomePage from "./pages/HomePage";
@@ -663,14 +664,16 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <LanguageProvider>
-          <AppContent />
-          <PerfOverlay />
-        </LanguageProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary section="app">
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <LanguageProvider>
+            <AppContent />
+            <PerfOverlay />
+          </LanguageProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

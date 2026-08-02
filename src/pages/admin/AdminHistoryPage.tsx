@@ -759,6 +759,8 @@ export default function AdminHistoryPage() {
                           ? `Будут удалены все списания и предзаказы за период: ${formatPeriodLabel()}`
                           : 'Будут удалены ВСЕ списания и предзаказы'
                         }. История очистится у всех пользователей. Это действие нельзя отменить.
+                        {' '}<strong className="text-destructive">Внимание: списания используются в финансовой аналитике —
+                        после удаления выручка за этот период пересчитается и исчезнет из отчётов.</strong>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
