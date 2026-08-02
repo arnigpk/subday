@@ -398,6 +398,17 @@
   animation: bounce-subtle 2.5s ease-in-out infinite;
 }
 
+/* Мягкое покачивание эмодзи в онбординге — CSS вместо framer-motion, чтобы не
+   грузить главный поток на слабых Android WebView (там это вешало экран). */
+@keyframes onboarding-emoji {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.08); }
+}
+.animate-onboarding-emoji {
+  animation: onboarding-emoji 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+
 @keyframes pulse-glow {
   0%, 100% {
     box-shadow: 0 0 20px hsl(82 85% 45% / 0.4);

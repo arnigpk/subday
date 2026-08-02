@@ -22,7 +22,8 @@ import {
   MessageSquareText,
   Building2,
   Banknote,
-  Bug
+  Bug,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const navItems = [
   { icon: Banknote, label: 'Финансы', path: '/admin/finance', roles: ['superadmin', 'admin'] },
   { icon: Zap, label: 'Автоуведомления', path: '/admin/auto-notifications', roles: ['superadmin', 'admin'] },
   { icon: Loader, label: 'Прелоадер', path: '/admin/preloader', roles: ['superadmin', 'admin'] },
+  { icon: Sparkles, label: 'Онбординг', path: '/admin/onboarding', roles: ['superadmin', 'admin'] },
   { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
   { icon: Bug, label: 'Ошибки', path: '/admin/errors', roles: ['superadmin', 'admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['superadmin'] },
