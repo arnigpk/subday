@@ -6,6 +6,7 @@ import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
 import { StoriesBar } from '@/components/stories/StoriesBar';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
 import { SubFlowFollowerCount } from '@/components/subflow/SubFlowFollowerCount';
@@ -200,7 +201,27 @@ export default function SubFlowPage() {
 
           <div className="px-4 pt-2 subflow-feed-safe-bottom">
 
-            <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
+            {/* Лента — пользовательский контент, самое вероятное место краша от
+                битых данных. Секционный ErrorBoundary: сбой ленты не роняет всё
+                приложение, а показывает компактную заглушку с перезагрузкой. */}
+            <ErrorBoundary
+              section="subflow-feed"
+              fallback={
+                <div className="text-center py-12 px-4">
+                  <p className="text-4xl mb-3">😕</p>
+                  <p className="text-foreground font-semibold mb-1">Не удалось показать ленту</p>
+                  <p className="text-sm text-muted-foreground mb-4">Попробуйте обновить страницу</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="btn-primary"
+                  >
+                    Обновить
+                  </button>
+                </div>
+              }
+            >
+              <SubFlowFeed refreshTrigger={refreshTrigger} currentUserId={userId} shopFilter={null} hasActiveSubscription={hasActiveSubscription} highlightPostId={highlightPostId} onHighlightDone={() => setHighlightPostId(null)} />
+            </ErrorBoundary>
           </div>
         </div>
       </PullToRefresh>
