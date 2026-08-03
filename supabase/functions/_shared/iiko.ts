@@ -727,7 +727,8 @@ export async function syncIikoStatuses(supabase: SupabaseClient, shopId: string,
         const st = await getIikoOrderStatus(token, integ.organization_id, r.iiko_order_id as string);
         if (st === 'unknown') continue;
         const patch: Record<string, unknown> = { pos_status: st, updated_at: new Date().toISOString() };
-        if (st === 'cancelled') patch.status = 'cancelled';
+        // Отмену обнаружила сверка с кассой → cancel_origin='pos'.
+        if (st === 'cancelled') { patch.status = 'cancelled'; patch.cancel_origin = 'pos'; }
         await supabase.from('iiko_order_log').update(patch).eq('id', r.id);
       }
     }

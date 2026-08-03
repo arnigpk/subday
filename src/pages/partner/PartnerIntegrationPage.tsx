@@ -20,6 +20,18 @@ interface SubType { id: string; name: string; type: string }
 interface OrderLog {
   id: string; status: string; address: string | null; iiko_product_name: string | null;
   error: string | null; created_at: string; iiko_order_id: string | null; is_test?: boolean; pos_status?: string | null;
+  cancel_origin?: string | null;
+}
+
+// Понятная метка отмены: кто отменил заказ — subday или касса.
+function CancelBadge({ o }: { o: { status: string; pos_status?: string | null; cancel_origin?: string | null } }) {
+  if (o.status !== 'cancelled' && o.pos_status !== 'cancelled') return null;
+  const pos = o.cancel_origin === 'pos' || (o.cancel_origin == null && o.pos_status === 'cancelled');
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ml-1 ${pos ? 'bg-amber-500/15 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+      {pos ? 'Отмена на кассе' : 'Отмена SB'}
+    </span>
+  );
 }
 
 const selectCls = 'w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground';
@@ -75,7 +87,7 @@ export default function PartnerIntegrationPage() {
       supabase.from('iiko_terminals').select('*').eq('shop_id', shopId),
       supabase.from('iiko_menu_map').select('*').eq('shop_id', shopId).eq('address', address),
       supabase.from('shops').select('addresses, address').eq('id', shopId).maybeSingle(),
-      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test, pos_status').eq('shop_id', shopId).eq('provider', 'iiko').order('created_at', { ascending: false }).limit(30),
+      supabase.from('iiko_order_log').select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test, pos_status, cancel_origin').eq('shop_id', shopId).eq('provider', 'iiko').order('created_at', { ascending: false }).limit(30),
       Promise.all([
         supabase.from('iiko_integrations').select('address').eq('shop_id', shopId).neq('address', ''),
         supabase.from('poster_integrations').select('address').eq('shop_id', shopId).neq('address', ''),
@@ -106,7 +118,7 @@ export default function PartnerIntegrationPage() {
       try {
         await supabase.functions.invoke('iiko-connect', { body: { action: 'sync_statuses', shopId, address } });
         const { data } = await supabase.from('iiko_order_log')
-          .select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test, pos_status')
+          .select('id, status, address, iiko_product_name, error, created_at, iiko_order_id, is_test, pos_status, cancel_origin')
           .eq('shop_id', shopId).eq('provider', 'iiko').order('created_at', { ascending: false }).limit(30);
         if (data) setOrderLog(data as OrderLog[]);
       } catch { /* фоновая сверка — не критично */ }
@@ -529,7 +541,7 @@ export default function PartnerIntegrationPage() {
                         {o.is_test && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary mr-1">тест</span>}
                         {o.iiko_product_name || '—'} <span className="text-xs text-muted-foreground">· {o.address || '—'}</span>
                         {o.pos_status === 'closed' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent ml-1">закрыт на кассе</span>}
-                        {o.pos_status === 'cancelled' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground ml-1">отменён на кассе</span>}
+                        <CancelBadge o={o} />
                       </p>
                       <p className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString('ru')}{o.error ? ` · ${o.error}` : ''}</p>
                     </div>

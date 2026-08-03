@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
       if (!reachedPos) {
         const note = 'Снят с отправки: на кассу не отправлялся (пробейте вручную на кассе).';
         await supabase.from('iiko_order_log').update({
-          status: 'cancelled', error: note, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
+          // Отмена инициирована в кабинете subday → cancel_origin='sb'.
+          status: 'cancelled', cancel_origin: 'sb', error: note, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
         }).eq('id', logId);
         return json({ success: true, cancelledInPos: false, note });
       }
@@ -67,7 +68,8 @@ Deno.serve(async (req) => {
       const note = r.ok ? undefined
         : `Отмена не выполнена (${r.error}). Возможно, заказ уже закрыт/фискализирован — отмените вручную в POS.`;
       await supabase.from('iiko_order_log').update({
-        status: 'cancelled', error: note || null, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
+        // Отмена инициирована в кабинете subday (даже если в POS не удалось) → 'sb'.
+        status: 'cancelled', cancel_origin: 'sb', error: note || null, auto_retry: false, next_retry_at: null, updated_at: new Date().toISOString(),
       }).eq('id', logId);
       return json({ success: true, cancelledInPos: r.ok, note });
     }

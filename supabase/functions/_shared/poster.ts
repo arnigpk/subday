@@ -384,7 +384,8 @@ export async function syncPosterStatuses(supabase: SupabaseClient, shopId: strin
       const st = await getPosterOrderStatus(integ.api_token, r.pos_order_id as string);
       if (st === 'unknown') continue;
       const patch: Record<string, unknown> = { pos_status: st, updated_at: new Date().toISOString() };
-      if (st === 'cancelled') patch.status = 'cancelled';
+      // Отмену обнаружила сверка с кассой Poster → cancel_origin='pos'.
+      if (st === 'cancelled') { patch.status = 'cancelled'; patch.cancel_origin = 'pos'; }
       await supabase.from('iiko_order_log').update(patch).eq('id', r.id);
     }
   } catch { /* синхронизация статуса второстепенна — не мешаем кабинету */ }

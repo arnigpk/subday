@@ -328,7 +328,10 @@ export async function syncRostaStatuses(supabase: SupabaseClient, shopId: string
     for (const r of pending) {
       const st = await getRostaOrderStatus(integ.api_key, r.pos_order_id as string);
       if (st === 'unknown') continue;
-      await supabase.from('iiko_order_log').update({ pos_status: st, updated_at: new Date().toISOString() }).eq('id', r.id);
+      const patch: Record<string, unknown> = { pos_status: st, updated_at: new Date().toISOString() };
+      // Отмену обнаружила сверка с кассой Rosta → cancel_origin='pos' (как iiko/Poster).
+      if (st === 'cancelled') { patch.status = 'cancelled'; patch.cancel_origin = 'pos'; }
+      await supabase.from('iiko_order_log').update(patch).eq('id', r.id);
     }
   } catch { /* синхронизация статуса второстепенна */ }
 }
