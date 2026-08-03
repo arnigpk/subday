@@ -335,7 +335,9 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
               <h3 className="font-semibold text-foreground">Заказы Poster</h3>
               {orderLog.map(o => (
                 <div key={o.id} className="flex items-center gap-2 text-sm border-b border-border/50 py-2 last:border-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${o.status === 'created' ? 'bg-accent' : o.status === 'failed' ? 'bg-destructive' : o.status === 'cancelled' ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
+                  {/* Успех (created/closed) — зелёный; failed — красный; cancelled — серый;
+                      всё прочее (pending, в работе) — оранжевый. */}
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${o.status === 'created' || o.status === 'closed' ? 'bg-accent' : o.status === 'failed' ? 'bg-destructive' : o.status === 'cancelled' ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-foreground">
                       {o.is_test && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary mr-1">тест</span>}
