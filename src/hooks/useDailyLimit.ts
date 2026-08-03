@@ -9,14 +9,45 @@ interface DailyLimitStatus {
   isLoading: boolean;
 }
 
+// Персистентный кеш дневного лимита между холодными запусками. КЛЮЧЕВОЕ: помечаем
+// днём — вчерашний лимит НЕ используется сегодня (лимит сбрасывается ежедневно),
+// иначе можно показать «исчерпан» там, где уже сброшено.
+const LS_KEY = 'subday_daily_limit_v1';
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+function readPersisted(type: string): DailyLimitStatus | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw) as Record<string, DailyLimitStatus & { day: string }>;
+    const e = all[type];
+    if (e && e.day === todayStr()) {
+      return { dailyLimit: e.dailyLimit, usedToday: e.usedToday, remainingToday: e.remainingToday, isLimitReached: e.isLimitReached, isLoading: false };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writePersisted(type: string, s: DailyLimitStatus) {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[type] = { ...s, isLoading: false, day: todayStr() };
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+  } catch { /* ignore */ }
+}
+
 export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') {
-  const [status, setStatus] = useState<DailyLimitStatus>({
-    dailyLimit: null,
-    usedToday: 0,
-    remainingToday: null,
-    isLimitReached: false,
-    isLoading: true,
-  });
+  // Кеш-первый: при холодном старте берём значение из localStorage (если оно за
+  // сегодня) — тогда isLoading=false сразу и кнопки не мигают. Иначе — загрузка.
+  const [status, setStatus] = useState<DailyLimitStatus>(() =>
+    readPersisted(subscriptionType) ?? {
+      dailyLimit: null,
+      usedToday: 0,
+      remainingToday: null,
+      isLimitReached: false,
+      isLoading: true,
+    });
   
   // Cache results per type to avoid loading flash on tab switch
   const cacheRef = useRef<Record<string, DailyLimitStatus>>({});
@@ -58,6 +89,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       if (!subscription || !subTypes) {
         const result: DailyLimitStatus = { dailyLimit: null, usedToday: 0, remainingToday: null, isLimitReached: false, isLoading: false };
         cacheRef.current[subscriptionType] = result;
+        writePersisted(subscriptionType, result);
         setStatus(result);
         return;
       }
@@ -67,6 +99,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
       if (dailyLimit === null) {
         const result: DailyLimitStatus = { dailyLimit: null, usedToday: 0, remainingToday: null, isLimitReached: false, isLoading: false };
         cacheRef.current[subscriptionType] = result;
+        writePersisted(subscriptionType, result);
         setStatus(result);
         return;
       }
@@ -96,6 +129,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
 
       const result: DailyLimitStatus = { dailyLimit, usedToday, remainingToday, isLimitReached, isLoading: false };
       cacheRef.current[subscriptionType] = result;
+      writePersisted(subscriptionType, result);
       setStatus(result);
     } catch (error) {
       console.error('Error in useDailyLimit:', error);
@@ -104,8 +138,8 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
   }, [subscriptionType]);
 
   useEffect(() => {
-    // If cached, set immediately without loading
-    const cached = cacheRef.current[subscriptionType];
+    // Мгновенно из памяти или из localStorage (за сегодня) — без мигания загрузки.
+    const cached = cacheRef.current[subscriptionType] || readPersisted(subscriptionType);
     if (cached) {
       setStatus(cached);
     } else {

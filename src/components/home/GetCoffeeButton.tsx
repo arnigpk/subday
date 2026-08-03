@@ -14,7 +14,7 @@ interface GetCoffeeButtonProps {
 export function GetCoffeeButton({ activeTab }: GetCoffeeButtonProps) {
   const navigate = useNavigate();
   const { isLoading, activeSubscriptions } = useSubscriptionStatus();
-  const { isLimitReached, isLoading: isLimitLoading } = useDailyLimit(activeTab);
+  const { isLimitReached } = useDailyLimit(activeTab);
   const { stats } = useUserStatsContext();
   const { t } = useLanguage();
 
@@ -24,9 +24,10 @@ export function GetCoffeeButton({ activeTab }: GetCoffeeButtonProps) {
   // Гостевой кофе применим только на вкладке «Кофе».
   const guestApplies = hasGuestCoffee && activeTab === 'coffee';
   const noSubForType = !hasActiveSubForType && !guestApplies;
-  // Настоящий disabled — только загрузка или исчерпанный дневной лимит.
-  // Без подписки кнопки лишь ВЫГЛЯДЯТ неактивными: клик ведёт на страницу подписок.
-  const isDisabled = isLoading || isLimitLoading || (hasActiveSubForType && isLimitReached && !hasGuestCoffee);
+  // Кнопки активны СРАЗУ после открытия: не ждём загрузку дневного лимита
+  // (статус подписки — кеш-первый). Блокируем только когда лимит ТОЧНО исчерпан;
+  // на скан сервер всё равно перепроверит, так что риска «пропустить лимит» нет.
+  const isDisabled = isLoading || (hasActiveSubForType && isLimitReached && !hasGuestCoffee);
   const looksInactive = isDisabled || noSubForType;
 
   // Оба способа ведут на один экран — отличается только то, что там открывается:

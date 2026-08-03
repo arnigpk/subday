@@ -5,6 +5,7 @@ import Autoplay from 'embla-carousel-autoplay';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCache, setCache } from '@/utils/offlineCache';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
@@ -72,8 +73,17 @@ function BannerSlide({ banner, image, caption, variant, hasLink, onVisible, onCl
   );
 }
 
+// Превью последнего показанного баннера — картинка + подпись. Показываем её
+// мгновенно вместо серого скелетона при холодном старте, пока настоящий пайплайн
+// (гео/срок/аудитория/капы) считается в фоне. ВАЖНО: превью — статичная картинка
+// без трекинга показа, поэтому частотные капы и биллинг рекламодателей не задеты.
+interface BannerPreview { image: string; caption: string | null }
+const PREVIEW_TTL = 24 * 60 * 60 * 1000;
+
 export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) {
   const navigate = useNavigate();
+  const previewKey = `ad_banner_preview_${location}`;
+  const cachedPreview = useMemo(() => getCache<BannerPreview>(previewKey)?.data ?? null, [previewKey]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const viewedBanners = useRef<Set<string>>(new Set());
@@ -166,6 +176,15 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
     }
   }, [banners, creativeOf]);
 
+  // Как только реальный баннер готов — сохраняем его как превью для следующего
+  // холодного старта (мгновенный показ вместо скелетона).
+  useEffect(() => {
+    if (banners.length > 0 && imagesLoaded) {
+      const c = creativeOf(banners[0]);
+      setCache(previewKey, { image: c.image, caption: c.caption } as BannerPreview, PREVIEW_TTL);
+    }
+  }, [banners, imagesLoaded, creativeOf, previewKey]);
+
   // Задержка прокрутки — ИНДИВИДУАЛЬНАЯ для каждого слайда (раньше бралась только у первого).
   const delaysRef = useRef<number[]>([]);
   useEffect(() => { delaysRef.current = banners.map(b => (b.autoplay_delay || 4) * 1000); }, [banners]);
@@ -217,6 +236,16 @@ export function AdBannerCarousel({ location = 'shops' }: AdBannerCarouselProps) 
   const hasLink = (banner: AdBanner) => !!(banner.shop_id || banner.external_url);
 
   if (isLoading || isAudienceLoading || isEligLoading || perUser === null || (banners.length > 0 && !imagesLoaded)) {
+    // Пока считаем реальный баннер — вместо серого скелетона показываем последнее
+    // превью из кеша (статичная картинка, БЕЗ засчёта показа). Реальный пайплайн
+    // добежит и заменит её (или скроет, если баннеров сейчас нет).
+    if (cachedPreview) {
+      return (
+        <div className="w-full mb-4">
+          <img src={cachedPreview.image} alt={cachedPreview.caption || ''} className="w-full h-32 object-cover rounded-2xl" />
+        </div>
+      );
+    }
     return <div className="w-full mb-4"><Skeleton className="w-full h-32 rounded-2xl" /></div>;
   }
   if (banners.length === 0) return null;
