@@ -90,6 +90,26 @@ function resolvePayoutPercent(
 
 type PeriodType = 'last_month' | 'custom' | 'all';
 
+// Агрегат по половине месяца (h1 = 1–15, h2 = 16–конец).
+interface PayoutHalf { cups: number; total: number; payout: number; ours: number }
+const emptyHalf = (): PayoutHalf => ({ cups: 0, total: 0, payout: 0, ours: 0 });
+
+// Ячейка «число за месяц + разбивка по половинам»: сверху итог месяца, снизу
+// мелко «1–15 / 16–конец». Так видно и общий месяц, и обе половины.
+function SplitCell({ total, h1, h2, suffix = '', bold = true, className = '' }: {
+  total: number; h1: number; h2: number; suffix?: string; bold?: boolean; className?: string;
+}) {
+  const f = (n: number) => n.toLocaleString('ru-RU');
+  return (
+    <div className="text-right">
+      <div className={`${bold ? 'font-bold' : 'text-sm'} ${className}`}>{f(total)}{suffix}</div>
+      <div className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+        <span title="1–15">{f(h1)}</span> / <span title="16–конец">{f(h2)}</span>
+      </div>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 20;
 
 export default function AdminHistoryPage() {
@@ -113,9 +133,11 @@ export default function AdminHistoryPage() {
 
   // --- Вкладка «Расчёты / выплаты» ---
   const [activeTab, setActiveTab] = useState<'history' | 'payouts'>('history');
+  // Половина месяца: h1 = 1–15, h2 = 16–конец. Считаем цифры отдельно по половинам.
   const [payoutStats, setPayoutStats] = useState<Array<{
     shop: string; cups: number; total: number; payout: number; ours: number;
-    tariffs: Array<{ name: string; percent: number; cups: number; total: number; payout: number; ours: number }>;
+    h1: PayoutHalf; h2: PayoutHalf;
+    tariffs: Array<{ name: string; percent: number; cups: number; total: number; payout: number; ours: number; h1: PayoutHalf; h2: PayoutHalf }>;
   }>>([]);
   const [isLoadingPayouts, setIsLoadingPayouts] = useState(false);
   // Раскрытые кофейни во вкладке расчётов (по умолчанию все свёрнуты)
@@ -489,18 +511,21 @@ export default function AdminHistoryPage() {
   const fetchPayouts = async () => {
     setIsLoadingPayouts(true);
     try {
-      const dateFilters = getDateFilters();
+      // Диапазон дат для выплат — ВЫБРАННЫЙ месяц (payoutPeriod), а не фильтр
+      // «Истории». Так цифры всегда соответствуют месяцу над таблицей.
+      const monthFrom = new Date(payoutPeriod.year, payoutPeriod.month - 1, 1, 0, 0, 0, 0);
+      const monthTo = new Date(payoutPeriod.year, payoutPeriod.month, 0, 23, 59, 59, 999); // последний день месяца
       const skipR = typeFilter === 'preorder';
       const skipP = typeFilter === 'coffee' || typeFilter === 'drinks';
 
       let rQ = supabase.from('redemptions').select('*');
       if (shopFilter !== 'all') rQ = rQ.eq('shop_name', shopFilter);
       if (typeFilter !== 'all' && !skipR) rQ = rQ.eq('drink_type', typeFilter);
-      if (dateFilters) rQ = rQ.gte('redeemed_at', dateFilters.from.toISOString()).lte('redeemed_at', dateFilters.to.toISOString());
+      rQ = rQ.gte('redeemed_at', monthFrom.toISOString()).lte('redeemed_at', monthTo.toISOString());
 
       let pQ = supabase.from('preorders').select('*');
       if (shopFilter !== 'all') pQ = pQ.eq('shop_name', shopFilter);
-      if (dateFilters) pQ = pQ.gte('created_at', dateFilters.from.toISOString()).lte('created_at', dateFilters.to.toISOString());
+      pQ = pQ.gte('created_at', monthFrom.toISOString()).lte('created_at', monthTo.toISOString());
 
       const [{ data: rData = [] }, { data: pData = [] }, { data: pSubTypes }] = await Promise.all([
         skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
@@ -581,7 +606,7 @@ export default function AdminHistoryPage() {
       // Агрегация: кофейня → тарифы внутри неё. У каждого тарифа свой точный
       // процент (70 или 80) — никаких «смешанных» процентов. Строка кофейни —
       // сумма её тарифов.
-      type TariffAgg = { name: string; percent: number; cups: number; total: number; payout: number; ours: number };
+      type TariffAgg = { name: string; percent: number; cups: number; total: number; payout: number; ours: number; h1: PayoutHalf; h2: PayoutHalf };
       const byShop = new Map<string, Map<string, TariffAgg>>();
       for (const row of combined) {
         const payout = calcPayout(row, shopPercentMap, pSubTypePercentMap);
@@ -590,16 +615,28 @@ export default function AdminHistoryPage() {
         const fullCup = Math.round((row.subscription_price as number) / (row.subscription_cups as number));
         const tariffName = row.subscription_name || 'Без тарифа';
         const tariffKey = `${tariffName}|${percent}`;
+        // Половина месяца по дню списания: 1–15 → h1, 16–конец → h2.
+        const day = new Date(row.redeemed_at as string).getDate();
+        const halfKey: 'h1' | 'h2' = day <= 15 ? 'h1' : 'h2';
 
         if (!byShop.has(row.shop_name)) byShop.set(row.shop_name, new Map());
         const tariffs = byShop.get(row.shop_name)!;
-        const agg = tariffs.get(tariffKey) || { name: tariffName, percent, cups: 0, total: 0, payout: 0, ours: 0 };
+        const agg = tariffs.get(tariffKey) || { name: tariffName, percent, cups: 0, total: 0, payout: 0, ours: 0, h1: emptyHalf(), h2: emptyHalf() };
         agg.cups += 1;
         agg.total += fullCup;
         agg.payout += payout;
         agg.ours += fullCup - payout;
+        const h = agg[halfKey];
+        h.cups += 1; h.total += fullCup; h.payout += payout; h.ours += fullCup - payout;
         tariffs.set(tariffKey, agg);
       }
+
+      const sumHalf = (tariffs: TariffAgg[], k: 'h1' | 'h2'): PayoutHalf => ({
+        cups: tariffs.reduce((a, t) => a + t[k].cups, 0),
+        total: tariffs.reduce((a, t) => a + t[k].total, 0),
+        payout: tariffs.reduce((a, t) => a + t[k].payout, 0),
+        ours: tariffs.reduce((a, t) => a + t[k].ours, 0),
+      });
 
       const statsArr = [...byShop.entries()]
         .map(([shop, tariffMap]) => {
@@ -610,6 +647,8 @@ export default function AdminHistoryPage() {
             total: tariffs.reduce((a, t) => a + t.total, 0),
             payout: tariffs.reduce((a, t) => a + t.payout, 0),
             ours: tariffs.reduce((a, t) => a + t.ours, 0),
+            h1: sumHalf(tariffs, 'h1'),
+            h2: sumHalf(tariffs, 'h2'),
             tariffs,
           };
         })
@@ -626,7 +665,7 @@ export default function AdminHistoryPage() {
   useEffect(() => {
     if (activeTab === 'payouts') fetchPayouts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, shopFilter, typeFilter, countryFilter, cityFilter, periodType, dateRange, shopPercentMap]);
+  }, [activeTab, shopFilter, typeFilter, countryFilter, cityFilter, payoutPeriod.year, payoutPeriod.month, shopPercentMap]);
 
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
@@ -882,18 +921,28 @@ export default function AdminHistoryPage() {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => {
-                    const totalCups = payoutStats.reduce((a, s) => a + s.cups, 0);
-                    const totalSum = payoutStats.reduce((a, s) => a + s.total, 0);
-                    const totalPay = payoutStats.reduce((a, s) => a + s.payout, 0);
-                    const totalOurs = payoutStats.reduce((a, s) => a + s.ours, 0);
-                    downloadCSV(`расчеты_выплаты_${new Date().toISOString().slice(0, 10)}.csv`,
-                      ['Кофейня', 'Тариф', 'Процент выплаты', 'Чашек', 'Общая сумма (₸)', 'Выплата партнёру (₸)', 'Наш процент (₸)'],
+                    const sum = (f: (s: typeof payoutStats[number]) => number) => payoutStats.reduce((a, s) => a + f(s), 0);
+                    const monthLabel = format(new Date(payoutPeriod.year, payoutPeriod.month - 1, 1), 'yyyy-MM');
+                    downloadCSV(`расчеты_выплаты_${monthLabel}.csv`,
+                      ['Кофейня', 'Тариф', 'Процент выплаты', 'Чашек',
+                       'Общая сумма (₸)', 'Общая 1–15', 'Общая 16–конец',
+                       'Выплата партнёру (₸)', 'Выплата 1–15', 'Выплата 16–конец',
+                       'Наш процент (₸)', 'Наш 1–15', 'Наш 16–конец'],
                       [
                         ...payoutStats.flatMap(s => [
-                          [s.shop, 'ИТОГО ПО КОФЕЙНЕ', '', s.cups, s.total, s.payout, s.ours],
-                          ...s.tariffs.map(t => [s.shop, t.name, `${t.percent}%`, t.cups, t.total, t.payout, t.ours]),
+                          [s.shop, 'ИТОГО ПО КОФЕЙНЕ', '', s.cups,
+                           s.total, s.h1.total, s.h2.total,
+                           s.payout, s.h1.payout, s.h2.payout,
+                           s.ours, s.h1.ours, s.h2.ours],
+                          ...s.tariffs.map(t => [s.shop, t.name, `${t.percent}%`, t.cups,
+                           t.total, t.h1.total, t.h2.total,
+                           t.payout, t.h1.payout, t.h2.payout,
+                           t.ours, t.h1.ours, t.h2.ours]),
                         ]),
-                        ['ИТОГО', '', '', totalCups, totalSum, totalPay, totalOurs],
+                        ['ИТОГО', '', '', sum(s => s.cups),
+                         sum(s => s.total), sum(s => s.h1.total), sum(s => s.h2.total),
+                         sum(s => s.payout), sum(s => s.h1.payout), sum(s => s.h2.payout),
+                         sum(s => s.ours), sum(s => s.h1.ours), sum(s => s.h2.ours)],
                       ]
                     );
                   }}>
@@ -905,10 +954,10 @@ export default function AdminHistoryPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Кофейня / тариф</TableHead>
-                      <TableHead className="text-right">Чашек</TableHead>
-                      <TableHead className="text-right">Общая сумма</TableHead>
-                      <TableHead className="text-right">Выплата партнёру</TableHead>
-                      <TableHead className="text-right">Наш процент</TableHead>
+                      <TableHead className="text-right">Чашек<span className="block text-[10px] font-normal text-muted-foreground normal-case">1–15 / 16–конец</span></TableHead>
+                      <TableHead className="text-right">Общая сумма<span className="block text-[10px] font-normal text-muted-foreground normal-case">1–15 / 16–конец</span></TableHead>
+                      <TableHead className="text-right">Выплата партнёру<span className="block text-[10px] font-normal text-muted-foreground normal-case">1–15 / 16–конец</span></TableHead>
+                      <TableHead className="text-right">Наш процент<span className="block text-[10px] font-normal text-muted-foreground normal-case">1–15 / 16–конец</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -946,10 +995,10 @@ export default function AdminHistoryPage() {
                               );
                             })()}
                           </TableCell>
-                          <TableCell className="text-right font-bold">{s.cups.toLocaleString('ru-RU')}</TableCell>
-                          <TableCell className="text-right font-bold">{s.total.toLocaleString('ru-RU')} ₸</TableCell>
-                          <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">{s.payout.toLocaleString('ru-RU')} ₸</TableCell>
-                          <TableCell className="text-right font-bold text-primary">{s.ours.toLocaleString('ru-RU')} ₸</TableCell>
+                          <TableCell className="text-right"><SplitCell total={s.cups} h1={s.h1.cups} h2={s.h2.cups} /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={s.total} h1={s.h1.total} h2={s.h2.total} suffix=" ₸" /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={s.payout} h1={s.h1.payout} h2={s.h2.payout} suffix=" ₸" className="text-emerald-600 dark:text-emerald-400" /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={s.ours} h1={s.h1.ours} h2={s.h2.ours} suffix=" ₸" className="text-primary" /></TableCell>
                         </TableRow>
                         {/* Тарифы внутри кофейни — видны только когда кофейня раскрыта */}
                         {expandedShops.has(s.shop) && s.tariffs.map((t) => (
@@ -960,36 +1009,33 @@ export default function AdminHistoryPage() {
                                 t.percent === 80 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' : 'bg-muted text-muted-foreground'
                               }`}>{t.percent}%</span>
                             </TableCell>
-                            <TableCell className="text-right text-sm">{t.cups.toLocaleString('ru-RU')}</TableCell>
-                            <TableCell className="text-right text-sm">{t.total.toLocaleString('ru-RU')} ₸</TableCell>
-                            <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">
-                              {t.payout.toLocaleString('ru-RU')} ₸
-                              <span className="ml-1 text-xs text-muted-foreground">({t.percent}%)</span>
+                            <TableCell className="text-right"><SplitCell total={t.cups} h1={t.h1.cups} h2={t.h2.cups} bold={false} /></TableCell>
+                            <TableCell className="text-right"><SplitCell total={t.total} h1={t.h1.total} h2={t.h2.total} suffix=" ₸" bold={false} /></TableCell>
+                            <TableCell className="text-right">
+                              <SplitCell total={t.payout} h1={t.h1.payout} h2={t.h2.payout} suffix=" ₸" bold={false} className="text-emerald-600 dark:text-emerald-400" />
+                              <span className="block text-[10px] text-muted-foreground">({t.percent}%)</span>
                             </TableCell>
-                            <TableCell className="text-right text-sm text-primary">
-                              {t.ours.toLocaleString('ru-RU')} ₸
-                              <span className="ml-1 text-xs text-muted-foreground">({100 - t.percent}%)</span>
+                            <TableCell className="text-right">
+                              <SplitCell total={t.ours} h1={t.h1.ours} h2={t.h2.ours} suffix=" ₸" bold={false} className="text-primary" />
+                              <span className="block text-[10px] text-muted-foreground">({100 - t.percent}%)</span>
                             </TableCell>
                           </TableRow>
                         ))}
                       </React.Fragment>
                     ))}
                     {/* Итоговая строка */}
-                    <TableRow className="border-t-2 bg-muted/40">
-                      <TableCell className="font-bold">ИТОГО</TableCell>
-                      <TableCell className="text-right font-bold">
-                        {payoutStats.reduce((a, s) => a + s.cups, 0).toLocaleString('ru-RU')}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {payoutStats.reduce((a, s) => a + s.total, 0).toLocaleString('ru-RU')} ₸
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {payoutStats.reduce((a, s) => a + s.payout, 0).toLocaleString('ru-RU')} ₸
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-primary">
-                        {payoutStats.reduce((a, s) => a + s.ours, 0).toLocaleString('ru-RU')} ₸
-                      </TableCell>
-                    </TableRow>
+                    {(() => {
+                      const sum = (f: (s: typeof payoutStats[number]) => number) => payoutStats.reduce((a, s) => a + f(s), 0);
+                      return (
+                        <TableRow className="border-t-2 bg-muted/40">
+                          <TableCell className="font-bold">ИТОГО</TableCell>
+                          <TableCell className="text-right"><SplitCell total={sum(s => s.cups)} h1={sum(s => s.h1.cups)} h2={sum(s => s.h2.cups)} /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={sum(s => s.total)} h1={sum(s => s.h1.total)} h2={sum(s => s.h2.total)} suffix=" ₸" /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={sum(s => s.payout)} h1={sum(s => s.h1.payout)} h2={sum(s => s.h2.payout)} suffix=" ₸" className="text-emerald-600 dark:text-emerald-400" /></TableCell>
+                          <TableCell className="text-right"><SplitCell total={sum(s => s.ours)} h1={sum(s => s.h1.ours)} h2={sum(s => s.h2.ours)} suffix=" ₸" className="text-primary" /></TableCell>
+                        </TableRow>
+                      );
+                    })()}
                   </TableBody>
                 </Table>
                 <p className="text-xs text-muted-foreground mt-3">
