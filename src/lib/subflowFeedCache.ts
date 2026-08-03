@@ -7,16 +7,19 @@
  *     сохраняем, иначе пришлось бы синхронизировать курсор пагинации;
  *   • кеш привязан к пользователю и к фильтру по кофейне — иначе при смене
  *     аккаунта или переходе в другую кофейню показались бы чужие данные;
- *   • кеш только ПОКАЗЫВАЕТСЯ первым, свежий запрос уходит всегда и заменяет
- *     данные целиком — реакции и комментарии не «залипают»;
- *   • при протухании (TTL) кеш игнорируется — лента собирается обычным путём.
+ *   • кеш только ПОКАЗЫВАЕТСЯ первым, свежий запрос уходит ВСЕГДА и заменяет
+ *     данные целиком — реакции и комментарии не «залипают», а новые посты
+ *     подгружаются в фоне и заменяют старую ленту;
+ *   • слишком старый кеш (> TTL) не показываем, чтобы не мелькнуть совсем
+ *     устаревшей лентой — но свежий запрос всё равно идёт.
  *
- * Хранилище — sessionStorage: живёт в рамках вкладки/сессии приложения и сам
- * очищается при её закрытии, что для ленты уместнее постоянного localStorage.
+ * Хранилище — localStorage: переживает полное закрытие приложения, поэтому при
+ * холодном старте лента появляется мгновенно из кеша, а свежая грузится в фоне.
+ * Кеш привязан к пользователю и чистится при выходе (clearFeedCache).
  */
 
-const CACHE_VERSION = 'v1';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 минут
+const CACHE_VERSION = 'v2'; // сменили хранилище/окно — инвалидируем старый кеш
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24ч — показываем кеш при переоткрытии, свежее грузим в фоне
 
 interface CachedFeed<T> {
   version: string;
@@ -32,7 +35,7 @@ function keyFor(userId: string | null, shopFilter: string | null | undefined): s
 
 export function readFeedCache<T>(userId: string | null, shopFilter: string | null | undefined): T[] | null {
   try {
-    const raw = sessionStorage.getItem(keyFor(userId, shopFilter));
+    const raw = localStorage.getItem(keyFor(userId, shopFilter));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedFeed<T>;
     if (parsed.version !== CACHE_VERSION) return null;
@@ -58,7 +61,7 @@ export function writeFeedCache<T>(
       shopFilter: shopFilter || null,
       posts,
     };
-    sessionStorage.setItem(keyFor(userId, shopFilter), JSON.stringify(payload));
+    localStorage.setItem(keyFor(userId, shopFilter), JSON.stringify(payload));
   } catch {
     /* переполнение квоты хранилища не должно ломать ленту */
   }
@@ -68,11 +71,11 @@ export function writeFeedCache<T>(
 export function clearFeedCache(): void {
   try {
     const toRemove: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const k = sessionStorage.key(i);
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
       if (k && k.startsWith('subflow_feed_')) toRemove.push(k);
     }
-    toRemove.forEach(k => sessionStorage.removeItem(k));
+    toRemove.forEach(k => localStorage.removeItem(k));
   } catch {
     /* игнорируем */
   }

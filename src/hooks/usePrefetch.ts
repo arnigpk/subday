@@ -36,12 +36,22 @@ export const prefetchShops = async () => {
 };
 
 export const prefetchSubscriptions = async () => {
-  const { data } = await supabase
-    .from('subscription_types')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('subscription_types')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    const list = data || [];
+    // Кешируем для мгновенного показа страницы подписок при переоткрытии.
+    setCache(CACHE_KEYS.subscriptions, list, CACHE_TTL.subscriptions);
+    return list;
+  } catch (err) {
+    const cached = getCache<any[]>(CACHE_KEYS.subscriptions);
+    if (cached?.data) return cached.data;
+    throw err;
+  }
 };
 
 export const prefetchSubflowPosts = async () => {

@@ -12,6 +12,7 @@ import { ShopBadgesList, ShopBadgeData } from '@/components/shop/ShopBadgesList'
 import { useShopDistances, Coordinate } from '@/hooks/useShopDistances';
 import { formatDistance, sortByDistance } from '@/utils/distance';
 import { queryKeys, prefetchShops } from '@/hooks/usePrefetch';
+import { getCache, CACHE_KEYS } from '@/utils/offlineCache';
 import { AdBannerCarousel } from '@/components/shop/AdBannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -81,11 +82,17 @@ export default function ShopsPage() {
     { id: 'specialty', label: 'Specialty' },
   ];
 
+  // Мгновенный показ из оффлайн-кеша (даже если он «устарел») + тихое обновление
+  // в фоне: initialDataUpdatedAt = время кеша → React Query сразу дозапрашивает
+  // свежее и заменяет. Скелетон при переоткрытии не мелькает.
+  const cachedShops = useMemo(() => getCache<any[]>(CACHE_KEYS.shops), []);
   const { data: shops = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.shops,
     queryFn: prefetchShops,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
+    initialData: cachedShops?.data,
+    initialDataUpdatedAt: cachedShops?.cachedAt,
   });
 
   const handleRefresh = useCallback(async () => {

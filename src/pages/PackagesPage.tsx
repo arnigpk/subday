@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { LiquidGlassHeader } from '@/components/layout/LiquidGlassHeader';
@@ -11,6 +11,7 @@ import { getPeriodText } from '@/utils/subscriptionDuration';
 import { calcDaysRemaining, formatSubscriptionExpiry } from '@/utils/formatSubscriptionDays';
 import { useActiveSubscription } from '@/hooks/useActiveSubscription';
 import { queryKeys, prefetchSubscriptions } from '@/hooks/usePrefetch';
+import { getCache, CACHE_KEYS } from '@/utils/offlineCache';
 import { getSubscriptionBadgeStyle } from '@/components/admin/SubscriptionBadgeEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
@@ -50,11 +51,15 @@ export default function PackagesPage() {
     { id: 'drinks', label: t('balance.drinks') },
   ];
 
+  // Мгновенный показ тарифов из кеша + тихое обновление в фоне (как у кофеен).
+  const cachedSubs = useMemo(() => getCache<any[]>(CACHE_KEYS.subscriptions), []);
   const { data: subscriptions = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: prefetchSubscriptions,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
+    initialData: cachedSubs?.data,
+    initialDataUpdatedAt: cachedSubs?.cachedAt,
   });
 
   const handleRefresh = useCallback(async () => {
