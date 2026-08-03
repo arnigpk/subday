@@ -16,6 +16,8 @@ const seen = new Set<string>();
 const IGNORED_SUBSTRINGS = [
   'messaging/unsupported-browser',   // браузер/webview без web-push — ожидаемо, есть фолбэк
   'ResizeObserver loop',             // безвредное предупреждение браузера
+  'operation was aborted',           // отмена запроса при навигации/размонтировании — не ошибка
+  'AbortError',                      // то же самое (fetch cancel)
 ];
 
 interface ClientErrorReport {
