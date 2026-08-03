@@ -852,6 +852,9 @@ export default function AdminHistoryPage() {
                 </Select>
               </div>
               
+              {/* Выбор периода — только для вкладки «История». На «Расчётах/выплатах»
+                  период задаётся отдельным помесячным селектором «Отметки выплат за». */}
+              {activeTab === 'history' && (
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                 <Select value={periodType} onValueChange={(v) => handlePeriodChange(v as PeriodType)}>
                   <SelectTrigger className="w-full sm:w-48">
@@ -863,7 +866,7 @@ export default function AdminHistoryPage() {
                     <SelectItem value="custom">Выбрать период</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 {periodType === 'custom' && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -889,11 +892,12 @@ export default function AdminHistoryPage() {
                     </PopoverContent>
                   </Popover>
                 )}
-                
+
                 {periodType !== 'all' && (
                   <span className="text-sm text-muted-foreground">Период: {formatPeriodLabel()}</span>
                 )}
               </div>
+              )}
             </div>
           </div>
         </CardHeader>
