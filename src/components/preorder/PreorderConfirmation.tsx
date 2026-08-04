@@ -50,7 +50,15 @@ export function PreorderConfirmation({ shopName, coffeeName, syrup, qrCode, preo
       <div className="bg-background p-4 rounded-2xl border border-border">
         <QRCodeSVG value={qrData} size={180} level="M" />
       </div>
-      <p className="text-xs text-muted-foreground">Покажите QR-код баристе</p>
+
+      <div className="w-full rounded-2xl bg-primary/10 border border-primary/20 px-4 py-3 space-y-1.5">
+        <p className="text-sm font-bold text-foreground">
+          Обязательно покажите этот QR-код бариста или кассиру в кофейне
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Можно закрыть — предзаказ сохранится в истории. Откройте его там и покажите QR в кофейне при получении.
+        </p>
+      </div>
 
       <button
         onClick={onClose}
