@@ -5,6 +5,7 @@ import {
   sendFcmMessage,
   isInvalidFcmTokenError,
 } from '../_shared/fcm.ts';
+import { hasTags, personalize } from '../_shared/personalize.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -347,16 +348,33 @@ async function createInAppNotifications(
   const { title, message, createdBy, recipientUserIds } = params;
   if (recipientUserIds.length === 0) return 0;
 
+  // Персональные теги ({{name}}/{{city}}/{{id}}) в in-app записи. Профили тянем
+  // одним заходом только если теги реально есть в тексте — иначе поведение как раньше.
+  const personalized = hasTags(title) || hasTags(message);
+  const profMap = new Map<string, any>();
+  if (personalized) {
+    for (let i = 0; i < recipientUserIds.length; i += 500) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('user_id, name, city, public_id')
+        .in('user_id', recipientUserIds.slice(i, i + 500));
+      (data || []).forEach((p: any) => profMap.set(p.user_id, p));
+    }
+  }
+
   const batchSize = 500;
   let inserted = 0;
 
   for (let i = 0; i < recipientUserIds.length; i += batchSize) {
-    const batch = recipientUserIds.slice(i, i + batchSize).map((userId) => ({
-      title,
-      message,
-      user_id: userId,
-      created_by: createdBy,
-    }));
+    const batch = recipientUserIds.slice(i, i + batchSize).map((userId) => {
+      const prof = personalized ? profMap.get(userId) : null;
+      return {
+        title: personalized ? personalize(title, prof) : title,
+        message: personalized ? personalize(message, prof) : message,
+        user_id: userId,
+        created_by: createdBy,
+      };
+    });
 
     const { error } = await supabase.from('push_notifications').insert(batch);
     if (error) {

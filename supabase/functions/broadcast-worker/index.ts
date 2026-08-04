@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { parseFcmServiceAccount, getFcmAccessToken, sendFcmMessage, isInvalidFcmTokenError } from '../_shared/fcm.ts';
+import { hasTags, personalize, type RecipientProfile } from '../_shared/personalize.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,20 @@ async function markFailed(
   for (const [error, ids] of byError) {
     await supabase.from('broadcast_queue').update({ status: 'failed', error, processed_at: at }).in('id', ids);
   }
+}
+
+// Профили пачки одним запросом — только когда в тексте рассылки есть теги
+// ({{name}}/{{city}}/{{id}}). Иначе подстановка не нужна и запрос не делаем.
+async function loadProfiles(
+  supabase: ReturnType<typeof createClient>,
+  rows: { user_id?: string }[],
+): Promise<Map<string, RecipientProfile>> {
+  const map = new Map<string, RecipientProfile>();
+  const uids = [...new Set(rows.map((r) => r.user_id).filter(Boolean))] as string[];
+  if (!uids.length) return map;
+  const { data } = await supabase.from('profiles').select('user_id, name, city, public_id').in('user_id', uids);
+  for (const p of (data || []) as any[]) map.set(p.user_id, p);
+  return map;
 }
 
 const TIME_BUDGET_MS = 40_000;
@@ -93,14 +108,20 @@ Deno.serve(async (req) => {
     while (Date.now() - started < TIME_BUDGET_MS) {
       const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'telegram', _limit: TG_CHUNK });
       if (!rows || rows.length === 0) break;
+      // Персонализация: если хоть в одной рассылке пачки есть теги — грузим профили.
+      const tgBids = [...new Set(rows.map((r: any) => r.broadcast_id))];
+      await Promise.all(tgBids.map((b) => getHeader(b as string)));
+      const tgProfs = tgBids.some((b) => hasTags(headerCache.get(b as string)?.message))
+        ? await loadProfiles(supabase, rows) : new Map<string, RecipientProfile>();
       const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
       await Promise.all(rows.map(async (r: any) => {
         touched.add(r.broadcast_id);
         const h = await getHeader(r.broadcast_id);
+        const text = hasTags(h.message) ? personalize(h.message, tgProfs.get(r.user_id), { html: true }) : h.message;
         try {
           const resp = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: r.target, text: h.message, parse_mode: 'HTML' }),
+            body: JSON.stringify({ chat_id: r.target, text, parse_mode: 'HTML' }),
           });
           const j = await resp.json();
           if (j.ok) { sentIds.push(r.id); summary.telegram.sent++; }
@@ -122,13 +143,19 @@ Deno.serve(async (req) => {
         const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'push', _limit: PUSH_CHUNK });
         if (!rows || rows.length === 0) break;
         if (!accessToken) accessToken = await getFcmAccessToken(serviceAccount);
+        // Персонализация: грузим профили только если в тексте пачки есть теги.
+        const pushBids = [...new Set(rows.map((r: any) => r.broadcast_id))];
+        await Promise.all(pushBids.map((b) => getHeader(b as string)));
+        const pushProfs = pushBids.some((b) => hasTags(headerCache.get(b as string)?.message))
+          ? await loadProfiles(supabase, rows) : new Map<string, RecipientProfile>();
         const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
         await Promise.all(rows.map(async (r: any) => {
           touched.add(r.broadcast_id);
           const h = await getHeader(r.broadcast_id);
-          const nl = h.message.indexOf('\n');
-          const title = nl >= 0 ? h.message.slice(0, nl) : h.message;
-          const body = nl >= 0 ? h.message.slice(nl + 1) : '';
+          const raw = hasTags(h.message) ? personalize(h.message, pushProfs.get(r.user_id)) : h.message;
+          const nl = raw.indexOf('\n');
+          const title = nl >= 0 ? raw.slice(0, nl) : raw;
+          const body = nl >= 0 ? raw.slice(nl + 1) : '';
           const result = await sendFcmMessage(accessToken!, projectId!, r.target, { title, body });
           if (result.ok) { sentIds.push(r.id); summary.push.sent++; }
           else {

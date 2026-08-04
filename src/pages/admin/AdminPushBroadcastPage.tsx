@@ -12,6 +12,7 @@ import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { BroadcastProgress } from '@/components/admin/BroadcastProgress';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 import { AudiencePreview } from '@/components/admin/AudiencePreview';
+import { BroadcastTagHint } from '@/components/admin/BroadcastTagHint';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 export default function AdminPushBroadcastPage() {
@@ -23,6 +24,10 @@ export default function AdminPushBroadcastPage() {
   const [audienceTypes, setAudienceTypes] = useState<AudienceType[]>(['all']);
   // id запущенной рассылки — по нему показываем живой прогресс отправки
   const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(null);
+
+  // Вставка персонального тега в конец текста (с пробелом, если нужно).
+  const insertTag = (tag: string) =>
+    setMessage((prev) => (prev && !prev.endsWith(' ') ? prev + ' ' : prev) + tag);
 
   const handleSendPush = async () => {
     if (!title.trim()) {
@@ -134,6 +139,8 @@ export default function AdminPushBroadcastPage() {
                 Максимум 200 символов. Осталось: {200 - message.length}
               </p>
             </div>
+
+            <BroadcastTagHint onInsert={insertTag} />
 
             <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 

@@ -15,6 +15,7 @@ import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { BroadcastProgress } from '@/components/admin/BroadcastProgress';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
 import { AudiencePreview } from '@/components/admin/AudiencePreview';
+import { BroadcastTagHint } from '@/components/admin/BroadcastTagHint';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface TelegramUser {
@@ -164,6 +165,10 @@ export default function AdminBroadcastPage() {
     }
   };
 
+  // Вставка персонального тега в конец текста (с пробелом, если нужно).
+  const insertTag = (tag: string) =>
+    setMessage((prev) => (prev && !prev.endsWith(' ') ? prev + ' ' : prev) + tag);
+
   const toggleUser = (userId: string) => {
     setSelectedUsers(prev =>
       prev.includes(userId)
@@ -213,6 +218,8 @@ export default function AdminBroadcastPage() {
                   Поддерживается HTML разметка: &lt;b&gt;жирный&lt;/b&gt;, &lt;i&gt;курсив&lt;/i&gt;
                 </p>
               </div>
+
+              <BroadcastTagHint onInsert={insertTag} />
 
               <AudienceTypeSelector value={audienceTypes} onChange={setAudienceTypes} disabled={isLoading} />
 
