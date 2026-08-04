@@ -13,6 +13,26 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Помечаем неудачные элементы очереди с ТЕКСТОМ причины. Группируем по тексту
+// ошибки, чтобы одним UPDATE обновить все элементы с одинаковой причиной (быстро).
+async function markFailed(
+  supabase: ReturnType<typeof createClient>,
+  failed: { id: number; error: string }[],
+) {
+  if (!failed.length) return;
+  const byError = new Map<string, number[]>();
+  for (const f of failed) {
+    const e = (f.error || 'unknown').slice(0, 300);
+    const arr = byError.get(e) ?? [];
+    arr.push(f.id);
+    byError.set(e, arr);
+  }
+  const at = new Date().toISOString();
+  for (const [error, ids] of byError) {
+    await supabase.from('broadcast_queue').update({ status: 'failed', error, processed_at: at }).in('id', ids);
+  }
+}
+
 const TIME_BUDGET_MS = 40_000;
 const TG_CHUNK = 25;          // ~25 сообщений/сек (лимит Telegram ~30/с)
 const TG_PACE_MS = 1000;
@@ -53,7 +73,7 @@ Deno.serve(async (req) => {
     while (Date.now() - started < TIME_BUDGET_MS) {
       const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'notify', _limit: NOTIFY_CHUNK });
       if (!rows || rows.length === 0) break;
-      const sentIds: number[] = []; const failedIds: number[] = [];
+      const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
       await Promise.all(rows.map(async (r: any) => {
         try {
           const resp = await fetch(`${supabaseUrl}/functions/v1/send-subscription-notification`, {
@@ -62,18 +82,18 @@ Deno.serve(async (req) => {
             body: JSON.stringify(r.payload || {}),
           });
           if (resp.ok) { sentIds.push(r.id); summary.notify.sent++; }
-          else { failedIds.push(r.id); summary.notify.failed++; }
-        } catch { failedIds.push(r.id); summary.notify.failed++; }
+          else { const t = await resp.text().catch(() => ''); failed.push({ id: r.id, error: `HTTP ${resp.status} ${t}`.trim() }); summary.notify.failed++; }
+        } catch (e) { failed.push({ id: r.id, error: e instanceof Error ? e.message : String(e) }); summary.notify.failed++; }
       }));
       if (sentIds.length) await supabase.from('broadcast_queue').update({ status: 'sent', processed_at: new Date().toISOString() }).in('id', sentIds);
-      if (failedIds.length) await supabase.from('broadcast_queue').update({ status: 'failed', processed_at: new Date().toISOString() }).in('id', failedIds);
+      await markFailed(supabase, failed);
     }
 
     // ---- TELEGRAM ----
     while (Date.now() - started < TIME_BUDGET_MS) {
       const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'telegram', _limit: TG_CHUNK });
       if (!rows || rows.length === 0) break;
-      const sentIds: number[] = []; const failedIds: number[] = [];
+      const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
       await Promise.all(rows.map(async (r: any) => {
         touched.add(r.broadcast_id);
         const h = await getHeader(r.broadcast_id);
@@ -84,11 +104,11 @@ Deno.serve(async (req) => {
           });
           const j = await resp.json();
           if (j.ok) { sentIds.push(r.id); summary.telegram.sent++; }
-          else { failedIds.push(r.id); summary.telegram.failed++; }
-        } catch { failedIds.push(r.id); summary.telegram.failed++; }
+          else { failed.push({ id: r.id, error: j.description || `HTTP ${resp.status}` }); summary.telegram.failed++; }
+        } catch (e) { failed.push({ id: r.id, error: e instanceof Error ? e.message : String(e) }); summary.telegram.failed++; }
       }));
       if (sentIds.length) await supabase.from('broadcast_queue').update({ status: 'sent', processed_at: new Date().toISOString() }).in('id', sentIds);
-      if (failedIds.length) await supabase.from('broadcast_queue').update({ status: 'failed', processed_at: new Date().toISOString() }).in('id', failedIds);
+      await markFailed(supabase, failed);
       if (rows.length === TG_CHUNK) await sleep(TG_PACE_MS); // пейсинг только если очередь ещё полна
     }
 
@@ -102,7 +122,7 @@ Deno.serve(async (req) => {
         const { data: rows } = await supabase.rpc('claim_broadcast_batch', { _channel: 'push', _limit: PUSH_CHUNK });
         if (!rows || rows.length === 0) break;
         if (!accessToken) accessToken = await getFcmAccessToken(serviceAccount);
-        const sentIds: number[] = []; const failedIds: number[] = [];
+        const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
         await Promise.all(rows.map(async (r: any) => {
           touched.add(r.broadcast_id);
           const h = await getHeader(r.broadcast_id);
@@ -112,12 +132,14 @@ Deno.serve(async (req) => {
           const result = await sendFcmMessage(accessToken!, projectId!, r.target, { title, body });
           if (result.ok) { sentIds.push(r.id); summary.push.sent++; }
           else {
-            failedIds.push(r.id); summary.push.failed++;
+            const err = typeof result.error === 'string' ? result.error : JSON.stringify(result.error ?? 'FCM error');
+            failed.push({ id: r.id, error: isInvalidFcmTokenError(result.error) ? `Токен недействителен: ${err}` : err });
+            summary.push.failed++;
             if (isInvalidFcmTokenError(result.error)) { invalidTokens.push(r.target); summary.push.cleaned++; }
           }
         }));
         if (sentIds.length) await supabase.from('broadcast_queue').update({ status: 'sent', processed_at: new Date().toISOString() }).in('id', sentIds);
-        if (failedIds.length) await supabase.from('broadcast_queue').update({ status: 'failed', processed_at: new Date().toISOString() }).in('id', failedIds);
+        await markFailed(supabase, failed);
       }
       // Чистим мёртвые токены пачкой.
       for (let i = 0; i < invalidTokens.length; i += 200) {
