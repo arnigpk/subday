@@ -153,6 +153,8 @@ export default function AdminHistoryPage() {
   // --- Отметки выплат (2 периода в месяц: H1 = 1–15, H2 = 16–конец) ---
   const _now = new Date();
   const [payoutPeriod, setPayoutPeriod] = useState<{ year: number; month: number }>({ year: _now.getFullYear(), month: _now.getMonth() + 1 });
+  // Режим «за всё время»: цифры с самого начала проекта, без привязки к месяцу.
+  const [payoutAllTime, setPayoutAllTime] = useState(false);
   const [shopIdMap, setShopIdMap] = useState<Map<string, string>>(new Map());
   // ключ: `${shopId}|${half}` → отметка сделана
   const [payoutMarks, setPayoutMarks] = useState<Map<string, { paid_at: string }>>(new Map());
@@ -170,6 +172,7 @@ export default function AdminHistoryPage() {
   }, [activeTab, payoutPeriod.year, payoutPeriod.month]);
 
   const shiftPayoutMonth = (delta: number) => {
+    setPayoutAllTime(false); // стрелки месяца возвращают в помесячный режим
     setPayoutPeriod(prev => {
       const d = new Date(prev.year, prev.month - 1 + delta, 1);
       return { year: d.getFullYear(), month: d.getMonth() + 1 };
@@ -511,8 +514,8 @@ export default function AdminHistoryPage() {
   const fetchPayouts = async () => {
     setIsLoadingPayouts(true);
     try {
-      // Диапазон дат для выплат — ВЫБРАННЫЙ месяц (payoutPeriod), а не фильтр
-      // «Истории». Так цифры всегда соответствуют месяцу над таблицей.
+      // Диапазон дат — ВЫБРАННЫЙ месяц (payoutPeriod). В режиме «за всё время»
+      // фильтр по дате не накладываем — берём всё с самого начала проекта.
       const monthFrom = new Date(payoutPeriod.year, payoutPeriod.month - 1, 1, 0, 0, 0, 0);
       const monthTo = new Date(payoutPeriod.year, payoutPeriod.month, 0, 23, 59, 59, 999); // последний день месяца
       const skipR = typeFilter === 'preorder';
@@ -521,11 +524,11 @@ export default function AdminHistoryPage() {
       let rQ = supabase.from('redemptions').select('*');
       if (shopFilter !== 'all') rQ = rQ.eq('shop_name', shopFilter);
       if (typeFilter !== 'all' && !skipR) rQ = rQ.eq('drink_type', typeFilter);
-      rQ = rQ.gte('redeemed_at', monthFrom.toISOString()).lte('redeemed_at', monthTo.toISOString());
+      if (!payoutAllTime) rQ = rQ.gte('redeemed_at', monthFrom.toISOString()).lte('redeemed_at', monthTo.toISOString());
 
       let pQ = supabase.from('preorders').select('*');
       if (shopFilter !== 'all') pQ = pQ.eq('shop_name', shopFilter);
-      pQ = pQ.gte('created_at', monthFrom.toISOString()).lte('created_at', monthTo.toISOString());
+      if (!payoutAllTime) pQ = pQ.gte('created_at', monthFrom.toISOString()).lte('created_at', monthTo.toISOString());
 
       const [{ data: rData = [] }, { data: pData = [] }, { data: pSubTypes }] = await Promise.all([
         skipR ? Promise.resolve({ data: [] }) : rQ.order('redeemed_at', { ascending: false }).limit(5000),
@@ -665,7 +668,7 @@ export default function AdminHistoryPage() {
   useEffect(() => {
     if (activeTab === 'payouts') fetchPayouts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, shopFilter, typeFilter, countryFilter, cityFilter, payoutPeriod.year, payoutPeriod.month, shopPercentMap]);
+  }, [activeTab, shopFilter, typeFilter, countryFilter, cityFilter, payoutPeriod.year, payoutPeriod.month, payoutAllTime, shopPercentMap]);
 
   const handlePeriodChange = (value: PeriodType) => {
     setPeriodType(value);
@@ -914,19 +917,27 @@ export default function AdminHistoryPage() {
             ) : (
               <div className="overflow-x-auto">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-muted-foreground">Отметки выплат за:</span>
-                    <div className="flex items-center gap-1 rounded-lg border border-border">
+                    <div className={`flex items-center gap-1 rounded-lg border border-border transition-opacity ${payoutAllTime ? 'opacity-50' : ''}`}>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => shiftPayoutMonth(-1)}><ChevronLeft className="w-4 h-4" /></Button>
                       <span className="text-sm font-semibold min-w-[120px] text-center capitalize">
                         {format(new Date(payoutPeriod.year, payoutPeriod.month - 1, 1), 'LLLL yyyy', { locale: ru })}
                       </span>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => shiftPayoutMonth(1)}><ChevronRight className="w-4 h-4" /></Button>
                     </div>
+                    {/* Режим «за всё время» — цифры с самого начала проекта */}
+                    <Button
+                      variant={payoutAllTime ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPayoutAllTime(v => !v)}
+                    >
+                      За всё время
+                    </Button>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => {
                     const sum = (f: (s: typeof payoutStats[number]) => number) => payoutStats.reduce((a, s) => a + f(s), 0);
-                    const monthLabel = format(new Date(payoutPeriod.year, payoutPeriod.month - 1, 1), 'yyyy-MM');
+                    const monthLabel = payoutAllTime ? 'все_время' : format(new Date(payoutPeriod.year, payoutPeriod.month - 1, 1), 'yyyy-MM');
                     downloadCSV(`расчеты_выплаты_${monthLabel}.csv`,
                       ['Кофейня', 'Тариф', 'Процент выплаты', 'Чашек',
                        'Общая сумма (₸)', 'Общая 1–15', 'Общая 16–конец',
@@ -977,7 +988,9 @@ export default function AdminHistoryPage() {
                               <span className={`inline-block mr-2 text-xs transition-transform ${expandedShops.has(s.shop) ? 'rotate-90' : ''}`}>▶</span>
                               {s.shop}
                             </div>
-                            {(() => {
+                            {/* Отметки «оплачено» — помесячные, поэтому в режиме
+                                «за всё время» их не показываем. */}
+                            {!payoutAllTime && (() => {
                               const shopId = shopIdMap.get(s.shop);
                               const m1 = !!shopId && payoutMarks.has(`${shopId}|1`);
                               const m2 = !!shopId && payoutMarks.has(`${shopId}|2`);
