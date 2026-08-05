@@ -24,7 +24,8 @@ import {
   Banknote,
   Bug,
   Sparkles,
-  Navigation
+  Navigation,
+  Flag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,7 @@ const navItems = [
   { icon: Sparkles, label: 'Онбординг', path: '/admin/onboarding', roles: ['superadmin', 'admin'] },
   { icon: QrCode, label: 'Настройки QR', path: '/admin/qr-settings', roles: ['superadmin', 'admin'] },
   { icon: Navigation, label: 'Гео-уведомления', path: '/admin/geo-notifications', roles: ['superadmin', 'admin'] },
+  { icon: Flag, label: 'Модерация', path: '/admin/moderation', roles: ['superadmin', 'admin', 'moderator'] },
   { icon: Bug, label: 'Ошибки', path: '/admin/errors', roles: ['superadmin', 'admin'] },
   { icon: Settings, label: 'Настройки', path: '/admin/settings', roles: ['superadmin'] },
 ];
