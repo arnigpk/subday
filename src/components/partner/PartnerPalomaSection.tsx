@@ -34,7 +34,7 @@ export function PartnerPalomaSection({ shopId, address }: { shopId: string; addr
   const [menuMap, setMenuMap] = useState<Record<string, any>>({});
   const [orderLog, setOrderLog] = useState<OrderLog[]>([]);
   const [apiKey, setApiKey] = useState('');
-  const [connectorClass, setConnectorClass] = useState('');
+  const [connectorClass, setConnectorClass] = useState('Tester'); // эталонный коннектор Paloma по умолчанию
   const [points, setPoints] = useState<Point[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loadedItems, setLoadedItems] = useState(false);
@@ -195,10 +195,13 @@ export function PartnerPalomaSection({ shopId, address }: { shopId: string; addr
         <h3 className="font-semibold text-foreground flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">1</span> Подключение</h3>
         {!connected ? (
           <>
-            <p className="text-sm text-muted-foreground">Введите authkey и класс коннектора Paloma (из «Предприятие → Управление → Настройки аккаунта»). У каждой кофейни свои.</p>
+            <p className="text-sm text-muted-foreground"><b>authkey</b> — ключ API из Paloma: «Предприятие → Управление → Настройки аккаунта» (если поле пустое — кнопка «Генерировать API AUTHKEY»). У каждой кофейни свой.</p>
             <div className="space-y-2">
               <Input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="authkey" />
-              <Input value={connectorClass} onChange={e => setConnectorClass(e.target.value)} placeholder="класс коннектора (напр. Tester)" />
+              <Input value={connectorClass} onChange={e => setConnectorClass(e.target.value)} placeholder="класс коннектора (Tester)" />
+              <div className="text-[11px] text-muted-foreground bg-secondary/40 rounded-lg p-2 leading-relaxed">
+                <b>Класс коннектора</b> — «класс подключаемого сервиса» доставки в Paloma; по нему Paloma узнаёт нашу интеграцию. Стандартное значение — <b>Tester</b> (оставьте как есть). Если поддержка Paloma завела вам отдельный коннектор — впишите его класс. При «Подключить» ключ и класс сразу проверяются (подтягиваем список точек) — при неверном классе будет ошибка.
+              </div>
               <Button onClick={handleConnect} disabled={busy === 'connect'} className="w-full">{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
             </div>
           </>
