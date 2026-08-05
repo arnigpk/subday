@@ -55,26 +55,25 @@ export default function AdminPushBroadcastPage() {
       }
 
       const pushError = typeof fcmResult?.push_error === 'string' ? fcmResult.push_error : '';
+      // recipient_count = кому УЛЕТИТ push (юзеры с токеном); in_app_recipients = вся аудитория (колокольчик).
+      const pushCount = fcmResult?.recipient_count || 0;
+      const inAppCount = fcmResult?.in_app_recipients ?? pushCount;
 
-      if ((fcmResult?.recipient_count || 0) === 0) {
+      if (inAppCount === 0) {
         toast.warning('Нет пользователей в выбранной аудитории');
-      } else {
-        if (fcmResult?.push_enabled === false) {
-          toast.success(`Внутренние уведомления созданы для ${fcmResult.recipient_count} пользователей`);
-          if (/invalid_grant|JWT Signature|private_key/i.test(pushError)) {
-            toast.warning('PUSH не отправлен: FCM ключ недействителен. Обновите FCM_SERVICE_ACCOUNT.');
-          } else {
-            toast.warning('PUSH не отправлен: FCM не настроен, поэтому уведомление создано только внутри приложения.');
-          }
+      } else if (fcmResult?.push_enabled === false) {
+        toast.success(`In-app уведомление создано для всех (${inAppCount})`);
+        if (/invalid_grant|JWT Signature|private_key/i.test(pushError)) {
+          toast.warning('PUSH не отправлен: FCM ключ недействителен. Обновите FCM_SERVICE_ACCOUNT.');
         } else {
-          // PUSH теперь уходит в фоновую очередь (без лимитов при любом объёме).
-          const queued = fcmResult?.queued || 0;
-          if (queued > 0) {
-            toast.success(`Уведомления созданы для ${fcmResult.recipient_count} · PUSH на ${queued} устройств запущен в фоне`);
-          } else {
-            toast.success(`Уведомления созданы для ${fcmResult.recipient_count} пользователей`);
-          }
+          toast.warning('PUSH не отправлен: FCM не настроен, поэтому уведомление только внутри приложения.');
         }
+      } else if (pushCount > 0) {
+        const queued = fcmResult?.queued || 0;
+        toast.success(`PUSH уйдёт ${pushCount} получателям (${queued} устройств) · in-app всем (${inAppCount})`);
+      } else {
+        // Аудитория есть, но ни у кого нет живого push-токена — ушло только в колокольчик.
+        toast.success(`Push-получателей нет (ни у кого нет токена). In-app создано всем (${inAppCount})`);
       }
 
       if (fcmResult?.broadcast_id) setActiveBroadcastId(fcmResult.broadcast_id as string);

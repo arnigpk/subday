@@ -201,6 +201,11 @@ Deno.serve(async (req) => {
       pushConfigError ||= 'FCM credentials are not configured. Device push skipped; in-app notifications only.';
     }
 
+    // Реальная push-аудитория = уникальные пользователи с device-токеном (кому УЛЕТИТ push).
+    // Именно это число показываем как «получателей». In-app «колокольчик» при этом
+    // создаётся для ВСЕЙ аудитории (recipientUserIds ниже) — доставку не режем.
+    const pushRecipientCount = new Set(deviceTokens.map((d) => d.user_id)).size;
+
     // In-app уведомления — сразу (быстрый bulk insert), это основная доставка.
     const inAppCreated = await createInAppNotifications(supabase, {
       title,
@@ -217,7 +222,7 @@ Deno.serve(async (req) => {
       message: `${title}\n${message}`,
       broadcast_type: 'push',
       target_type: audienceTypes.join(','),
-      recipient_count: recipientUserIds.length,
+      recipient_count: pushRecipientCount,   // «получатели» = кому улетит push (не вся база)
       sent_count: 0,
       failed_count: 0,
       status: willQueuePush ? 'queued' : 'done',
@@ -241,7 +246,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      recipient_count: recipientUserIds.length,
+      recipient_count: pushRecipientCount,        // кому улетит push (реальная цифра)
+      in_app_recipients: recipientUserIds.length, // in-app «колокольчик» — всей аудитории
       in_app_created: inAppCreated,
       push_enabled: canSendDevicePush && !pushConfigError,
       push_error: pushConfigError,

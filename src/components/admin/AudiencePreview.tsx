@@ -14,7 +14,7 @@ interface UserProfile {
 
 interface AudiencePreviewProps {
   audienceTypes: AudienceType[];
-  /** 'push' shows all users, 'telegram' shows only telegram users */
+  /** 'push' — только юзеры с device-токеном (кому улетит push); 'telegram' — только telegram-юзеры */
   channel: 'push' | 'telegram';
 }
 
@@ -24,6 +24,8 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
   const [expiringSoonIds, setExpiringSoonIds] = useState<Set<string>>(new Set());
   const [newUserIds, setNewUserIds] = useState<Set<string>>(new Set());
   const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
+  // Push: пользователи с device-токеном (кому реально улетит push). Пусто для telegram.
+  const [pushUserIds, setPushUserIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [showList, setShowList] = useState(false);
 
@@ -74,6 +76,14 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
 
       const recentSet = new Set((recentActiveRes.data || []).map(r => r.user_id));
       setActiveUserIds(new Set([...recentSet, ...activeSet]));
+
+      // Реальная push-аудитория: только пользователи с device-токеном (RLS-safe RPC, только админ).
+      if (channel === 'push') {
+        const { data: reach } = await supabase.rpc('get_push_reachable_user_ids' as never);
+        setPushUserIds(new Set(((reach as unknown as { user_id: string }[]) || []).map(r => r.user_id)));
+      } else {
+        setPushUserIds(new Set());
+      }
     } catch (err) {
       console.error('Error fetching audience data:', err);
     } finally {
@@ -82,20 +92,24 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
   };
 
   const filteredUsers = useMemo(() => {
-    if (audienceTypes.includes('all')) return allProfiles;
-
-    return allProfiles.filter(user => {
-      const uid = user.user_id;
-      for (const t of audienceTypes) {
-        if (t === 'subscribers' && activeSubIds.has(uid)) return true;
-        if (t === 'no_subscription' && !activeSubIds.has(uid)) return true;
-        if (t === 'expiring_soon' && expiringSoonIds.has(uid)) return true;
-        if (t === 'new_users' && newUserIds.has(uid)) return true;
-        if (t === 'inactive' && !activeUserIds.has(uid)) return true;
-      }
-      return false;
-    });
-  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds]);
+    let list = allProfiles;
+    if (!audienceTypes.includes('all')) {
+      list = allProfiles.filter(user => {
+        const uid = user.user_id;
+        for (const t of audienceTypes) {
+          if (t === 'subscribers' && activeSubIds.has(uid)) return true;
+          if (t === 'no_subscription' && !activeSubIds.has(uid)) return true;
+          if (t === 'expiring_soon' && expiringSoonIds.has(uid)) return true;
+          if (t === 'new_users' && newUserIds.has(uid)) return true;
+          if (t === 'inactive' && !activeUserIds.has(uid)) return true;
+        }
+        return false;
+      });
+    }
+    // Push: показываем только тех, у кого есть device-токен — кому реально улетит push.
+    if (channel === 'push') list = list.filter(u => pushUserIds.has(u.user_id));
+    return list;
+  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds, channel, pushUserIds]);
 
   if (isLoading) {
     return (
@@ -117,7 +131,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">
-            Получателей: <Badge variant="secondary" className="ml-1">{filteredUsers.length}</Badge>
+            {channel === 'push' ? 'Получат push:' : 'Получателей:'} <Badge variant="secondary" className="ml-1">{filteredUsers.length}</Badge>
           </span>
         </div>
         <Button
@@ -130,6 +144,12 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
           {showList ? 'Скрыть' : 'Показать список'}
         </Button>
       </div>
+
+      {channel === 'push' && (
+        <p className="text-[11px] text-muted-foreground">
+          Это те, у кого активный push-токен — им улетит push. In-app «колокольчик» уйдёт всем в аудитории.
+        </p>
+      )}
 
       {showList && (
         <ScrollArea className="max-h-[200px]">

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Trash2, MessageSquare, Bell, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
@@ -313,9 +312,8 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
         </div>
       </div>
 
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-3">
-          {messages.map((msg) => {
+      <div className="space-y-3">
+        {messages.map((msg) => {
             const recipients = msg.recipients || [];
             const isExpanded = expandedId === msg.id;
             const isSelected = selectedIds.has(msg.id);
@@ -348,32 +346,35 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                       <p className="text-sm text-foreground line-clamp-3 whitespace-pre-line">
                         {msg.message}
                       </p>
-                      {/* Recipients count shown inline when no expandable list */}
-                      {recipients.length === 0 && msg.recipient_count > 0 && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Получатели: {msg.recipient_count}
-                        </div>
-                      )}
 
-                      {/* Recipients list */}
+                      {/* Реальные числа доставки (не длина массива-образца). */}
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {type === 'push' ? 'Доставлено' : 'Отправлено'}: <b className="text-accent">{msg.sent_count}</b>
+                        {msg.failed_count > 0 && <> · не дошло: <b className="text-destructive">{msg.failed_count}</b></>}
+                      </div>
+
+                      {/* Список имён — выборка получателей (может быть частичной). */}
                       {recipients.length > 0 && (
-                        <div className="mt-2">
+                        <div className="mt-1.5">
                           <button
                             onClick={() => setExpandedId(isExpanded ? null : msg.id)}
                             className="flex items-center gap-1 text-xs text-primary hover:underline"
                           >
                             {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            Получатели ({recipients.length})
+                            Список имён ({recipients.length})
                           </button>
                           {isExpanded && (
-                            <div className="mt-1.5 p-2 bg-muted rounded-md max-h-[150px] overflow-y-auto">
+                            <div className="mt-1.5 p-2 bg-muted rounded-md">
                               <div className="flex flex-wrap gap-1">
-                                {recipients.map((r, i) => (
+                                {recipients.slice(0, 120).map((r, i) => (
                                   <span key={i} className="text-xs bg-background px-2 py-0.5 rounded border">
                                     {r.name || (r.telegram_id ? `@${r.telegram_id}` : 'Без имени')}
                                   </span>
                                 ))}
                               </div>
+                              {recipients.length > 120 && (
+                                <p className="text-[11px] text-muted-foreground mt-1.5">…и ещё {recipients.length - 120}</p>
+                              )}
                             </div>
                           )}
                         </div>
@@ -393,9 +394,8 @@ export function BroadcastHistory({ type, refreshTrigger }: BroadcastHistoryProps
                 </div>
               </div>
             );
-          })}
-        </div>
-      </ScrollArea>
+        })}
+      </div>
     </div>
   );
 }
