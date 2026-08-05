@@ -16,7 +16,7 @@ function Icon({ s }: { s: St }) {
   return <MinusCircle size={16} className={cls} />;
 }
 
-export function IntegrationStatus({ shopId, address, provider }: { shopId: string; address: string; provider: 'iiko' | 'poster' | 'rosta' | 'paloma' }) {
+export function IntegrationStatus({ shopId, address, provider }: { shopId: string; address: string; provider: 'iiko' | 'poster' | 'rosta' }) {
   const [items, setItems] = useState<StatusItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);

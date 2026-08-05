@@ -5,7 +5,6 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { processRedemptionOrder, runIikoOrder, getValidToken, cancelOrder as iikoCancel } from './iiko.ts';
 import { processPosterRedemption, runPosterOrder, cancelOrder as posterCancel } from './poster.ts';
 import { processRostaRedemption, runRostaOrder, cancelOrder as rostaCancel } from './rosta.ts';
-import { processPalomaRedemption, runPalomaOrder, cancelOrder as palomaCancel } from './paloma.ts';
 import { RETRY_MAX_TOTAL, RETRY_MAX_AGE_MS } from './posRetry.ts';
 
 export interface RedemptionParams {
@@ -21,27 +20,24 @@ export interface RedemptionParams {
  */
 export async function resolveAddressKey(supabase: SupabaseClient, shopId: string, address: string | null): Promise<string> {
   if (!address) return '';
-  const [ii, po, ro, pa] = await Promise.all([
+  const [ii, po, ro] = await Promise.all([
     supabase.from('iiko_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
     supabase.from('poster_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
     supabase.from('rosta_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
-    supabase.from('paloma_integrations').select('address').eq('shop_id', shopId).eq('address', address).maybeSingle(),
   ]);
-  return (ii.data || po.data || ro.data || pa.data) ? address : '';
+  return (ii.data || po.data || ro.data) ? address : '';
 }
 
 /** Создать заказ у активного провайдера ДЛЯ АДРЕСА. Каждый вариант сам «скипает», если не активен. */
 export async function dispatchRedemptionOrder(supabase: SupabaseClient, p: RedemptionParams) {
   const key = await resolveAddressKey(supabase, p.shopId, p.address);
-  const [{ data: poster }, { data: rosta }, { data: paloma }] = await Promise.all([
+  const [{ data: poster }, { data: rosta }] = await Promise.all([
     supabase.from('poster_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle(),
     supabase.from('rosta_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle(),
-    supabase.from('paloma_integrations').select('is_active').eq('shop_id', p.shopId).eq('address', key).maybeSingle(),
   ]);
   const base = { redemptionId: p.redemptionId, shopId: p.shopId, address: p.address, integrationAddress: key, subscriptionTypeId: p.subscriptionTypeId };
   if (poster?.is_active) return processPosterRedemption(supabase, base);
   if (rosta?.is_active) return processRostaRedemption(supabase, base);
-  if (paloma?.is_active) return processPalomaRedemption(supabase, base);
   return processRedemptionOrder(supabase, base); // iiko (внутри проверяет активность)
 }
 
@@ -60,7 +56,6 @@ export async function retryPosOrder(
   const attempts: number = row.attempts ?? 0;
   if (row.provider === 'poster') return runPosterOrder(supabase, logId, attempts);
   if (row.provider === 'rosta') return runRostaOrder(supabase, logId, attempts);
-  if (row.provider === 'paloma') return runPalomaOrder(supabase, logId, attempts);
   return runIikoOrder(supabase, logId, attempts);
 }
 
@@ -86,17 +81,9 @@ export async function dueRetryLogIds(supabase: SupabaseClient, limit = 50): Prom
 /** Отмена заказа из журнала — по провайдеру строки. */
 export async function cancelPosOrder(
   supabase: SupabaseClient,
-  log: { id?: string | null; provider?: string | null; shop_id: string; integration_address?: string | null; pos_order_id?: string | null; iiko_order_id?: string | null; organization_id?: string | null },
+  log: { provider?: string | null; shop_id: string; integration_address?: string | null; pos_order_id?: string | null; iiko_order_id?: string | null; organization_id?: string | null },
 ): Promise<{ ok: boolean; error?: string; note?: string }> {
   const addrKey = log.integration_address ?? '';
-  if (log.provider === 'paloma') {
-    // Внешний order_id, отправленный в Paloma, = id строки журнала. Отмена только в статусе new.
-    if (!log.id) return { ok: false, error: 'Нет id заказа для отмены' };
-    const { data: integ } = await supabase.from('paloma_integrations')
-      .select('api_key, connector_class').eq('shop_id', log.shop_id).eq('address', addrKey).maybeSingle();
-    if (!integ?.api_key || !integ?.connector_class) return { ok: false, error: 'Интеграция Paloma не найдена' };
-    return palomaCancel(integ.api_key, integ.connector_class, String(log.id));
-  }
   if (log.provider === 'poster') {
     if (!log.pos_order_id) return { ok: false, error: 'Заказ Poster ещё не создан — отменять нечего' };
     const { data: integ } = await supabase.from('poster_integrations')

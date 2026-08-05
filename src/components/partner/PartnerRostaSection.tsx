@@ -161,12 +161,11 @@ export function PartnerRostaSection({ shopId, address }: { shopId: string; addre
       if (integ?.auto_open_shift && !integ?.user_id) {
         toast.error('Для авто-открытия смены выберите сотрудника'); return;
       }
-      // 1 активная интеграция на АДРЕС — гасим iiko, Poster и Paloma этого адреса.
+      // 1 активная интеграция на АДРЕС — гасим iiko и Poster этого адреса.
       await supabase.from('iiko_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
       await supabase.from('poster_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
-      await supabase.from('paloma_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
     }
-    await saveInteg({ is_active: v }, v ? 'Rosta включён (iiko, Poster и Paloma адреса выключены)' : 'Rosta выключен');
+    await saveInteg({ is_active: v }, v ? 'Rosta включён (iiko и Poster адреса выключены)' : 'Rosta выключен');
   };
 
   const disconnect = async () => {

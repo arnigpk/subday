@@ -6,7 +6,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getValidToken, getTerminalAlive } from '../_shared/iiko.ts';
 import { getSpots } from '../_shared/poster.ts';
 import { getTradepoints, getOpenShift } from '../_shared/rosta.ts';
-import { getPoints as getPalomaPoints } from '../_shared/paloma.ts';
 import { setWorkerEnv } from '../_shared/env.ts';
 
 const corsHeaders = {
@@ -120,29 +119,6 @@ async function rostaStatus(supabase: any, shopId: string, address: string): Prom
   return items;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function palomaStatus(supabase: any, shopId: string, address: string): Promise<Item[]> {
-  const { data: integ } = await supabase.from('paloma_integrations').select('*').eq('shop_id', shopId).eq('address', address).maybeSingle();
-  if (!integ) return [{ key: 'connection', label: 'Подключение', status: 'error', detail: 'Не подключено' }];
-  const items: Item[] = [];
-
-  // ЖИВАЯ проверка: authkey+class валидны (тянем точки).
-  let conn: Item = { key: 'connection', label: 'Подключение', status: 'error', detail: 'Нет ключа' };
-  if (integ.api_key && integ.connector_class) {
-    try {
-      await getPalomaPoints(integ.api_key, integ.connector_class);
-      conn = { key: 'connection', label: 'Подключение', status: integ.point_id ? 'ok' : 'warn', detail: integ.point_id ? `Точка: ${integ.point_name || '—'}` : 'Ключ валиден, точка не выбрана' };
-    } catch (e) { conn = { key: 'connection', label: 'Подключение', status: 'error', detail: `Ключ/связь: ${err(e)}` }; }
-  } else if (integ.api_key && !integ.connector_class) {
-    conn = { key: 'connection', label: 'Подключение', status: 'error', detail: 'Не задан класс коннектора' };
-  }
-  items.push(conn);
-  const menu = await menuCount(supabase, 'paloma_menu_map', shopId, address);
-  items.push({ key: 'menu', label: 'Меню', status: menu > 0 ? 'ok' : 'error', detail: menu > 0 ? `${menu} позиц.` : 'Не привязано' });
-  items.push({ key: 'active', label: 'Интеграция', status: integ.is_active ? 'ok' : 'off', detail: integ.is_active ? 'Активна' : 'Выключена' });
-  return items;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
@@ -170,7 +146,6 @@ Deno.serve(async (req) => {
     if (provider === 'iiko') items = await iikoStatus(supabase, shopId, addr);
     else if (provider === 'poster') items = await posterStatus(supabase, shopId, addr);
     else if (provider === 'rosta') items = await rostaStatus(supabase, shopId, addr);
-    else if (provider === 'paloma') items = await palomaStatus(supabase, shopId, addr);
     else return json({ error: 'Unknown provider' }, 400);
 
     return json({ provider, checkedAt: new Date().toISOString(), items });
