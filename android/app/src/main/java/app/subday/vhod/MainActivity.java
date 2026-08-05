@@ -17,6 +17,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Регистрируем плагины ДО super.onCreate (иначе мост их не увидит).
+        registerPlugin(ScreenGuardPlugin.class);
         super.onCreate(savedInstanceState);
         createNotificationChannel();
     }

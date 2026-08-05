@@ -51,7 +51,14 @@ async function palomaRequest<T = any>(
   if (data && typeof data === 'object' && !Array.isArray(data) && data.info != null && data.code != null
       && data.order_id === undefined && data.paloma_order_id === undefined
       && data.item_groups === undefined && data.point_id === undefined) {
-    throw new PalomaError(String(data.info), 400);
+    let msg = String(data.info);
+    // «Service is not active» (405) — коннектор для меню/заказов не активирован.
+    // Обычно значит, что class = демо-«Tester»: точки видны, а меню/заказы недоступны.
+    if (/not active/i.test(msg) || data.code === 405) {
+      msg = `${msg} — коннектор доставки «${cls}» не активирован в Paloma для меню/заказов. `
+        + `«Tester» — демо (видны только точки). Заведите/активируйте свой коннектор доставки в аккаунте Paloma и впишите его класс, либо обратитесь в поддержку Paloma.`;
+    }
+    throw new PalomaError(msg, 400);
   }
   return data as T;
 }

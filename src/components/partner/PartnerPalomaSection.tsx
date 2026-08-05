@@ -200,7 +200,7 @@ export function PartnerPalomaSection({ shopId, address }: { shopId: string; addr
               <Input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="authkey" />
               <Input value={connectorClass} onChange={e => setConnectorClass(e.target.value)} placeholder="класс коннектора (Tester)" />
               <div className="text-[11px] text-muted-foreground bg-secondary/40 rounded-lg p-2 leading-relaxed">
-                <b>Класс коннектора</b> — «класс подключаемого сервиса» доставки в Paloma; по нему Paloma узнаёт нашу интеграцию. Стандартное значение — <b>Tester</b> (оставьте как есть). Если поддержка Paloma завела вам отдельный коннектор — впишите его класс. При «Подключить» ключ и класс сразу проверяются (подтягиваем список точек) — при неверном классе будет ошибка.
+                <b>Класс коннектора</b> — «класс подключаемого сервиса» доставки в Paloma; по нему Paloma узнаёт нашу интеграцию. Для проверки ключа подойдёт демо-<b>Tester</b>. <b className="text-amber-600">Важно:</b> если точки видны, но меню не грузится или тест выдаёт «Service is not active» — значит коннектор не активирован для меню/заказов. Нужно завести/активировать <b>свой</b> коннектор доставки в аккаунте Paloma и вписать его класс (или запросить его у поддержки Paloma). С «Tester» видны только точки.
               </div>
               <Button onClick={handleConnect} disabled={busy === 'connect'} className="w-full">{busy === 'connect' ? <Loader2 className="animate-spin" size={16} /> : 'Подключить'}</Button>
             </div>

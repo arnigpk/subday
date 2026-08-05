@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { setScreenGuard } from '@/lib/screenGuard';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Check, ChevronDown, MapPin, Loader2, Clock, Coffee, UtensilsCrossed, WifiOff, Snowflake, ScanLine } from 'lucide-react';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -627,6 +628,8 @@ export default function RedeemPage() {
   
   return (
     <AppLayout hideNav>
+      {/* Блокировка скриншота именно на экране показа QR (Android FLAG_SECURE). */}
+      <QrScreenGuard />
       <div className="min-h-screen safe-area-top safe-area-bottom flex flex-col">
         <div className="px-4 py-4 flex items-center gap-3">
           <Link to="/" className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
@@ -966,4 +969,15 @@ export default function RedeemPage() {
       )}
     </AppLayout>
   );
+}
+
+// Включает блокировку скриншота на время показа QR и снимает при уходе с экрана.
+// Рендерится только внутри QR-состояния RedeemPage, поэтому mount/unmount точно
+// совпадают с видимостью QR. На iOS — no-op (Apple не даёт блокировать скриншот).
+function QrScreenGuard() {
+  useEffect(() => {
+    setScreenGuard(true);
+    return () => setScreenGuard(false);
+  }, []);
+  return null;
 }
