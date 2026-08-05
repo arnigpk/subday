@@ -105,7 +105,7 @@ interface IntegrationStatus {
   providers: string[];
 }
 
-const PROVIDER_LABEL: Record<string, string> = { iiko: 'iiko', poster: 'Poster', rosta: 'Rosta' };
+const PROVIDER_LABEL: Record<string, string> = { iiko: 'iiko', poster: 'Poster', rosta: 'Rosta', paloma: 'Paloma' };
 
 /**
  * Информационная пометка о POS-интеграции кофейни. Настраивается она в кабинете
