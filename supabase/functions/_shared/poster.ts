@@ -70,8 +70,11 @@ export async function getProducts(token: string, spotId: string) {
 export async function getPaymentMethods(token: string) {
   const list = await posterGet<any[]>(token, 'settings.getPaymentMethods');
   return (list || []).filter(m => Number(m.is_active) === 1).map(m => {
-    const pt = Number(m.payment_type);
-    const kind = pt === 1 ? 'cash' : pt === 2 ? 'card' : pt === 4 ? 'cert' : 'custom';
+    // «Корзину» закрытия чека определяем по money_type (1=наличные, 2=карта,
+    // 3=прочее: сертификат/депозит/бонус). Это надёжнее payment_type — любой
+    // кастомный способ теперь НЕ падает ошибочно в «Оплачено картой».
+    const mt = Number(m.money_type);
+    const kind = mt === 1 ? 'cash' : mt === 2 ? 'card' : 'cert';
     return { id: String(m.payment_method_id), name: m.title || `#${m.payment_method_id}`, kind };
   });
 }
@@ -130,9 +133,10 @@ export async function createClosedOrderWithMethod(
 
   const payMajor = a.priceKopecks / 100;
   const body: Record<string, unknown> = { spot_id: a.spotId, spot_tablet_id: a.tabletId, transaction_id: txId };
+  // kind ∈ {cash, card, cert} (по money_type). Прочие способы (сертификат/депозит/
+  // бонус) закрываем как cert — это точно НЕ «карта».
   if (a.method.kind === 'cash') body.payed_cash = payMajor;
   else if (a.method.kind === 'cert') body.payed_cert = payMajor;
-  else if (a.method.kind === 'custom') { body.payed_card = payMajor; body.payment_method_id = a.method.id; }
   else body.payed_card = payMajor; // card
   await posterPost(token, 'transactions.closeTransaction', body);
 
