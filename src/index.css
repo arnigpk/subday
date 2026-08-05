@@ -498,6 +498,18 @@
   animation: confetti 1s ease-out forwards;
 }
 
+/* Активный тариф на «Подписки»: мягкая ОДНОРАЗОВАЯ подсветка карточки при
+   открытии страницы, чтобы взгляд сразу цеплялся за уже активированный тариф.
+   Анимируем только box-shadow — не конфликтует с transform у animate-slide-up. */
+@keyframes active-tariff-glow {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--accent) / 0); }
+  35%  { box-shadow: 0 0 0 4px hsl(var(--accent) / 0.35), 0 10px 34px -6px hsl(var(--accent) / 0.5); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--accent) / 0); }
+}
+.animate-active-tariff {
+  animation: active-tariff-glow 1.7s ease-out 0.2s 1;
+}
+
 /* QR Scanner styles - hide default html5-qrcode frame */
 .qr-scanner-container #qr-reader {
   border: none !important;

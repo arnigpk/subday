@@ -32,14 +32,15 @@ import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Eager: только Главная (стартовый экран) и NotFound (крошечный фолбэк).
+// Eager: Главная (стартовый экран), Подписки (ключевая страница конверсии —
+// открывается мгновенно, без lazy-задержки/скелетона) и NotFound.
 import HomePage from "./pages/HomePage";
+import PackagesPage from "./pages/PackagesPage";
 import NotFound from "./pages/NotFound";
 
 // Ленивая загрузка остальных вкладок — уменьшает стартовый бандл, ускоряет
-// запуск. Код страницы подгружается при первом заходе (на нативе — из локального
-// файла, ≈мгновенно). Роуты уже обёрнуты в <Suspense fallback={LazyFallback}>.
-const PackagesPage = lazy(() => import("./pages/PackagesPage"));
+// запуск. Чанки прогреваются в простое сразу после старта (эффект ниже), поэтому
+// переход на вкладку — мгновенный. Роуты обёрнуты в <Suspense fallback={LazyFallback}>.
 const PackageDetailPage = lazy(() => import("./pages/PackageDetailPage"));
 const ShopsPage = lazy(() => import("./pages/ShopsPage"));
 const ShopDetailPage = lazy(() => import("./pages/ShopDetailPage"));
@@ -369,6 +370,24 @@ const AppContent = () => {
   // Замер (Слой 4): React смонтирован (первый эффект после первого рендера).
   useEffect(() => { perfMark('app-mount'); }, []);
 
+  // Прогрев чанков вкладок в простое (после старта) — чтобы переход на любую
+  // вкладку был МГНОВЕННЫМ, без LazyFallback. Пути совпадают с lazy-импортами,
+  // поэтому Vite переиспользует те же чанки. Ошибки глотаем — не критично.
+  useEffect(() => {
+    const preload = () => {
+      import("./pages/ShopsPage").catch(() => {});
+      import("./pages/RedeemPage").catch(() => {});
+      import("./pages/ProfilePage").catch(() => {});
+      import("./pages/SubFlowPage").catch(() => {});
+      import("./pages/PackageDetailPage").catch(() => {});
+      import("./pages/ShopDetailPage").catch(() => {});
+    };
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+    const id = ric ? ric(preload, { timeout: 2500 }) : (setTimeout(preload, 1200) as unknown as number);
+    return () => { if (ric && cic) cic(id); else clearTimeout(id); };
+  }, []);
+
   // Soft ramp-up haptic that plays together with the splash/preloader on app open.
   useEffect(() => {
     vibratePreloader();
@@ -558,8 +577,9 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-[#FAF9F6] overflow-hidden">
-        {/* Show Lottie ONLY while the preloader timer is active. After it
-            ends, keep a clean background while background tasks finish.
+        {/* Показываем анимацию ВСЁ время загрузки (таймер прелоадера + хвост
+            фоновой авторизации/сессии), а не только на таймере — иначе после
+            прелоадера мелькал пустой почти-белый экран, пока досетлится сессия.
 
             The container fills the actual viewport of the current device
             (no fixed 9:16 box), so the animation always covers the full
@@ -567,7 +587,7 @@ const AppContent = () => {
             their own fit instead of letterboxing around a fixed ratio.
             `xMidYMid slice` scales the animation uniformly and crops the
             overflow, so it stretches to fill without distorting. */}
-        {isPreloaderVisible && animationReady && animationData ? (
+        {isLoading && animationReady && animationData ? (
           <div
             className="absolute inset-0"
             style={{ width: '100vw', height: '100dvh' }}

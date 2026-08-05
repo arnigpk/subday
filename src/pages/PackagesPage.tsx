@@ -185,7 +185,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
       className="block animate-slide-up"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent' : ''} ${hasOffer ? 'ring-2 ring-accent/50' : ''}`}>
+      <div className={`card-interactive relative overflow-hidden group ${isActive ? 'ring-2 ring-accent animate-active-tariff' : ''} ${hasOffer ? 'ring-2 ring-accent/50' : ''}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
         {hasOffer && !isActive && (
@@ -208,7 +208,7 @@ function SubscriptionCard({ sub, index, activeSubscriptionTypeIds, t, language, 
         
         {isActive && (
           <div className="absolute top-4 right-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-accent shadow-lg animate-pop">
               <Check size={12} />
               {t('packages.active')}
             </span>
