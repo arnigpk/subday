@@ -85,16 +85,29 @@ public class ScreenGuardPlugin: CAPPlugin, CAPBridgedPlugin {
                 .first(where: { $0.isKeyWindow })
         else { return }
 
-        // Первый вызов — один раз оборачиваем слой окна в секретный слой поля.
+        // Первый вызов — один раз оборачиваем слой окна в СЕКРЕТНЫЙ слой поля.
         if secureField == nil {
             let field = UITextField()
             field.isUserInteractionEnabled = false
+            // ВАЖНО: secureTextEntry=true ДО reparent — иначе secure-canvas ещё
+            // не создан и слой окна кладётся не туда (чернения нет).
+            field.isSecureTextEntry = true
+            field.translatesAutoresizingMaskIntoConstraints = false
             window.addSubview(field)
+            NSLayoutConstraint.activate([
+                field.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+                field.centerYAnchor.constraint(equalTo: window.centerYAnchor)
+            ])
             window.layer.superlayer?.addSublayer(field.layer)
-            field.layer.sublayers?.last?.addSublayer(window.layer)
+            // iOS 17 изменила порядок подслоёв secure-поля: с 17+ это last, до — first.
+            if #available(iOS 17.0, *) {
+                field.layer.sublayers?.last?.addSublayer(window.layer)
+            } else {
+                field.layer.sublayers?.first?.addSublayer(window.layer)
+            }
             secureField = field
         }
-        // Включаем/выключаем защиту — просто переключаем secureTextEntry.
+        // Дальше просто переключаем защиту.
         secureField?.isSecureTextEntry = secure
     }
 }
