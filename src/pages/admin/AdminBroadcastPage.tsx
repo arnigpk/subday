@@ -10,7 +10,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { Send, Users, User, Loader2, Search, MessageSquare, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { BroadcastHistory } from '@/components/admin/BroadcastHistory';
 import { BroadcastProgress } from '@/components/admin/BroadcastProgress';
 import { AudienceTypeSelector, type AudienceType } from '@/components/admin/AudienceTypeSelector';
@@ -318,8 +317,7 @@ export default function AdminBroadcastPage() {
                   {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей в выбранной аудитории'}
                 </div>
               ) : (
-                <ScrollArea className="h-[300px]">
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     {filteredUsers.map((user) => (
                       <div
                         key={user.user_id}
@@ -345,8 +343,7 @@ export default function AdminBroadcastPage() {
                         </div>
                       </div>
                     ))}
-                  </div>
-                </ScrollArea>
+                </div>
               )}
             </CardContent>
           </Card>
