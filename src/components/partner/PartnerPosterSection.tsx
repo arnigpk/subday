@@ -145,11 +145,12 @@ export function PartnerPosterSection({ shopId, address }: { shopId: string; addr
     if (v) {
       if (!integ?.spot_id) { toast.error('Выберите точку'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
-      // 1 активная интеграция на АДРЕС — гасим iiko и Rosta этого адреса.
+      // 1 активная интеграция на АДРЕС — гасим iiko, Rosta и Paloma этого адреса.
       await supabase.from('iiko_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
       await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
+      await supabase.from('paloma_integrations').update({ is_active: false }).eq('shop_id', shopId).eq('address', address);
     }
-    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko и Rosta адреса выключены)' : 'Poster выключен');
+    await saveInteg({ is_active: v }, v ? 'Poster включён (iiko, Rosta и Paloma адреса выключены)' : 'Poster выключен');
   };
 
   const disconnect = async () => {

@@ -1,7 +1,10 @@
-// Крон-воркер авто-ретрая POS-заказов (iiko / Poster / Rosta).
+// Крон-воркер авто-ретрая POS-заказов (iiko / Poster / Rosta / Paloma).
 // Вызывается pg_cron раз в минуту service-role ключом. Берёт заказы, которым «пора»
-// (status=failed, auto_retry, attempts<5, next_retry_at<=now) и повторяет отправку.
-// Защита от двойной отправки — в claim_pos_order_retry (атомарный захват) + ядрах провайдеров.
+// (status=failed, auto_retry, next_retry_at<=now) и повторяет отправку. Расписание:
+// первые 5 попыток — раз в минуту, далее — раз в ЧАС, пока не создастся (до суток /
+// RETRY_MAX_TOTAL). При успехе ретраи прекращаются. Один минутный крон обслуживает обе
+// фазы (кадция в next_retry_at). Защита от двойной отправки — claim_pos_order_retry
+// (атомарный захват) + короткое замыкание по pos_order_id в ядрах провайдеров.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { retryPosOrder, dueRetryLogIds } from '../_shared/pos.ts';

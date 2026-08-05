@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Plug, MapPin, CreditCard, ListChecks, Trash2, RefreshCw, XCircle, CheckCircle2, Search } from 'lucide-react';
 import { PartnerPosterSection } from '@/components/partner/PartnerPosterSection';
 import { PartnerRostaSection } from '@/components/partner/PartnerRostaSection';
+import { PartnerPalomaSection } from '@/components/partner/PartnerPalomaSection';
 import { IntegrationStatus } from '@/components/partner/IntegrationStatus';
 
 interface Org { id: string; name: string }
@@ -63,7 +64,7 @@ export default function PartnerIntegrationPage() {
   const [testSubType, setTestSubType] = useState('');
   const [testAddress, setTestAddress] = useState('');
   const [loaded, setLoaded] = useState<{ pay?: boolean; terminals?: boolean; products?: boolean }>({});
-  const [provider, setProvider] = useState<'iiko' | 'poster' | 'rosta'>('iiko');
+  const [provider, setProvider] = useState<'iiko' | 'poster' | 'rosta' | 'paloma'>('iiko');
   // Адрес-ключ настраиваемой интеграции: '' = дефолт (все адреса без своей интеграции).
   const [address, setAddress] = useState('');
   // Адреса, у которых ЕСТЬ своя интеграция (для «Кассы по адресам» и подсказок).
@@ -76,6 +77,8 @@ export default function PartnerIntegrationPage() {
       .then(({ data }) => { if (data) setProvider('poster'); });
     supabase.from('rosta_integrations').select('is_active').eq('shop_id', shopId).eq('address', address).maybeSingle()
       .then(({ data }) => { if (data) setProvider('rosta'); });
+    supabase.from('paloma_integrations').select('is_active').eq('shop_id', shopId).eq('address', address).maybeSingle()
+      .then(({ data }) => { if (data) setProvider('paloma'); });
   }, [shopId, address]);
 
   const load = useCallback(async () => {
@@ -218,11 +221,12 @@ export default function PartnerIntegrationPage() {
       if (!integ?.organization_id || !integ?.payment_type_id) { toast.error('Выберите организацию и способ оплаты'); return; }
       if (Object.keys(terminalsCfg).length === 0) { toast.error('Настройте хотя бы одну кассу'); return; }
       if (Object.keys(menuMap).length === 0) { toast.error('Привяжите хотя бы один тариф'); return; }
-      // 1 активная интеграция на АДРЕС — гасим Poster и Rosta этого же адреса.
+      // 1 активная интеграция на АДРЕС — гасим Poster, Rosta и Paloma этого же адреса.
       await supabase.from('poster_integrations').update({ is_active: false }).eq('shop_id', shopId!).eq('address', address);
       await supabase.from('rosta_integrations').update({ is_active: false }).eq('shop_id', shopId!).eq('address', address);
+      await supabase.from('paloma_integrations').update({ is_active: false }).eq('shop_id', shopId!).eq('address', address);
     }
-    await saveInteg({ is_active: v }, v ? 'Интеграция включена (Poster и Rosta этого адреса выключены)' : 'Интеграция выключена');
+    await saveInteg({ is_active: v }, v ? 'Интеграция включена (Poster, Rosta и Paloma этого адреса выключены)' : 'Интеграция выключена');
   };
 
   const disconnect = async () => {
@@ -293,20 +297,21 @@ export default function PartnerIntegrationPage() {
         )}
 
         {/* Выбор провайдера — активна одна интеграция на адрес */}
-        <div className="grid grid-cols-3 gap-2">
-          {(['iiko', 'poster', 'rosta'] as const).map(pv => (
+        <div className="grid grid-cols-4 gap-2">
+          {(['iiko', 'poster', 'rosta', 'paloma'] as const).map(pv => (
             <button
               key={pv}
               onClick={() => setProvider(pv)}
               className={`h-11 rounded-xl text-sm font-semibold border transition-colors ${provider === pv ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border hover:bg-secondary/70'}`}
             >
-              {pv === 'iiko' ? 'iiko' : pv === 'poster' ? 'Poster' : 'Rosta'}
+              {pv === 'iiko' ? 'iiko' : pv === 'poster' ? 'Poster' : pv === 'rosta' ? 'Rosta' : 'Paloma'}
             </button>
           ))}
         </div>
 
         {provider === 'poster' && shopId && <PartnerPosterSection shopId={shopId} address={address} />}
         {provider === 'rosta' && shopId && <PartnerRostaSection shopId={shopId} address={address} />}
+        {provider === 'paloma' && shopId && <PartnerPalomaSection shopId={shopId} address={address} />}
 
         {provider === 'iiko' && (<>
         {/* Статус интеграции — реальные живые проверки, авто-обновление 5 мин */}

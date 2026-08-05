@@ -124,7 +124,9 @@ export function BroadcastProgress({ broadcastId, type, onFinished }: Props) {
       {p.done && p.failed > 0 && (
         <p className="text-[11px] text-muted-foreground flex items-center gap-1">
           <AlertTriangle size={11} className="text-destructive shrink-0" />
-          {p.failed} не доставлено — обычно это заблокированный бот или отсутствующий токен устройства.
+          {p.failed} не доставлено — {type === 'push'
+            ? 'у получателя отключены уведомления, приложение удалено или токен устройства устарел (такие токены очищаются автоматически)'
+            : 'бот заблокирован или чат недоступен'}.
         </p>
       )}
     </div>

@@ -7,21 +7,33 @@
 //   * Poster/Rosta — если pos_order_id уже записан, повторно НЕ создаём (только дозакрываем),
 //     а неоднозначные сетевые сбои создания снимают авто-ретрай (остаётся ручная кнопка).
 
-export const RETRY_MAX = 5;            // авто-ретраев (шагов крона) после первой попытки
-export const RETRY_DELAY_MS = 60_000;  // шаг 1 минута
+export const RETRY_MAX = 5;               // быстрых авто-ретраев (шаг 1 минута) после первой попытки
+export const RETRY_DELAY_MS = 60_000;     // шаг быстрой фазы — 1 минута
+export const RETRY_HOURLY_MS = 3_600_000; // после быстрой фазы — раз в ЧАС, пока заказ не создастся
+export const RETRY_MAX_TOTAL = 40;        // общий предел авто-попыток (страховка от вечного цикла)
+// Заказы старше суток авто-ретраем не трогаем (чек «прошлого дня» на кассе не нужен) — см. dueRetryLogIds.
+export const RETRY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Поля журнала при НЕуспехе попытки.
+ * Расписание авто-ретрая (только если autoRetry — исход «заказ не создан»):
+ *   попытки 1..5 — раз в минуту (быстрая фаза, кассу тряхнуло на секунды);
+ *   далее       — раз в ЧАС, пока не создастся или пока attempts < RETRY_MAX_TOTAL.
+ * autoRetry=false (неоднозначный сетевой сбой создания) → авто-ретрай запрещён вовсе (только кнопка).
  * @param attempts  текущее значение attempts у строки (число уже сделанных авто-захватов)
- * @param autoRetry можно ли авто-ретраить этот сбой (false — исход неоднозначный → только вручную)
+ * @param autoRetry можно ли авто-ретраить этот сбой
  */
 export function failFields(attempts: number, autoRetry: boolean, error: string): Record<string, unknown> {
-  const willAuto = autoRetry && attempts < RETRY_MAX;
+  let nextRetryAt: string | null = null;
+  if (autoRetry && attempts < RETRY_MAX_TOTAL) {
+    const delay = attempts < RETRY_MAX ? RETRY_DELAY_MS : RETRY_HOURLY_MS;
+    nextRetryAt = new Date(Date.now() + delay).toISOString();
+  }
   return {
     status: 'failed',
     error,
     auto_retry: autoRetry,
-    next_retry_at: willAuto ? new Date(Date.now() + RETRY_DELAY_MS).toISOString() : null,
+    next_retry_at: nextRetryAt,
     updated_at: new Date().toISOString(),
   };
 }
