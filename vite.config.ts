@@ -93,7 +93,7 @@ export default defineConfig(({ mode }) => ({
           // Тяжёлые либы, нужные только на отдельных lazy-страницах, НЕ кладём в
           // общий vendor (иначе они грузились бы при старте) — Rollup сам оставит
           // их в чанке той страницы, которая их импортирует.
-          if (/node_modules[\\/](html5-qrcode|@dnd-kit|qrcode\.react|react-day-picker|input-otp|cmdk|vaul|react-resizable-panels|embla-carousel)/.test(id)) return;
+          if (/node_modules[\\/](html5-qrcode|@dnd-kit|qrcode\.react|react-day-picker|input-otp|cmdk|vaul|react-resizable-panels|embla-carousel|xlsx)/.test(id)) return;
           // Отдельно выносим ТОЛЬКО библиотеки без зависимости от React —
           // React и все react-зависимые либы обязаны жить в одном чанке,
           // иначе interop ломается («Cannot read forwardRef of undefined»).
