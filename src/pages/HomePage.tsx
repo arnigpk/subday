@@ -14,6 +14,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
+import { useOverlaySlot } from '@/contexts/OverlayContext';
 
 import logo from '@/assets/logo.png';
 import kzOrnament from '@/assets/kz-ornament.png';
@@ -33,6 +34,10 @@ export default function HomePage() {
   const { vibrateShort } = useVibration();
   
   const { showPopup, popupOffer, dismissPopup } = useSpecialOffer();
+  // Очередь оверлеев: попап спецпредложения ждёт, пока закроется онбординг.
+  // Иначе Radix-диалог блокировал бы клики по онбордингу, а само предложение
+  // «сгорало» бы непоказанным (помечается показанным при закрытии).
+  const canShowOffer = useOverlaySlot('specialOffer', !!popupOffer && showPopup);
   useEffect(() => {
     prefetchAll();
   }, [prefetchAll]);
@@ -129,9 +134,9 @@ export default function HomePage() {
         
         <AppMessageBanner />
         
-        {popupOffer && (
+        {popupOffer && canShowOffer && (
           <SpecialOfferPopup
-            open={showPopup}
+            open={showPopup && canShowOffer}
             onDismiss={dismissPopup}
             offerPrice={popupOffer.offer.offer_price}
             offerCups={popupOffer.offer.offer_cups_count}

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
+import { useOverlaySlot } from '@/contexts/OverlayContext';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TT } from '@/components/TT';
@@ -139,16 +140,27 @@ export function AppMessageBanner() {
     handleDismiss(msg.id);
   };
 
-  if (audienceLoading) return null;
-
-  const visibleMessages = messages.filter(
-    msg => !dismissedIds.has(msg.id) && matchesAudience(msg.audience_types)
+  const visibleMessages = useMemo(
+    () => (audienceLoading ? [] : messages.filter(
+      m => !dismissedIds.has(m.id) && matchesAudience(m.audience_types)
+    )),
+    [audienceLoading, messages, dismissedIds, matchesAudience],
   );
 
-  if (visibleMessages.length === 0) return null;
+  const candidate = visibleMessages[0] ?? null;
+  // Очередь оверлеев: сообщение — младшее, ждёт онбординг и спецпредложение.
+  const canShow = useOverlaySlot('appMessage', !!candidate);
 
-  const msg = visibleMessages[0];
-  trackView(msg.id);
+  // Просмотр засчитываем ТОЛЬКО когда сообщение реально показано (раньше trackView
+  // вызывался прямо в рендере — накручивал просмотры даже скрытым сообщениям).
+  useEffect(() => {
+    if (candidate && canShow) trackView(candidate.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidate?.id, canShow, userId]);
+
+  if (!candidate || !canShow) return null;
+
+  const msg = candidate;
 
   const hasButton = !!(msg.button_label && msg.button_label.trim());
   const showImage = msg.media_type === 'image' && !!msg.image_url;

@@ -16,6 +16,7 @@ import { GuestModeProvider } from "@/contexts/GuestModeContext";
 import { GuestLoginBanner } from "@/components/auth/GuestLoginBanner";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { OverlayProvider, useOverlaySlot } from "@/contexts/OverlayContext";
 import { UserStatsProvider } from "@/contexts/UserStatsContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
@@ -620,6 +621,7 @@ const AppContent = () => {
   return (
     <GuestModeProvider value={{ isGuest, requestLogin: () => setGuestMode(false) }}>
     <UserStatsProvider>
+      <OverlayProvider>
       <BrowserRouter>
         <PaymentResultHandler />
         <DeepLinkHandler />
@@ -629,7 +631,7 @@ const AppContent = () => {
         <Toaster />
         <Sonner />
         {isGuest && <GuestLoginBanner onLogin={() => setGuestMode(false)} />}
-        {showOnboarding && <OnboardingTutorial onComplete={completeOnboarding} />}
+        <OnboardingGate show={showOnboarding} onComplete={completeOnboarding} />
         <PlatformGuard isTelegramMiniApp={isTelegramMiniApp}>
         <Suspense fallback={<LazyFallback />}>
           <Routes>
@@ -685,10 +687,19 @@ const AppContent = () => {
         </Suspense>
         </PlatformGuard>
       </BrowserRouter>
+      </OverlayProvider>
     </UserStatsProvider>
     </GuestModeProvider>
   );
 };
+
+// Онбординг в очереди оверлеев (старший приоритет). Пока он показан, спецпредложение
+// и сообщение не рендерятся — иначе Radix-диалог блокировал бы клики по онбордингу.
+function OnboardingGate({ show, onComplete }: { show: boolean; onComplete: () => void }) {
+  const canShow = useOverlaySlot('onboarding', show);
+  if (!show || !canShow) return null;
+  return <OnboardingTutorial onComplete={onComplete} />;
+}
 
 const App = () => {
   return (
