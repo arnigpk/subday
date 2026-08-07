@@ -281,14 +281,24 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         {/* Второй способ забора: показать QR кофейни — его сканирует сам гость */}
         <div className="px-4 pb-2">
           <button
-            onClick={() => setShowShopQR(v => !v)}
+            onClick={() => {
+              // У кофейни несколько адресов и точка ещё не выбрана — сначала спросим
+              // адрес (как при скане). Общий QR на всю кофейню не выпускаем: он принял
+              // бы любую кассу кофейни, и списание могло уйти не на тот аккаунт.
+              // Точек с одним адресом это не касается — там адрес подставлен сам.
+              if (!showShopQR && shopAddresses.length > 1 && !shiftAddress) {
+                setShowAddrDialog(true);
+                return;
+              }
+              setShowShopQR(v => !v);
+            }}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-foreground text-sm font-medium active:scale-95 transition-transform"
           >
             <QrCode size={16} className="text-primary" />
             {showShopQR ? 'Скрыть QR кофейни' : 'Показать QR кофейни'}
           </button>
         </div>
-        {showShopQR && shopId && (
+        {showShopQR && shopId && (shopAddresses.length <= 1 || !!shiftAddress) && (
           <div className="px-4 pb-2">
             <ShopQRCode shopId={shopId} address={shiftAddress || ''} onClose={() => setShowShopQR(false)} />
           </div>

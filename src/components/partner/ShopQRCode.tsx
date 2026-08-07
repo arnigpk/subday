@@ -47,6 +47,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
  */
 export function ShopQRCode({ shopId, address = '', onClose }: Props) {
   const [token, setToken] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [shopName, setShopName] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -60,8 +61,11 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
         p_shop_id: shopId, p_address: address,
       } as never);
       if (error) throw error;
-      const r = data as unknown as { ok?: boolean; token?: string; shop_name?: string };
-      if (r?.ok && r.token) { setToken(r.token); setShopName(r.shop_name || ''); }
+      const r = data as unknown as { ok?: boolean; token?: string; shop_name?: string; message?: string };
+      if (r?.ok && r.token) { setToken(r.token); setShopName(r.shop_name || ''); setNote(null); }
+      // Сервер отказал (напр. у кофейни несколько адресов и точка не выбрана) —
+      // показываем понятную причину вместо пустого «QR недоступен».
+      else if (r && r.ok === false) { setToken(null); setNote(r.message || 'QR недоступен'); }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Не удалось получить QR');
     } finally { setLoading(false); }
@@ -224,7 +228,7 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-16">QR недоступен</p>
+            <p className="text-sm text-muted-foreground py-16 px-4 text-center">{note || 'QR недоступен'}</p>
           )}
         </div>
 
