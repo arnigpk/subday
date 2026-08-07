@@ -4,11 +4,12 @@ import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, MapPin, QrCode, ScanLine, Loader2 } from 'lucide-react';
+import { Check, X, MapPin, QrCode, Loader2 } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
-import { isNativeScanAvailable, nativeScanQR } from '@/lib/nativeScan';
+import { Capacitor } from '@capacitor/core';
+import { nativeScanQR } from '@/lib/nativeScan';
 
 interface ScanResult {
   success: boolean;
@@ -37,10 +38,12 @@ export default function PartnerScanPage() {
   const [shiftAddress, setShiftAddress] = useState<string | null>(null);
   const [showAddrDialog, setShowAddrDialog] = useState(false);
   const [showShopQR, setShowShopQR] = useState(false);
-  // Системный сканер (ML Kit) — только в приложении. Читает увереннее: под углом,
-  // с бликами, в полумраке. Встроенная камера ниже остаётся как запасной путь.
-  const [nativeScanReady, setNativeScanReady] = useState(false);
-  const [nativeBusy, setNativeBusy] = useState(false);
+  // Системный сканер (ML Kit) — только в приложении: читает увереннее (под углом,
+  // с бликами, в полумраке). Стартует сам, отдельной кнопки нет. Если он недоступен
+  // или бариста его закрыл — молча включается встроенная камера, как раньше.
+  const [webFallback, setWebFallback] = useState(!Capacitor.isNativePlatform());
+  const nativeLoopRef = useRef(false);
+  const nativeStopRef = useRef(false);
 
   const addrKey = (sid: string) => `barista_addr_${sid}`;
 
@@ -110,27 +113,6 @@ export default function PartnerScanPage() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [result]);
-
-  // Доступен ли системный сканер (приложение + поддержка + модуль на Android).
-  useEffect(() => {
-    let alive = true;
-    isNativeScanAvailable().then(ok => { if (alive) setNativeScanReady(ok); });
-    return () => { alive = false; };
-  }, []);
-
-  // Открыть системный сканер. Результат уходит в тот же обработчик, что и камера,
-  // поэтому вся логика списания одна и та же. Отмена — просто ничего не делаем.
-  const runNativeScan = async () => {
-    if (nativeBusy) return;
-    setNativeBusy(true);
-    try {
-      const res = await nativeScanQR();
-      if (res.status === 'scanned') handleScan(res.value);
-      else if (res.status === 'unavailable') setNativeScanReady(false); // прячем кнопку — остаётся камера
-    } finally {
-      setNativeBusy(false);
-    }
-  };
 
   const resetProcessing = () => {
     isProcessingRef.current = false;
@@ -281,6 +263,40 @@ export default function PartnerScanPage() {
     }
   };
 
+  // Системный сканер работает циклом: открыли → прочитали → списали → показали
+  // результат → открыли снова. Бариста сканирует подряд, ничего не нажимая, — так
+  // же, как с постоянной камерой. Любой отказ (нет модуля, закрыли окно) молча
+  // переводит на встроенную камеру, поэтому тупика на этом экране быть не может.
+  const handleScanRef = useRef(handleScan);
+  useEffect(() => { handleScanRef.current = handleScan; });
+  useEffect(() => () => { nativeStopRef.current = true; }, []);
+
+  useEffect(() => {
+    if (webFallback || nativeLoopRef.current) return;
+    // Пока адрес смены не выбран, системное окно перекрыло бы диалог выбора.
+    if (shopAddresses.length > 1 && !shiftAddress) return;
+    nativeLoopRef.current = true;
+    (async () => {
+      while (!nativeStopRef.current) {
+        const res = await nativeScanQR();
+        if (res.status !== 'scanned') { setWebFallback(true); break; }
+        await handleScanRef.current(res.value);
+        await new Promise(r => setTimeout(r, 2600)); // дать разглядеть результат
+      }
+      nativeLoopRef.current = false;
+    })();
+  }, [webFallback, shopAddresses.length, shiftAddress]);
+
+  // Страховка от «вечного лоадера»: если через 6 секунд системное окно так и не
+  // открылось (страница всё ещё на переднем плане), включаем встроенную камеру.
+  useEffect(() => {
+    if (webFallback) return;
+    const t = setTimeout(() => {
+      if (document.visibilityState === 'visible') setWebFallback(true);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [webFallback]);
+
   return (
     <PartnerLayout>
       <div className="space-y-4">
@@ -327,24 +343,18 @@ export default function PartnerScanPage() {
           </div>
         )}
 
-        {/* Быстрое сканирование системной камерой (только в приложении). Встроенный
-            сканер ниже остаётся как запасной путь и для непрерывного
-            сканирование. Системный читает увереннее: под углом, с бликами, в полумраке. */}
-        {nativeScanReady && (
-          <div className="px-4 pb-2">
-            <button
-              onClick={runNativeScan}
-              disabled={isProcessing || result !== null || nativeBusy}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform disabled:opacity-50"
-            >
-              {nativeBusy ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
-              Быстрое сканирование
-            </button>
-          </div>
-        )}
-
         <div className="px-4 relative">
-          <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
+          {/* Встроенную камеру монтируем ТОЛЬКО когда системный сканер не у дел:
+              иначе рядом с ним поднялась бы вторая камера и они подрались бы за
+              устройство. */}
+          {webFallback ? (
+            <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
+          ) : (
+            <div className="aspect-square w-full rounded-xl bg-secondary flex flex-col items-center justify-center gap-3">
+              <Loader2 size={32} className="animate-spin text-primary" />
+              <p className="text-muted-foreground text-sm">Открываем сканер…</p>
+            </div>
+          )}
           {result && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="bg-background/95 backdrop-blur-sm rounded-2xl p-6 mx-4 w-full max-w-sm shadow-xl animate-scale-in">

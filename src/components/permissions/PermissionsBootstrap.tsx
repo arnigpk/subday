@@ -210,6 +210,18 @@ export function PermissionsBootstrap() {
   // Mounts native push listeners (registration + foreground toast) app-wide
   const { initialize: initNativePush } = useNativePush();
 
+  // Модуль системного сканера (ML Kit) Play services докачивает по запросу. Просим
+  // его заранее и в фоне, отдельно от прочего: первый скан не должен ждать загрузку,
+  // а до её конца сканирование идёт встроенной камерой. Ничего не показывает и не
+  // бросает — если не встанет, всё продолжит работать на камере.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const t = setTimeout(() => {
+      import('@/lib/nativeScan').then(m => m.warmUpNativeScanner()).catch(() => {});
+    }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 

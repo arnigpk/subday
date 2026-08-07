@@ -23,22 +23,18 @@ async function loadPlugin() {
   return mod.BarcodeScanner;
 }
 
-/** Доступно ли нативное сканирование прямо сейчас (без побочных эффектов). */
-export async function isNativeScanAvailable(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
-  try {
-    const BarcodeScanner = await loadPlugin();
-    const { supported } = await BarcodeScanner.isSupported();
-    if (!supported) return false;
-    // Android: модуль сканера от Google Play services может быть ещё не установлен.
-    if (Capacitor.getPlatform() === 'android') {
-      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-      return available;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+/**
+ * Ни одна проверка не имеет права подвесить экран. Часть вызовов плагина уходит
+ * в Google Play services, и там промис может не вернуться вообще (нет модуля, нет
+ * сети, сервис не отвечает) — без потолка пользователь навсегда остаётся на
+ * лоадере. Истёк потолок — считаем, что нативного сканера нет, и показываем
+ * привычную камеру.
+ */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('native-scan-timeout')), ms)),
+  ]);
 }
 
 /**
@@ -50,9 +46,11 @@ export async function warmUpNativeScanner(): Promise<void> {
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
   try {
     const BarcodeScanner = await loadPlugin();
-    const { supported } = await BarcodeScanner.isSupported();
+    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 2500);
     if (!supported) return;
-    const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+    const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 2500);
+    // Загрузку не ограничиваем по времени: она идёт в фоне при старте приложения
+    // и никого не держит — экран сканирования её не ждёт.
     if (!available) await BarcodeScanner.installGoogleBarcodeScannerModule();
   } catch { /* не удалось — просто останется веб-сканер */ }
 }
@@ -66,21 +64,28 @@ export async function warmUpNativeScanner(): Promise<void> {
 export async function nativeScanQR(): Promise<ScanOutcome> {
   if (!Capacitor.isNativePlatform()) return { status: 'unavailable' };
   try {
-    const BarcodeScanner = await loadPlugin();
+    // Потолок и на импорт: чанк плагина грузится с диска через service worker, и
+    // если запрос за ним подвиснет, без потолка экран сканирования встанет навсегда.
+    const BarcodeScanner = await withTimeout(loadPlugin(), 3000);
 
-    const { supported } = await BarcodeScanner.isSupported();
+    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 2500);
     if (!supported) return { status: 'unavailable' };
 
     if (Capacitor.getPlatform() === 'android') {
-      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 2500);
       if (!available) {
-        try { await BarcodeScanner.installGoogleBarcodeScannerModule(); }
-        catch { return { status: 'unavailable' }; }
+        // Модуля ещё нет. НЕ ждём загрузку: она идёт через Play services, может
+        // занять минуты, а на устройстве без сети/сервисов не завершается вовсе —
+        // экран сканирования тогда навсегда застревает на лоадере. Поэтому
+        // ставим загрузку в фоне и сразу отдаём привычную камеру: человек
+        // сканирует прямо сейчас, а системный сканер подхватится со следующего раза.
+        void BarcodeScanner.installGoogleBarcodeScannerModule().catch(() => {});
+        return { status: 'unavailable' };
       }
     } else {
       // iOS: нужен доступ к камере (на Android при scan() он не требуется —
       // окно рисует сервис Google).
-      const perm = await BarcodeScanner.checkPermissions();
+      const perm = await withTimeout(BarcodeScanner.checkPermissions(), 2500);
       if (perm.camera !== 'granted' && perm.camera !== 'limited') {
         const asked = await BarcodeScanner.requestPermissions();
         if (asked.camera !== 'granted' && asked.camera !== 'limited') return { status: 'unavailable' };

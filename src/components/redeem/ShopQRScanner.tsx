@@ -109,6 +109,18 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webFallback]);
 
+  // Страховка от «вечного лоадера»: что бы ни случилось с плагином, через 6 секунд
+  // показываем обычную камеру. Проверка видимости важна — когда системное окно
+  // сканера открыто, наша страница уходит в фон, и переключать её нельзя (иначе
+  // рядом поднимется вторая камера). Видима спустя 6 секунд = окно не открылось.
+  useEffect(() => {
+    if (webFallback) return;
+    const t = setTimeout(() => {
+      if (document.visibilityState === 'visible') setWebFallback(true);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [webFallback]);
+
   const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
 
   return (
