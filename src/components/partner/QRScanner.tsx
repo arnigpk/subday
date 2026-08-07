@@ -1,12 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, Loader2, Usb, Wifi, WifiOff } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { useSerialScanner } from '@/hooks/useSerialScanner';
 
 const CAMERA_GRANTED_KEY = 'qr_camera_granted';
-const SCANNER_MODE_KEY = 'qr_scanner_mode'; // 'camera' | 'usb'
 
 function waitForElementReady(id: string, timeout = 3000): Promise<boolean> {
   return new Promise(resolve => {
@@ -58,8 +56,6 @@ async function ensureNativeCameraPermission(): Promise<'granted' | 'denied' | 'u
 interface QRScannerProps {
   onScan: (data: string) => void;
   isProcessing: boolean;
-  /** USB-сканер нужен только персоналу кофейни; гостю его не показываем */
-  allowUsb?: boolean;
   /**
    * Запускать камеру сразу при открытии, не дожидаясь ранее выданного
    * разрешения. Для гостя экран открывается по явному нажатию «Сканировать»,
@@ -70,12 +66,7 @@ interface QRScannerProps {
   autoStart?: boolean;
 }
 
-export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = false }: QRScannerProps) {
-  // Режим помнится между сессиями, но гостю USB недоступен: иначе, если на этом
-  // же устройстве бариста когда-то выбрал USB, гость открыл бы чужой экран.
-  const savedMode = (localStorage.getItem(SCANNER_MODE_KEY) as 'camera' | 'usb') || 'camera';
-  const [mode, setMode] = useState<'camera' | 'usb'>(allowUsb ? savedMode : 'camera');
-
+export function QRScanner({ onScan, isProcessing, autoStart = false }: QRScannerProps) {
   // ─── Камера ───────────────────────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -86,57 +77,15 @@ export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = f
   const lastScannedRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(isProcessing);
-  const lastSerialScannedRef = useRef<string | null>(null);
-  const serialScanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
   const didAutoRestartRef = useRef(false);
 
   useEffect(() => { isProcessingRef.current = isProcessing; }, [isProcessing]);
 
-  // ─── USB-сканер ───────────────────────────────────────────────────────────
-  const handleSerialScan = useCallback((raw: string) => {
-  if (isProcessingRef.current) return;
-  // Защита от двойного срабатывания на один QR
-  if (lastSerialScannedRef.current === raw) return;
-  try {
-    const data = JSON.parse(raw);
-    // USB-сканер принимает и обычные списания, и предзаказы (оба идут в один onScan).
-    if (data.type === 'subday_redeem' || data.type === 'subday_preorder') {
-      lastSerialScannedRef.current = raw;
-      // Сбрасываем через 3 секунды чтобы тот же QR можно было снова использовать
-      if (serialScanTimeoutRef.current) clearTimeout(serialScanTimeoutRef.current);
-      serialScanTimeoutRef.current = setTimeout(() => {
-        lastSerialScannedRef.current = null;
-      }, 3000);
-      onScan(raw);
-    }
-  } catch {
-    console.warn('[SerialScanner] Невалидный QR:', raw);
-  }
-}, [onScan]);
-
-  const { status: serialStatus, errorMsg: serialError, connect, disconnect, isSupported } =
-    useSerialScanner({ onScan: handleSerialScan });
-
-  // ─── Переключение режима ──────────────────────────────────────────────────
-  const switchMode = useCallback((newMode: 'camera' | 'usb') => {
-    // Останавливаем камеру если переключаемся
-    if (newMode === 'usb') {
-      stopScannerCleanup();
-      setIsScanning(false);
-    }
-    // Отключаем USB если переключаемся
-    if (newMode === 'camera') {
-      disconnect();
-    }
-    setMode(newMode);
-    localStorage.setItem(SCANNER_MODE_KEY, newMode);
-  }, [disconnect]);
-
   // ─── Жизненный цикл ──────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    if (mode === 'camera' && (autoStart || localStorage.getItem(CAMERA_GRANTED_KEY))) {
+    if (autoStart || localStorage.getItem(CAMERA_GRANTED_KEY)) {
       startScanner();
     }
     return () => {
@@ -217,12 +166,12 @@ export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = f
       if (!didAutoRestartRef.current) {
         didAutoRestartRef.current = true;
         await waitForVideoFrame('qr-reader', 150);
-        // Пользователь мог за это время уйти со страницы или переключиться
-        // на USB-сканер — тогда камеру поднимать заново не нужно.
-        if (!mountedRef.current || mode !== 'camera') return;
+        // Пользователь мог за это время уйти со страницы — тогда камеру
+        // поднимать заново не нужно.
+        if (!mountedRef.current) return;
         try { await scanner.stop(); scanner.clear(); } catch { /* игнор — всё равно пересоздаём */ }
         scannerRef.current = null;
-        if (!mountedRef.current || mode !== 'camera') return;
+        if (!mountedRef.current) return;
         await startScanner(); // тот же полный путь запуска, что и раньше
         return;
       }
@@ -250,114 +199,9 @@ export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = f
   }, [handleScan]);
   // ─── Рендер ──────────────────────────────────────────────────────────────
 
-  const serialConnected = serialStatus === 'connected';
-  const serialConnecting = serialStatus === 'connecting';
-
   return (
     <div className="flex flex-col items-center gap-3 w-full">
 
-      {/* Переключатель режимов — показываем только если Web Serial поддерживается */}
-      {isSupported && (
-        <div className="flex w-full rounded-lg border border-border overflow-hidden">
-          <button
-            onClick={() => switchMode('camera')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors
-              ${mode === 'camera'
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-secondary text-muted-foreground hover:bg-muted'}`}
-          >
-            <Camera size={16} />
-            Камера
-          </button>
-          <button
-            onClick={() => switchMode('usb')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors
-              ${mode === 'usb'
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-secondary text-muted-foreground hover:bg-muted'}`}
-          >
-            <Usb size={16} />
-            USB-сканер
-          </button>
-        </div>
-      )}
-
-      {/* ── Режим USB-сканера ─────────────────────────────────────────────── */}
-      {mode === 'usb' && (
-        <div className="w-full flex flex-col items-center gap-4">
-          <div className="w-full aspect-square bg-secondary rounded-xl flex flex-col items-center justify-center gap-5 px-6">
-
-            {/* Статус подключения */}
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center
-              ${serialConnected ? 'bg-green-500/20' : 'bg-muted'}`}>
-              {serialConnected
-                ? <Wifi size={40} className="text-green-500" />
-                : <WifiOff size={40} className="text-muted-foreground" />}
-            </div>
-
-            <div className="text-center">
-              {serialStatus === 'disconnected' && (
-                <p className="text-muted-foreground text-sm">Сканер не подключён</p>
-              )}
-              {serialConnecting && (
-                <p className="text-muted-foreground text-sm">Подключение...</p>
-              )}
-              {serialConnected && (
-                <>
-                  <p className="text-green-500 font-semibold">Сканер подключён ✓</p>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    Поднесите QR-код клиента к сканеру
-                  </p>
-                </>
-              )}
-              {serialStatus === 'error' && (
-                <p className="text-destructive text-sm">{serialError}</p>
-              )}
-            </div>
-
-            {/* Processing overlay */}
-            {isProcessing && serialConnected && (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 size={32} className="text-accent animate-spin" />
-                <p className="text-sm font-medium">Обрабатываем...</p>
-              </div>
-            )}
-          </div>
-
-          {/* Кнопки управления USB */}
-          {!serialConnected ? (
-            <Button
-              size="lg"
-              onClick={connect}
-              disabled={serialConnecting}
-              className="w-full"
-            >
-              {serialConnecting
-                ? <><Loader2 size={18} className="mr-2 animate-spin" />Подключение...</>
-                : <><Usb size={18} className="mr-2" />Подключить сканер</>}
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={disconnect}
-              className="w-full"
-            >
-              Отключить сканер
-            </Button>
-          )}
-
-          {!isSupported && (
-            <p className="text-xs text-muted-foreground text-center">
-              Web Serial API не поддерживается. Используйте Chrome или Edge.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ── Режим камеры (оригинальный код) ──────────────────────────────── */}
-      {mode === 'camera' && (
-        <>
           <div
             ref={containerRef}
             className="relative w-full aspect-square bg-secondary overflow-hidden qr-scanner-container rounded-xl"
@@ -411,8 +255,6 @@ export function QRScanner({ onScan, isProcessing, allowUsb = true, autoStart = f
           {/* Кнопка «Сканировать QR» и подсказки убраны: камера ловит код сама,
               а текст под сканером задаёт экран-владелец (у партнёра свой,
               у гостя свой) — иначе партнёрские надписи протекали к гостю. */}
-        </>
-      )}
     </div>
   );
 }

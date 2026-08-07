@@ -4,10 +4,11 @@ import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, MapPin, QrCode } from 'lucide-react';
+import { Check, X, MapPin, QrCode, ScanLine, Loader2 } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
+import { isNativeScanAvailable, nativeScanQR } from '@/lib/nativeScan';
 
 interface ScanResult {
   success: boolean;
@@ -39,6 +40,10 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   const [shiftAddress, setShiftAddress] = useState<string | null>(null);
   const [showAddrDialog, setShowAddrDialog] = useState(false);
   const [showShopQR, setShowShopQR] = useState(false);
+  // Системный сканер (ML Kit) — только в приложении. Читает увереннее: под углом,
+  // с бликами, в полумраке. Встроенная камера ниже остаётся как запасной путь.
+  const [nativeScanReady, setNativeScanReady] = useState(false);
+  const [nativeBusy, setNativeBusy] = useState(false);
 
   const addrKey = (sid: string) => `barista_addr_${sid}`;
 
@@ -109,6 +114,27 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [result]);
 
+  // Доступен ли системный сканер (приложение + поддержка + модуль на Android).
+  useEffect(() => {
+    let alive = true;
+    isNativeScanAvailable().then(ok => { if (alive) setNativeScanReady(ok); });
+    return () => { alive = false; };
+  }, []);
+
+  // Открыть системный сканер. Результат уходит в тот же обработчик, что и камера,
+  // поэтому вся логика списания одна и та же. Отмена — просто ничего не делаем.
+  const runNativeScan = async () => {
+    if (nativeBusy) return;
+    setNativeBusy(true);
+    try {
+      const res = await nativeScanQR();
+      if (res.status === 'scanned') handleScan(res.value);
+      else if (res.status === 'unavailable') setNativeScanReady(false); // прячем кнопку — остаётся камера
+    } finally {
+      setNativeBusy(false);
+    }
+  };
+
   const resetProcessing = () => {
     isProcessingRef.current = false;
     setIsProcessing(false);
@@ -139,7 +165,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
 
       if (data.type === 'subday_preorder') {
         // Единый серверный путь: валидация + выдача + падение заказа в POS по тарифу
-        // предзаказа (partner-scan-preorder). Работает и с камеры, и с USB-сканера.
+        // предзаказа (partner-scan-preorder). Единый путь для камеры и системного сканера.
         try {
           const { data: response, error } = await supabase.functions.invoke('partner-scan-preorder', {
             body: { qrCode: data.qrCode, shopId },
@@ -310,6 +336,22 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         {showShopQR && shopId && (shopAddresses.length <= 1 || !!shiftAddress) && (
           <div className="px-4 pb-2">
             <ShopQRCode shopId={shopId} address={shiftAddress || ''} canRotate={isPartner} onClose={() => setShowShopQR(false)} />
+          </div>
+        )}
+
+        {/* Быстрое сканирование системной камерой (только в приложении). Встроенный
+            сканер ниже остаётся как запасной путь и для непрерывного
+            сканирование. Системный читает увереннее: под углом, с бликами, в полумраке. */}
+        {nativeScanReady && (
+          <div className="px-4 pb-2">
+            <button
+              onClick={runNativeScan}
+              disabled={isProcessing || result !== null || nativeBusy}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform disabled:opacity-50"
+            >
+              {nativeBusy ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
+              Быстрое сканирование
+            </button>
           </div>
         )}
 

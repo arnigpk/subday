@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { X, Loader2, ScanLine, Coffee, UtensilsCrossed, QrCode, Gift, ShieldCheck } from 'lucide-react';
 import { TT } from '@/components/TT';
+import { Capacitor } from '@capacitor/core';
+import { nativeScanQR } from '@/lib/nativeScan';
 
 interface Props {
   drinkType: 'coffee' | 'drinks';
@@ -29,6 +31,10 @@ interface Props {
  */
 export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR, onClose, onRedeemed }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
+  // На нативе сначала пробуем системный сканер (ML Kit): он открывается быстрее и
+  // читает код заметно увереннее (под углом, с бликами, в полумраке). Если он
+  // недоступен — молча остаётся привычный веб-сканер. В вебе/миниаппе — как было.
+  const [webFallback, setWebFallback] = useState(!Capacitor.isNativePlatform());
 
   const handleScan = useCallback(async (raw: string) => {
     if (isProcessing) return;
@@ -81,6 +87,27 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
       setIsProcessing(false);
     }
   }, [isProcessing, drinkType, isGuestCoffee, onClose, onRedeemed]);
+
+  // Нативный сканер: открываем один раз при входе на экран.
+  //  прочитан  → обрабатываем тем же обработчиком, что и веб-сканер;
+  //  закрыли   → закрываем экран сканирования (пользователь передумал);
+  //  недоступен→ показываем веб-сканер (полный откат, ничего не ломается).
+  const nativeTriedRef = useRef(false);
+  useEffect(() => {
+    if (webFallback || nativeTriedRef.current) return;
+    nativeTriedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const res = await nativeScanQR();
+      if (cancelled) return;
+      if (res.status === 'scanned') handleScan(res.value);
+      else if (res.status === 'cancelled') onClose();
+      else setWebFallback(true);
+    })();
+    return () => { cancelled = true; };
+    // handleScan намеренно не в зависимостях: запуск должен быть ровно один.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webFallback]);
 
   const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
 
@@ -137,7 +164,16 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
         </div>
 
         <div className="relative rounded-2xl overflow-hidden border border-border">
-          <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} autoStart />
+          {/* Веб-сканер монтируем ТОЛЬКО в режиме отката: иначе на нативе рядом с
+              системным сканером стартовала бы вторая камера (конфликт устройства). */}
+          {webFallback ? (
+            <QRScanner onScan={handleScan} isProcessing={isProcessing} autoStart />
+          ) : (
+            <div className="aspect-square w-full flex flex-col items-center justify-center gap-3 bg-secondary/40">
+              <Loader2 size={32} className="animate-spin text-primary" />
+              <p className="text-muted-foreground text-sm"><TT text="Открываем камеру…" /></p>
+            </div>
+          )}
 
           {isProcessing && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/85 backdrop-blur-sm">
