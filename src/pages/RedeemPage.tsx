@@ -162,8 +162,16 @@ export default function RedeemPage() {
   // Имя кофейни, чей QR отсканирован (self-service). Приходит из ответа сервера
   // и переопределяет геолокационное selectedShop на экране успеха.
   const [scannedShopName, setScannedShopName] = useState<string | null>(null);
-  // Одноразовый код для QR (см. refreshQrNonce ниже).
-  const [qrNonce, setQrNonce] = useState<string | null>(null);
+  // Одноразовый код для QR. Берём из кеша СИНХРОННО — иначе QR сначала рисуется
+  // без кода, а через миг перерисовывается с ним (то самое «мерцание»).
+  // Код по времени не истекает и меняется только после списания, поэтому
+  // кешированный всегда актуален, а фоновое обновление вернёт то же значение.
+  const [qrNonce, setQrNonce] = useState<string | null>(() => {
+    try {
+      const cached = getCache<{ payload?: { n?: string } }>(CACHE_KEYS.qrSnapshot);
+      return cached?.data?.payload?.n ?? null;
+    } catch { return null; }
+  });
   // Если камеру открыли кнопкой «Сканировать» с главной, экран со своим QR
   // пользователь вообще не выбирал — закрытие должно вернуть его на главную,
   // а не показать чужой по смыслу QR. Если же сканер открыли уже с этого экрана,
@@ -370,7 +378,9 @@ export default function RedeemPage() {
     try {
       const { data } = await supabase.rpc('get_user_qr_nonce' as never);
       const r = data as unknown as { ok?: boolean; nonce?: string } | null;
-      if (r?.ok && r.nonce) setQrNonce(r.nonce);
+      // Тот же код — не трогаем состояние (React и так сделает bail-out, но так явно):
+      // перерисовки QR не происходит, значит и мерцания нет.
+      if (r?.ok && r.nonce) setQrNonce(prev => (prev === r.nonce ? prev : r.nonce!));
     } catch { /* нет сети — покажем код из кеша */ }
   }, []);
 
@@ -616,14 +626,6 @@ export default function RedeemPage() {
     if (cached?.data?.userId) setUserId(cached.data.userId);
   }, [userId, isOnline]);
 
-  // Офлайн: одноразовый код берём из последнего снимка QR — код по времени не
-  // истекает, поэтому сохранённый остаётся рабочим, пока его не списали.
-  useEffect(() => {
-    if (qrNonce || isOnline) return;
-    const cached = getCache<{ payload?: { n?: string } }>(CACHE_KEYS.qrSnapshot);
-    const n = cached?.data?.payload?.n;
-    if (n) setQrNonce(n);
-  }, [qrNonce, isOnline]);
 
   const goHome = () => navigate('/');
 

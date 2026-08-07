@@ -204,7 +204,15 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
 
       if (error) {
         console.error('Edge function error:', error);
-        setResult({ success: false, message: 'Ошибка при обработке. Попробуйте ещё раз.' });
+        // supabase-js прячет тело ответа за общим сообщением — достаём реальную
+        // причину с сервера (напр. «QR уже использован»), иначе бариста видит
+        // бесполезное «Ошибка при обработке».
+        let msg = 'Ошибка при обработке. Попробуйте ещё раз.';
+        try {
+          const b = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
+          if (b?.error) msg = b.error;
+        } catch { /* тело недоступно — оставим общий текст */ }
+        setResult({ success: false, message: msg });
         resetProcessing();
         return;
       }

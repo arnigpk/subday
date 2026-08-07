@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
         if (!r?.ok) {
           logger.warn('qr_nonce_rejected', { user_id: userId, scanner_id: scannerId, reason: r?.error ?? 'unknown' });
           return new Response(JSON.stringify({
-            error: 'Этот QR уже использован. Попросите гостя обновить экран с кодом',
+            error: 'QR код не действителен! QR код является одноразовым и этот код уже был использован',
           }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         nonceConsumed = true;
@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         if (has === true) {
           logger.warn('qr_nonce_missing_strict', { user_id: userId, scanner_id: scannerId });
           return new Response(JSON.stringify({
-            error: 'Код без защиты от повторного использования. Обновите приложение',
+            error: 'Обновите приложение — этот QR-код устарел и больше не принимается',
           }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       }

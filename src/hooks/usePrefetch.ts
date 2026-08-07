@@ -54,6 +54,23 @@ export const prefetchSubscriptions = async () => {
   }
 };
 
+/**
+ * Прогрев одноразового кода для QR при запуске приложения: к моменту, когда
+ * пользователь нажмёт «Показать QR», код уже лежит в кеше — QR рисуется сразу
+ * и не перерисовывается (без мерцания). Кладём в тот же снимок qrSnapshot,
+ * откуда RedeemPage читает его синхронно.
+ */
+export const prefetchQrNonce = async () => {
+  try {
+    const { data } = await supabase.rpc('get_user_qr_nonce' as never);
+    const r = data as unknown as { ok?: boolean; nonce?: string } | null;
+    if (!r?.ok || !r.nonce) return;
+    const prev = getCache<{ userId?: string; payload?: Record<string, unknown> }>(CACHE_KEYS.qrSnapshot);
+    const payload = { ...(prev?.data?.payload || {}), n: r.nonce };
+    setCache(CACHE_KEYS.qrSnapshot, { ...(prev?.data || {}), payload }, CACHE_TTL.qrSnapshot);
+  } catch { /* нет сети/сессии — не критично, QR возьмёт код из кеша */ }
+};
+
 export const prefetchSubflowPosts = async () => {
   const { data } = await supabase
     .from('subflow_posts')
@@ -100,6 +117,8 @@ export function usePrefetch() {
   );
 
   const prefetchAll = useCallback(() => {
+    // Код для QR греем сразу при старте — чтобы «Показать QR» открывался готовым.
+    prefetchQrNonce();
     // Prefetch all main pages data in parallel
     Promise.all([
       queryClient.prefetchQuery({
