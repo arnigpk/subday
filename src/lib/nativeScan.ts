@@ -37,22 +37,55 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+const READY_KEY = 'native_scan_ready';
+
 /**
- * Заранее подготовить модуль сканера на Android (скачивается один раз).
- * Вызывается в фоне при старте приложения — чтобы первый скан не ждал загрузку.
- * Никогда не бросает и ничего не показывает пользователю.
+ * Готов ли системный сканер — ответ МГНОВЕННЫЙ, из кеша, без единого вызова
+ * плагина. Это принципиально: спрашивать плагин в момент открытия экрана нельзя,
+ * иначе человек ждёт проверку перед камерой, и сканирование становится медленнее,
+ * чем было вообще без плагина. Не знаем наверняка → считаем, что не готов, и
+ * сразу показываем обычную камеру. Кеш обновляет фоновый прогрев.
+ */
+export function isNativeScanReady(): boolean {
+  if (!Capacitor.isNativePlatform()) return false;
+  try { return localStorage.getItem(READY_KEY) === '1'; } catch { return false; }
+}
+
+function setReady(ready: boolean) {
+  try {
+    if (ready) localStorage.setItem(READY_KEY, '1');
+    else localStorage.removeItem(READY_KEY);
+  } catch { /* приватный режим — просто останется веб-сканер */ }
+}
+
+/**
+ * Фоновая подготовка при старте приложения: выясняем, доступен ли системный
+ * сканер, и при необходимости просим Play services докачать модуль. Результат
+ * кладём в кеш, чтобы экран сканирования знал ответ заранее и открывался без
+ * задержки. Ничего не показывает и не бросает.
  */
 export async function warmUpNativeScanner(): Promise<void> {
-  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+  if (!Capacitor.isNativePlatform()) return;
   try {
-    const BarcodeScanner = await loadPlugin();
-    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 2500);
-    if (!supported) return;
-    const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 2500);
-    // Загрузку не ограничиваем по времени: она идёт в фоне при старте приложения
-    // и никого не держит — экран сканирования её не ждёт.
-    if (!available) await BarcodeScanner.installGoogleBarcodeScannerModule();
-  } catch { /* не удалось — просто останется веб-сканер */ }
+    const BarcodeScanner = await withTimeout(loadPlugin(), 5000);
+    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 5000);
+    if (!supported) { setReady(false); return; }
+
+    if (Capacitor.getPlatform() !== 'android') { setReady(true); return; }
+
+    const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 5000);
+    if (available) { setReady(true); return; }
+
+    // Модуля нет. Пока он качается, сканирование идёт обычной камерой — никто не
+    // ждёт. Готовым помечаем только после успешной установки, поэтому лишнего
+    // лоадера перед камерой не появится ни разу.
+    setReady(false);
+    await BarcodeScanner.installGoogleBarcodeScannerModule();
+    const after = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 5000);
+    setReady(after.available);
+  } catch {
+    setReady(false);
+  }
 }
 
 /**
@@ -62,33 +95,25 @@ export async function warmUpNativeScanner(): Promise<void> {
  * 'unavailable' — нативный сканер недоступен → показываем веб-сканер.
  */
 export async function nativeScanQR(): Promise<ScanOutcome> {
-  if (!Capacitor.isNativePlatform()) return { status: 'unavailable' };
+  // Вызывается только когда кеш уже сказал «готов», поэтому проверок доступности
+  // здесь нет: они бы снова встали задержкой перед камерой. Если что-то всё же
+  // пошло не так — сбрасываем кеш, и следующее открытие пойдёт сразу на камеру.
+  if (!isNativeScanReady()) return { status: 'unavailable' };
   try {
-    // Потолок и на импорт: чанк плагина грузится с диска через service worker, и
-    // если запрос за ним подвиснет, без потолка экран сканирования встанет навсегда.
+    // Потолок на импорт: чанк плагина грузится через service worker, и если запрос
+    // за ним подвиснет, без потолка экран сканирования встанет навсегда.
     const BarcodeScanner = await withTimeout(loadPlugin(), 3000);
 
-    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 2500);
-    if (!supported) return { status: 'unavailable' };
-
-    if (Capacitor.getPlatform() === 'android') {
-      const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 2500);
-      if (!available) {
-        // Модуля ещё нет. НЕ ждём загрузку: она идёт через Play services, может
-        // занять минуты, а на устройстве без сети/сервисов не завершается вовсе —
-        // экран сканирования тогда навсегда застревает на лоадере. Поэтому
-        // ставим загрузку в фоне и сразу отдаём привычную камеру: человек
-        // сканирует прямо сейчас, а системный сканер подхватится со следующего раза.
-        void BarcodeScanner.installGoogleBarcodeScannerModule().catch(() => {});
-        return { status: 'unavailable' };
-      }
-    } else {
+    if (Capacitor.getPlatform() !== 'android') {
       // iOS: нужен доступ к камере (на Android при scan() он не требуется —
       // окно рисует сервис Google).
       const perm = await withTimeout(BarcodeScanner.checkPermissions(), 2500);
       if (perm.camera !== 'granted' && perm.camera !== 'limited') {
         const asked = await BarcodeScanner.requestPermissions();
-        if (asked.camera !== 'granted' && asked.camera !== 'limited') return { status: 'unavailable' };
+        if (asked.camera !== 'granted' && asked.camera !== 'limited') {
+          setReady(false);
+          return { status: 'unavailable' };
+        }
       }
     }
 
@@ -98,7 +123,9 @@ export async function nativeScanQR(): Promise<ScanOutcome> {
     return { status: 'scanned', value: raw };
   } catch {
     // Отмена на некоторых прошивках прилетает исключением — трактуем мягко:
-    // показываем привычный веб-сканер, а не пустой экран.
+    // показываем привычный веб-сканер, а не пустой экран. И снимаем отметку
+    // готовности, чтобы следующее открытие не тратило время на плагин.
+    setReady(false);
     return { status: 'unavailable' };
   }
 }

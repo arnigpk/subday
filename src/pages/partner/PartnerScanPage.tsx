@@ -8,8 +8,7 @@ import { Check, X, MapPin, QrCode, Loader2 } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
-import { Capacitor } from '@capacitor/core';
-import { nativeScanQR } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
 
 interface ScanResult {
   success: boolean;
@@ -41,7 +40,7 @@ export default function PartnerScanPage() {
   // Системный сканер (ML Kit) — только в приложении: читает увереннее (под углом,
   // с бликами, в полумраке). Стартует сам, отдельной кнопки нет. Если он недоступен
   // или бариста его закрыл — молча включается встроенная камера, как раньше.
-  const [webFallback, setWebFallback] = useState(!Capacitor.isNativePlatform());
+  const [webFallback, setWebFallback] = useState(!isNativeScanReady());
   const nativeLoopRef = useRef(false);
   const nativeStopRef = useRef(false);
 

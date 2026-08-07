@@ -4,8 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { X, Loader2, ScanLine, Coffee, UtensilsCrossed, QrCode, Gift, ShieldCheck } from 'lucide-react';
 import { TT } from '@/components/TT';
-import { Capacitor } from '@capacitor/core';
-import { nativeScanQR } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
 
 interface Props {
   drinkType: 'coffee' | 'drinks';
@@ -34,7 +33,7 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
   // На нативе сначала пробуем системный сканер (ML Kit): он открывается быстрее и
   // читает код заметно увереннее (под углом, с бликами, в полумраке). Если он
   // недоступен — молча остаётся привычный веб-сканер. В вебе/миниаппе — как было.
-  const [webFallback, setWebFallback] = useState(!Capacitor.isNativePlatform());
+  const [webFallback, setWebFallback] = useState(!isNativeScanReady());
 
   const handleScan = useCallback(async (raw: string) => {
     if (isProcessing) return;
