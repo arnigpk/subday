@@ -170,6 +170,10 @@ export default function RedeemPage() {
     if (openedStraightToScanner) navigate('/', { replace: true });
     else setShowShopScanner(false);
   }, [openedStraightToScanner, navigate]);
+  // «Ваш QR» из сканера: просто гасим камеру и остаёмся на экране забора —
+  // в отличие от закрытия, на главную не уводим, даже если пришли сюда сразу
+  // кнопкой «Сканировать» (пользователь осознанно выбрал второй способ).
+  const switchToMyQR = useCallback(() => setShowShopScanner(false), []);
   // Успех сканирования QR кофейни: гасим камеру и остаёмся на экране забора,
   // чтобы показать ту же анимацию успеха, что и при сканировании бариста
   // (навигация на главную здесь убила бы анимацию — это была регрессия).
@@ -962,6 +966,8 @@ export default function RedeemPage() {
           <ShopQRScanner
             drinkType={drinkType}
             isGuestCoffee={isGuestCoffee && hasGuestCoffee}
+            remaining={remaining}
+            onShowMyQR={switchToMyQR}
             onClose={closeShopScanner}
             onRedeemed={handleShopScanSuccess}
           />

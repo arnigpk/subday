@@ -2,12 +2,16 @@ import { useState, useCallback } from 'react';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
-import { X, Loader2, ScanLine, Coffee, UtensilsCrossed } from 'lucide-react';
+import { X, Loader2, ScanLine, Coffee, UtensilsCrossed, QrCode, Gift, ShieldCheck } from 'lucide-react';
 import { TT } from '@/components/TT';
 
 interface Props {
   drinkType: 'coffee' | 'drinks';
   isGuestCoffee: boolean;
+  /** Остаток напитков — показываем, что именно спишется. */
+  remaining?: number;
+  /** Переключиться на свой QR (для бариста), не уходя с экрана забора. */
+  onShowMyQR?: () => void;
   onClose: () => void;
   /**
    * Вызывается при успешном списании (на случай, если realtime не долетел).
@@ -23,7 +27,7 @@ interface Props {
  * разница лишь в том, что кофейню мы берём из секретного токена в QR, а списываем
  * строго у себя. Успех показывается общей анимацией (realtime), как и раньше.
  */
-export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }: Props) {
+export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR, onClose, onRedeemed }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleScan = useCallback(async (raw: string) => {
@@ -108,6 +112,30 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
           «камера + подсказка» по вертикали: подсказка идёт сразу под кадром,
           а свободное место распределяется сверху и снизу, а не зияет внизу. */}
       <div className="flex-1 flex flex-col justify-center min-h-0 px-4">
+        {/* Полоска над кадром: что именно спишется и сколько осталось —
+            заполняет пустоту между заголовком и камерой полезным. */}
+        <div className="mb-3 flex items-center gap-2.5 rounded-2xl bg-secondary/60 px-4 py-3">
+          {isGuestCoffee
+            ? <Gift size={17} className="shrink-0 text-accent" />
+            : <DrinkIcon size={17} className="shrink-0 text-primary" />}
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground font-semibold leading-tight" style={{ fontSize: 'clamp(13px,3.7vw,15px)' }}>
+              <TT text={isGuestCoffee
+                ? 'Спишется гостевой кофе'
+                : (drinkType === 'coffee' ? 'Спишется 1 кофе' : 'Спишется 1 ланч')} />
+            </p>
+            {typeof remaining === 'number' && !isGuestCoffee && (
+              <p className="text-muted-foreground leading-snug mt-0.5" style={{ fontSize: 'clamp(11px,3.1vw,13px)' }}>
+                <TT text="Осталось" />: <b className="text-foreground">{remaining}</b>
+              </p>
+            )}
+          </div>
+          <span className="shrink-0 inline-flex items-center gap-1 text-accent" style={{ fontSize: 'clamp(10px,2.9vw,12px)' }}>
+            <ShieldCheck size={13} />
+            <TT text="Списание защищено" />
+          </span>
+        </div>
+
         <div className="relative rounded-2xl overflow-hidden border border-border">
           <QRScanner onScan={handleScan} isProcessing={isProcessing} allowUsb={false} autoStart />
 
@@ -126,6 +154,30 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, onClose, onRedeemed }:
             <TT text="Наведите камеру на QR-код, который стоит на стойке кофейни. Списание пройдёт автоматически." />
           </p>
         </div>
+
+        {/* Второй способ: показать свой QR бариста — та же стилистика, что на главной */}
+        {onShowMyQR && (
+          <button
+            onClick={onShowMyQR}
+            disabled={isProcessing}
+            className="mt-3 w-full rounded-2xl font-bold bg-accent text-accent-foreground shadow-glow active:scale-95 transition-all duration-200 disabled:opacity-50"
+            style={{ padding: 'clamp(9px,2.6vw,13px) clamp(7px,2.2vw,14px)' }}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <span className="shrink-0 flex items-center">
+                <QrCode style={{ width: 'clamp(19px,5.2vw,24px)', height: 'clamp(19px,5.2vw,24px)' }} strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 flex flex-col items-start">
+                <span className="truncate max-w-full" style={{ fontSize: 'clamp(13px,3.8vw,17px)', lineHeight: 1.15 }}>
+                  <TT text="Ваш QR" />
+                </span>
+                <span className="truncate max-w-full font-medium opacity-75" style={{ fontSize: 'clamp(8.5px,2.4vw,11px)', lineHeight: 1.15 }}>
+                  <TT text="показать бариста" />
+                </span>
+              </span>
+            </span>
+          </button>
+        )}
       </div>
 
       <div className="safe-area-bottom" />
