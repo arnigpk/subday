@@ -17,6 +17,7 @@ interface ScanRequest {
   drinkName: string;
   isGuestCoffee?: boolean;
   address?: string; // адрес/касса, подтверждённый баристой на скане (для iiko)
+  qrNonce?: string; // одноразовый код из QR гостя (гасится при списании)
 }
 
 function extractTelegramId(phone: string): string | null {
@@ -139,6 +140,49 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // ОДНОРАЗОВОСТЬ QR ГОСТЯ. Срока по времени у кода нет — он живёт, пока его
+    // не списали. Гасим nonce ПОСЛЕ всех проверок и ПРЯМО ПЕРЕД списанием, чтобы
+    // код не «сгорал» на отказах (кофейня закрыта / лимит / нет подписки).
+    // Атомарность — в consume_user_qr_nonce (один UPDATE с проверкой значения),
+    // поэтому два одновременных скана одного кода не пройдут дважды.
+    // Самообслуживания не касается: там гость сканирует QR кофейни, своего кода нет.
+    // ─────────────────────────────────────────────────────────────────────────
+    const qrNonce = (body as ScanRequest).qrNonce;
+    let nonceConsumed = false;
+    const consumeQrNonce = async (): Promise<Response | null> => {
+      if (isSelfService || nonceConsumed) return null;
+
+      if (qrNonce) {
+        const { data } = await supabase.rpc('consume_user_qr_nonce', { p_user_id: userId, p_nonce: qrNonce });
+        const r = data as { ok?: boolean; error?: string } | null;
+        if (!r?.ok) {
+          logger.warn('qr_nonce_rejected', { user_id: userId, scanner_id: scannerId, reason: r?.error ?? 'unknown' });
+          return new Response(JSON.stringify({
+            error: 'Этот QR уже использован. Попросите гостя обновить экран с кодом',
+          }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        nonceConsumed = true;
+        return null;
+      }
+
+      // Кода в запросе нет — старое приложение бариста или старый QR гостя.
+      // В мягком режиме (по умолчанию) пропускаем, как раньше: ничего не ломаем на
+      // раскатке. В строгом — отклоняем, если у гостя nonce уже выпускался.
+      const { data: setting } = await supabase
+        .from('qr_settings').select('setting_value').eq('setting_key', 'qr_nonce_enforce').maybeSingle();
+      if (setting?.setting_value === 'true') {
+        const { data: has } = await supabase.rpc('user_has_qr_nonce', { p_user_id: userId });
+        if (has === true) {
+          logger.warn('qr_nonce_missing_strict', { user_id: userId, scanner_id: scannerId });
+          return new Response(JSON.stringify({
+            error: 'Код без защиты от повторного использования. Обновите приложение',
+          }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+      return null;
+    };
+
     // Fetch stats + profile + shop + subscriptions in parallel (один слой round-trip'ов
     // вместо двух — на слабом интернете это заметно ускоряет ответ).
     const [statsResult, profileResult, shopResult, subsResult, shiftResult] = await Promise.all([
@@ -254,6 +298,10 @@ Deno.serve(async (req) => {
       }
 
       const { newStreak, newMaxStreak } = calculateStreak(stats, today);
+
+      // Гасим одноразовый QR гостя — все проверки уже пройдены, дальше списание.
+      const guestNonceFail = await consumeQrNonce();
+      if (guestNonceFail) return guestNonceFail;
 
       // === Списание гостевого кофе с ГАРАНТИЕЙ (как в обычном пути) ===
       // 1) Атомарно: обновляем только если guest_coffees не изменился и ещё > 0.
@@ -414,6 +462,10 @@ Deno.serve(async (req) => {
     const payoutPercent = subTypes?.revenue_share_percent
       ?? (shopResult.data as any)?.revenue_share_percent
       ?? 70;
+
+    // Гасим одноразовый QR гостя — подписка, лимит и баланс уже проверены.
+    const nonceFail = await consumeQrNonce();
+    if (nonceFail) return nonceFail;
 
     // === Списание с ГАРАНТИЕЙ: success ТОЛЬКО если чашка реально списана И записана в историю ===
     const balCol = drinkType === 'coffee' ? 'coffee_remaining' : 'drinks_remaining';

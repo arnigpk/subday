@@ -8,6 +8,8 @@ interface Props {
   shopId: string;
   /** адрес точки; '' — единственная/основная точка кофейни */
   address?: string;
+  /** Перевыпуск доступен ТОЛЬКО владельцу кофейни (на сервере тоже запрещено бариста). */
+  canRotate?: boolean;
   onClose?: () => void;
 }
 
@@ -45,7 +47,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
  * проходит без участия кассира. В коде — только секретный токен точки, поэтому
  * подделать чужой QR нельзя. Токен создаётся при первом открытии этого экрана.
  */
-export function ShopQRCode({ shopId, address = '', onClose }: Props) {
+export function ShopQRCode({ shopId, address = '', canRotate = false, onClose }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [shopName, setShopName] = useState('');
@@ -240,14 +242,17 @@ export function ShopQRCode({ shopId, address = '', onClose }: Props) {
           >
             <span className="inline-flex items-center gap-2"><Download size={17} />Скачать для печати</span>
           </button>
-          <button
-            onClick={rotate}
-            disabled={busy || !payload}
-            title="Перевыпустить, если код утёк"
-            className="w-12 rounded-2xl border border-border flex items-center justify-center text-muted-foreground active:scale-95 transition-transform disabled:opacity-50"
-          >
-            {busy ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
-          </button>
+          {/* Перевыпуск — только владелец кофейни. У бариста кнопки нет (и сервер откажет). */}
+          {canRotate && (
+            <button
+              onClick={rotate}
+              disabled={busy || !payload}
+              title="Перевыпустить, если код утёк"
+              className="w-12 rounded-2xl border border-border flex items-center justify-center text-muted-foreground active:scale-95 transition-transform disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+            </button>
+          )}
         </div>
 
         <div className="rounded-2xl bg-secondary/50 px-4 py-3 space-y-1.5">

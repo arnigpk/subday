@@ -18,7 +18,7 @@ interface ScanResult {
 }
 
 export default function PartnerScanPage() {
-  const { shopId } = usePartnerAuth();
+  const { shopId, isPartner } = usePartnerAuth();
 const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   && !(window as any).Capacitor?.isNativePlatform?.()
   && !(window as any).Telegram?.WebApp?.initData;
@@ -194,6 +194,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
           drinkType: data.drinkType,
           isGuestCoffee: data.isGuestCoffee || false,
           address: shiftAddress || undefined, // касса смены → маршрутизация заказа iiko
+          qrNonce: data.n || undefined,       // одноразовый код — сервер погасит его при списании
         },
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -300,7 +301,7 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         </div>
         {showShopQR && shopId && (shopAddresses.length <= 1 || !!shiftAddress) && (
           <div className="px-4 pb-2">
-            <ShopQRCode shopId={shopId} address={shiftAddress || ''} onClose={() => setShowShopQR(false)} />
+            <ShopQRCode shopId={shopId} address={shiftAddress || ''} canRotate={isPartner} onClose={() => setShowShopQR(false)} />
           </div>
         )}
 

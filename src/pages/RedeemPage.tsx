@@ -162,6 +162,8 @@ export default function RedeemPage() {
   // Имя кофейни, чей QR отсканирован (self-service). Приходит из ответа сервера
   // и переопределяет геолокационное selectedShop на экране успеха.
   const [scannedShopName, setScannedShopName] = useState<string | null>(null);
+  // Одноразовый код для QR (см. refreshQrNonce ниже).
+  const [qrNonce, setQrNonce] = useState<string | null>(null);
   // Если камеру открыли кнопкой «Сканировать» с главной, экран со своим QR
   // пользователь вообще не выбирал — закрытие должно вернуть его на главную,
   // а не показать чужой по смыслу QR. Если же сканер открыли уже с этого экрана,
@@ -361,6 +363,19 @@ export default function RedeemPage() {
   const translatedRemainingText = useAutoTranslate(remainingTextRu);
   const translatedGuestLabel = useAutoTranslate('Гостевой кофе');
 
+  // Одноразовый код в QR: живёт, пока его не списали (срока по времени нет).
+  // После списания сервер выдаёт новый — подтягиваем его, чтобы на экране всегда
+  // был рабочий QR. Офлайн — берём последний из кеша (см. восстановление ниже).
+  const refreshQrNonce = useCallback(async () => {
+    try {
+      const { data } = await supabase.rpc('get_user_qr_nonce' as never);
+      const r = data as unknown as { ok?: boolean; nonce?: string } | null;
+      if (r?.ok && r.nonce) setQrNonce(r.nonce);
+    } catch { /* нет сети — покажем код из кеша */ }
+  }, []);
+
+  useEffect(() => { refreshQrNonce(); }, [refreshQrNonce]);
+
   const handleRealtimeRedemption = useCallback(() => {
     // Событие приходит по realtime ТОЛЬКО после реального списания на сервере,
     // поэтому показываем успех сразу — без искусственной задержки (было 500мс).
@@ -369,8 +384,9 @@ export default function RedeemPage() {
     playSuccessSound();
     vibrateSuccess();
     refetch();
+    refreshQrNonce(); // старый код погашен — получаем новый
     setTimeout(() => setShowConfetti(false), 2000);
-  }, [refetch, playSuccessSound, vibrateSuccess]);
+  }, [refetch, playSuccessSound, vibrateSuccess, refreshQrNonce]);
 
   // Успех при самостоятельном сканировании QR кофейни: сначала закрываем
   // камеру (иначе оверлей перекрыл бы анимацию), затем показываем успех.
@@ -581,6 +597,9 @@ export default function RedeemPage() {
       type: 'subday_redeem', userId, shopId: selectedShop.id,
       drinkType,
       isGuestCoffee: isGuestCoffee && hasGuestCoffee,
+      // Одноразовый код: сервер гасит его при списании, повторный скан не пройдёт.
+      // Ключ короткий («n»), чтобы QR не разрастался и легко читался.
+      ...(qrNonce ? { n: qrNonce } : {}),
     };
     // Кешируем последний QR-снимок для оффлайн-показа
     setCache(CACHE_KEYS.qrSnapshot, { userId, payload }, CACHE_TTL.qrSnapshot);
@@ -588,7 +607,7 @@ export default function RedeemPage() {
     // hasActiveSub depends on activeSubscriptions (useSubscriptionStatus), which can
     // resolve asynchronously after the initial render — it must be a dep so the QR
     // recomputes once subscriptions load, instead of staying stuck at null.
-  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, isGuestCoffee, hasGuestCoffee, hasActiveSub]);
+  }, [userId, selectedShop, selectedShopClosestAddress, drinkType, drinkName, remaining, isGuestCoffee, hasGuestCoffee, hasActiveSub, qrNonce]);
 
   // Восстановление userId из кеша при оффлайне
   useEffect(() => {
@@ -596,6 +615,15 @@ export default function RedeemPage() {
     const cached = getCache<{ userId: string }>(CACHE_KEYS.qrSnapshot);
     if (cached?.data?.userId) setUserId(cached.data.userId);
   }, [userId, isOnline]);
+
+  // Офлайн: одноразовый код берём из последнего снимка QR — код по времени не
+  // истекает, поэтому сохранённый остаётся рабочим, пока его не списали.
+  useEffect(() => {
+    if (qrNonce || isOnline) return;
+    const cached = getCache<{ payload?: { n?: string } }>(CACHE_KEYS.qrSnapshot);
+    const n = cached?.data?.payload?.n;
+    if (n) setQrNonce(n);
+  }, [qrNonce, isOnline]);
 
   const goHome = () => navigate('/');
 
