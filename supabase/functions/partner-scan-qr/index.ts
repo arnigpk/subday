@@ -193,8 +193,11 @@ Deno.serve(async (req) => {
         .from('user_subscriptions')
         .select(`id, subscription_type_id, expires_at, is_frozen, freeze_until, daily_limit_override, daily_limit_reset_at, subscription_types ( daily_limit, type, name, price, cups_count, revenue_share_percent )`)
         .eq('user_id', userId).eq('is_active', true),
-      // Активная смена сканирующего бариста — источник правды для адреса/кассы.
-      supabase.from('barista_shifts').select('address, expires_at').eq('user_id', scannerId).maybeSingle(),
+      // Активная смена сканирующего — источник адреса/кассы. ВАЖНО: только смена
+      // В ЭТОЙ ЖЕ кофейне. Без фильтра по shop_id партнёр нескольких кофеен,
+      // у которого открыта смена в одной точке, тянул её адрес в списание другой
+      // кофейни — и заказ уходил не на ту кассу.
+      supabase.from('barista_shifts').select('address, expires_at').eq('user_id', scannerId).eq('shop_id', shopId).maybeSingle(),
     ]);
 
     // Derive shopName, drinkName from DB. Адрес: подтверждённый на скане (body.address)
@@ -204,10 +207,29 @@ Deno.serve(async (req) => {
     const shiftAddress = shiftActive ? (shiftResult.data?.address || null) : null;
     // При самообслуживании адрес берём из QR-точки (там же, где физически висит код),
     // а не из тела запроса — гость не должен влиять на маршрутизацию кассы.
+    // Адрес ОБЯЗАН принадлежать той кофейне, которой идёт списание. Раньше сервер
+    // брал адрес из тела запроса/смены как есть — и партнёр нескольких кофеен со
+    // сменой в другой точке записывал чужой адрес (а заказ уходил не на ту кассу).
+    // Теперь любой присланный адрес сверяем со списком адресов кофейни; не совпал —
+    // игнорируем и берём собственный адрес кофейни.
+    const shopOwnAddresses: string[] = [
+      ...((shopResult.data?.addresses as string[] | null) || []),
+      ...(shopResult.data?.address ? [shopResult.data.address as string] : []),
+    ].filter((a): a is string => !!a && !!a.trim());
+    const belongsToShop = (a: string | null | undefined): string | null => {
+      if (!a || !a.trim()) return null;
+      const needle = a.trim();
+      const hit = shopOwnAddresses.find(x => x.trim() === needle);
+      return hit ?? null;
+    };
+
     const requestedAddress = isSelfService
-      ? (selfAddress && selfAddress.trim() ? selfAddress.trim() : null)
-      : (typeof body.address === 'string' && body.address.trim() ? body.address.trim() : null);
-    const shopAddress = requestedAddress || shiftAddress || shopResult.data?.addresses?.[0] || shopResult.data?.address || null;
+      ? belongsToShop(selfAddress)                                   // адрес точки из QR кофейни
+      : belongsToShop(typeof body.address === 'string' ? body.address : null);
+    const shopAddress = requestedAddress
+      || belongsToShop(shiftAddress)                                  // смена — только этой кофейни
+      || shopOwnAddresses[0]
+      || null;
     const drinkName = drinkType === 'coffee' ? 'Кофе' : 'Ланч';
 
     const stats = statsResult.data;
