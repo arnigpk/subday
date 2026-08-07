@@ -31,3 +31,7 @@ dist-ssr
 .env.*.local
 subday.rar
 .env.bak*
+
+# Экспорт QR кофеен — содержит секретные токены точек, в репозитории не место
+subday-QR-*.zip
+qr-export/
