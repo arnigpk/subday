@@ -8,7 +8,7 @@ import { Check, X, MapPin, QrCode, Loader2 } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
-import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady, isNativeScanOpen } from '@/lib/nativeScan';
 
 interface ScanResult {
   success: boolean;
@@ -291,6 +291,9 @@ export default function PartnerScanPage() {
   useEffect(() => {
     if (webFallback) return;
     const t = setTimeout(() => {
+      // Сканер уже открыт (на iOS он лежит слоем поверх страницы, и та остаётся
+      // «видимой») — вторую камеру поднимать нельзя.
+      if (isNativeScanOpen()) return;
       if (document.visibilityState === 'visible') setWebFallback(true);
     }, 6000);
     return () => clearTimeout(t);

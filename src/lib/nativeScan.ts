@@ -51,6 +51,18 @@ export function isNativeScanReady(): boolean {
   try { return localStorage.getItem(READY_KEY) === '1'; } catch { return false; }
 }
 
+/**
+ * Открыт ли прямо сейчас нативный сканер. Нужно экранам, чтобы их страховочный
+ * таймер не поднял вторую камеру поверх работающей. По уходу страницы в фон это
+ * определить нельзя: на Android системное окно — отдельная активность (страница
+ * уходит в фон), а на iOS плагин кладёт камеру слоем ПОВЕРХ WebView в том же
+ * окне, и страница остаётся «видимой».
+ */
+let scanOpen = false;
+export function isNativeScanOpen(): boolean {
+  return scanOpen;
+}
+
 function setReady(ready: boolean) {
   try {
     if (ready) localStorage.setItem(READY_KEY, '1');
@@ -117,7 +129,13 @@ export async function nativeScanQR(): Promise<ScanOutcome> {
       }
     }
 
-    const { barcodes } = await BarcodeScanner.scan();
+    let barcodes;
+    scanOpen = true;
+    try {
+      ({ barcodes } = await BarcodeScanner.scan());
+    } finally {
+      scanOpen = false;
+    }
     const raw = barcodes?.[0]?.rawValue;
     if (!raw) return { status: 'cancelled' };   // закрыли окно, ничего не прочитав
     return { status: 'scanned', value: raw };

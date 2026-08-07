@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { X, Loader2, ScanLine, Coffee, UtensilsCrossed, QrCode, Gift, ShieldCheck } from 'lucide-react';
 import { TT } from '@/components/TT';
-import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady, isNativeScanOpen } from '@/lib/nativeScan';
 
 interface Props {
   drinkType: 'coffee' | 'drinks';
@@ -115,6 +115,9 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
   useEffect(() => {
     if (webFallback) return;
     const t = setTimeout(() => {
+      // Сканер уже открыт (на iOS он лежит слоем поверх страницы, и та остаётся
+      // «видимой») — вторую камеру поднимать нельзя.
+      if (isNativeScanOpen()) return;
       if (document.visibilityState === 'visible') setWebFallback(true);
     }, 6000);
     return () => clearTimeout(t);
