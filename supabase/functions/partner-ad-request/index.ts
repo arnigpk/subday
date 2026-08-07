@@ -14,44 +14,52 @@ Deno.serve(async (req) => {
     let workerEnv: Record<string, string> = {};
     try { workerEnv = JSON.parse(req.headers.get('x-worker-env') || '{}'); } catch { /* ignore */ }
 
-    const { shopName, time } = await req.json();
-
-    // Get user from auth header
-    const authHeader = req.headers.get('Authorization');
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || workerEnv['SUPABASE_URL'];
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || workerEnv['SUPABASE_SERVICE_ROLE_KEY'];
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || workerEnv['SUPABASE_ANON_KEY'];
     const supabaseClient = createClient(supabaseUrl!, supabaseKey!);
 
-    let userId: string | null = null;
-    let shopId: string | null = null;
-
-    if (authHeader) {
-      const anonClient = createClient(supabaseUrl!, supabaseAnonKey!);
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await anonClient.auth.getUser(token);
-      if (user) {
-        userId = user.id;
-        // Get partner's shop_id
-        const { data: roleData } = await supabaseClient
-          .from('user_roles')
-          .select('shop_id')
-          .eq('user_id', user.id)
-          .eq('role', 'partner')
-          .maybeSingle();
-        shopId = roleData?.shop_id || null;
-      }
+    // Авторизация ОБЯЗАТЕЛЬНА и проверяется ДО любых действий. Раньше заявка
+    // сохранялась только при наличии пользователя, а уведомление в Telegram
+    // уходило в любом случае — то есть кто угодно мог слать админу сообщения
+    // (и с пустым телом они приходили как «Кофейня: undefined»).
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Требуется авторизация' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Требуется авторизация' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Save to ad_requests table
-    if (userId) {
-      await supabaseClient.from('ad_requests').insert({
-        shop_name: shopName || 'Не указано',
-        shop_id: shopId,
-        partner_user_id: userId,
-        status: 'pending',
-      });
+    // Заявку на рекламу может оставить только владелец кофейни.
+    const { data: roleData } = await supabaseClient
+      .from('user_roles')
+      .select('shop_id')
+      .eq('user_id', user.id)
+      .eq('role', 'partner')
+      .maybeSingle();
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: 'Доступно только владельцу кофейни' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    const shopNameRaw = typeof body.shopName === 'string' ? body.shopName.trim() : '';
+    const shopName = shopNameRaw || 'Не указано';
+    const time = typeof body.time === 'string' && body.time.trim()
+      ? body.time.trim()
+      : new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Aqtau' });
+    const userId = user.id;
+    const shopId = roleData.shop_id || null;
+
+    await supabaseClient.from('ad_requests').insert({
+      shop_name: shopName,
+      shop_id: shopId,
+      partner_user_id: userId,
+      status: 'pending',
+    });
 
     // Send Telegram notification
     const botToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || workerEnv['NOTIFICATION_BOT_TOKEN'];
