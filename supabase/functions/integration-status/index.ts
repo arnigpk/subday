@@ -3,7 +3,7 @@
 // API (Poster/Rosta), открытая смена (Rosta). Вызывается вручную и авто каждые 5 мин.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getValidToken, getTerminalAlive } from '../_shared/iiko.ts';
+import { getValidToken, getTerminalAlive, getTerminalGroups } from '../_shared/iiko.ts';
 import { getSpots } from '../_shared/poster.ts';
 import { getTradepoints, getOpenShift } from '../_shared/rosta.ts';
 import { setWorkerEnv } from '../_shared/env.ts';
@@ -56,7 +56,18 @@ async function iikoStatus(supabase: any, shopId: string, address: string): Promi
       }
       if (online === list.length) till = { key: 'till', label: 'Касса', status: 'ok', detail: `Онлайн${list.length > 1 ? ` (${online}/${list.length})` : ''}` };
       else if (online > 0) till = { key: 'till', label: 'Касса', status: 'warn', detail: `Онлайн ${online} из ${list.length}` };
-      else if (unknown === list.length) till = { key: 'till', label: 'Касса', status: 'warn', detail: 'Статус кассы не определён (проверьте кассу)' };
+      else if (unknown === list.length) {
+        // is_alive не отдаёт статус. Уточняем: касса вообще зарегистрирована в облаке?
+        // Если да — она есть, но не на связи (частая причина «заказ не дошёл до кассы»).
+        let known = false;
+        try {
+          const groups = await getTerminalGroups(token, integ.organization_id);
+          known = groups.some((g: { id: string }) => list.some((t: { terminal_group_id?: string }) => t.terminal_group_id === g.id));
+        } catch { /* не смогли уточнить — оставим общий текст */ }
+        till = known
+          ? { key: 'till', label: 'Касса', status: 'warn', detail: 'Зарегистрирована, но не на связи с iiko Cloud — заказы могут не доходить' }
+          : { key: 'till', label: 'Касса', status: 'error', detail: 'Не найдена в iiko Cloud — проверьте регистрацию кассы' };
+      }
       else till = { key: 'till', label: 'Касса', status: 'error', detail: 'Касса офлайн — заказ не дойдёт' };
     }
   } catch (e) { till = { key: 'till', label: 'Касса', status: 'warn', detail: `Не удалось проверить: ${err(e)}` }; }

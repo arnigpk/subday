@@ -473,7 +473,14 @@ export async function runIikoOrder(
       ? await waitOrderResult(token, integ.organization_id, res.correlationId, res.orderId)
       : { ok: true } as { ok: boolean; pending?: boolean; error?: string };
 
-    if (result.ok || result.pending) {
+    // ВАЖНО: успехом считаем ТОЛЬКО подтверждённое создание. Раньше сюда попадал и
+    // pending («iiko не подтвердил вовремя») — и заказ помечался «создан», хотя касса
+    // команду не забрала, а iiko позже сам переводил её в Error по своему таймауту
+    // («Creation timeout expired»). Партнёр видел «создан», а в кассе пусто, и отмена
+    // потом падала с «order ... doesn't exist». Теперь pending → failed + авто-ретрай.
+    // Ретрай безопасен: order.id стабильный (= redemption_id), поэтому если заказ всё
+    // же материализуется, iiko отсечёт дубль ответом «already exists» (см. выше).
+    if (result.ok) {
       await supabase.from('iiko_order_log').update(successFields({
         status: 'created', error: aliveNote, correlation_id: res.correlationId || null, iiko_order_id: res.orderId || null,
         organization_id: integ.organization_id, terminal_group_id: term.terminal_group_id, iiko_product_id: map.iiko_product_id,
@@ -630,7 +637,13 @@ export async function waitOrderResult(
       return { ok: false, error: friendlyIiko(msg) };
     }
   }
-  return { ok: false, pending: true, error: 'iiko не подтвердил создание вовремя — проверьте кассу' };
+  // Касса не забрала команду у облака. Обычно: касса выключена/не синхронизируется
+  // с iiko Cloud, либо рассинхрон версий iikoServer и плагинов. Заказ НЕ создан —
+  // iiko сам переведёт команду в Error по своему таймауту.
+  return {
+    ok: false, pending: true,
+    error: 'Касса не ответила облаку iiko — заказ не создан. Проверьте, что касса включена и синхронизируется с iiko Cloud.',
+  };
 }
 
 /**
