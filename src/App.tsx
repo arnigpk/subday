@@ -382,6 +382,10 @@ const AppContent = () => {
       import("./pages/SubFlowPage").catch(() => {});
       import("./pages/PackageDetailPage").catch(() => {});
       import("./pages/ShopDetailPage").catch(() => {});
+      // Сканер QR — последним: чанк самый тяжёлый (в нём html5-qrcode), но это
+      // ключевое действие, и ждать его загрузки в момент «Сканировать» нельзя.
+      // Прогреваем в простое → камера открывается сразу.
+      import("@/components/redeem/ShopQRScanner").catch(() => {});
     };
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
     const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
