@@ -20,9 +20,6 @@ interface ScanResult {
 
 export default function PartnerScanPage() {
   const { shopId, isPartner } = usePartnerAuth();
-const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-  && !(window as any).Capacitor?.isNativePlatform?.()
-  && !(window as any).Telegram?.WebApp?.initData;
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -288,19 +285,10 @@ const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     <PartnerLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-center gap-3 px-4 pt-4">
-  <h2 className="text-xl font-bold text-foreground text-center">
-    Сканер QR-кодов
-  </h2>
-  {isDesktop && (
-    <button
-      onClick={() => window.location.reload()}
-      className="p-2 rounded-lg bg-secondary hover:bg-muted transition-colors"
-      title="Обновить страницу"
-    >
-      Обновить сканер!
-    </button>
-  )}
-</div>
+          <h2 className="text-xl font-bold text-foreground text-center">
+            Сканер QR-кодов
+          </h2>
+        </div>
         {/* Адрес/касса текущей смены — виден баристе, можно сменить (мультиадрес) */}
         {shiftAddress && (
           <div className="px-4">
