@@ -17,6 +17,21 @@ type ScanOutcome =
   | { status: 'cancelled' }
   | { status: 'unavailable' };
 
+/**
+ * Зарегистрирован ли нативный слой плагина на этой платформе. Спрашиваем сам
+ * Capacitor — он знает это без единого вызова в плагин. Без такой проверки любое
+ * обращение на платформе, где плагин не собран, отвечает отказом «BarcodeScanner
+ * plugin is not implemented», и такие отказы валятся в лог ошибок приложения.
+ * Проверка синхронная и бесплатная, поэтому стоит первой везде.
+ */
+function isPluginRegistered(): boolean {
+  try {
+    return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('BarcodeScanner');
+  } catch {
+    return false;
+  }
+}
+
 /** Ленивый импорт: в вебе плагин вообще не грузим. */
 async function loadPlugin() {
   const mod = await import('@capacitor-mlkit/barcode-scanning');
@@ -31,10 +46,17 @@ async function loadPlugin() {
  * привычную камеру.
  */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('native-scan-timeout')), ms)),
-  ]);
+  // Гонку выигрывает один, но отказать может и проигравший — уже после того, как
+  // результат получен. Такой поздний отказ некому поймать, и он всплывает как
+  // «непойманное отклонение промиса» в логе ошибок. Поэтому обеим сторонам сразу
+  // вешаем пустой обработчик: гонка на это не влияет, а всплыть уже нечему.
+  p.catch(() => { /* поздний отказ проигравшего — не ошибка */ });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bell = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('native-scan-timeout')), ms);
+  });
+  bell.catch(() => { /* таймер отзвонил после ответа — не ошибка */ });
+  return Promise.race([p, bell]).finally(() => { if (timer) clearTimeout(timer); });
 }
 
 const READY_KEY = 'native_scan_ready';
@@ -47,7 +69,7 @@ const READY_KEY = 'native_scan_ready';
  * сразу показываем обычную камеру. Кеш обновляет фоновый прогрев.
  */
 export function isNativeScanReady(): boolean {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!isPluginRegistered()) return false;
   try { return localStorage.getItem(READY_KEY) === '1'; } catch { return false; }
 }
 
@@ -77,7 +99,8 @@ function setReady(ready: boolean) {
  * задержки. Ничего не показывает и не бросает.
  */
 export async function warmUpNativeScanner(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  // Плагина на платформе нет — молчим. Ни одного вызова, ни одной ошибки в логе.
+  if (!isPluginRegistered()) { setReady(false); return; }
   try {
     const BarcodeScanner = await withTimeout(loadPlugin(), 5000);
     const { supported } = await withTimeout(BarcodeScanner.isSupported(), 5000);
