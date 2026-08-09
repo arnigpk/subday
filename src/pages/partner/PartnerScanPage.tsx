@@ -4,11 +4,11 @@ import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, MapPin, QrCode, Loader2 } from 'lucide-react';
+import { Check, X, MapPin, QrCode, Loader2, ScanLine } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
-import { nativeScanQR, isNativeScanReady, isNativeScanOpen } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
 
 interface ScanResult {
   success: boolean;
@@ -38,11 +38,14 @@ export default function PartnerScanPage() {
   const [showAddrDialog, setShowAddrDialog] = useState(false);
   const [showShopQR, setShowShopQR] = useState(false);
   // Системный сканер (ML Kit) — только в приложении: читает увереннее (под углом,
-  // с бликами, в полумраке). Стартует сам, отдельной кнопки нет. Если он недоступен
-  // или бариста его закрыл — молча включается встроенная камера, как раньше.
+  // с бликами, в полумраке). Если его на платформе нет — сразу и молча работает
+  // встроенная камера. Одновременно две камеры не поднимаются никогда.
   const [webFallback, setWebFallback] = useState(!isNativeScanReady());
-  const nativeLoopRef = useRef(false);
-  const nativeStopRef = useRef(false);
+  // Системный сканер был доступен, но не открылся — предлагаем кнопку вместо
+  // того, чтобы поднимать камеру самим.
+  const [nativeFailed, setNativeFailed] = useState(false);
+  // Системное окно сейчас открыто — второй раз запускать нельзя.
+  const [nativeBusy, setNativeBusy] = useState(false);
 
   const addrKey = (sid: string) => `barista_addr_${sid}`;
 
@@ -262,42 +265,35 @@ export default function PartnerScanPage() {
     }
   };
 
-  // Системный сканер работает циклом: открыли → прочитали → списали → показали
-  // результат → открыли снова. Бариста сканирует подряд, ничего не нажимая, — так
-  // же, как с постоянной камерой. Любой отказ (нет модуля, закрыли окно) молча
-  // переводит на встроенную камеру, поэтому тупика на этом экране быть не может.
+  // Одно открытие системного сканера. Результат уходит в тот же обработчик, что и
+  // камера, поэтому логика списания общая. После списания сканер НЕ переоткрывается
+  // сам: бариста видит результат и жмёт «Сканировать» для следующего гостя.
   const handleScanRef = useRef(handleScan);
   useEffect(() => { handleScanRef.current = handleScan; });
-  useEffect(() => () => { nativeStopRef.current = true; }, []);
 
+  const runNativeScan = async () => {
+    if (nativeBusy) return;
+    setNativeBusy(true);
+    try {
+      const res = await nativeScanQR();
+      if (res.status === 'scanned') await handleScanRef.current(res.value);
+      else if (res.status === 'unavailable') setNativeFailed(true);
+      // 'cancelled' — бариста закрыл окно; остаёмся на экране с кнопкой.
+    } finally {
+      setNativeBusy(false);
+    }
+  };
+
+  // Первое открытие при входе на экран — чтобы не нажимать лишний раз в начале
+  // смены. Ждём выбранный адрес: иначе системное окно перекрыло бы диалог выбора.
+  const autoOpenedRef = useRef(false);
   useEffect(() => {
-    if (webFallback || nativeLoopRef.current) return;
-    // Пока адрес смены не выбран, системное окно перекрыло бы диалог выбора.
+    if (webFallback || autoOpenedRef.current) return;
     if (shopAddresses.length > 1 && !shiftAddress) return;
-    nativeLoopRef.current = true;
-    (async () => {
-      while (!nativeStopRef.current) {
-        const res = await nativeScanQR();
-        if (res.status !== 'scanned') { setWebFallback(true); break; }
-        await handleScanRef.current(res.value);
-        await new Promise(r => setTimeout(r, 2600)); // дать разглядеть результат
-      }
-      nativeLoopRef.current = false;
-    })();
+    autoOpenedRef.current = true;
+    runNativeScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webFallback, shopAddresses.length, shiftAddress]);
-
-  // Страховка от «вечного лоадера»: если через 6 секунд системное окно так и не
-  // открылось (страница всё ещё на переднем плане), включаем встроенную камеру.
-  useEffect(() => {
-    if (webFallback) return;
-    const t = setTimeout(() => {
-      // Сканер уже открыт (на iOS он лежит слоем поверх страницы, и та остаётся
-      // «видимой») — вторую камеру поднимать нельзя.
-      if (isNativeScanOpen()) return;
-      if (document.visibilityState === 'visible') setWebFallback(true);
-    }, 6000);
-    return () => clearTimeout(t);
-  }, [webFallback]);
 
   return (
     <PartnerLayout>
@@ -352,9 +348,38 @@ export default function PartnerScanPage() {
           {webFallback ? (
             <QRScanner onScan={handleScan} isProcessing={isProcessing || result !== null} />
           ) : (
-            <div className="aspect-square w-full rounded-xl bg-secondary flex flex-col items-center justify-center gap-3">
-              <Loader2 size={32} className="animate-spin text-primary" />
-              <p className="text-muted-foreground text-sm">Открываем сканер…</p>
+            <div className="aspect-square w-full rounded-xl bg-secondary flex flex-col items-center justify-center gap-4 px-6">
+              {nativeBusy ? (
+                <>
+                  <Loader2 size={32} className="animate-spin text-primary" />
+                  <p className="text-muted-foreground text-sm">Открываем сканер…</p>
+                </>
+              ) : nativeFailed ? (
+                <>
+                  <ScanLine size={36} className="text-muted-foreground" />
+                  <p className="text-muted-foreground text-center text-sm">Сканер не открылся</p>
+                  <button
+                    onClick={() => setWebFallback(true)}
+                    className="w-full max-w-[240px] rounded-xl bg-primary text-primary-foreground font-semibold py-3 active:scale-95 transition-transform"
+                  >
+                    Открыть сканер
+                  </button>
+                </>
+              ) : (
+                <>
+                  <ScanLine size={36} className="text-primary" />
+                  <p className="text-muted-foreground text-center text-sm">
+                    Нажмите, чтобы отсканировать QR гостя
+                  </p>
+                  <button
+                    onClick={runNativeScan}
+                    disabled={isProcessing}
+                    className="w-full max-w-[240px] rounded-xl bg-primary text-primary-foreground font-semibold py-3 active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    Сканировать
+                  </button>
+                </>
+              )}
             </div>
           )}
           {result && (

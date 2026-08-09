@@ -4,7 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { X, Loader2, ScanLine, Coffee, UtensilsCrossed, QrCode, Gift, ShieldCheck } from 'lucide-react';
 import { TT } from '@/components/TT';
-import { nativeScanQR, isNativeScanReady, isNativeScanOpen } from '@/lib/nativeScan';
+import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
+
+/** Пауза после ошибки списания — чтобы человек успел прочитать сообщение. */
+const ERROR_PAUSE_MS = 1600;
 
 interface Props {
   drinkType: 'coffee' | 'drinks';
@@ -30,13 +33,19 @@ interface Props {
  */
 export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR, onClose, onRedeemed }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
-  // На нативе сначала пробуем системный сканер (ML Kit): он открывается быстрее и
-  // читает код заметно увереннее (под углом, с бликами, в полумраке). Если он
-  // недоступен — молча остаётся привычный веб-сканер. В вебе/миниаппе — как было.
+  // Системный сканер (ML Kit) читает код заметно увереннее — под углом, с бликами,
+  // в полумраке. Если его на платформе нет (веб, миниапп, Android без модуля), сразу
+  // и молча работает привычная камера. Параллельно они не запускаются никогда.
   const [webFallback, setWebFallback] = useState(!isNativeScanReady());
+  // Системный сканер был доступен, но не открылся. Сами камеру не поднимаем —
+  // предлагаем кнопку, чтобы не оказаться с двумя сканерами разом.
+  const [nativeFailed, setNativeFailed] = useState(false);
 
-  const handleScan = useCallback(async (raw: string) => {
-    if (isProcessing) return;
+  // Возвращает true, если списание прошло. false — была ошибка, и вызывающий
+  // цикл должен снова открыть сканер: человек остаётся в сканировании, а не
+  // выпадает на запасную камеру.
+  const handleScan = useCallback(async (raw: string): Promise<boolean> => {
+    if (isProcessing) return false;
 
     // Достаём токен: поддерживаем JSON-формат, «голый» uuid и ссылку —
     // чтобы код читался, даже если кофейня распечатает его иначе.
@@ -51,7 +60,7 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
     }
     if (!token) {
       toast.error('Это не QR-код кофейни subday');
-      return;
+      return false;
     }
 
     setIsProcessing(true);
@@ -68,12 +77,12 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
         } catch { /* оставим общий текст */ }
         toast.error(msg);
         setIsProcessing(false);
-        return;
+        return false;
       }
       if (data?.error) {
         toast.error(data.error);
         setIsProcessing(false);
-        return;
+        return false;
       }
 
       // Успех: НЕ трогаем onClose (он уводит на главную и убил бы анимацию).
@@ -81,46 +90,44 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
       // экране забора — как при обычном сканировании бариста. Передаём имя
       // кофейни из ответа сервера, чтобы успех показал именно её.
       onRedeemed(typeof data?.shopName === 'string' ? data.shopName : undefined);
+      return true;
     } catch {
       toast.error('Нет связи. Проверьте интернет');
       setIsProcessing(false);
+      return false;
     }
   }, [isProcessing, drinkType, isGuestCoffee, onClose, onRedeemed]);
 
-  // Нативный сканер: открываем один раз при входе на экран.
-  //  прочитан  → обрабатываем тем же обработчиком, что и веб-сканер;
-  //  закрыли   → закрываем экран сканирования (пользователь передумал);
-  //  недоступен→ показываем веб-сканер (полный откат, ничего не ломается).
-  const nativeTriedRef = useRef(false);
-  useEffect(() => {
-    if (webFallback || nativeTriedRef.current) return;
-    nativeTriedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      const res = await nativeScanQR();
-      if (cancelled) return;
-      if (res.status === 'scanned') handleScan(res.value);
-      else if (res.status === 'cancelled') onClose();
-      else setWebFallback(true);
-    })();
-    return () => { cancelled = true; };
-    // handleScan намеренно не в зависимостях: запуск должен быть ровно один.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webFallback]);
+  // Системный сканер работает циклом, пока человек не уйдёт с экрана:
+  //   прочитан + списано → экран сам уходит на анимацию успеха;
+  //   прочитан, но ошибка → показали её и СНОВА открыли системный сканер
+  //                          (раньше здесь подхватывалась запасная камера);
+  //   закрыли окно         → человек передумал, закрываем экран забора;
+  //   сбой плагина         → показываем кнопку «Открыть сканер», сами ничего
+  //                          не поднимаем — параллельных камер быть не должно.
+  const handleScanRef = useRef(handleScan);
+  useEffect(() => { handleScanRef.current = handleScan; });
 
-  // Страховка от «вечного лоадера»: что бы ни случилось с плагином, через 6 секунд
-  // показываем обычную камеру. Проверка видимости важна — когда системное окно
-  // сканера открыто, наша страница уходит в фон, и переключать её нельзя (иначе
-  // рядом поднимется вторая камера). Видима спустя 6 секунд = окно не открылось.
+  const startedRef = useRef(false);
   useEffect(() => {
-    if (webFallback) return;
-    const t = setTimeout(() => {
-      // Сканер уже открыт (на iOS он лежит слоем поверх страницы, и та остаётся
-      // «видимой») — вторую камеру поднимать нельзя.
-      if (isNativeScanOpen()) return;
-      if (document.visibilityState === 'visible') setWebFallback(true);
-    }, 6000);
-    return () => clearTimeout(t);
+    if (webFallback || startedRef.current) return;
+    startedRef.current = true;
+    let stopped = false;
+    (async () => {
+      while (!stopped) {
+        const res = await nativeScanQR();
+        if (stopped) return;
+        if (res.status === 'cancelled') { onClose(); return; }
+        if (res.status === 'unavailable') { setNativeFailed(true); return; }
+        const ok = await handleScanRef.current(res.value);
+        if (stopped || ok) return;
+        // Ошибка списания: даём прочитать сообщение и открываем сканер заново.
+        await new Promise(r => setTimeout(r, ERROR_PAUSE_MS));
+      }
+    })();
+    return () => { stopped = true; };
+    // onClose стабилен у вызывающего экрана; перезапуск цикла нам не нужен.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webFallback]);
 
   const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
@@ -182,6 +189,19 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
               системным сканером стартовала бы вторая камера (конфликт устройства). */}
           {webFallback ? (
             <QRScanner onScan={handleScan} isProcessing={isProcessing} autoStart />
+          ) : nativeFailed ? (
+            <div className="aspect-square w-full flex flex-col items-center justify-center gap-4 bg-secondary/40 px-6">
+              <ScanLine size={36} className="text-muted-foreground" />
+              <p className="text-muted-foreground text-center text-sm">
+                <TT text="Сканер не открылся" />
+              </p>
+              <button
+                onClick={() => setWebFallback(true)}
+                className="w-full max-w-[220px] rounded-xl bg-primary text-primary-foreground font-semibold py-3 active:scale-95 transition-transform"
+              >
+                <TT text="Открыть сканер" />
+              </button>
+            </div>
           ) : (
             <div className="aspect-square w-full flex flex-col items-center justify-center gap-3 bg-secondary/40">
               <Loader2 size={32} className="animate-spin text-primary" />
