@@ -10,6 +10,9 @@ import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
 import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
 
+/** Обработка дольше этого срока считается зависшей и снимается. */
+const STUCK_MS = 10_000;
+
 interface ScanResult {
   success: boolean;
   message: string;
@@ -101,16 +104,21 @@ export default function PartnerScanPage() {
     };
   }, [result]);
 
-  // Принудительный сброс зависшего состояния при возврате на вкладку
+  // Разблокировка действительно зависшей обработки при возврате на экран.
+  //
+  // Важно про Android: там системный сканер — отдельное окно Google, и приложение
+  // уходит в фон. При закрытии окна событие видимости прилетает ровно тогда же,
+  // когда стартует списание, — сбросить состояние «просто потому что вернулись»
+  // нельзя, иначе снимется защита от повторной обработки прямо на живом запросе.
+  // (На iOS этого не бывает: там камера лежит слоем поверх страницы, фона нет.)
+  // Поэтому сбрасываем только то, что и правда висит дольше разумного.
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        // Если вкладка снова активна, а обработка висит без результата — сбрасываем
-        if (isProcessingRef.current && !result) {
-          isProcessingRef.current = false;
-          setIsProcessing(false);
-        }
-      }
+      if (document.visibilityState !== 'visible') return;
+      if (!isProcessingRef.current || result) return;
+      if (Date.now() - processingStartRef.current < STUCK_MS) return;
+      isProcessingRef.current = false;
+      setIsProcessing(false);
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
@@ -123,7 +131,7 @@ export default function PartnerScanPage() {
 
   const handleScan = async (qrData: string) => {
     if (isProcessingRef.current) {
-      const stuck = Date.now() - processingStartRef.current > 10_000;
+      const stuck = Date.now() - processingStartRef.current > STUCK_MS;
       if (!stuck) return;
     }
     if (!shopId) return;
