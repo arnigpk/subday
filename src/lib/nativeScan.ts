@@ -59,6 +59,26 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, bell]).finally(() => { if (timer) clearTimeout(timer); });
 }
 
+// Плагин сообщает обо всём одинаково — отказом промиса. Но закрытие окна человеком
+// и поломка плагина — разные вещи, и путать их нельзя: из-за этого закрытие сканера
+// выглядело как сбой и предлагало запасную камеру.
+//
+// Ошибка сканера — это только когда сам плагин не может работать. Неподходящий QR,
+// код чужой кофейни, уже использованный код — к сканеру отношения не имеют: он свою
+// работу сделал, прочитал. Такие случаи разбирает вызывающий экран и просто
+// открывает сканер снова.
+const CANCEL_SIGNS = ['scan canceled', 'scan cancelled'];
+const PERMISSION_SIGNS = ['denied access to camera', 'permission'];
+
+type Failure = 'cancelled' | 'permission' | 'broken';
+
+function classifyFailure(err: unknown): Failure {
+  const msg = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
+  if (CANCEL_SIGNS.some((s) => msg.includes(s))) return 'cancelled';
+  if (PERMISSION_SIGNS.some((s) => msg.includes(s))) return 'permission';
+  return 'broken';
+}
+
 const READY_KEY = 'native_scan_ready';
 
 /**
@@ -144,10 +164,15 @@ export async function nativeScanQR(): Promise<ScanOutcome> {
     const raw = barcodes?.[0]?.rawValue;
     if (!raw) return { status: 'cancelled' };   // закрыли окно, ничего не прочитав
     return { status: 'scanned', value: raw };
-  } catch {
-    // Отмена на некоторых прошивках прилетает исключением — трактуем мягко:
-    // показываем привычный веб-сканер, а не пустой экран. И снимаем отметку
-    // готовности, чтобы следующее открытие не тратило время на плагин.
+  } catch (err) {
+    const kind = classifyFailure(err);
+    // Закрыли окно — это не сбой: плагин исправен, запасную камеру не предлагаем
+    // и отметку готовности не трогаем.
+    if (kind === 'cancelled') return { status: 'cancelled' };
+    // Нет доступа к камере — сканер работать не может, но плагин цел: отметку
+    // оставляем, чтобы после выдачи разрешения он заработал без перезапуска.
+    if (kind === 'permission') return { status: 'unavailable' };
+    // Настоящая поломка плагина — снимаем готовность, дальше работает камера.
     setReady(false);
     return { status: 'unavailable' };
   }
