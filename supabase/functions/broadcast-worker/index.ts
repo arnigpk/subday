@@ -16,6 +16,41 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Помечаем неудачные элементы очереди с ТЕКСТОМ причины. Группируем по тексту
 // ошибки, чтобы одним UPDATE обновить все элементы с одинаковой причиной (быстро).
+// Отказы Telegram, после которых слать этому чату бессмысленно: бот заблокирован,
+// аккаунт удалён, диалог не начинали. Всё остальное (лимит частоты, сбой сервера,
+// обрыв сети) — временное, человек по-прежнему доступен, и помечать его нельзя.
+const TG_PERMANENT = [
+  'bot was blocked',
+  'user is deactivated',
+  'chat not found',
+  "bot can't initiate conversation",
+  'peer_id_invalid',
+  'group chat was deleted',
+  'chat_write_forbidden',
+];
+
+function isTelegramPermanent(error: string): boolean {
+  const e = (error || '').toLowerCase();
+  return TG_PERMANENT.some((s) => e.includes(s));
+}
+
+/**
+ * Запомнить чаты, до которых больше не достучаться. Дальше они не попадут ни в
+ * счётчик получателей, ни в новые рассылки. Своя ошибка тут не должна ронять
+ * отправку — просто пишем в лог.
+ */
+async function markTelegramUnreachable(
+  supabase: ReturnType<typeof createClient>,
+  rows: { chat_id: string; user_id: string | null; reason: string }[],
+) {
+  if (!rows.length) return;
+  const { error } = await supabase
+    .from('telegram_unreachable')
+    .upsert(rows.map((r) => ({ ...r, marked_at: new Date().toISOString() })), { onConflict: 'chat_id' });
+  if (error) console.error('markTelegramUnreachable failed:', error);
+  else console.log(`Telegram: помечено недоступными ${rows.length}`);
+}
+
 async function markFailed(
   supabase: ReturnType<typeof createClient>,
   failed: { id: number; error: string }[],
@@ -114,6 +149,7 @@ Deno.serve(async (req) => {
       const tgProfs = tgBids.some((b) => hasTags(headerCache.get(b as string)?.message))
         ? await loadProfiles(supabase, rows) : new Map<string, RecipientProfile>();
       const sentIds: number[] = []; const failed: { id: number; error: string }[] = [];
+      const unreachable: { chat_id: string; user_id: string | null; reason: string }[] = [];
       await Promise.all(rows.map(async (r: any) => {
         touched.add(r.broadcast_id);
         const h = await getHeader(r.broadcast_id);
@@ -125,11 +161,19 @@ Deno.serve(async (req) => {
           });
           const j = await resp.json();
           if (j.ok) { sentIds.push(r.id); summary.telegram.sent++; }
-          else { failed.push({ id: r.id, error: j.description || `HTTP ${resp.status}` }); summary.telegram.failed++; }
+          else {
+            const reason = j.description || `HTTP ${resp.status}`;
+            failed.push({ id: r.id, error: reason }); summary.telegram.failed++;
+            // Заблокировал бота / удалился / чата нет — больше не пишем сюда никогда.
+            if (isTelegramPermanent(reason)) {
+              unreachable.push({ chat_id: String(r.target), user_id: r.user_id ?? null, reason: reason.slice(0, 300) });
+            }
+          }
         } catch (e) { failed.push({ id: r.id, error: e instanceof Error ? e.message : String(e) }); summary.telegram.failed++; }
       }));
       if (sentIds.length) await supabase.from('broadcast_queue').update({ status: 'sent', processed_at: new Date().toISOString() }).in('id', sentIds);
       await markFailed(supabase, failed);
+      await markTelegramUnreachable(supabase, unreachable);
       if (rows.length === TG_CHUNK) await sleep(TG_PACE_MS); // пейсинг только если очередь ещё полна
     }
 

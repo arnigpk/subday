@@ -98,7 +98,27 @@ Deno.serve(async (req) => {
       from += pageSize;
     }
 
-    const profiles = allTelegramProfiles;
+    // Отсекаем чаты, признанные недоступными навсегда (бот заблокирован, аккаунт
+    // удалён, диалог не начинали). Иначе каждая рассылка снова упиралась бы в них,
+    // а счётчик получателей завышал охват на эту разницу.
+    const unreachable = new Set<string>();
+    {
+      let ufrom = 0;
+      while (true) {
+        const { data: u } = await supabase
+          .from('telegram_unreachable').select('chat_id').range(ufrom, ufrom + pageSize - 1);
+        if (!u || u.length === 0) break;
+        for (const row of u) unreachable.add(String((row as any).chat_id));
+        if (u.length < pageSize) break;
+        ufrom += pageSize;
+      }
+    }
+
+    const profiles = unreachable.size
+      ? allTelegramProfiles.filter((p: any) => !unreachable.has(String(p.phone).replace('+telegram_', '')))
+      : allTelegramProfiles;
+    const skipped = allTelegramProfiles.length - profiles.length;
+    if (skipped > 0) console.log(`Telegram: пропущено недоступных получателей — ${skipped}`);
 
     if (!profiles || profiles.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0, total: 0, message: 'No Telegram users found' }), {

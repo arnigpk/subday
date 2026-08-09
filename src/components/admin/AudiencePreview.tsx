@@ -24,8 +24,10 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
   const [expiringSoonIds, setExpiringSoonIds] = useState<Set<string>>(new Set());
   const [newUserIds, setNewUserIds] = useState<Set<string>>(new Set());
   const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
-  // Push: пользователи с device-токеном (кому реально улетит push). Пусто для telegram.
-  const [pushUserIds, setPushUserIds] = useState<Set<string>>(new Set());
+  // Кому сообщение реально дойдёт: для push — у кого есть device-токен, для
+  // Telegram — у кого бот не заблокирован и чат жив. Считаем отдельно, потому что
+  // «аккаунт привязан» и «сообщение дойдёт» — это не одно и то же.
+  const [reachableIds, setReachableIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [showList, setShowList] = useState(false);
 
@@ -77,13 +79,13 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
       const recentSet = new Set((recentActiveRes.data || []).map(r => r.user_id));
       setActiveUserIds(new Set([...recentSet, ...activeSet]));
 
-      // Реальная push-аудитория: только пользователи с device-токеном (RLS-safe RPC, только админ).
-      if (channel === 'push') {
-        const { data: reach } = await supabase.rpc('get_push_reachable_user_ids' as never);
-        setPushUserIds(new Set(((reach as unknown as { user_id: string }[]) || []).map(r => r.user_id)));
-      } else {
-        setPushUserIds(new Set());
-      }
+      // Реальная аудитория канала. Обе RPC — SECURITY DEFINER и доступны только
+      // админу/модератору: отдают лишь user_id, без токенов и chat_id.
+      const reachRpc = channel === 'push'
+        ? 'get_push_reachable_user_ids'
+        : 'get_telegram_reachable_user_ids';
+      const { data: reach } = await supabase.rpc(reachRpc as never);
+      setReachableIds(new Set(((reach as unknown as { user_id: string }[]) || []).map(r => r.user_id)));
     } catch (err) {
       console.error('Error fetching audience data:', err);
     } finally {
@@ -106,10 +108,10 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         return false;
       });
     }
-    // Push: показываем только тех, у кого есть device-токен — кому реально улетит push.
-    if (channel === 'push') list = list.filter(u => pushUserIds.has(u.user_id));
+    // Оставляем только достижимых — и для push, и для Telegram.
+    list = list.filter(u => reachableIds.has(u.user_id));
     return list;
-  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds, channel, pushUserIds]);
+  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds, channel, reachableIds]);
 
   if (isLoading) {
     return (
@@ -131,7 +133,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">
-            {channel === 'push' ? 'Получат push:' : 'Получателей:'} <Badge variant="secondary" className="ml-1">{filteredUsers.length}</Badge>
+            {channel === 'push' ? 'Получат push:' : 'Получат сообщение:'} <Badge variant="secondary" className="ml-1">{filteredUsers.length}</Badge>
           </span>
         </div>
         <Button
@@ -145,11 +147,11 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         </Button>
       </div>
 
-      {channel === 'push' && (
-        <p className="text-[11px] text-muted-foreground">
-          Это те, у кого активный push-токен — им улетит push. In-app «колокольчик» уйдёт всем в аудитории.
-        </p>
-      )}
+      <p className="text-[11px] text-muted-foreground">
+        {channel === 'push'
+          ? 'Это те, у кого активный push-токен — им улетит push. In-app «колокольчик» уйдёт всем в аудитории.'
+          : 'Это те, кому сообщение реально дойдёт. Заблокировавшие бота и не начинавшие диалог исключены.'}
+      </p>
 
       {showList && (
         <ScrollArea className="max-h-[200px]">
