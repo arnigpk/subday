@@ -3,21 +3,23 @@ import { Capacitor } from '@capacitor/core';
 // Нативное сканирование QR в приложении. В вебе и Telegram-миниаппе нативного
 // слоя нет — там остаётся html5-qrcode, как и было.
 //
-// Плагинов два, по одному на платформу, и это вынужденно:
-//   Android — ML Kit (@capacitor-mlkit/barcode-scanning);
-//   iOS     — @capacitor/barcode-scanner (движок OutSystems).
-// ML Kit на iOS подключить нельзя: наш iOS-проект собран на Swift Package
-// Manager, а ML Kit от Google поставляется только через CocoaPods и Package.swift
-// не имеет. Поэтому `npx cap sync ios` молча пропускал его — плагин в сборку не
-// попадал вообще, и на айфоне сканирование всегда уходило на веб-камеру.
-// Официальный @capacitor/barcode-scanner с SPM совместим и даёт на iOS то же
-// самое: системное полноэкранное окно сканера.
+// Плагин один на обе платформы — @capacitor/barcode-scanner (движок OutSystems).
+// К этому пришли не сразу: на Android сначала стоял ML Kit от Google, но он
+// требовал докачивать модуль распознавания из Play services — а значит зависел от
+// сети, версии сервисов и вообще их наличия, и проверить этот путь было негде.
+// На iOS его подключить не удалось вовсе: наш iOS-проект собран на Swift Package
+// Manager, а ML Kit поставляется только через CocoaPods.
 //
-// На обеих платформах это именно полноэкранное системное окно: оно само рисует
-// камеру и рамку, само закрывается после чтения кода. В отличие от режима
-// наложения, не требует делать WebView прозрачным и прятать вёрстку страницы —
-// значит нечему «залипнуть» и оставить приложение невидимым. Это осознанный
-// выбор в пользу надёжности: сканирование — это списание, ломать его нельзя.
+// У @capacitor/barcode-scanner модель распознавания вшита в приложение: качать
+// нечего, работает офлайн и без Play services. Обе платформы ходят одним и тем же
+// путём, с одинаковыми параметрами, и отвечают одинаковыми кодами ошибок
+// (OS-PLUG-BARC-NNNN из общей библиотеки Ionic) — поэтому и поведение одинаковое.
+//
+// На обеих платформах это полноэкранное системное окно: оно само рисует камеру и
+// рамку, само закрывается после чтения кода. В отличие от режима наложения, не
+// требует делать WebView прозрачным и прятать вёрстку страницы — значит нечему
+// «залипнуть» и оставить приложение невидимым. Это осознанный выбор в пользу
+// надёжности: сканирование — это списание, ломать его нельзя.
 //
 // Любая ошибка возвращает 'unavailable' — вызывающий код молча показывает
 // привычный веб-сканер, поэтому сканирование не может перестать работать.
@@ -27,33 +29,22 @@ type ScanOutcome =
   | { status: 'cancelled' }
   | { status: 'unavailable' };
 
-/** Имена, под которыми плагины регистрируются в Capacitor (jsName). */
-const IOS_PLUGIN = 'CapacitorBarcodeScanner';
-const ANDROID_PLUGIN = 'BarcodeScanner';
+/** Имя, под которым плагин регистрируется в Capacitor (jsName). */
+const PLUGIN = 'CapacitorBarcodeScanner';
 
 /**
- * Какой нативный сканер реально собран в это приложение. Спрашиваем сам
- * Capacitor — он знает это без единого вызова в плагин. Без такой проверки любое
- * обращение на платформе, где плагин не собран, отвечает отказом «plugin is not
- * implemented», и такие отказы валятся в лог ошибок приложения. Проверка
- * синхронная и бесплатная, поэтому стоит первой везде.
+ * Собран ли нативный сканер в это приложение. Спрашиваем сам Capacitor — он знает
+ * это без единого вызова в плагин. Без такой проверки любое обращение на
+ * платформе, где плагин не собран, отвечает отказом «plugin is not implemented»,
+ * и такие отказы валятся в лог ошибок приложения. Проверка синхронная и
+ * бесплатная, поэтому стоит первой везде.
  */
-function backend(): 'ios' | 'android' | null {
+function isPluginRegistered(): boolean {
   try {
-    if (!Capacitor.isNativePlatform()) return null;
-    const platform = Capacitor.getPlatform();
-    if (platform === 'ios') return Capacitor.isPluginAvailable(IOS_PLUGIN) ? 'ios' : null;
-    if (platform === 'android') return Capacitor.isPluginAvailable(ANDROID_PLUGIN) ? 'android' : null;
-    return null;
+    return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable(PLUGIN);
   } catch {
-    return null;
+    return false;
   }
-}
-
-/** Ленивый импорт: в вебе плагины вообще не грузим. */
-async function loadMlkit() {
-  const mod = await import('@capacitor-mlkit/barcode-scanning');
-  return mod.BarcodeScanner;
 }
 
 /**
@@ -115,7 +106,7 @@ const READY_KEY = 'native_scan_ready';
  * сразу показываем обычную камеру. Кеш обновляет фоновый прогрев.
  */
 export function isNativeScanReady(): boolean {
-  if (!backend()) return false;
+  if (!isPluginRegistered()) return false;
   try { return localStorage.getItem(READY_KEY) === '1'; } catch { return false; }
 }
 
@@ -127,36 +118,15 @@ function setReady(ready: boolean) {
 }
 
 /**
- * Фоновая подготовка при старте приложения: выясняем, доступен ли системный
- * сканер, и при необходимости просим Play services докачать модуль. Результат
- * кладём в кеш, чтобы экран сканирования знал ответ заранее и открывался без
- * задержки. Ничего не показывает и не бросает.
+ * Фоновая подготовка при старте приложения. Сканер целиком внутри приложения —
+ * докачивать нечего, спрашивать плагин не о чем: достаточно знать, что он собран.
+ * Ни одного вызова в плагин, поэтому ни задержек, ни записей в логе ошибок.
+ *
+ * Отдельный шаг нужен только затем, чтобы снятая после поломки отметка вернулась
+ * при следующем запуске приложения.
  */
 export async function warmUpNativeScanner(): Promise<void> {
-  const which = backend();
-  // Плагина на платформе нет — молчим. Ни одного вызова, ни одной ошибки в логе.
-  if (!which) { setReady(false); return; }
-  // iOS: сканер целиком внутри приложения — докачивать нечего, спрашивать плагин
-  // не о чем. Помечаем готовым сразу, без единого вызова в него.
-  if (which === 'ios') { setReady(true); return; }
-  try {
-    const BarcodeScanner = await withTimeout(loadMlkit(), 5000);
-    const { supported } = await withTimeout(BarcodeScanner.isSupported(), 5000);
-    if (!supported) { setReady(false); return; }
-
-    const { available } = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 5000);
-    if (available) { setReady(true); return; }
-
-    // Модуля нет. Пока он качается, сканирование идёт обычной камерой — никто не
-    // ждёт. Готовым помечаем только после успешной установки, поэтому лишнего
-    // лоадера перед камерой не появится ни разу.
-    setReady(false);
-    await BarcodeScanner.installGoogleBarcodeScannerModule();
-    const after = await withTimeout(BarcodeScanner.isGoogleBarcodeScannerModuleAvailable(), 5000);
-    setReady(after.available);
-  } catch {
-    setReady(false);
-  }
+  setReady(isPluginRegistered());
 }
 
 /**
@@ -169,10 +139,9 @@ export async function nativeScanQR(): Promise<ScanOutcome> {
   // Вызывается только когда кеш уже сказал «готов», поэтому проверок доступности
   // здесь нет: они бы снова встали задержкой перед камерой. Если что-то всё же
   // пошло не так — сбрасываем кеш, и следующее открытие пойдёт сразу на камеру.
-  const which = backend();
-  if (!which || !isNativeScanReady()) return { status: 'unavailable' };
+  if (!isNativeScanReady()) return { status: 'unavailable' };
   try {
-    const raw = which === 'ios' ? await readIOS() : await readAndroid();
+    const raw = await readNative();
     if (!raw) return { status: 'cancelled' };   // закрыли окно, ничего не прочитав
     return { status: 'scanned', value: raw };
   } catch (err) {
@@ -190,26 +159,22 @@ export async function nativeScanQR(): Promise<ScanOutcome> {
 }
 
 /**
- * iOS. Доступ к камере плагин спрашивает сам и при отказе отвечает своим кодом,
- * поэтому отдельной проверки разрешений здесь нет — она была бы лишней задержкой
- * перед камерой.
+ * Открыть окно сканера. Путь общий для обеих платформ и параметры одни и те же —
+ * просим только QR, ничего больше.
+ *
+ * Доступ к камере плагин спрашивает сам и при отказе отвечает своим кодом, поэтому
+ * отдельной проверки разрешений здесь нет — она была бы лишней задержкой перед
+ * камерой.
  *
  * Потолок стоит только на импорте: чанк плагина грузится через service worker, и
  * если запрос за ним подвиснет, без потолка экран сканирования встанет навсегда.
  * На само открытие окна потолка нет — там человек, и он вправе целиться в код
  * сколько нужно.
  */
-async function readIOS(): Promise<string | undefined> {
+async function readNative(): Promise<string | undefined> {
   const mod = await withTimeout(import('@capacitor/barcode-scanner'), 3000);
   const result = await mod.CapacitorBarcodeScanner.scanBarcode({
     hint: mod.CapacitorBarcodeScannerTypeHint.QR_CODE,
   });
   return result?.ScanResult;
-}
-
-/** Android. При scan() разрешение не требуется — окно рисует сервис Google. */
-async function readAndroid(): Promise<string | undefined> {
-  const BarcodeScanner = await withTimeout(loadMlkit(), 3000);
-  const { barcodes } = await BarcodeScanner.scan();
-  return barcodes?.[0]?.rawValue;
 }

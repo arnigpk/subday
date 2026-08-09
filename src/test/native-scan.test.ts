@@ -12,31 +12,14 @@ vi.mock('@capacitor/core', () => ({
   },
 }));
 
-// Любое обращение к плагину на платформе, где он не собран, считается
-// нарушением: оно возвращает отказ «not implemented», и тот попадает в лог
-// ошибок. Плюс каждая платформа не должна трогать чужой плагин.
-const mlkitTouched = vi.fn();
-// Поведение scan() задаём из тестов — так проверяем отмену, отказ в камере и
-// настоящую поломку по отдельности.
-const scanImpl = { run: async (): Promise<{ barcodes: { rawValue: string }[] }> => ({ barcodes: [] }) };
-const mlkit = {
-  isSupported: vi.fn(),
-  isGoogleBarcodeScannerModuleAvailable: vi.fn(),
-  installGoogleBarcodeScannerModule: vi.fn(),
-  scan: () => scanImpl.run(),
-};
-vi.mock('@capacitor-mlkit/barcode-scanning', () => ({
-  get BarcodeScanner() {
-    mlkitTouched();
-    return mlkit;
-  },
-}));
-
-const iosTouched = vi.fn();
+// Плагин один на обе платформы. Любое обращение к нему там, где он не собран,
+// считается нарушением: оно возвращает отказ «not implemented», и тот попадает
+// в лог ошибок приложения.
+const pluginTouched = vi.fn();
 const scanBarcode = vi.fn();
 vi.mock('@capacitor/barcode-scanner', () => ({
   get CapacitorBarcodeScanner() {
-    iosTouched();
+    pluginTouched();
     return { scanBarcode };
   },
   CapacitorBarcodeScannerTypeHint: { QR_CODE: 0 },
@@ -44,37 +27,43 @@ vi.mock('@capacitor/barcode-scanner', () => ({
 
 import { isNativeScanReady, warmUpNativeScanner, nativeScanQR } from '@/lib/nativeScan';
 
+const PLUGIN = 'CapacitorBarcodeScanner';
 const READY = 'native_scan_ready';
 
-/** Отказ ровно в том виде, в каком его отдаёт нативный слой iOS-плагина. */
-function iosError(code: string) {
+/**
+ * Отказ ровно в том виде, в каком его отдаёт нативный слой. Схема кодов общая для
+ * обеих платформ: OS-PLUG-BARC- + номер из библиотеки Ionic.
+ */
+function nativeError(code: string) {
   return Object.assign(new Error('native'), { code });
 }
+const CANCELLED = 'OS-PLUG-BARC-0006';
+const NO_CAMERA = 'OS-PLUG-BARC-0007';
+const SCAN_BROKEN = 'OS-PLUG-BARC-0004';
 
 beforeEach(() => {
-  mlkitTouched.mockClear();
-  iosTouched.mockClear();
+  pluginTouched.mockClear();
   scanBarcode.mockReset();
-  mlkit.isSupported.mockReset();
-  mlkit.isGoogleBarcodeScannerModuleAvailable.mockReset();
-  mlkit.installGoogleBarcodeScannerModule.mockReset();
-  scanImpl.run = async () => ({ barcodes: [] });
   localStorage.clear();
   platform.native = true;
   platform.name = 'ios';
   platform.plugins = new Set();
 });
 
-describe('нативный сканер — iOS, плагин собран', () => {
+// Главное требование к переходу на единый плагин: Android должен вести себя
+// ТОЧНО так же, как проверенный в бою айфон. Поэтому один и тот же набор
+// прогоняется на обеих платформах — расхождение сразу упадёт тестом.
+describe.each(['ios', 'android'])('нативный сканер — %s, плагин собран', (name) => {
   beforeEach(() => {
-    platform.plugins = new Set(['CapacitorBarcodeScanner']);
+    platform.name = name;
+    platform.plugins = new Set([PLUGIN]);
   });
 
   it('прогрев включает сканер, не сделав ни одного вызова в плагин', async () => {
     expect(isNativeScanReady()).toBe(false); // до прогрева не знаем
     await warmUpNativeScanner();
     expect(isNativeScanReady()).toBe(true);
-    expect(iosTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
   });
 
   it('читает код и просит именно QR', async () => {
@@ -86,7 +75,7 @@ describe('нативный сканер — iOS, плагин собран', () 
 
   it('закрыли окно → «отмена», сканер остаётся готовым', async () => {
     localStorage.setItem(READY, '1');
-    scanBarcode.mockRejectedValue(iosError('OS-PLUG-BARC-0006'));
+    scanBarcode.mockRejectedValue(nativeError(CANCELLED));
     expect((await nativeScanQR()).status).toBe('cancelled');
     expect(localStorage.getItem(READY)).toBe('1');
   });
@@ -100,7 +89,7 @@ describe('нативный сканер — iOS, плагин собран', () 
 
   it('нет доступа к камере → «недоступен», но готовность не снимаем', async () => {
     localStorage.setItem(READY, '1');
-    scanBarcode.mockRejectedValue(iosError('OS-PLUG-BARC-0007'));
+    scanBarcode.mockRejectedValue(nativeError(NO_CAMERA));
     expect((await nativeScanQR()).status).toBe('unavailable');
     // Разрешение могут выдать позже — плагин не должен отключаться навсегда.
     expect(localStorage.getItem(READY)).toBe('1');
@@ -108,16 +97,18 @@ describe('нативный сканер — iOS, плагин собран', () 
 
   it('плагин действительно сломан → «недоступен» и готовность снимается', async () => {
     localStorage.setItem(READY, '1');
-    scanBarcode.mockRejectedValue(iosError('OS-PLUG-BARC-0004'));
+    scanBarcode.mockRejectedValue(nativeError(SCAN_BROKEN));
     expect((await nativeScanQR()).status).toBe('unavailable');
     expect(localStorage.getItem(READY)).toBeNull();
   });
 
-  it('не трогает ML Kit — на iOS его в сборке нет', async () => {
-    scanBarcode.mockResolvedValue({ ScanResult: 'x', format: 0 });
-    await warmUpNativeScanner();
-    await nativeScanQR();
-    expect(mlkitTouched).not.toHaveBeenCalled();
+  it('прочитан любой код — это успех сканера, содержимое его не касается', async () => {
+    // QR чужой кофейни, не-subday код, уже использованный — для сканера это
+    // одинаково успешная работа. Разбирается дальше, экраном.
+    localStorage.setItem(READY, '1');
+    scanBarcode.mockResolvedValue({ ScanResult: 'что-угодно', format: 0 });
+    expect(await nativeScanQR()).toEqual({ status: 'scanned', value: 'что-угодно' });
+    expect(localStorage.getItem(READY)).toBe('1');
   });
 });
 
@@ -127,7 +118,7 @@ describe('нативный сканер — плагин не зарегистр
 
   beforeEach(() => {
     rejections = [];
-    platform.plugins = new Set(); // плагин в сборку не попал — как на iOS без cap sync
+    platform.plugins = new Set(); // плагин в сборку не попал
     window.addEventListener('unhandledrejection', catchRejection);
   });
 
@@ -137,21 +128,18 @@ describe('нативный сканер — плагин не зарегистр
 
   it('готовность = нет, и плагин не тронут ни разу', () => {
     expect(isNativeScanReady()).toBe(false);
-    expect(iosTouched).not.toHaveBeenCalled();
-    expect(mlkitTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
   });
 
   it('фоновый прогрев молчит и не трогает плагин', async () => {
     await warmUpNativeScanner();
-    expect(iosTouched).not.toHaveBeenCalled();
-    expect(mlkitTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
     expect(isNativeScanReady()).toBe(false);
   });
 
   it('сканирование сразу отдаёт «недоступно» — экран уйдёт на камеру', async () => {
     expect((await nativeScanQR()).status).toBe('unavailable');
-    expect(iosTouched).not.toHaveBeenCalled();
-    expect(mlkitTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
   });
 
   it('не оставляет непойманных отклонений промисов (их пишет лог ошибок)', async () => {
@@ -165,69 +153,7 @@ describe('нативный сканер — плагин не зарегистр
     localStorage.setItem(READY, '1');
     expect(isNativeScanReady()).toBe(false); // регистрация важнее кеша
     expect((await nativeScanQR()).status).toBe('unavailable');
-    expect(iosTouched).not.toHaveBeenCalled();
-    expect(mlkitTouched).not.toHaveBeenCalled();
-  });
-});
-
-describe('нативный сканер — Android, ML Kit', () => {
-  beforeEach(() => {
-    platform.name = 'android';
-    platform.plugins = new Set(['BarcodeScanner']);
-  });
-
-  it('прогрев с готовым модулем Play services включает нативный сканер', async () => {
-    mlkit.isSupported.mockResolvedValue({ supported: true });
-    mlkit.isGoogleBarcodeScannerModuleAvailable.mockResolvedValue({ available: true });
-    await warmUpNativeScanner();
-    expect(isNativeScanReady()).toBe(true);
-    expect(mlkit.installGoogleBarcodeScannerModule).not.toHaveBeenCalled();
-  });
-
-  it('пока модуль не докачан, готовым не притворяется', async () => {
-    mlkit.isSupported.mockResolvedValue({ supported: true });
-    mlkit.isGoogleBarcodeScannerModuleAvailable.mockResolvedValue({ available: false });
-    mlkit.installGoogleBarcodeScannerModule.mockResolvedValue(undefined);
-    await warmUpNativeScanner();
-    expect(mlkit.installGoogleBarcodeScannerModule).toHaveBeenCalled();
-    expect(isNativeScanReady()).toBe(false);
-  });
-
-  it('закрыли окно крестиком → «отмена», плагин остаётся готовым', async () => {
-    localStorage.setItem(READY, '1');
-    scanImpl.run = () => Promise.reject(new Error('scan canceled.'));
-    expect((await nativeScanQR()).status).toBe('cancelled');
-    expect(localStorage.getItem(READY)).toBe('1'); // сбоем не считаем
-  });
-
-  it('нет доступа к камере → «недоступен», но готовность не снимаем', async () => {
-    localStorage.setItem(READY, '1');
-    scanImpl.run = () => Promise.reject(new Error('User denied access to camera.'));
-    expect((await nativeScanQR()).status).toBe('unavailable');
-    expect(localStorage.getItem(READY)).toBe('1');
-  });
-
-  it('плагин действительно сломан → «недоступен» и готовность снимается', async () => {
-    localStorage.setItem(READY, '1');
-    scanImpl.run = () => Promise.reject(new Error('No capture device available.'));
-    expect((await nativeScanQR()).status).toBe('unavailable');
-    expect(localStorage.getItem(READY)).toBeNull();
-  });
-
-  it('прочитан любой код — это успех сканера, содержимое его не касается', async () => {
-    // QR чужой кофейни, не-subday код, уже использованный — для сканера это
-    // одинаково успешная работа. Разбирается дальше, экраном.
-    localStorage.setItem(READY, '1');
-    scanImpl.run = () => Promise.resolve({ barcodes: [{ rawValue: 'что-угодно' }] });
-    expect(await nativeScanQR()).toEqual({ status: 'scanned', value: 'что-угодно' });
-    expect(localStorage.getItem(READY)).toBe('1');
-  });
-
-  it('не трогает iOS-плагин', async () => {
-    localStorage.setItem(READY, '1');
-    scanImpl.run = () => Promise.resolve({ barcodes: [{ rawValue: 'x' }] });
-    await nativeScanQR();
-    expect(iosTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
   });
 });
 
@@ -235,16 +161,13 @@ describe('нативный сканер — обычный веб', () => {
   beforeEach(() => {
     platform.native = false;
     platform.name = 'web';
-    // В вебе у плагина есть своя реализация, поэтому Capacitor считает его
-    // доступным. Нативным сканером это не делает — проверка платформы важнее.
-    platform.plugins = new Set(['CapacitorBarcodeScanner', 'BarcodeScanner']);
+    platform.plugins = new Set([PLUGIN]); // даже если бы имя нашлось
   });
 
-  it('в вебе нативного сканера нет и плагины не грузятся', async () => {
+  it('в вебе нативного сканера нет и плагин не грузится', async () => {
     expect(isNativeScanReady()).toBe(false);
     await warmUpNativeScanner();
     expect((await nativeScanQR()).status).toBe('unavailable');
-    expect(iosTouched).not.toHaveBeenCalled();
-    expect(mlkitTouched).not.toHaveBeenCalled();
+    expect(pluginTouched).not.toHaveBeenCalled();
   });
 });
