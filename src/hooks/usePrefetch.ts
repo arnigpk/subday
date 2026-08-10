@@ -97,7 +97,7 @@ export function usePrefetch() {
           queryClient.prefetchQuery({
             queryKey: queryKeys.subscriptions,
             queryFn: prefetchSubscriptions,
-            staleTime: 5 * 60 * 1000,
+            staleTime: 10 * 60 * 1000, // столько же, сколько на самой странице
           });
           break;
         case 'subflow':
@@ -129,7 +129,7 @@ export function usePrefetch() {
       queryClient.prefetchQuery({
         queryKey: queryKeys.subscriptions,
         queryFn: prefetchSubscriptions,
-        staleTime: 5 * 60 * 1000,
+        staleTime: 10 * 60 * 1000, // столько же, сколько на самой странице
       }),
     ]);
   }, [queryClient]);

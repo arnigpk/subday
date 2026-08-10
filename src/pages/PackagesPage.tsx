@@ -56,8 +56,13 @@ export default function PackagesPage() {
   const { data: subscriptions = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.subscriptions,
     queryFn: prefetchSubscriptions,
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
+    // Тарифы меняются редко — держим их свежими подольше. Раньше здесь стояла
+    // минута, и почти каждый заход на страницу тянул новый запрос: на слабой
+    // связи он соревновался за канал с остальным и превращал мгновенное
+    // открытие в ожидание. На диске эти же данные и так живут сутки, так что
+    // это не новый риск устаревания, а меньший. Свежее — потянуть экран вниз.
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     initialData: cachedSubs?.data,
     initialDataUpdatedAt: cachedSubs?.cachedAt,
   });

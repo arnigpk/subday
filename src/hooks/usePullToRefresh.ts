@@ -17,7 +17,7 @@ const isPullToRefreshLocked = () => document.body.dataset.pullToRefreshDisabled 
  * короткий: жест завершается, а обновление, если оно ещё идёт, спокойно
  * доезжает фоном и подставит свежие данные само.
  */
-export const REFRESH_SPINNER_CAP_MS = 8000;
+export const REFRESH_SPINNER_CAP_MS = 5000;
 
 export function withCap(p: Promise<void> | void, ms: number): Promise<void> {
   if (!(p instanceof Promise)) return Promise.resolve();
