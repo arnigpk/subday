@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, Trash2, Loader2, Eye, Clock, Power, Play } from 'lucide-react';
-import defaultPreloaderAnimation from '@/assets/preloader.json';
+
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
@@ -31,6 +31,18 @@ export default function AdminPreloaderPage() {
   const [isDemoing, setIsDemoing] = useState(false);
   const [demoProgress, setDemoProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Встроенная заставка больше не лежит в коде — подтягиваем тем же файлом, что
+  // и приложение, чтобы страница админки не тянула лишние 389 КБ.
+  const [defaultAnimation, setDefaultAnimation] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/preloader.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((a) => { if (!cancelled && a) setDefaultAnimation(a); })
+      .catch(() => { /* превью останется пустым, настройки работают */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const startDemo = useCallback(() => {
     setIsDemoing(true);
@@ -174,7 +186,7 @@ export default function AdminPreloaderPage() {
     }
   };
 
-  const displayAnimation = isCustom && customAnimation ? customAnimation : defaultPreloaderAnimation;
+  const displayAnimation = isCustom && customAnimation ? customAnimation : defaultAnimation;
 
   return (
     <AdminLayout title="Прелоадер">
@@ -227,13 +239,13 @@ export default function AdminPreloaderPage() {
                 className="mx-auto overflow-hidden rounded-md bg-[#FAF9F6]"
                 style={{ width: 200, aspectRatio: '9 / 16' }}
               >
-                <Lottie
+                {displayAnimation && <Lottie
                   animationData={displayAnimation}
                   loop
                   autoplay
                   rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
                   style={{ width: '100%', height: '100%', display: 'block' }}
-                />
+                />}
               </div>
             </div>
           )}
@@ -302,13 +314,13 @@ export default function AdminPreloaderPage() {
                   className="mx-auto overflow-hidden rounded-md bg-[#FAF9F6]"
                   style={{ width: 240, aspectRatio: '9 / 16' }}
                 >
-                  <Lottie
+                  {displayAnimation && <Lottie
                     animationData={displayAnimation}
                     loop
                     autoplay
                     rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
                     style={{ width: '100%', height: '100%', display: 'block' }}
-                  />
+                  />}
                 </div>
               </div>
               <Progress value={demoProgress} className="h-2" />

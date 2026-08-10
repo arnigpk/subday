@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Bell, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -163,7 +164,7 @@ export function PushNotificationsBell() {
     if (stored) setLastSeenAt(stored);
     setDismissedIds(getDismissedIds());
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getAuthUser().then(({ data: { user } }) => {
       setUserId(user?.id || null);
     });
   }, []);

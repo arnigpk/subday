@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Type, Image as ImageIcon, Sparkles, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { compressImage, getFileExtension } from '@/utils/imageCompression';
 import { uploadWithProgress } from '@/utils/xhrUpload';
 import { Progress } from '@/components/ui/progress';
@@ -203,7 +204,7 @@ export function StoryCreateDialog({ open, onOpenChange, onStoryCreated }: StoryC
     setUploading(true);
     setUploadProgress(0);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
 
       let uploadBlob: Blob;

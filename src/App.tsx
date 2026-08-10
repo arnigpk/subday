@@ -1,8 +1,18 @@
 import { useState, useEffect, lazy, Suspense, useCallback, useRef, ReactNode } from 'react';
-import Lottie from 'lottie-react';
 import { perfMark, perfReport } from '@/lib/perf';
 import { PerfOverlay } from '@/components/PerfOverlay';
-import defaultPreloaderAnimation from '@/assets/preloader.json';
+
+// Заставка вынесена из стартового кода намеренно.
+//
+// Раньше анимация (389 КБ — это 18 полноэкранных кадров в base64) была вшита во
+// входной чанк, а проигрыватель lottie-react добавлял к нему ещё 300 КБ. Выходил
+// замкнутый круг: чтобы показать заставку, надо было сперва скачать и разобрать
+// почти 700 КБ. Теперь и то и другое подгружается отдельно: анимация — обычным
+// файлом (кешируется браузером, в приложении лежит рядом в бандле), а
+// проигрыватель — отдельным чанком. Пока они едут, виден фирменный фон, а не
+// пустой экран. Не доедут вовсе — приложение всё равно откроется по таймеру.
+const Lottie = lazy(() => import('lottie-react'));
+const PRELOADER_ANIMATION_URL = '/preloader.json';
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,6 +20,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthUser } from '@/lib/authUser';
 import { readStoredSession, AUTH_WAIT_CAP_MS } from "@/lib/storedSession";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
@@ -264,7 +275,7 @@ function GeoNotificationsRunner() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user || cancelled) return;
       const { data } = await (supabase as any)
         .from('profiles')
@@ -363,7 +374,7 @@ const AppContent = () => {
   const [isPreloaderDone, setIsPreloaderDone] = useState(false);
   // P1: анимация готова СРАЗУ — из кэша (localStorage) или вшитого дефолта, без
   // ожидания сети. Свежую версию догружаем в фоне (см. эффект ниже).
-  const [animationData, setAnimationData] = useState<any>(() => readPreloaderCache()?.anim || defaultPreloaderAnimation);
+  const [animationData, setAnimationData] = useState<any>(() => readPreloaderCache()?.anim || null);
   const [animationReady, setAnimationReady] = useState(true);
   const [telegramAuthAttempted, setTelegramAuthAttempted] = useState(false);
 
@@ -407,6 +418,17 @@ const AppContent = () => {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+
+    // Заставки в кэше ещё нет (первый запуск после установки) — подтягиваем ту,
+    // что лежит рядом с приложением. В приложении это файл из бандла, в вебе —
+    // обычный запрос с вечным кэшем. Не получилось — останется фирменный фон,
+    // приложение это не задерживает.
+    if (!readPreloaderCache()?.anim) {
+      fetch(PRELOADER_ANIMATION_URL)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((anim) => { if (!cancelled && anim) setAnimationData(anim); })
+        .catch(() => { /* без заставки, но со стартом */ });
+    }
 
     // --- Немедленный таймер по кэшированному конфигу ---
     const cachedNow = readPreloaderCache();
@@ -625,13 +647,15 @@ const AppContent = () => {
             className="absolute inset-0"
             style={{ width: '100vw', height: '100dvh' }}
           >
-            <Lottie
-              animationData={animationData}
-              loop
-              autoplay
-              rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
-              style={{ width: '100%', height: '100%', display: 'block' }}
-            />
+            <Suspense fallback={null}>
+              <Lottie
+                animationData={animationData}
+                loop
+                autoplay
+                rendererSettings={{ preserveAspectRatio: 'xMidYMid slice' }}
+                style={{ width: '100%', height: '100%', display: 'block' }}
+              />
+            </Suspense>
           </div>
         ) : null}
       </div>

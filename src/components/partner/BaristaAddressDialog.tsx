@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { toast } from 'sonner';
 
 interface BaristaAddressDialogProps {
@@ -18,7 +19,7 @@ export function BaristaAddressDialog({ open, onSelect, addresses, shopId }: Bari
   const handleSelect = async (address: string) => {
     setSelecting(address);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
 
       // Upsert barista shift (unique on user_id)

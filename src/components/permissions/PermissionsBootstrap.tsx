@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { getToken } from 'firebase/messaging';
 import { messaging } from '@/lib/firebase';
 import { useNativePush } from '@/hooks/useNativePush';
@@ -17,7 +18,7 @@ const GEO_REQUESTED_KEY = 'permissions_geo_requested';
 
 async function setGeoEnabledInProfile(enabled: boolean) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) return;
     await (supabase.from('profiles') as any)
       .update({ geo_notifications_enabled: enabled })

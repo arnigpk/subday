@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Input } from '@/components/ui/input';
 import { Coffee, Loader2, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -42,7 +43,7 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, addresses, onS
 
     setIsSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
 
       const addr = selectedAddress || addresses[0] || null;

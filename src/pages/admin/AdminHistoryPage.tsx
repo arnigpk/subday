@@ -25,6 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Search, ChevronLeft, ChevronRight, User, CalendarIcon, Trash2, ShoppingBag, Download, Loader2 } from 'lucide-react';
 import { downloadCSV, formatDateRu } from '@/utils/exportCSV';
 import { format, subMonths, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
@@ -193,7 +194,7 @@ export default function AdminHistoryPage() {
         await supabase.from('partner_payouts').delete()
           .eq('shop_id', shopId).eq('year', payoutPeriod.year).eq('month', payoutPeriod.month).eq('half', half);
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await getAuthUser();
         await supabase.from('partner_payouts').insert({
           shop_id: shopId, year: payoutPeriod.year, month: payoutPeriod.month, half, amount, marked_by: user?.id ?? null,
         });

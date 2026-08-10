@@ -16,6 +16,7 @@ import { useVibration } from '@/hooks/useVibration';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useAllActiveStories } from '@/hooks/useAllActiveStories';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Lock, ChevronUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -49,7 +50,7 @@ export default function SubFlowPage() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getAuthUser().then(async ({ data: { user } }) => {
       if (!user) return;
       setUserId(user.id);
       const { data: profile } = await supabase

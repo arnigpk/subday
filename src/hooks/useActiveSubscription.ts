@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 // Кеш активных подписок — чтобы на странице «Подписки» активная сразу была
 // помечена активной (а не «Оформить → потом активна»). Фоновый fetch обновит.
@@ -21,7 +22,7 @@ export function useActiveSubscription() {
 
   const fetchActiveSubscription = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) {
         try { localStorage.removeItem(ACTIVE_SUBS_CACHE_KEY); } catch { /* ignore */ }
         setIsLoading(false);

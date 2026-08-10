@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 export interface UserStats {
   coffeeRemaining: number;
@@ -78,7 +79,7 @@ export function useUserStats() {
     // сбой, медленная сеть), isLoading ГАРАНТИРОВАННО сбросится в finally — иначе
     // скелетон главной висел бы вечно.
     try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) {
       // Нет сессии — чистим персистентный кеш, чтобы новый пользователь не увидел чужие данные.
       try { localStorage.removeItem(STATS_CACHE_KEY); } catch { /* ignore */ }

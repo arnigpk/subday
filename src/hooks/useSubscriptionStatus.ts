@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 interface ActiveSubscription {
   id: string;
@@ -68,7 +69,7 @@ export function useSubscriptionStatus() {
 
   const fetchSubscriptionStatus = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) {
         // Нет сессии — чистим кэш, чтобы новый пользователь не увидел чужую подписку.
         try { localStorage.removeItem(SUB_CACHE_KEY); } catch { /* ignore */ }

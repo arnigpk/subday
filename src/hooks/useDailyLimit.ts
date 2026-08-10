@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 interface DailyLimitStatus {
   dailyLimit: number | null; // null = unlimited
@@ -60,7 +61,7 @@ export function useDailyLimit(subscriptionType: 'coffee' | 'drinks' = 'coffee') 
     }
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) {
         const result = { ...status, isLoading: false };
         setStatus(result);

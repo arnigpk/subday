@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { MapPin, ChevronRight, Check } from 'lucide-react';
 import { COUNTRY_OPTIONS, getCitiesForCountry, type CountryInfo } from '@/utils/countries';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { toast } from '@/components/ui/sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -36,7 +37,7 @@ export function CountryCityDialog({ open, onOpenChange, currentCountry, currentC
   const handleCitySelect = async (city: string) => {
     setIsSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('profiles')

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { PartnerLayout } from '@/components/partner/PartnerLayout';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Coffee, CalendarDays, MapPin, ShoppingBag, Check } from 'lucide-react';
@@ -47,7 +48,7 @@ export default function BaristaShiftHistory() {
 
   const checkShiftAddress = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
 
       const { data: shop } = await supabase
@@ -95,7 +96,7 @@ export default function BaristaShiftHistory() {
     if (!shopId) return;
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
 
       const now = new Date();

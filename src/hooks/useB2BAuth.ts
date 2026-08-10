@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 // Доступ в B2B-кабинет: у пользователя есть роль b2b_admin.
 export function useB2BAuth() {
@@ -9,7 +10,7 @@ export function useB2BAuth() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (cancelled) return;
       if (!user) { setIsLoading(false); return; }
       const { data } = await supabase

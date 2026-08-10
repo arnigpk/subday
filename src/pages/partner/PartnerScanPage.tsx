@@ -4,6 +4,7 @@ import { ShopQRCode } from '@/components/partner/ShopQRCode';
 import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Check, X, MapPin, QrCode, Loader2, ScanLine } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
@@ -55,7 +56,7 @@ export default function PartnerScanPage() {
   // Запоминаем выбор per-shop + обновляем barista_shifts (серверный фолбэк/«Моя смена»).
   const persistAddress = (sid: string, addr: string) => {
     try { localStorage.setItem(addrKey(sid), addr); } catch { /* ignore */ }
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getAuthUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase.from('barista_shifts').upsert({
         user_id: user.id, shop_id: sid, address: addr,

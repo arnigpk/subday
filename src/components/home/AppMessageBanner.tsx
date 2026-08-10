@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { useUserAudienceMatch } from '@/hooks/useUserAudienceMatch';
 import { useOverlaySlot } from '@/contexts/OverlayContext';
 import { X } from 'lucide-react';
@@ -62,7 +63,7 @@ export function AppMessageBanner() {
   }, []);
 
   const loadMessages = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) return;
     setUserId(user.id);
 

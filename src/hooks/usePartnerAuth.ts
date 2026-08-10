@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 export interface PartnerShop {
   id: string;
@@ -44,7 +45,7 @@ function broadcast(s: PartnerAuthState) {
 
 async function fetchPartnerAuth(): Promise<PartnerAuthState> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) return { ...EMPTY, isLoading: false };
 
     const { data: roles, error } = await supabase

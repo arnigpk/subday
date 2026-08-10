@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { Capacitor } from '@capacitor/core';
 
 /**
@@ -34,7 +35,7 @@ export function setPushOptedOut(value: boolean): void {
 export async function saveDeviceToken(token: string, platform: string): Promise<void> {
   if (isPushOptedOut()) return;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) return;
 
     let oldToken: string | null = null;
@@ -68,7 +69,7 @@ export async function saveDeviceToken(token: string, platform: string): Promise<
  */
 export async function deleteThisDeviceToken(): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getAuthUser();
     if (!user) return;
     let token = '';
     try { token = localStorage.getItem(DEVICE_TOKEN_KEY) || ''; } catch { /* ignore */ }

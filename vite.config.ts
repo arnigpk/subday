@@ -94,12 +94,15 @@ export default defineConfig(({ mode }) => ({
           // общий vendor (иначе они грузились бы при старте) — Rollup сам оставит
           // их в чанке той страницы, которая их импортирует.
           if (/node_modules[\\/](html5-qrcode|@dnd-kit|qrcode\.react|react-day-picker|input-otp|cmdk|vaul|react-resizable-panels|embla-carousel|xlsx)/.test(id)) return;
+          // Проигрыватель заставки — сюда же. Он нужен ровно один раз, на старте,
+          // и подключается ленивым импортом. Пока он лежал в общем vendor, ленивость
+          // не работала: vendor грузится всегда, и 300 КБ ехали в критическом пути.
+          if (/node_modules[\\/](lottie-react|lottie-web)[\\/]/.test(id)) return;
           // Отдельно выносим ТОЛЬКО библиотеки без зависимости от React —
           // React и все react-зависимые либы обязаны жить в одном чанке,
           // иначе interop ломается («Cannot read forwardRef of undefined»).
           if (id.includes("@supabase")) return "vendor-supabase";
           if (/node_modules[\\/](@firebase|firebase)[\\/]/.test(id)) return "vendor-firebase";
-          if (/node_modules[\\/]lottie-web[\\/]/.test(id)) return "vendor-lottie";
           return "vendor";
         },
       },

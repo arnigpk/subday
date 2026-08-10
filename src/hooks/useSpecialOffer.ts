@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 
 interface SpecialOffer {
   id: string;
@@ -45,7 +46,7 @@ export function useSpecialOffer(): UseSpecialOfferResult {
 
   const checkEligibility = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) { setIsLoading(false); return; }
 
       const { data: profile } = await supabase
@@ -163,7 +164,7 @@ export function useSpecialOffer(): UseSpecialOfferResult {
     setShowPopup(false);
     setPopupOffer(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (user && offerId) {
         // Get current shown ids
         const { data: profile } = await supabase

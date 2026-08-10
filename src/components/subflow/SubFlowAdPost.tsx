@@ -5,6 +5,7 @@ import { Megaphone, ExternalLink, MessageCircle, Plus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { openWithDeepLink } from '@/utils/deepLinks';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { SubFlowAdComments } from './SubFlowAdComments';
 import { toast } from 'sonner';
 import { useVibration } from '@/hooks/useVibration';
@@ -148,7 +149,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
       if (viewTracked.current) return;
       viewTracked.current = true;
       onViewed?.(ad.id);
-      supabase.auth.getUser().then(({ data }) => {
+      getAuthUser().then(({ data }) => {
         if (!data.user) return;
         supabase.from('subflow_ad_events').insert({
           ad_id: ad.id, user_id: data.user.id, event_type: 'view', ab_variant: variant,
@@ -168,7 +169,7 @@ export const SubFlowAdPost = forwardRef<HTMLDivElement, SubFlowAdPostProps>(func
   }, [ad.id, onViewed]);
 
   const trackClick = async () => {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await getAuthUser();
     if (data.user) {
       await supabase.from('subflow_ad_events').insert({
         ad_id: ad.id, user_id: data.user.id, event_type: 'click', ab_variant: variant,

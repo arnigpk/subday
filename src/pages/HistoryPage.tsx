@@ -9,6 +9,7 @@ import { formatDateKz } from '@/utils/kazakh';
 import { TabSwitcher } from '@/components/ui/TabSwitcher';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { ReceiptPopup } from '@/components/history/ReceiptPopup';
 import { PreorderHistoryItem } from '@/components/preorder/PreorderHistoryItem';
 
@@ -68,7 +69,7 @@ export default function HistoryPage() {
 
   const fetchPreorders = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
       const { data, error } = await supabase
         .from('preorders')
@@ -86,7 +87,7 @@ export default function HistoryPage() {
   const fetchTransactions = async () => {
     setTransactionsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
       const { data, error } = await supabase
         .from('subscription_transactions')

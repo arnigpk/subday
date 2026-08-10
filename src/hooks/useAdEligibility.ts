@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { startOfAdsDay, type ShopAffinity } from '@/lib/adTargeting';
 
 export type AdKind = 'subflow' | 'banner';
@@ -34,7 +35,7 @@ export function useAdEligibility(kind: AdKind) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (cancelled) return;
       setUserId(user?.id || null);
 

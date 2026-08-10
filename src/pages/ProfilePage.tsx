@@ -11,6 +11,7 @@ import { Camera, Pencil, Check, X, Copy, Trash2 } from 'lucide-react';
 import { IconUser, IconMapPin, IconBell, IconMessageCircleUser, IconFileText, IconLogout, IconChevronRight, IconMoon, IconSun, IconVolume, IconDeviceMobile, IconDeviceMobileVibration, IconMapPinFilled, IconSnowflake, IconBan, IconBrandWhatsapp } from '@tabler/icons-react';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '@/lib/subflowModeration';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { ServiceRulesDialog } from '@/components/auth/ServiceRulesDialog';
 import { toast } from '@/components/ui/sonner';
 import { useUserStatsContext } from '@/contexts/UserStatsContext';
@@ -64,7 +65,7 @@ export default function ProfilePage() {
   const handleGeoNotifToggle = async (enabled: boolean) => {
     setGeoNotifEnabled(enabled);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) return;
       await (supabase.from('profiles') as any)
         .update({ geo_notifications_enabled: enabled })
@@ -92,7 +93,7 @@ export default function ProfilePage() {
     if (!editName.trim()) { toast.error(t('profile.enterName')); return; }
     setIsSavingName(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase.from('profiles').update({ name: editName.trim() }).eq('user_id', user.id);
       if (error) throw error;
@@ -202,7 +203,7 @@ export default function ProfilePage() {
     if (file.size > 5 * 1024 * 1024) { toast.error(t('profile.fileTooLarge')); return; }
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('User not authenticated');
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/avatar.${fileExt}`;
@@ -229,7 +230,7 @@ export default function ProfilePage() {
     if (!profile?.avatarUrl) return;
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
 
       // Best-effort: remove all files in user's avatar folder

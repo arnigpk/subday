@@ -7,6 +7,7 @@ import { useUserStatsContext } from '@/contexts/UserStatsContext';
 import { toast } from '@/components/ui/sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { isShopOpen, isAnyAddressOpen } from '@/utils/shopHours';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
@@ -189,7 +190,7 @@ export default function RedeemPage() {
   // (навигация на главную здесь убила бы анимацию — это была регрессия).
   // Сам показ анимации — в handleShopScanSuccess ниже, после её объявления.
   // Инициализируем userId синхронно из кеша — иначе при оффлайне QR не построится,
-  // т.к. supabase.auth.getUser() может зависнуть/упасть без сети.
+  // т.к. getAuthUser() может зависнуть/упасть без сети.
   const [userId, setUserId] = useState<string | null>(() => {
     try {
       const cached = getCache<{ userId: string }>(CACHE_KEYS.qrSnapshot);
@@ -410,7 +411,7 @@ export default function RedeemPage() {
 
   useEffect(() => {
     const initUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (user) {
         setUserId(user.id);
         const { data: lastRedemption } = await supabase

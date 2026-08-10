@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthUser } from '@/lib/authUser';
 import { X, Image, MapPin, Loader2, Plus, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -73,7 +74,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
       setPlaceholder(ROTATING_PLACEHOLDERS[placeholderIndex % ROTATING_PLACEHOLDERS.length]);
       placeholderIndex++;
       // Check AI access
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      getAuthUser().then(({ data: { user } }) => {
         if (user) {
           supabase
             .from('profiles')
@@ -265,7 +266,7 @@ export function SubFlowCreatePostDialog({ open, onOpenChange, onPostCreated }: S
     setUploadProgress(0);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getAuthUser();
       if (!user) throw new Error('Not authenticated');
 
       const mediaUrls: string[] = [];
