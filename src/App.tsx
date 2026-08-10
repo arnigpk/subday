@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { readStoredSession, AUTH_WAIT_CAP_MS } from "@/lib/storedSession";
 import { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { GuestModeProvider } from "@/contexts/GuestModeContext";
@@ -521,13 +522,40 @@ const AppContent = () => {
       }
     );
 
+    // Стартуем по сохранённой сессии, не дожидаясь сети.
+    //
+    // getSession() выглядит локальным, но если срок действия токена истёк, внутри
+    // он идёт обновлять его по сети. Обычно это доли секунды, а на плохой связи
+    // supabase-js ещё и повторяет попытку с нарастающей паузой — и всё это время
+    // приложение стояло на прелоадере: он прокручивался по 5–6 раз подряд.
+    //
+    // Сама сессия при этом уже лежит в localStorage, и её достаточно, чтобы
+    // решить, что показывать. Поэтому берём её сразу, а обновление токена идёт
+    // фоном: когда оно завершится, onAuthStateChange поправит состояние. Права
+    // это не ослабляет — доступ к данным решает RLS на сервере, а не то, что
+    // клиент думает о себе.
+    const stored = readStoredSession();
+    if (stored) {
+      setSession(stored);
+      perfMark('auth-ready');
+      setIsAuthLoading(false);
+    }
+
+    // Страховка на случай, когда сохранённой сессии нет, а сеть молчит: дольше
+    // этого держать человека на прелоадере нельзя — покажем экран входа, а если
+    // сессия всё же придёт, onAuthStateChange вернёт приложение.
+    const capTimer = setTimeout(() => setIsAuthLoading(false), AUTH_WAIT_CAP_MS);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       perfMark('auth-ready');
       setIsAuthLoading(false);
-    });
+    }).catch(() => setIsAuthLoading(false));
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(capTimer);
+      subscription.unsubscribe();
+    };
   }, []);
   
   const isTelegramAuthPending = isTelegramMiniApp && !telegramAuthAttempted;
