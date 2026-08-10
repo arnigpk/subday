@@ -28,6 +28,11 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
   // Telegram — у кого бот не заблокирован и чат жив. Считаем отдельно, потому что
   // «аккаунт привязан» и «сообщение дойдёт» — это не одно и то же.
   const [reachableIds, setReachableIds] = useState<Set<string>>(new Set());
+  // Рабочие роли. Один человек может быть и партнёром, и бариста — держим
+  // отдельными наборами, чтобы выбор «Партнёры + Бариста» дал объединение без
+  // повторов, а не пересечение.
+  const [partnerIds, setPartnerIds] = useState<Set<string>>(new Set());
+  const [baristaIds, setBaristaIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [showList, setShowList] = useState(false);
 
@@ -62,12 +67,14 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
         return allResults;
       };
 
-      const [profiles, subsRes, expiringRes, newRes, recentActiveRes] = await Promise.all([
+      const [profiles, subsRes, expiringRes, newRes, recentActiveRes, rolesRes] = await Promise.all([
         fetchAllProfiles(),
         supabase.from('user_subscriptions').select('user_id').eq('is_active', true),
         supabase.from('user_subscriptions').select('user_id').eq('is_active', true).lte('expires_at', fiveDaysLater).gte('expires_at', now.toISOString()),
         supabase.from('profiles').select('user_id').gte('created_at', sevenDaysAgo),
         supabase.from('redemptions').select('user_id').gte('redeemed_at', thirtyDaysAgo),
+        // Роли читаются под RLS: политика разрешает админу видеть все записи.
+        supabase.from('user_roles').select('user_id, role').in('role', ['partner', 'barista']),
       ]);
 
       setAllProfiles(profiles);
@@ -75,6 +82,10 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
       setActiveSubIds(activeSet);
       setExpiringSoonIds(new Set((expiringRes.data || []).map(r => r.user_id)));
       setNewUserIds(new Set((newRes.data || []).map(r => r.user_id)));
+
+      const roleRows = (rolesRes.data || []) as { user_id: string; role: string }[];
+      setPartnerIds(new Set(roleRows.filter(r => r.role === 'partner').map(r => r.user_id)));
+      setBaristaIds(new Set(roleRows.filter(r => r.role === 'barista').map(r => r.user_id)));
 
       const recentSet = new Set((recentActiveRes.data || []).map(r => r.user_id));
       setActiveUserIds(new Set([...recentSet, ...activeSet]));
@@ -104,6 +115,8 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
           if (t === 'expiring_soon' && expiringSoonIds.has(uid)) return true;
           if (t === 'new_users' && newUserIds.has(uid)) return true;
           if (t === 'inactive' && !activeUserIds.has(uid)) return true;
+          if (t === 'partners' && partnerIds.has(uid)) return true;
+          if (t === 'baristas' && baristaIds.has(uid)) return true;
         }
         return false;
       });
@@ -111,7 +124,7 @@ export function AudiencePreview({ audienceTypes, channel }: AudiencePreviewProps
     // Оставляем только достижимых — и для push, и для Telegram.
     list = list.filter(u => reachableIds.has(u.user_id));
     return list;
-  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds, channel, reachableIds]);
+  }, [allProfiles, audienceTypes, activeSubIds, expiringSoonIds, newUserIds, activeUserIds, channel, reachableIds, partnerIds, baristaIds]);
 
   if (isLoading) {
     return (

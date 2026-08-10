@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' | 'new_users' | 'inactive';
+type AudienceType = 'all' | 'subscribers' | 'no_subscription' | 'expiring_soon' | 'new_users' | 'inactive' | 'partners' | 'baristas';
 
 interface BroadcastRequest {
   message: string;
@@ -212,6 +212,17 @@ async function resolveAudienceUserIds(supabase: any, audienceTypes: AudienceType
 
 async function resolveOneAudience(supabase: any, audienceType: AudienceType, now: Date): Promise<string[]> {
   switch (audienceType) {
+    // Рабочие роли: рассылка только тем, у кого эта роль есть. Один человек
+    // может быть и партнёром, и бариста — вызывающий код складывает наборы
+    // через Set, поэтому дважды сообщение не уйдёт.
+    case 'partners': {
+      const data = await fetchAllRows(supabase, 'user_roles', 'user_id', (q: any) => q.eq('role', 'partner'));
+      return [...new Set(data.map((r: any) => r.user_id))];
+    }
+    case 'baristas': {
+      const data = await fetchAllRows(supabase, 'user_roles', 'user_id', (q: any) => q.eq('role', 'barista'));
+      return [...new Set(data.map((r: any) => r.user_id))];
+    }
     case 'subscribers': {
       const data = await fetchAllRows(supabase, 'user_subscriptions', 'user_id', (q: any) => q.eq('is_active', true));
       return [...new Set(data.map((r: any) => r.user_id))];

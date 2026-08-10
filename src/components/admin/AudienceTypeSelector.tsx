@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, UserX, Clock, UserPlus, UserMinus } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, UserPlus, UserMinus, Store, Coffee } from 'lucide-react';
 
 export type AudienceType =
   | 'all'
@@ -8,7 +8,11 @@ export type AudienceType =
   | 'no_subscription'
   | 'expiring_soon'
   | 'new_users'
-  | 'inactive';
+  | 'inactive'
+  // Рабочие роли — рассылки по ним нужны для служебных сообщений: смена правил
+  // списания, обновление приложения, объявления для точек. Гостям такое не шлём.
+  | 'partners'
+  | 'baristas';
 
 interface AudienceOption {
   value: AudienceType;
@@ -24,6 +28,8 @@ const audienceOptions: AudienceOption[] = [
   { value: 'expiring_soon', label: 'Осталось ≤5 дней', description: 'До конца подписки ≤5 дней', icon: <Clock className="w-4 h-4" /> },
   { value: 'new_users', label: 'Новые пользователи', description: 'Зарегистрированы за 7 дней', icon: <UserPlus className="w-4 h-4" /> },
   { value: 'inactive', label: 'Неактивные', description: 'Не заходили 30+ дней', icon: <UserMinus className="w-4 h-4" /> },
+  { value: 'partners', label: 'Партнёры', description: 'Владельцы кофеен', icon: <Store className="w-4 h-4" /> },
+  { value: 'baristas', label: 'Бариста', description: 'Сотрудники кофеен', icon: <Coffee className="w-4 h-4" /> },
 ];
 
 export { audienceOptions };
