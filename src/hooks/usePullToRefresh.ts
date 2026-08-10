@@ -8,6 +8,27 @@ interface UsePullToRefreshOptions {
 
 const isPullToRefreshLocked = () => document.body.dataset.pullToRefreshDisabled === 'true';
 
+/**
+ * Дольше этого крутиться не даём.
+ *
+ * Запросы к серверу ограничены 20 секундами — этого достаточно, чтобы данные не
+ * ждали вечно, но для жеста рукой это целая вечность: на слабой связи человек
+ * видел крутящийся кружок и решал, что приложение зависло. Здесь потолок свой,
+ * короткий: жест завершается, а обновление, если оно ещё идёт, спокойно
+ * доезжает фоном и подставит свежие данные само.
+ */
+export const REFRESH_SPINNER_CAP_MS = 8000;
+
+export function withCap(p: Promise<void> | void, ms: number): Promise<void> {
+  if (!(p instanceof Promise)) return Promise.resolve();
+  // Отказ обновления не должен всплыть непойманным — гасим его здесь.
+  p.catch(() => { /* обновление не удалось; данные останутся прежними */ });
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    p.finally(() => { clearTimeout(timer); resolve(); });
+  });
+}
+
 export function usePullToRefresh({
   onRefresh,
   threshold = 80,
@@ -75,7 +96,7 @@ export function usePullToRefresh({
       setPullDistance(threshold);
       
       try {
-        await onRefresh();
+        await withCap(onRefresh(), REFRESH_SPINNER_CAP_MS);
       } finally {
         setIsRefreshing(false);
         setPullDistance(0);

@@ -14,6 +14,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PushNotificationsBell } from '@/components/home/PushNotificationsBell';
 import { SpecialOfferPopup } from '@/components/special-offer/SpecialOfferPopup';
 import { useSpecialOffer } from '@/hooks/useSpecialOffer';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { useOverlaySlot } from '@/contexts/OverlayContext';
 
 import logo from '@/assets/logo.png';
@@ -25,6 +26,8 @@ import { AppMessageBanner } from '@/components/home/AppMessageBanner';
 
 export default function HomePage() {
   const { profile, isLoading, refetch } = useUserStatsContext();
+  // Подписку обновляем тем же жестом — карточка баланса показывает именно её.
+  const { refetch: refetchSubscription } = useSubscriptionStatus();
   const [activeTab, setActiveTab] = useState<'coffee' | 'drinks'>('coffee');
   const { role, isAdmin, isPartner, isBarista } = useAdminAuth();
   const { isB2BAdmin } = useB2BAuth();
@@ -42,13 +45,18 @@ export default function HomePage() {
     prefetchAll();
   }, [prefetchAll]);
   
+  // Тянут вниз обычно ради карточки баланса и подписки — именно она на виду.
+  // Раньше обновлялись только статистика и кофейни, а подписка оставалась
+  // прежней: человек ждал, а на экране ничего не менялось. Теперь освежаем и её.
+  // Отказ любой из частей не должен ронять жест — обновится то, что смогло.
   const handleRefresh = useCallback(async () => {
-    await Promise.all([
+    await Promise.allSettled([
       refetch(),
+      refetchSubscription(),
       queryClient.invalidateQueries({ queryKey: ['shops'] }),
     ]);
     vibrateShort();
-  }, [refetch, queryClient, vibrateShort]);
+  }, [refetch, refetchSubscription, queryClient, vibrateShort]);
   
   const showAdminButton = isAdmin || role === 'moderator' || isPartner || isBarista;
   
