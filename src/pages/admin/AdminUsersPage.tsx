@@ -32,7 +32,8 @@ import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, Cale
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
-import { daysLeft, shiftExpiry } from '@/lib/subscriptionDays';
+import { daysLeft, shiftExpiry, formatExpiryLabel } from '@/lib/subscriptionDays';
+import { SubscriptionEditor } from '@/components/admin/SubscriptionEditor';
 
 type UserRole = AppRole | 'user';
 
@@ -93,14 +94,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   barista: 'Бариста',
 };
 
-function formatExpiryLabel(expiresAt: string | null): string {
-  if (!expiresAt) return '—';
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (days <= 0) return 'Истёк';
-  const daysWord = days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20) ? 'дня' : 'дней';
-  return `~${days} ${daysWord} (до ${new Date(expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })})`;
-}
-
 function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimit }: {
   sub: { name: string; expires_at: string | null; daily_limit: number | null; daily_limit_override: number | null; is_frozen?: boolean; freeze_until?: string | null };
   icon: React.ReactNode;
@@ -159,99 +152,6 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
               Обновить
             </Button>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Остаток и срок одной подписки.
- *
- * Править можно только то, что у человека реально есть: без подписки поля
- * заблокированы — менять остаток в никуда бессмысленно, а срок тем более.
- * Продление идёт по существующему тарифу: кнопка «+период» добавляет ровно
- * столько дней и чашек, сколько записано в самом тарифе, новую подписку не
- * создаёт.
- */
-function SubscriptionEditor({ title, icon, sub, remaining, days, canManage, onRemaining, onDays }: {
-  title: string;
-  icon: React.ReactNode;
-  sub: UserWithStats['coffee_subscription'];
-  remaining: number;
-  days: number | null;
-  canManage: boolean;
-  onRemaining: (v: number) => void;
-  onDays: (v: number) => void;
-}) {
-  const has = !!sub;
-  const editable = canManage && has;
-  const period = sub?.duration_days ?? null;
-  const cups = sub?.cups_count ?? null;
-
-  return (
-    <div className={`rounded-lg border px-3 py-3 space-y-3 ${has ? '' : 'opacity-60'}`}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-sm font-medium">{title}</span>
-          {has ? (
-            <span className="text-xs text-muted-foreground">— {sub!.name}</span>
-          ) : (
-            <span className="text-xs text-muted-foreground">— нет подписки</span>
-          )}
-        </div>
-        {has && (
-          <span className="text-xs text-muted-foreground">{formatExpiryLabel(sub!.expires_at)}</span>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs">Остаток, шт</Label>
-          <Input
-            type="number"
-            min="0"
-            value={remaining}
-            onChange={(e) => onRemaining(Math.max(0, parseInt(e.target.value) || 0))}
-            disabled={!editable}
-            className={`mt-1 ${editable ? '' : 'bg-muted'}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Срок, дней</Label>
-          <Input
-            type="number"
-            min="0"
-            value={days ?? 0}
-            onChange={(e) => onDays(Math.max(0, parseInt(e.target.value) || 0))}
-            disabled={!editable}
-            className={`mt-1 ${editable ? '' : 'bg-muted'}`}
-          />
-        </div>
-      </div>
-
-      {editable && period !== null && cups !== null && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={() => { onDays((days ?? 0) + period); onRemaining(remaining + cups); }}
-          >
-            <Plus className="w-3 h-3" />
-            период тарифа: +{period} дн / +{cups} шт
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground"
-            onClick={() => { onDays(Math.max(0, (days ?? 0) - period)); onRemaining(Math.max(0, remaining - cups)); }}
-          >
-            −период
-          </Button>
         </div>
       )}
     </div>
@@ -1155,8 +1055,8 @@ export default function AdminUsersPage() {
                   remaining={formData.coffee_remaining}
                   days={formData.coffee_days}
                   canManage={canManage}
-                  onRemaining={(v) => setFormData({ ...formData, coffee_remaining: v })}
-                  onDays={(v) => setFormData({ ...formData, coffee_days: v })}
+                  onRemaining={(v) => setFormData((prev) => ({ ...prev, coffee_remaining: v }))}
+                  onDays={(v) => setFormData((prev) => ({ ...prev, coffee_days: v }))}
                 />
                 <SubscriptionEditor
                   title="Ланчи"
@@ -1165,8 +1065,8 @@ export default function AdminUsersPage() {
                   remaining={formData.drinks_remaining}
                   days={formData.lunch_days}
                   canManage={canManage}
-                  onRemaining={(v) => setFormData({ ...formData, drinks_remaining: v })}
-                  onDays={(v) => setFormData({ ...formData, lunch_days: v })}
+                  onRemaining={(v) => setFormData((prev) => ({ ...prev, drinks_remaining: v }))}
+                  onDays={(v) => setFormData((prev) => ({ ...prev, lunch_days: v }))}
                 />
               </>
             )}

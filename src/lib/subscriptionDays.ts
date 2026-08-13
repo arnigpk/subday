@@ -38,3 +38,20 @@ export function shiftExpiry(expiresAt: string | null, fromDays: number, toDays: 
   const base = alive ? current! : new Date();
   return new Date(base.getTime() + (toDays - fromDays) * DAY_MS).toISOString();
 }
+
+/**
+ * Подпись срока для админки: «~8 дней (до 21 авг 2026)».
+ * Использует тот же daysLeft, поэтому число в подписи и в поле ввода совпадает.
+ */
+export function formatExpiryLabel(expiresAt: string | null): string {
+  if (!expiresAt) return '—';
+  const days = daysLeft(expiresAt);
+  if (days <= 0) return 'Истёк';
+  const word = days % 10 === 1 && days % 100 !== 11
+    ? 'день'
+    : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20)
+      ? 'дня'
+      : 'дней';
+  const date = new Date(expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `~${days} ${word} (до ${date})`;
+}
