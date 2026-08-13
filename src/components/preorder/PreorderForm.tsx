@@ -87,7 +87,16 @@ export function PreorderForm({ shopId, shopName, coffeeRemaining, addresses, onS
       });
     } catch (error) {
       console.error('Preorder error:', error);
-      toast({ title: 'Ошибка при оформлении предзаказа', variant: 'destructive' });
+      // Сервер называет причину отказа кодом — переводим её на человеческий.
+      // Без этого любой отказ выглядел одинаково («Ошибка при оформлении»), и
+      // человек не понимал, что делать: пополнить нечего, подписка на паузе.
+      const code = error instanceof Error ? error.message : '';
+      const REASONS: Record<string, string> = {
+        subscription_inactive: 'Подписка заморожена или истекла',
+        insufficient_balance: 'Не осталось кофе по подписке',
+        unauthorized: 'Войдите в аккаунт',
+      };
+      toast({ title: REASONS[code] || 'Ошибка при оформлении предзаказа', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }

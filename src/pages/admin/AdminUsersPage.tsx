@@ -32,6 +32,7 @@ import { Search, ChevronLeft, ChevronRight, Pencil, Ban, UserCheck, Shield, Cale
 import { toast } from '@/hooks/use-toast';
 import { AppRole, useAdminAuth } from '@/hooks/useAdminAuth';
 import { CountryCityFilter } from '@/components/admin/CountryCityFilter';
+import { daysLeft, shiftExpiry } from '@/lib/subscriptionDays';
 
 type UserRole = AppRole | 'user';
 
@@ -62,8 +63,8 @@ interface UserWithStats {
   role?: UserRole;
   role_id?: string;
   shop_id?: string | null;
-  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
-  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null } | null;
+  coffee_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null; cups_count: number | null; duration_days: number | null } | null;
+  lunch_subscription?: { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null; cups_count: number | null; duration_days: number | null } | null;
   b2b_owner_of?: string | null;   // название бизнеса, если пользователь — админ B2B-аккаунта
   b2b_seat?: { account: string; tier: string } | null; // выданное B2B-место
 }
@@ -164,6 +165,99 @@ function SubscriptionRow({ sub, icon, type, canManage, onReset, onResetDailyLimi
   );
 }
 
+/**
+ * Остаток и срок одной подписки.
+ *
+ * Править можно только то, что у человека реально есть: без подписки поля
+ * заблокированы — менять остаток в никуда бессмысленно, а срок тем более.
+ * Продление идёт по существующему тарифу: кнопка «+период» добавляет ровно
+ * столько дней и чашек, сколько записано в самом тарифе, новую подписку не
+ * создаёт.
+ */
+function SubscriptionEditor({ title, icon, sub, remaining, days, canManage, onRemaining, onDays }: {
+  title: string;
+  icon: React.ReactNode;
+  sub: UserWithStats['coffee_subscription'];
+  remaining: number;
+  days: number | null;
+  canManage: boolean;
+  onRemaining: (v: number) => void;
+  onDays: (v: number) => void;
+}) {
+  const has = !!sub;
+  const editable = canManage && has;
+  const period = sub?.duration_days ?? null;
+  const cups = sub?.cups_count ?? null;
+
+  return (
+    <div className={`rounded-lg border px-3 py-3 space-y-3 ${has ? '' : 'opacity-60'}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-sm font-medium">{title}</span>
+          {has ? (
+            <span className="text-xs text-muted-foreground">— {sub!.name}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">— нет подписки</span>
+          )}
+        </div>
+        {has && (
+          <span className="text-xs text-muted-foreground">{formatExpiryLabel(sub!.expires_at)}</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Остаток, шт</Label>
+          <Input
+            type="number"
+            min="0"
+            value={remaining}
+            onChange={(e) => onRemaining(Math.max(0, parseInt(e.target.value) || 0))}
+            disabled={!editable}
+            className={`mt-1 ${editable ? '' : 'bg-muted'}`}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Срок, дней</Label>
+          <Input
+            type="number"
+            min="0"
+            value={days ?? 0}
+            onChange={(e) => onDays(Math.max(0, parseInt(e.target.value) || 0))}
+            disabled={!editable}
+            className={`mt-1 ${editable ? '' : 'bg-muted'}`}
+          />
+        </div>
+      </div>
+
+      {editable && period !== null && cups !== null && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1"
+            onClick={() => { onDays((days ?? 0) + period); onRemaining(remaining + cups); }}
+          >
+            <Plus className="w-3 h-3" />
+            период тарифа: +{period} дн / +{cups} шт
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => { onDays(Math.max(0, (days ?? 0) - period)); onRemaining(Math.max(0, remaining - cups)); }}
+          >
+            −период
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const { canManage, isSuperAdmin, isAdmin } = useAdminAuth();
   const [users, setUsers] = useState<UserWithStats[]>([]);
@@ -188,6 +282,9 @@ export default function AdminUsersPage() {
     is_blocked: false,
     coffee_remaining: 0,
     drinks_remaining: 0,
+    // Срок по каждой подписке отдельно, в днях. null — подписки нет.
+    coffee_days: null as number | null,
+    lunch_days: null as number | null,
     role: 'user' as UserRole,
     shop_id: '',
     subflow_access: false,
@@ -330,7 +427,9 @@ export default function AdminUsersPage() {
           .in('user_id', userIds),
         supabase
           .from('user_subscriptions')
-          .select('id, user_id, expires_at, is_active, daily_limit_override, is_frozen, freeze_until, subscription_types(name, type, daily_limit)')
+          // cups_count и duration_days нужны, чтобы продлевать «по тарифу»: кнопка
+          // «+период» добавляет ровно столько дней и чашек, сколько в самом тарифе.
+          .select('id, user_id, expires_at, is_active, daily_limit_override, is_frozen, freeze_until, subscription_types(name, type, daily_limit, cups_count, duration_days)')
           .in('user_id', userIds)
           .eq('is_active', true),
         // Владельцы B2B-аккаунтов среди показанных пользователей.
@@ -362,11 +461,11 @@ export default function AdminUsersPage() {
         b2bSeatMap.set((s as any).employee_user_id, { account: acc?.name || 'Бизнес', tier: tier || 'Подписка' });
       }
       
-      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null };
+      type SubInfo = { name: string; expires_at: string | null; sub_id: string; daily_limit: number | null; daily_limit_override: number | null; is_frozen: boolean; freeze_until: string | null; cups_count: number | null; duration_days: number | null };
       const coffeeSubMap = new Map<string, SubInfo>();
       const lunchSubMap = new Map<string, SubInfo>();
       for (const sub of (subsResult.data || [])) {
-        const subType = sub.subscription_types as unknown as { name: string; type: string; daily_limit: number | null } | null;
+        const subType = sub.subscription_types as unknown as { name: string; type: string; daily_limit: number | null; cups_count: number | null; duration_days: number | null } | null;
         if (!subType) continue;
         const raw = sub as { daily_limit_override?: number | null; is_frozen?: boolean | null; freeze_until?: string | null };
         const info: SubInfo = {
@@ -377,6 +476,8 @@ export default function AdminUsersPage() {
           daily_limit_override: raw.daily_limit_override ?? null,
           is_frozen: raw.is_frozen ?? false,
           freeze_until: raw.freeze_until ?? null,
+          cups_count: subType.cups_count ?? null,
+          duration_days: subType.duration_days ?? null,
         };
         if (subType.type === 'coffee') {
           coffeeSubMap.set(sub.user_id, info);
@@ -426,6 +527,8 @@ export default function AdminUsersPage() {
       is_blocked: user.is_blocked,
       coffee_remaining: user.coffee_remaining,
       drinks_remaining: user.drinks_remaining,
+      coffee_days: user.coffee_subscription ? daysLeft(user.coffee_subscription.expires_at) : null,
+      lunch_days: user.lunch_subscription ? daysLeft(user.lunch_subscription.expires_at) : null,
       role: user.role || 'user',
       shop_id: user.shop_id || '',
       subflow_access: user.subflow_access || false,
@@ -491,6 +594,28 @@ export default function AdminUsersPage() {
           .eq('user_id', editingUser.user_id);
 
         if (statsError) throw statsError;
+
+        // Срок подписок — каждая своим сроком, по своей записи.
+        //
+        // Меняем ТОЛЬКО если админ действительно правил число: показанное значение
+        // округлено вверх, и запись его обратно без изменений сдвигала бы дату.
+        // Продлеваем существующую запись, а не создаём новую — тариф у человека
+        // остаётся прежним, меняется только его срок.
+        const subEdits: { sub: NonNullable<UserWithStats['coffee_subscription']>; days: number | null }[] = [
+          { sub: editingUser.coffee_subscription ?? null, days: formData.coffee_days },
+          { sub: editingUser.lunch_subscription ?? null, days: formData.lunch_days },
+        ].filter((e): e is { sub: NonNullable<UserWithStats['coffee_subscription']>; days: number | null } => !!e.sub);
+
+        for (const { sub, days } of subEdits) {
+          if (days === null) continue;
+          const wasDays = daysLeft(sub.expires_at);
+          if (days === wasDays) continue;
+          const { error: subError } = await supabase
+            .from('user_subscriptions')
+            .update({ expires_at: shiftExpiry(sub.expires_at, wasDays, days) })
+            .eq('id', sub.sub_id);
+          if (subError) throw subError;
+        }
       }
 
       if (newRole === 'partner' && previousRole === 'partner') {
@@ -1020,32 +1145,29 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="coffee">Остаток кофе</Label>
-                    <Input
-                      id="coffee"
-                      type="number"
-                      min="0"
-                      value={formData.coffee_remaining}
-                      onChange={(e) => setFormData({ ...formData, coffee_remaining: parseInt(e.target.value) || 0 })}
-                      disabled={!canManage}
-                      className={!canManage ? 'bg-muted' : ''}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="drinks">Остаток ланчей</Label>
-                    <Input
-                      id="drinks"
-                      type="number"
-                      min="0"
-                      value={formData.drinks_remaining}
-                      onChange={(e) => setFormData({ ...formData, drinks_remaining: parseInt(e.target.value) || 0 })}
-                      disabled={!canManage}
-                      className={!canManage ? 'bg-muted' : ''}
-                    />
-                  </div>
-                </div>
+                {/* Остаток и срок — по каждой подписке отдельно. Править можно
+                    только то, что у человека есть: без подписки остаток менять
+                    некуда, а срок тем более. */}
+                <SubscriptionEditor
+                  title="Кофе"
+                  icon={<Coffee className="w-4 h-4 text-amber-600" />}
+                  sub={editingUser?.coffee_subscription ?? null}
+                  remaining={formData.coffee_remaining}
+                  days={formData.coffee_days}
+                  canManage={canManage}
+                  onRemaining={(v) => setFormData({ ...formData, coffee_remaining: v })}
+                  onDays={(v) => setFormData({ ...formData, coffee_days: v })}
+                />
+                <SubscriptionEditor
+                  title="Ланчи"
+                  icon={<UtensilsCrossed className="w-4 h-4 text-emerald-600" />}
+                  sub={editingUser?.lunch_subscription ?? null}
+                  remaining={formData.drinks_remaining}
+                  days={formData.lunch_days}
+                  canManage={canManage}
+                  onRemaining={(v) => setFormData({ ...formData, drinks_remaining: v })}
+                  onDays={(v) => setFormData({ ...formData, lunch_days: v })}
+                />
               </>
             )}
 
