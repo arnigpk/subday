@@ -81,3 +81,29 @@ export async function sendAdminNotification(
     console.error('[adminNotify] unexpected error:', e instanceof Error ? e.message : e);
   }
 }
+
+/**
+ * Отправить уведомление админу, не заставляя человека ждать Telegram.
+ *
+ * Раньше вызов был просто «отправил и забыл»: ни сама функция, ни fetch внутри
+ * неё не дожидались ответа. Изолят гасили сразу после ответа пользователю, и
+ * запрос к Telegram обрывался на полпути — молча, без записи в логе. Именно так
+ * 13.08.2026 потерялось уведомление о регистрации: канал был исправен, а следа
+ * не осталось никакого.
+ *
+ * Теперь отправку доводит до конца среда выполнения (waitUntil): ответ уходит
+ * сразу, а уведомление живёт своей жизнью — с проверкой ответа Telegram и
+ * повторами. Если waitUntil в среде нет, честно дожидаемся: лучше добавить
+ * несколько сотен миллисекунд к регистрации, чем снова потерять уведомление.
+ */
+export async function notifyAdminReliably(
+  supabase: AnyClient,
+  env: Record<string, string>,
+  triggerType: string,
+  variables: Record<string, string>,
+): Promise<void> {
+  const task = sendAdminNotification(supabase, env, triggerType, variables);
+  const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (rt?.waitUntil) { rt.waitUntil(task); return; }
+  await task;
+}

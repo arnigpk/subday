@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import { notifyAdminReliably } from '../_shared/adminNotify.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,40 +14,8 @@ function formatPhone(phone: string): string {
   return '+' + digits
 }
 
-async function sendAdminNotification(
-  supabase: any,
-  env: Record<string, string>,
-  triggerType: string,
-  variables: Record<string, string>
-): Promise<void> {
-  try {
-    const { data: template } = await supabase
-      .from('auto_notification_templates')
-      .select('message_template, is_active')
-      .eq('trigger_type', triggerType)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (!template) return
-
-    const notificationBotToken = Deno.env.get('NOTIFICATION_BOT_TOKEN') || env['NOTIFICATION_BOT_TOKEN']
-    const chatId = Deno.env.get('NOTIFICATION_CHAT_ID') || env['NOTIFICATION_CHAT_ID']
-    if (!notificationBotToken || !chatId) return
-
-    let message = template.message_template
-    for (const [key, value] of Object.entries(variables)) {
-      message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value)
-    }
-
-    fetch(`https://api.telegram.org/bot${notificationBotToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
-    }).catch(e => console.error('Notification failed:', e))
-  } catch (e) {
-    console.error('Admin notification error:', e)
-  }
-}
+// Уведомление админу отправляется общей надёжной реализацией — см.
+// _shared/adminNotify.ts (ждёт ответ Telegram, проверяет его и повторяет).
 
 // Generate email from phone for auth
 function phoneToEmail(phone: string): string {
@@ -221,7 +190,7 @@ Deno.serve(async (req) => {
       })
 
       // Fire-and-forget: notification + cleanup
-      sendAdminNotification(supabase, workerEnv, `admin_register_${channelLabel}`, {
+      await notifyAdminReliably(supabase, workerEnv, `admin_register_${channelLabel}`, {
         name: name || 'не указано',
         phone: formattedPhone,
         time: timeStr,
@@ -282,7 +251,7 @@ Deno.serve(async (req) => {
       const session = loginData.session
 
       // Fire-and-forget
-      sendAdminNotification(supabase, workerEnv, `admin_login_${channelLabel}`, {
+      await notifyAdminReliably(supabase, workerEnv, `admin_login_${channelLabel}`, {
         name: profileData.name || 'не указано',
         phone: formattedPhone,
         time: timeStr,
