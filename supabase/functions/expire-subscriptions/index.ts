@@ -49,6 +49,33 @@ Deno.serve(async (req) => {
       .lte('freeze_until', new Date().toISOString());
     if (unfreezeError) console.error('Auto-unfreeze error:', unfreezeError);
 
+    // Сгоревший гостевой кофе.
+    //
+    // Раньше его никто не гасил: списать его нельзя (сервер теперь проверяет
+    // срок), но на балансе он висел бы вечно. Из-за этого 14 сгоревших кофе
+    // числились «на руках», а 50 приглашений из 51 значились активными —
+    // статистика по гостевым врала в десять раз.
+    const nowIso = new Date().toISOString();
+
+    const { data: burned, error: burnError } = await supabase
+      .from('user_stats')
+      .update({ guest_coffees: 0, guest_expires_at: null })
+      .gt('guest_coffees', 0)
+      .lt('guest_expires_at', nowIso)
+      .select('user_id');
+    if (burnError) console.error('Guest coffee cleanup error:', burnError);
+    else if (burned?.length) console.log(`Guest coffee expired for ${burned.length} user(s)`);
+
+    // Заодно закрываем сами приглашения, чтобы «активные» означали активные.
+    const { data: closedGrants, error: grantError } = await supabase
+      .from('guest_grants')
+      .update({ status: 'expired' })
+      .eq('status', 'active')
+      .lt('expires_at', nowIso)
+      .select('id');
+    if (grantError) console.error('Guest grant cleanup error:', grantError);
+    else if (closedGrants?.length) console.log(`Closed ${closedGrants.length} expired guest grant(s)`);
+
     // Call the expire_subscriptions function
     const { error } = await supabase.rpc('expire_subscriptions');
 

@@ -274,8 +274,32 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
     const bonusForRedemption = 10;
 
-    // Determine if this is a guest coffee redemption
-    const useGuestCoffee = isGuestCoffee && stats.guest_coffees > 0;
+    // Гостевой кофе: проверяем и остаток, и срок.
+    //
+    // Раньше здесь стояло только `guest_coffees > 0`. Приложение срок проверяет
+    // само и сгоревший кофе не показывает, но запрос сюда можно отправить и в
+    // обход приложения — тогда просроченный списывался. Правило должно быть
+    // одно, и решать его должен сервер.
+    //
+    // Отдельно про отказ: если гостевого кофе нет или он сгорел, запрос раньше
+    // молча проваливался в обычный путь и списывал напиток с ПОДПИСКИ человека.
+    // Для гостя это хуже отказа — он просил гостевой, а заплатил бы своим.
+    // Теперь честно отвечаем, что списывать нечего.
+    if (isGuestCoffee) {
+      const guestAlive = stats.guest_coffees > 0
+        && !!stats.guest_expires_at
+        && new Date(stats.guest_expires_at) > new Date();
+      if (!guestAlive) {
+        return new Response(
+          JSON.stringify({
+            error: stats.guest_coffees > 0
+              ? 'Срок гостевого кофе истёк'
+              : 'Гостевой кофе уже использован',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+    const useGuestCoffee = isGuestCoffee;
 
     if (useGuestCoffee) {
       // ===== GUEST COFFEE REDEMPTION =====
@@ -338,6 +362,9 @@ Deno.serve(async (req) => {
         .eq('user_id', userId)
         .eq('guest_coffees', stats.guest_coffees)
         .gt('guest_coffees', 0)
+        // Срок проверяется и здесь, в самом условии обновления: между проверкой
+        // выше и этой строкой проходит время, и за него кофе может сгореть.
+        .gt('guest_expires_at', new Date().toISOString())
         .select('user_id');
 
       if (guestUpdErr || !guestUpdatedRows || guestUpdatedRows.length === 0) {
