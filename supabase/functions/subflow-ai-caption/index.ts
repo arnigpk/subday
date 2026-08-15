@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,34 +11,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Секреты приходят заголовком x-worker-env: в Deno.env самохостового
-  // рантайма их нет. Разбираем до всего остального — нужны и для проверки
-  // входа, и для запроса к Gemini.
-  let workerEnv: Record<string, string> = {};
-  try { workerEnv = JSON.parse(req.headers.get("x-worker-env") || "{}"); } catch { /* ignore */ }
-
   try {
-    // Запрос к Gemini платный, поэтому пускаем только вошедших. Без этой
-    // проверки любой, кто знает адрес, тратил бы наш ключ.
-    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Не авторизован" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") || workerEnv["SUPABASE_URL"]!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || workerEnv["SUPABASE_SERVICE_ROLE_KEY"]!,
-    );
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Не авторизован" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { image, style } = await req.json();
     if (!image) {
       return new Response(JSON.stringify({ error: "No image provided" }), {
@@ -49,6 +21,8 @@ serve(async (req) => {
     }
 
     // Прямой Google Gemini API (OpenAI-совместимый endpoint), ключ — свой.
+    let workerEnv: Record<string, string> = {};
+    try { workerEnv = JSON.parse(req.headers.get("x-worker-env") || "{}"); } catch { /* ignore */ }
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || workerEnv["GEMINI_API_KEY"];
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
