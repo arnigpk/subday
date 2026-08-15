@@ -706,8 +706,11 @@ const AppContent = () => {
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
             <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
-            <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistoryPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops" element={<AdminProtectedRoute><AdminShopsPage /></AdminProtectedRoute>} />
+            {/* Роли нужны обязательно: hasAccess в useAdminAuth пропускает и партнёра,
+                и бариста. Без allowedRoles бариста попадал в админскую историю в обход
+                /partner/history, который для него закрыт намеренно. */}
+            <Route path="/admin/history" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminHistoryPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminShopsPage /></AdminProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
             <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
             <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />

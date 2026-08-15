@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -iE 'supabase|function|\\\\.sql$|edge')",
+      "Bash(git check-ignore *)",
+      "Bash(export JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\")",
+      "Bash(./gradlew assembleDebug bundleRelease)",
+      "Bash(npx cap *)",
+      "Bash(npm run *)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@89.46.33.92 \"echo SSH_OK; ls /opt/subday-backend/volumes/functions | head -30\")",
+      "Bash(npx tsc *)",
+      "Bash(ssh root@89.46.33.92 \"docker exec supabase-db psql -U postgres -d postgres -t -c \\\\\"select tablename, polname, polroles::regrole[] from pg_policies_view limit 0;\\\\\" 2>/dev/null; docker exec supabase-db psql -U postgres -d postgres -c \\\\\"select c.relname as tbl, p.polname, p.polcmd, pg_get_expr\\(p.polqual,p.polrelid\\) q from pg_policy p join pg_class c on c.oid=p.polrelid where c.relname in \\('subscription_types','shops'\\) and p.polcmd in \\('r','*'\\) ;\\\\\"\")",
+      "Bash(ssh root@89.46.33.92 \"docker exec supabase-edge-functions env | grep -c NOTIFICATION_\")",
+      "Bash(ssh root@89.46.33.92 \"echo \\\\\"NOTIFY pgrst, 'reload schema';\\\\\" | docker exec -i supabase-db psql -U postgres -d postgres && docker restart supabase-edge-functions\")",
+      "Bash(./gradlew assembleRelease bundleRelease)",
+      "WebSearch",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=20 root@89.46.33.92 \"docker exec supabase-db psql -U postgres -d postgres -c \\\\\"select table_name from information_schema.tables where table_schema='public' and \\(table_name ilike '%payment%' or table_name ilike '%transaction%' or table_name ilike '%order%'\\) order by 1;\\\\\"\")",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=20 root@89.46.33.92 \"docker exec supabase-db psql -U postgres -d postgres -c \\\\\"select column_name, data_type from information_schema.columns where table_name='payment_orders' order by ordinal_position;\\\\\"\")"
+    ]
+  }
+}
