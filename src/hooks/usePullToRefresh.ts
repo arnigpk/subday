@@ -21,11 +21,13 @@ export const REFRESH_SPINNER_CAP_MS = 5000;
 
 export function withCap(p: Promise<void> | void, ms: number): Promise<void> {
   if (!(p instanceof Promise)) return Promise.resolve();
-  // Отказ обновления не должен всплыть непойманным — гасим его здесь.
-  p.catch(() => { /* обновление не удалось; данные останутся прежними */ });
   return new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, ms);
-    p.finally(() => { clearTimeout(timer); resolve(); });
+    // Обе ветки закрываем одним обработчиком. Раньше отказ гасился отдельным
+    // .catch(), но .finally() заводил свою цепочку — и уже она всплывала
+    // непойманной при каждом неудачном обновлении.
+    const settle = () => { clearTimeout(timer); resolve(); };
+    p.then(settle, settle);
   });
 }
 

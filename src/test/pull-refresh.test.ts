@@ -28,17 +28,29 @@ describe('обновление потягиванием — потолок ож�
   });
 
   it('ошибка обновления не роняет жест и не всплывает непойманной', async () => {
+    // Слушаем и окно, и процесс: в jsdom отказ всплывает мимо window, поэтому
+    // одной проверки через window мало — она пропускала утечку, при которой
+    // .finally() заводил вторую цепочку без обработчика.
     const rejections: unknown[] = [];
-    const onRejection = (e: PromiseRejectionEvent) => rejections.push(e.reason);
-    window.addEventListener('unhandledrejection', onRejection);
+    const onWindow = (e: PromiseRejectionEvent) => rejections.push(e.reason);
+    const onProcess = (reason: unknown) => rejections.push(reason);
+    window.addEventListener('unhandledrejection', onWindow);
+    process.on('unhandledRejection', onProcess);
 
-    let done = false;
-    withCap(Promise.reject(new Error('нет сети')), REFRESH_SPINNER_CAP_MS).then(() => { done = true; });
-    await vi.advanceTimersByTimeAsync(50);
+    try {
+      let done = false;
+      withCap(Promise.reject(new Error('нет сети')), REFRESH_SPINNER_CAP_MS).then(() => { done = true; });
+      await vi.advanceTimersByTimeAsync(50);
+      // Отказ всплывает в микрозадаче. Таймеры здесь подменены, поэтому ждём
+      // не таймером, а несколькими оборотами очереди микрозадач.
+      for (let i = 0; i < 5; i++) await Promise.resolve();
 
-    expect(done).toBe(true);
-    expect(rejections).toEqual([]);
-    window.removeEventListener('unhandledrejection', onRejection);
+      expect(done).toBe(true);
+      expect(rejections).toEqual([]);
+    } finally {
+      window.removeEventListener('unhandledrejection', onWindow);
+      process.off('unhandledRejection', onProcess);
+    }
   });
 
   it('обработчик, ничего не вернувший, тоже корректно завершает жест', async () => {
