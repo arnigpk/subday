@@ -40,7 +40,12 @@ export function AdminProtectedRoute({ children, allowedRoles }: AdminProtectedRo
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role) && role !== 'superadmin') {
-    return <Navigate to="/admin" replace />;
+    // Отправлять всех подряд на /admin нельзя. Партнёру и бариста туда тоже
+    // нельзя, и охранник зациклился бы, перекидывая сам на себя: человек по
+    // прямой ссылке заходит на закрытый раздел, его шлют на /admin, оттуда
+    // снова на /admin. Их место — свой кабинет, как и на главной.
+    const fallback = role === 'partner' || role === 'barista' ? '/partner' : '/admin';
+    return <Navigate to={fallback} replace />;
   }
 
   return <>{children}</>;
