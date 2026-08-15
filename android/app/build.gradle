@@ -14,7 +14,7 @@ android {
         applicationId "app.subday.vhod"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 121
+        versionCode 122
         versionName "1.6.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
