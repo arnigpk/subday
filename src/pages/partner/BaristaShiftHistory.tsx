@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
+import { drinkLabelForStaff } from '@/lib/drinkLabel';
 
 interface HistoryItem {
   id: string;
@@ -196,7 +197,9 @@ export default function BaristaShiftHistory() {
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
-          drinkName: r.drink_name,
+          // Для кофейни гостевое списание — обычная чашка, подробность
+          // «от кого гость» её не касается.
+          drinkName: drinkLabelForStaff(r.drink_name),
           subscriptionName: subName,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,

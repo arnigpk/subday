@@ -10,6 +10,7 @@ import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
 import { BaristaAddressDialog } from '@/components/partner/BaristaAddressDialog';
 import { nativeScanQR, isNativeScanReady } from '@/lib/nativeScan';
+import { drinkLabelForStaff } from '@/lib/drinkLabel';
 
 /** Обработка дольше этого срока считается зависшей и снимается. */
 const STUCK_MS = 10_000;
@@ -248,7 +249,9 @@ export default function PartnerScanPage() {
           success: true,
           message: 'Успешно списано!',
           customerName: response.customerName,
-          drinkName: response.drinkName,
+          // Сервер присылает «Гостевой кофе (тариф)» — бариста это ни к чему,
+          // для него списание обычное.
+          drinkName: drinkLabelForStaff(response.drinkName),
           remaining: response.remaining,
         });
         setShowConfetti(true);

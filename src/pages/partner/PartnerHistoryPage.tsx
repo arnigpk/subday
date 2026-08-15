@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { drinkLabelForStaff } from '@/lib/drinkLabel';
 
 interface HistoryItem {
   id: string;
@@ -147,7 +148,10 @@ export default function PartnerHistoryPage() {
           type: 'redemption',
           customerName: profileMap.get(r.user_id)?.name || 'Неизвестный',
           customerPublicId: profileMap.get(r.user_id)?.public_id || null,
-          drinkName: r.drink_name,
+          // Кофейне не показываем, что списание гостевое — для неё это обычная
+          // чашка. Маскируем здесь, а не при отрисовке, чтобы выгрузка в CSV
+          // ниже взяла то же значение.
+          drinkName: drinkLabelForStaff(r.drink_name),
           subscriptionName: subName,
           shopAddress: r.shop_address || null,
           redeemedAt: r.redeemed_at,
