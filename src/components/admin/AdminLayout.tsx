@@ -43,9 +43,9 @@ interface AdminLayoutProps {
 const navItems = [
   { icon: LayoutDashboard, label: 'Дашборд', path: '/admin', roles: ['superadmin', 'admin', 'moderator'] },
   { icon: Users, label: 'Пользователи', path: '/admin/users', roles: ['superadmin', 'admin', 'moderator'] },
-  { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
+  { icon: History, label: 'История', path: '/admin/history', roles: ['superadmin', 'admin'] },
   { icon: Receipt, label: 'Транзакции подписок', path: '/admin/subscription-transactions', roles: ['superadmin', 'admin'] },
-  { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['superadmin', 'admin', 'moderator', 'partner'] },
+  { icon: Coffee, label: 'Кофейни', path: '/admin/shops', roles: ['superadmin', 'admin'] },
   { icon: CreditCard, label: 'Подписки', path: '/admin/subscriptions', roles: ['superadmin', 'admin'] },
   { icon: Image, label: 'Рекл. баннеры', path: '/admin/banners', roles: ['superadmin', 'admin'] },
   { icon: Megaphone, label: 'Реклама subFlow', path: '/admin/subflow-ads', roles: ['superadmin', 'admin'] },

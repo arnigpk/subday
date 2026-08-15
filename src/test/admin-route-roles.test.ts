@@ -89,9 +89,20 @@ describe('роли админских маршрутов', () => {
     expect(сБариста).toEqual([]);
   });
 
-  it('партнёр сохраняет доступ к истории и кофейням', () => {
+  it('история и кофейни доступны только суперадмину и админу', () => {
+    // Решение владельца: партнёр и модератор туда больше не ходят. Проверяем
+    // оба источника — и охранник, и меню, иначе пункт остался бы висеть.
     for (const path of ['/admin/history', '/admin/shops']) {
-      expect(guards.get(path)?.has('partner'), `${path} закрыт для партнёра`).toBe(true);
+      expect([...(guards.get(path) ?? [])].sort(), `охранник ${path}`).toEqual(['admin']);
+      expect([...(menu.get(path) ?? [])].sort(), `меню ${path}`).toEqual(['admin', 'superadmin']);
+    }
+  });
+
+  it('у партнёра и модератора не осталось админских разделов сверх положенного', () => {
+    for (const role of ['partner', 'moderator']) {
+      const видит = [...menu.entries()].filter(([, r]) => r.has(role)).map(([p]) => p);
+      const доходит = [...guards.entries()].filter(([, r]) => r?.has(role)).map(([p]) => p);
+      expect(доходит.sort(), `${role}: охранники`).toEqual(видит.sort());
     }
   });
 });

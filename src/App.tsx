@@ -707,11 +707,11 @@ const AppContent = () => {
             <Route path="/admin" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminDashboard /></AdminProtectedRoute>} />
             <Route path="/admin/users" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator']}><AdminUsersPage /></AdminProtectedRoute>} />
             {/* Роли обязательны: hasAccess в useAdminAuth пропускает и партнёра, и
-                бариста — они ходят в свои кабинеты через того же охранника. Списки
-                здесь повторяют меню в AdminLayout: партнёру эти два раздела
-                показываются, бариста не показывается ни один админский. */}
-            <Route path="/admin/history" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator', 'partner']}><AdminHistoryPage /></AdminProtectedRoute>} />
-            <Route path="/admin/shops" element={<AdminProtectedRoute allowedRoles={['admin', 'moderator', 'partner']}><AdminShopsPage /></AdminProtectedRoute>} />
+                бариста — они ходят в свои кабинеты через того же охранника. Здесь
+                только админ (и суперадмин отдельной проверкой внутри охранника);
+                списки должны совпадать с меню в AdminLayout. */}
+            <Route path="/admin/history" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminHistoryPage /></AdminProtectedRoute>} />
+            <Route path="/admin/shops" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminShopsPage /></AdminProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminSubscriptionsPage /></AdminProtectedRoute>} />
             <Route path="/admin/broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminBroadcastPage /></AdminProtectedRoute>} />
             <Route path="/admin/push-broadcast" element={<AdminProtectedRoute allowedRoles={['admin']}><AdminPushBroadcastPage /></AdminProtectedRoute>} />
