@@ -8,6 +8,7 @@ import { StoryViewer } from '@/components/stories/StoryViewer';
 import { SubFlowFeed } from '@/components/subflow/SubFlowFeed';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SubFlowCreatePostDialog } from '@/components/subflow/SubFlowCreatePostDialog';
+import { SubFlowCreateButton } from '@/components/subflow/SubFlowCreateButton';
 import { SubFlowNotifications } from '@/components/subflow/SubFlowNotifications';
 import { SubFlowFollowerCount } from '@/components/subflow/SubFlowFollowerCount';
 import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
@@ -17,7 +18,7 @@ import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useAllActiveStories } from '@/hooks/useAllActiveStories';
 import { supabase } from '@/integrations/supabase/client';
 import { getAuthUser } from '@/lib/authUser';
-import { Lock, ChevronUp, Pencil } from 'lucide-react';
+import { Lock, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import logo from '@/assets/logo.png';
@@ -229,17 +230,10 @@ export default function SubFlowPage() {
 
       {/* Floating Action Button - Create Post */}
       {!isSubLoading && hasActiveSubscription && (
-        <button
+        <SubFlowCreateButton
+          label={t('subflow.createPost') || 'Сделать пост'}
           onClick={() => setShowCreateDialog(true)}
-          className="fixed app-floating-above-nav left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-5 py-3 rounded-full font-semibold text-sm text-foreground backdrop-blur-xl border border-border/40 transition-all duration-300 hover:scale-105 active:scale-95"
-          style={{
-            background: 'hsl(var(--background) / 0.65)',
-            boxShadow: '0 4px 24px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.06), inset 0 1px 0 hsl(var(--background) / 0.5)',
-          }}
-        >
-          <Pencil size={16} />
-          {t('subflow.createPost') || 'Сделать пост'}
-        </button>
+        />
       )}
 
       {/* Scroll to top button */}
