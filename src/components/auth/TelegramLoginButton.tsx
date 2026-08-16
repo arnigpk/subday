@@ -51,7 +51,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
 
       if (data.session) {
         // Красим до setSession: смена сессии перерисовывает экран.
-        cellsRef.current?.succeed();
+        await cellsRef.current?.succeed();
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token

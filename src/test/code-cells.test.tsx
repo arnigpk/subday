@@ -46,7 +46,7 @@ describe('ячейки ввода кода', () => {
     act(() => { ref.current?.fail(); });
     // Сначала держим подсветку — человек должен успеть увидеть, что не так.
     expect(onChange).not.toHaveBeenCalled();
-    act(() => { vi.advanceTimersByTime(700); });
+    act(() => { vi.advanceTimersByTime(1000); });
     expect(onChange).toHaveBeenCalledWith('');
   });
 
@@ -69,6 +69,25 @@ describe('ячейки ввода кода', () => {
     });
     expect(onFilled).toHaveBeenCalledWith('1234');
     void rerender; void ref;
+  });
+  it('подсветка ошибки держится, а не гаснет в тот же кадр', () => {
+    // Ровно этот баг владелец и увидел: в поле уже лежит неверный код, и
+    // сброс срабатывал мгновенно — тряски никто не замечал.
+    const { ref, onChange } = setup(4, '1234');
+    act(() => { ref.current?.fail(); });
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('успех держит паузу, чтобы анимацию успели увидеть', async () => {
+    const { ref } = setup(4, '1234');
+    let done = false;
+    act(() => { ref.current?.succeed().then(() => { done = true; }); });
+    act(() => { vi.advanceTimersByTime(300); });
+    await Promise.resolve();
+    expect(done, 'вошли раньше, чем показали анимацию').toBe(false);
+    await act(async () => { vi.advanceTimersByTime(600); });
+    expect(done, 'пауза не завершилась').toBe(true);
   });
 });
 
@@ -93,7 +112,7 @@ describe('экраны входа используют общие ячейки',
     ]) {
       const s = src(p);
       expect(s.includes('cellsRef.current?.fail()'), `${p}: нет реакции на ошибку`).toBe(true);
-      expect(s.includes('cellsRef.current?.succeed()'), `${p}: нет реакции на успех`).toBe(true);
+      expect(s.includes('await cellsRef.current?.succeed()'), `${p}: не ждёт анимацию успеха`).toBe(true);
     }
   });
 

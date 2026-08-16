@@ -117,7 +117,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
       if (data.success) {
         // Красим до setSession: смена сессии перерисовывает экран.
-        cellsRef.current?.succeed();
+        await cellsRef.current?.succeed();
         if (data.session) {
           await supabase.auth.setSession({
             access_token: data.session.access_token,

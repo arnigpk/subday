@@ -22,8 +22,8 @@ export type CodeState = 'idle' | 'ok' | 'error';
 export interface CodeCellsHandle {
   /** Показать ошибку: тряска, очистка, курсор в начало. */
   fail: () => void;
-  /** Показать успех. */
-  succeed: () => void;
+  /** Показать успех. Обещание исполнится, когда анимацию можно прерывать. */
+  succeed: () => Promise<void>;
 }
 
 interface Props {
@@ -37,7 +37,17 @@ interface Props {
 }
 
 /** Сколько держим подсветку ошибки, прежде чем вернуть поле в обычный вид. */
-const ERROR_HOLD_MS = 620;
+const ERROR_HOLD_MS = 900;
+
+/**
+ * Сколько показываем зелёные ячейки, прежде чем пустить внутрь.
+ *
+ * Ждём таймером в браузере у человека — сервер об этой паузе не знает и
+ * ничего лишнего не делает. Сколько бы людей ни входило одновременно,
+ * нагрузка не меняется: запрос к серверу уже завершён, мы просто
+ * придерживаем переход на экран приложения.
+ */
+const SUCCESS_HOLD_MS = 700;
 
 export const CodeCells = forwardRef<CodeCellsHandle, Props>(function CodeCells(
   { length, value, onChange, onFilled, disabled, autoFocus },
@@ -46,13 +56,19 @@ export const CodeCells = forwardRef<CodeCellsHandle, Props>(function CodeCells(
   const [state, setState] = useState<CodeState>('idle');
   const containerRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number | null>(null);
+  const failedValue = useRef<string | null>(null);
 
   useImperativeHandle(ref, () => ({
     fail() {
+      // Запоминаем, на каком коде споткнулись. Без этого подсветка снималась
+      // в тот же кадр: в поле уже лежит неверный код, и условие «человек начал
+      // править» срабатывало мгновенно — тряски никто не успевал увидеть.
+      failedValue.current = value;
       setState('error');
       if (timer.current) clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
         setState('idle');
+        failedValue.current = null;
         onChange('');
         // Возвращаем курсор в поле, чтобы можно было сразу набирать заново.
         containerRef.current?.querySelector('input')?.focus();
@@ -60,14 +76,26 @@ export const CodeCells = forwardRef<CodeCellsHandle, Props>(function CodeCells(
     },
     succeed() {
       setState('ok');
+      // Отдаём обещание, чтобы экран дождался анимации и только потом входил.
+      // Иначе смена сессии перерисовывает всё за миллисекунды и зелёного не
+      // видно. Ждём таймером в браузере — сервер об этом не знает, на нагрузку
+      // не влияет, сколько бы людей ни входило одновременно.
+      return new Promise<void>((resolve) => {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = window.setTimeout(resolve, SUCCESS_HOLD_MS);
+      });
     },
-  }));
+  }), [value, onChange]);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  // Новый ввод после ошибки сбрасывает подсветку сразу, не дожидаясь таймера.
+  // Подсветку ошибки снимаем, когда человек действительно изменил код, —
+  // а не в тот же миг, когда мы её показали.
   useEffect(() => {
-    if (state === 'error' && value.length > 0) setState('idle');
+    if (state === 'error' && failedValue.current !== null && value !== failedValue.current) {
+      failedValue.current = null;
+      setState('idle');
+    }
   }, [value, state]);
 
   const cell = (i: number, char: string, active: boolean) => {
@@ -96,7 +124,7 @@ export const CodeCells = forwardRef<CodeCellsHandle, Props>(function CodeCells(
   };
 
   return (
-    <div ref={containerRef} className={state === 'error' ? 'animate-shake' : undefined}>
+    <div ref={containerRef} className={state === 'error' ? 'animate-shake-code' : undefined}>
       <OTPInput
         value={value}
         onChange={(v) => {

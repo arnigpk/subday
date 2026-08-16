@@ -126,7 +126,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
       if (data.session) {
         // Красим ячейки до setSession: смена сессии перерисовывает экран, и
         // после неё анимацию уже никто не увидит.
-        cellsRef.current?.succeed();
+        await cellsRef.current?.succeed();
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token

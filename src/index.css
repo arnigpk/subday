@@ -491,6 +491,23 @@
   75% { transform: translateX(5px); }
 }
 
+/* Тряска для ячеек кода. Общий .animate-shake оставлен как есть — им
+   пользуются другие места. Здесь размах больше и колебаний больше:
+   владелец сообщил, что прежнюю тряску попросту не замечал. */
+@keyframes shake-code {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-4px); }
+  25% { transform: translateX(8px); }
+  40% { transform: translateX(-8px); }
+  55% { transform: translateX(6px); }
+  70% { transform: translateX(-4px); }
+  85% { transform: translateX(2px); }
+}
+
+.animate-shake-code {
+  animation: shake-code 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
 @keyframes confetti {
   0% {
     opacity: 1;
