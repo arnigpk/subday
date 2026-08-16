@@ -438,7 +438,10 @@ const AppContent = () => {
       perfMark('preloader-done');
       setIsPreloaderDone(true);
     } else {
-      const dur = (cfg?.duration ?? 2) * 1000;
+      // Запасное значение совпадает с тем, что задано в админке (см.
+      // preloader-config.json в app-assets). При первом запуске конфига в кеше
+      // ещё нет, и прежняя двойка держала заставку вдвое дольше настроенного.
+      const dur = (cfg?.duration ?? 1) * 1000;
       timer = setTimeout(() => { perfMark('preloader-done'); setIsPreloaderDone(true); }, dur);
     }
 
