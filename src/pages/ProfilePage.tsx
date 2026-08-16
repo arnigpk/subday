@@ -464,9 +464,25 @@ export default function ProfilePage() {
           <button 
             onClick={async () => {
               setIsLoggingOut(true);
+              // Цель кнопки — чтобы человек вышел, а не чтобы сервер это
+              // подтвердил. Сервер отвечает 403 session_not_found, когда сессия
+              // у него уже закрыта (вышли на другом устройстве, сессию убрали
+              // при чистке). Показывать в этот момент «Ошибка выхода» —
+              // обманывать: человек-то вышел.
               const { error } = await supabase.auth.signOut();
-              if (error) { toast.error(t('profile.logoutError')); setIsLoggingOut(false); }
-              else { vibrate(); toast.success(t('profile.goodbye')); }
+              if (error) {
+                // Закрываем локально: сеть здесь уже не нужна.
+                await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+              }
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                // Сессия действительно осталась — вот это настоящая ошибка.
+                toast.error(t('profile.logoutError'));
+                setIsLoggingOut(false);
+              } else {
+                vibrate();
+                toast.success(t('profile.goodbye'));
+              }
             }}
             disabled={isLoggingOut}
             className="w-full mt-6 card-interactive flex items-center gap-3 text-destructive animate-slide-up disabled:opacity-50" 

@@ -10,6 +10,7 @@ import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } fro
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CodeCells, type CodeCellsHandle } from './CodeCells';
+import { edgeErrorText } from '@/lib/edgeError';
 
 interface RegisterScreenProps {
   onComplete: (isNewUser?: boolean) => void;
@@ -113,7 +114,13 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim(), city, country: country.code, channel }
       });
-      if (error) { cellsRef.current?.fail(); toast.error('Ошибка проверки кода'); return; }
+      if (error) {
+        // Сервер отвечает на неверный код статусом 400, и supabase-js прячет
+        // его сообщение в error, а не в data. Достаём причину оттуда.
+        cellsRef.current?.fail();
+        toast.error(edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
+        return;
+      }
       if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
       if (data.success) {
         // Красим до setSession: смена сессии перерисовывает экран.

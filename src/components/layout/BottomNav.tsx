@@ -72,7 +72,7 @@ export function BottomNav() {
                   onTouchStart={() => handleTouchStart(item.prefetchKey)}
                   onClick={() => handleClick(isActive)}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl min-w-0 relative transition-colors duration-200 ${
-                    isActive ? 'text-accent' : 'text-foreground'
+                    'text-foreground'
                   }`}
                 >
                   {isActive && (
@@ -89,7 +89,7 @@ export function BottomNav() {
                       : { scale: 1, y: 0 }
                     }
                     transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                    className="relative z-10 nav-legible"
+                    className={`relative z-10 nav-legible ${isActive ? 'text-accent' : ''}`}
                   >
                     <Icon 
                       size={21} 

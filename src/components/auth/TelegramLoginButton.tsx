@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/sonner';
 import { Send, Loader2, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CodeCells, type CodeCellsHandle } from './CodeCells';
+import { edgeErrorText } from '@/lib/edgeError';
 
 interface TelegramLoginButtonProps {
   onSuccess: () => void;
@@ -39,7 +40,8 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
       if (error) {
         console.error('Verify error:', error);
         cellsRef.current?.fail();
-        toast.error('Ошибка проверки кода');
+        // Причина лежит в error, а не в data: сервер отвечает 400.
+        toast.error(edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
         return;
       }
 

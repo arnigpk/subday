@@ -10,6 +10,7 @@ import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePic
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PaymentLogos } from './PaymentLogos';
 import { CodeCells, type CodeCellsHandle } from './CodeCells';
+import { edgeErrorText } from '@/lib/edgeError';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -121,7 +122,13 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phone: formattedPhone, code: verifyCode, isRegistration: false, channel }
       });
-      if (error) { cellsRef.current?.fail(); toast.error('Ошибка проверки кода'); return; }
+      if (error) {
+        // Сервер отвечает на неверный код статусом 400, и supabase-js прячет
+        // его сообщение в error, а не в data. Достаём причину оттуда.
+        cellsRef.current?.fail();
+        toast.error(edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
+        return;
+      }
       if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
       if (data.session) {
         // Красим ячейки до setSession: смена сессии перерисовывает экран, и
