@@ -356,6 +356,30 @@
     box-shadow: 0 0 12px hsl(var(--accent) / 0.08);
   }
 
+  /* Подписи и иконки нижнего меню читаются поверх стекла.
+     Меню полупрозрачное, и когда под ним проезжает тёмный баннер, текст
+     тонет. Светлая обводка вокруг букв возвращает контраст, не убивая сам
+     эффект стекла. В тёмной теме обводка тёмная — задача та же, знак другой. */
+  .nav-legible {
+    text-shadow:
+      0 1px 2px hsl(var(--card) / 0.95),
+      0 0 6px hsl(var(--card) / 0.8);
+  }
+
+  .nav-legible svg {
+    filter: drop-shadow(0 1px 2px hsl(var(--card) / 0.9));
+  }
+
+  .dark .nav-legible {
+    text-shadow:
+      0 1px 2px hsl(var(--background) / 0.95),
+      0 0 6px hsl(var(--background) / 0.85);
+  }
+
+  .dark .nav-legible svg {
+    filter: drop-shadow(0 1px 2px hsl(var(--background) / 0.9));
+  }
+
   .dark .liquid-nav-pill {
     background: linear-gradient(135deg, hsl(var(--accent) / 0.15), hsl(var(--accent) / 0.08));
     border-color: hsl(var(--accent) / 0.22);

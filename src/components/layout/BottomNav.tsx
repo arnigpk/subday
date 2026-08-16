@@ -89,7 +89,7 @@ export function BottomNav() {
                       : { scale: 1, y: 0 }
                     }
                     transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                    className="relative z-10"
+                    className="relative z-10 nav-legible"
                   >
                     <Icon 
                       size={21} 
@@ -97,7 +97,11 @@ export function BottomNav() {
                       className="shrink-0 transition-all duration-200"
                     />
                   </motion.div>
-                  <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full relative z-10 font-bold">
+                  {/* truncate убран намеренно: «Кофеханалар» и «Qahvaxonalar» в него не влезали
+                      и обрезались многоточием — теперь переносятся на две строки. nav-legible
+                      даёт светлую обводку под текстом и иконкой: сквозь стекло просвечивают
+                      тёмные баннеры, и без неё подпись тонет. */}
+                  <span className="text-[11px] leading-[1.15] text-center w-full relative z-10 font-bold break-words nav-legible">
                     {t(item.labelKey)}
                   </span>
                 </Link>
