@@ -41,7 +41,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
         console.error('Verify error:', error);
         cellsRef.current?.fail();
         // Причина лежит в error, а не в data: сервер отвечает 400.
-        toast.error(edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
+        toast.error(await edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
         return;
       }
 

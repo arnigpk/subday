@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Фон запуска. Совпадает с фоном приложения и с backgroundColor в
+         capacitor.config.ts, чтобы при холодном старте не было ни старой
+         картинки-заставки, ни белой вспышки перед новым прелоадером. -->
+    <color name="launch_background">#FAF9F6</color>
+</resources>

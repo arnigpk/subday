@@ -3,25 +3,39 @@
  *
  * supabase-js кладёт в `error` любой ответ не-2xx, а `data` при этом остаётся
  * пустым. Наши функции отвечают на неверный код статусом 400 и телом
- * `{ "error": "Неверный или просроченный код" }` — то есть внятное сообщение
- * есть, но лежит не там, где его ищут. Из-за этого человек видел общее
- * «Ошибка проверки кода» вместо причины.
+ * `{ "error": "Неверный код. Осталось попыток: 3" }` — то есть внятное
+ * сообщение есть, но лежит не там, где его ищут.
  *
- * Само тело в разных версиях библиотеки лежит по-разному: то в `context.body`
- * строкой, то в `context.json`, то в тексте самой ошибки. Перебираем всё.
+ * Важная тонкость: в `context` лежит **сырой Response**, а не разобранный
+ * объект (см. FunctionsHttpError в @supabase/functions-js). Прочитать тело
+ * можно только асинхронно — синхронный разбор молча возвращал заглушку.
+ * Именно поэтому человек видел «Неправильный код, попробуйте ещё раз» вместо
+ * счётчика оставшихся попыток.
+ *
+ * Response можно прочитать один раз, поэтому берём клон: сам объект может
+ * понадобиться вызывающему.
  */
-export function edgeErrorText(error: unknown, fallback: string): string {
+export async function edgeErrorText(error: unknown, fallback: string): Promise<string> {
   if (!error) return fallback;
 
-  const ctx = (error as { context?: { body?: unknown; json?: { error?: string } } }).context;
+  const ctx = (error as { context?: unknown }).context;
 
-  if (ctx?.json?.error) return ctx.json.error;
-
-  if (typeof ctx?.body === 'string') {
+  // Основной случай: context — это Response.
+  if (ctx && typeof (ctx as Response).clone === 'function') {
     try {
-      const parsed = JSON.parse(ctx.body);
+      const parsed = await (ctx as Response).clone().json();
       if (parsed?.error) return String(parsed.error);
-    } catch { /* тело не JSON — идём дальше */ }
+    } catch { /* тело не JSON или уже прочитано — идём дальше */ }
+  }
+
+  // Запасные формы: в разных версиях библиотеки встречались и такие.
+  const asObj = ctx as { json?: { error?: string }; body?: unknown } | undefined;
+  if (asObj?.json && typeof asObj.json === 'object' && asObj.json.error) return asObj.json.error;
+  if (typeof asObj?.body === 'string') {
+    try {
+      const parsed = JSON.parse(asObj.body);
+      if (parsed?.error) return String(parsed.error);
+    } catch { /* не JSON */ }
   }
 
   const message = (error as { message?: string }).message;
@@ -29,8 +43,8 @@ export function edgeErrorText(error: unknown, fallback: string): string {
     try {
       const parsed = JSON.parse(message);
       if (parsed?.error) return String(parsed.error);
-    } catch { /* обычный текст, не JSON */ }
-    // Служебные сообщения библиотеки человеку ничего не говорят — прячем их.
+    } catch { /* обычный текст */ }
+    // Служебные фразы библиотеки человеку ничего не говорят — прячем их.
     if (!/non-2xx|failed to|network|fetch/i.test(message)) return message;
   }
 

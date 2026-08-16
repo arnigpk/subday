@@ -126,7 +126,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
         // Сервер отвечает на неверный код статусом 400, и supabase-js прячет
         // его сообщение в error, а не в data. Достаём причину оттуда.
         cellsRef.current?.fail();
-        toast.error(edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
+        toast.error(await edgeErrorText(error, 'Неправильный код, попробуйте ещё раз'));
         return;
       }
       if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
