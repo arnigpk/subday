@@ -30,3 +30,15 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// jsdom не умеет ResizeObserver, а его требует input-otp (ячейки ввода кода).
+// В браузерах он есть везде, где работает приложение, — это чисто тестовая
+// заглушка, чтобы компонент вообще смонтировался.
+if (!('ResizeObserver' in globalThis)) {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+}

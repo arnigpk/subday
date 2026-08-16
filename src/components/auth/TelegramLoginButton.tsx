@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { Send, Loader2, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { CodeCells, type CodeCellsHandle } from './CodeCells';
 
 interface TelegramLoginButtonProps {
   onSuccess: () => void;
@@ -14,6 +15,7 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
   const { t } = useLanguage();
   const [step, setStep] = useState<'button' | 'code'>('button');
   const [code, setCode] = useState('');
+  const cellsRef = useRef<CodeCellsHandle>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenTelegram = () => {
@@ -36,25 +38,32 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
 
       if (error) {
         console.error('Verify error:', error);
+        cellsRef.current?.fail();
         toast.error('Ошибка проверки кода');
         return;
       }
 
       if (data.error) {
+        cellsRef.current?.fail();
         toast.error(data.error);
         return;
       }
 
       if (data.session) {
+        // Красим до setSession: смена сессии перерисовывает экран.
+        cellsRef.current?.succeed();
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token
         });
         toast.success('Добро пожаловать!');
         onSuccess();
+      } else {
+        cellsRef.current?.fail();
       }
     } catch (err) {
       console.error('Verify error:', err);
+      cellsRef.current?.fail();
       toast.error('Ошибка проверки');
     } finally {
       setIsLoading(false);
@@ -68,20 +77,17 @@ export function TelegramLoginButton({ onSuccess, botName }: TelegramLoginButtonP
           <label className="text-sm font-medium text-muted-foreground mb-2 block">
             {t('auth.telegramCode')}
           </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="000000"
+          {/* Шесть ячеек: код телеграма длиннее, чем у SMS. Длину не режем — в
+              telegram-verify-code нет ограничения числа попыток, и на четырёх
+              цифрах код стал бы перебираемым. */}
+          <CodeCells
+            ref={cellsRef}
+            length={6}
             value={code}
-            onChange={(e) => {
-              const newCode = e.target.value.replace(/\D/g, '').slice(0, 6);
-              setCode(newCode);
-              if (newCode.length === 6 && !isLoading) {
-                handleVerifyCode(newCode);
-              }
-            }}
-            className="input-field w-full text-2xl text-center tracking-[0.3em]"
-            maxLength={6}
+            onChange={setCode}
+            onFilled={handleVerifyCode}
+            disabled={isLoading}
+            autoFocus
           />
           <p className="text-xs text-muted-foreground mt-2 text-center">
             {t('auth.confirmCode')} @{botName}

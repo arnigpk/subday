@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
@@ -9,6 +9,7 @@ import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, CITIES_BY_COUNTRY, useDetectedCountry } from './CountryCodePicker';
 import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { CodeCells, type CodeCellsHandle } from './CodeCells';
 
 interface RegisterScreenProps {
   onComplete: (isNewUser?: boolean) => void;
@@ -27,6 +28,7 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
   const [city, setCity] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [code, setCode] = useState('');
+  const cellsRef = useRef<CodeCellsHandle>(null);
   const [step, setStep] = useState<'form' | 'code'>('form');
   // Явное согласие с правилами сервиса (галочка) — App Store Guideline 1.2
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -111,9 +113,11 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phone: formattedPhone, code: verifyCode, isRegistration: true, name: name.trim(), city, country: country.code, channel }
       });
-      if (error) { toast.error('Ошибка проверки кода'); return; }
-      if (data.error) { toast.error(data.error); return; }
+      if (error) { cellsRef.current?.fail(); toast.error('Ошибка проверки кода'); return; }
+      if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
       if (data.success) {
+        // Красим до setSession: смена сессии перерисовывает экран.
+        cellsRef.current?.succeed();
         if (data.session) {
           await supabase.auth.setSession({
             access_token: data.session.access_token,
@@ -125,9 +129,11 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
         }
         onComplete(true);
       } else {
+        cellsRef.current?.fail();
         toast.error('Ошибка регистрации');
       }
     } catch (err) {
+      cellsRef.current?.fail();
       toast.error('Ошибка проверки');
     } finally {
       setIsLoading(false);
@@ -239,14 +245,14 @@ export function RegisterScreen({ onComplete, onSwitchToLogin, initialPhone = '',
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">{channel === 'whatsapp' ? t('auth.whatsappCode') : t('auth.smsCode')}</label>
-                <input
-                  type="text" inputMode="numeric" placeholder="0000" value={code}
-                  onChange={e => {
-                    const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    setCode(newCode);
-                    if (newCode.length === 4 && !isLoading) handleVerifyCode(newCode);
-                  }}
-                  className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code"
+                <CodeCells
+                  ref={cellsRef}
+                  length={4}
+                  value={code}
+                  onChange={setCode}
+                  onFilled={handleVerifyCode}
+                  disabled={isLoading}
+                  autoFocus
                 />
                 <p className="text-xs text-muted-foreground mt-2 text-center">{t('auth.sentTo')} {formattedPhone}</p>
               </div>

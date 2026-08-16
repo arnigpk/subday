@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import { toast } from '@/components/ui/sonner';
@@ -9,6 +9,7 @@ import { useChannelCooldowns } from '@/hooks/useSmsCooldown';
 import { CountryCodePicker, Country, useDetectedCountry } from './CountryCodePicker';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PaymentLogos } from './PaymentLogos';
+import { CodeCells, type CodeCellsHandle } from './CodeCells';
 
 interface LoginScreenProps {
   onComplete: () => void;
@@ -23,6 +24,7 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
   const [countryManuallySet, setCountryManuallySet] = useState(false);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const cellsRef = useRef<CodeCellsHandle>(null);
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
@@ -119,9 +121,12 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phone: formattedPhone, code: verifyCode, isRegistration: false, channel }
       });
-      if (error) { toast.error('Ошибка проверки кода'); return; }
-      if (data.error) { toast.error(data.error); return; }
+      if (error) { cellsRef.current?.fail(); toast.error('Ошибка проверки кода'); return; }
+      if (data.error) { cellsRef.current?.fail(); toast.error(data.error); return; }
       if (data.session) {
+        // Красим ячейки до setSession: смена сессии перерисовывает экран, и
+        // после неё анимацию уже никто не увидит.
+        cellsRef.current?.succeed();
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token
@@ -129,9 +134,11 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
         toast.success('Добро пожаловать!');
         onComplete();
       } else {
+        cellsRef.current?.fail();
         toast.error('Ошибка авторизации');
       }
     } catch (err) {
+      cellsRef.current?.fail();
       toast.error('Ошибка проверки');
     } finally {
       setIsLoading(false);
@@ -214,14 +221,14 @@ export function LoginScreen({ onComplete, onSwitchToRegister, onGuestBrowse }: L
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground mb-2 block">{channel === 'whatsapp' ? t('auth.whatsappCode') : t('auth.smsCode')}</label>
-                <input
-                  type="text" inputMode="numeric" placeholder="0000" value={code}
-                  onChange={e => {
-                    const newCode = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    setCode(newCode);
-                    if (newCode.length === 4 && !isLoading) handleVerifyCode(newCode);
-                  }}
-                  className="input-field w-full text-2xl text-center tracking-[0.5em]" maxLength={4} autoComplete="one-time-code"
+                <CodeCells
+                  ref={cellsRef}
+                  length={4}
+                  value={code}
+                  onChange={setCode}
+                  onFilled={handleVerifyCode}
+                  disabled={isLoading}
+                  autoFocus
                 />
                 <p className="text-xs text-muted-foreground mt-2 text-center">{t('auth.sentTo')} {formattedPhone}</p>
               </div>
