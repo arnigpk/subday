@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Country {
   code: string;
@@ -49,16 +50,19 @@ let ipDetectionPromise: Promise<Country> | null = null;
 export async function detectCountryByIP(): Promise<Country> {
   if (ipCountryCache) return ipCountryCache;
   if (ipDetectionPromise) return ipDetectionPromise;
-  
+
   ipDetectionPromise = (async () => {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-      clearTimeout(timeout);
-      const data = await res.json();
-      const countryCode = data.country_code; // e.g. "KZ", "KG", "UZ", "RU"
-      const found = COUNTRIES.find(c => c.code === countryCode);
+      // Своя функция, а не сторонний сервис: браузер и webview не пускают
+      // запросы на чужой домен без разрешающего заголовка, и прежний вызов
+      // ipapi.co падал по CORS и в вебе, и в нативе — то есть не работал нигде.
+      const { data } = await supabase.functions.invoke<{ country?: string | null }>(
+        'detect-country',
+        { method: 'POST' },
+      );
+      const found = data?.country ? COUNTRIES.find((c) => c.code === data.country) : null;
+      // Не определили — остаёмся на часовом поясе. Он мгновенный и не врёт для
+      // тех, кто дома: узбекский телефон и в Алматы показывает Asia/Tashkent.
       ipCountryCache = found || detectCountryByTimezone();
       return ipCountryCache;
     } catch {
@@ -66,7 +70,7 @@ export async function detectCountryByIP(): Promise<Country> {
       return ipCountryCache;
     }
   })();
-  
+
   return ipDetectionPromise;
 }
 

@@ -59,3 +59,7 @@ verify_jwt = false
 
 [functions.subflow-ai-caption]
 verify_jwt = false
+
+# Экран выбора страны показывается до входа — проверка JWT тут неуместна.
+[functions.detect-country]
+verify_jwt = false
