@@ -20,13 +20,13 @@ on:
   workflow_dispatch:
     inputs:
       build_number:
-        description: 'Номер сборки (CURRENT_PROJECT_VERSION). Должен расти при каждой отправке в App Store.'
+        description: 'Номер сборки (CURRENT_PROJECT_VERSION). Должен быть строго больше всех уже загруженных: в TestFlight максимум 38, в проекте 69.'
         required: true
         default: '70'
       marketing_version:
-        description: 'Версия для магазина (MARKETING_VERSION)'
+        description: 'Версия для магазина (MARKETING_VERSION). В TestFlight последняя — 1.1.2 (38); в проекте стоит 1.1.6.'
         required: true
-        default: '1.6.6'
+        default: '1.1.6'
       export_method:
         description: 'Способ экспорта'
         required: true
