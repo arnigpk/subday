@@ -1,0 +1,173 @@
+# Сборка iOS-приложения на раннере GitHub.
+#
+# Зачем: MacBook Pro 2017 остался на macOS Ventura 13, дальше она не обновляется,
+# а Capacitor 8 и App Store требуют Xcode 26 — он ставится только на macOS 15.6+.
+# Поэтому .ipa собирается здесь: образ macos-26 даёт Xcode 26 из коробки.
+#
+# Запуск: вкладка Actions → «Сборка iOS» → Run workflow.
+#
+# Нужны секреты репозитория (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL              адрес API           — из app/.env
+#   VITE_SUPABASE_PUBLISHABLE_KEY  публичный ключ      — из app/.env
+#   IOS_CERT_P12_BASE64            сертификат Apple Distribution (.p12) в base64
+#   IOS_CERT_PASSWORD              пароль от .p12
+#   IOS_PROVISION_PROFILE_BASE64   профиль подготовки (.mobileprovision) в base64
+# Как получить base64:  base64 -i сертификат.p12 | pbcopy
+
+name: Сборка iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Номер сборки (CURRENT_PROJECT_VERSION). Должен расти при каждой отправке в App Store.'
+        required: true
+        default: '70'
+      marketing_version:
+        description: 'Версия для магазина (MARKETING_VERSION)'
+        required: true
+        default: '1.6.6'
+      export_method:
+        description: 'Способ экспорта'
+        required: true
+        default: 'app-store-connect'
+        type: choice
+        options:
+          - app-store-connect
+          - release-testing
+
+jobs:
+  build:
+    name: Собрать .ipa
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - name: Забрать исходники
+        uses: actions/checkout@v4
+
+      - name: Выбрать Xcode 26
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Поставить Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Собрать веб-часть
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Не заданы секреты VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY."
+            exit 1
+          fi
+          npm run build
+
+      - name: Разложить веб-часть в iOS-проект
+        run: npx cap sync ios
+
+      - name: Завести временную связку ключей и внести сертификат
+        env:
+          CERT_B64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CERT_B64:-}" ] || [ -z "${PROFILE_B64:-}" ]; then
+            echo "::error::Нет секретов подписи: IOS_CERT_P12_BASE64 и/или IOS_PROVISION_PROFILE_BASE64."
+            exit 1
+          fi
+
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          # Пароль связки одноразовый: она живёт только внутри этого запуска.
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo -n "$CERT_B64" | base64 --decode -o "$CERT_PATH"
+          echo -n "$PROFILE_B64" | base64 --decode -o "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$CERT_PASSWORD" -A \
+            -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          echo "PROVISION_UUID=$UUID" >> "$GITHUB_ENV"
+
+          echo "Сертификаты в связке:"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Собрать архив
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            CURRENT_PROJECT_VERSION='${{ inputs.build_number }}' \
+            MARKETING_VERSION='${{ inputs.marketing_version }}' \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISION_UUID" \
+            DEVELOPMENT_TEAM=98H9396QZ4 \
+            | xcbeautify && exit ${PIPESTATUS[0]}
+
+      - name: Выгнать .ipa из архива
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>${{ inputs.export_method }}</string>
+            <key>teamID</key><string>98H9396QZ4</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>kz.subday.app</key><string>$PROVISION_UUID</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates
+
+          ls -lh "$RUNNER_TEMP/export"
+
+      - name: Отдать .ipa как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: subday-${{ inputs.marketing_version }}-${{ inputs.build_number }}-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Прибрать связку ключей
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROVISION_UUID.mobileprovision" 2>/dev/null || true
