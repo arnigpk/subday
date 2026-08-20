@@ -112,6 +112,14 @@ jobs:
           echo "Сертификаты в связке:"
           security find-identity -v -p codesigning "$KEYCHAIN"
 
+          # В Xcode-проекте профиль прописан по UUID. Если из секрета приехал
+          # другой профиль, лучше упасть здесь, чем подписать не тем.
+          EXPECTED=b7d0c2ae-3446-43b7-8611-eea7bfbbc74d
+          if [ "$UUID" != "$EXPECTED" ]; then
+            echo "::error::Профиль из секрета имеет UUID $UUID, а в проекте прописан $EXPECTED. Обновите PROVISIONING_PROFILE_SPECIFIER в ios/App/App.xcodeproj/project.pbxproj."
+            exit 1
+          fi
+
       - name: Собрать архив
         run: |
           set -euo pipefail
@@ -123,10 +131,6 @@ jobs:
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             CURRENT_PROJECT_VERSION='${{ inputs.build_number }}' \
             MARKETING_VERSION='${{ inputs.marketing_version }}' \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROVISION_UUID" \
-            DEVELOPMENT_TEAM=98H9396QZ4 \
             | xcbeautify && exit ${PIPESTATUS[0]}
 
       - name: Выгнать .ipa из архива
