@@ -641,6 +641,29 @@ export default function RedeemPage() {
 
   const goHome = () => navigate('/');
 
+  // Кнопка «Сканировать» на главной ведёт на этот же экран забора и лишь потом
+  // поднимает камеру. Из-за этого человек по дороге видел лишнее: сперва светлый
+  // экран загрузки кофеен (та самая белая вспышка), потом свой QR-код, и только
+  // затем сканер. Нажали «Сканировать» — значит нужен сканер, а не экран забора.
+  //
+  // Отдаём один сканер поверх чёрного. Кофейни догрузятся сами, они нужны уже
+  // после считывания кода. Кнопка «Ваш QR» внутри сканера гасит showShopScanner,
+  // и тогда экран забора отрисуется обычным порядком.
+  if (openedStraightToScanner && showShopScanner) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 z-50 bg-black" />}>
+        <ShopQRScanner
+          drinkType={drinkType}
+          isGuestCoffee={isGuestCoffee && hasGuestCoffee}
+          remaining={remaining}
+          onShowMyQR={switchToMyQR}
+          onClose={closeShopScanner}
+          onRedeemed={handleShopScanSuccess}
+        />
+      </Suspense>
+    );
+  }
+
   if (isLoadingShops) {
     return (
       <AppLayout hideNav>
