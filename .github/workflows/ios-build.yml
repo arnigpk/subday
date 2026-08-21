@@ -20,13 +20,13 @@ on:
   workflow_dispatch:
     inputs:
       build_number:
-        description: 'Номер сборки (CURRENT_PROJECT_VERSION). Должен быть строго больше всех уже загруженных: в TestFlight максимум 38, в проекте 69.'
+        description: 'Номер сборки (CURRENT_PROJECT_VERSION). Строго больше всех загруженных ранее.'
         required: true
-        default: '70'
+        default: '72'
       marketing_version:
-        description: 'Версия для магазина (MARKETING_VERSION). В TestFlight последняя — 1.1.2 (38); в проекте стоит 1.1.6.'
+        description: 'Версия для магазина (MARKETING_VERSION). Поднимать при каждой отправке: закрытая версия новых сборок не принимает (ошибка 90186).'
         required: true
-        default: '1.1.6'
+        default: '1.1.7'
       export_method:
         description: 'Способ экспорта'
         required: true
