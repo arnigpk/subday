@@ -132,8 +132,18 @@ export function ShopQRScanner({ drinkType, isGuestCoffee, remaining, onShowMyQR,
 
   const DrinkIcon = drinkType === 'coffee' ? Coffee : UtensilsCrossed;
 
+  // Пока поднимается системный сканер, своего экрана рисовать нечего: поверх всё
+  // равно встанет камера во весь экран. Раньше здесь на миг успевал показаться
+  // светлый фон с лоадером — та самая белая вспышка при открытии сканера.
+  // Гасим прозрачностью, а не visibility/display: слой должен остаться кликабельным,
+  // чтобы случайные нажатия не проваливались на экран под ним. Если системный
+  // сканер не откроется, nativeFailed вернёт и фон, и кнопку запасной камеры.
+  const nativeOpening = !webFallback && !nativeFailed;
+
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-y-auto">
+    <div className={`fixed inset-0 z-50 bg-background flex flex-col overflow-y-auto ${
+      nativeOpening ? 'opacity-0' : ''
+    }`}>
       <div className="safe-area-top" />
 
       {/* Шапка — в тех же тонах, что остальные экраны приложения */}

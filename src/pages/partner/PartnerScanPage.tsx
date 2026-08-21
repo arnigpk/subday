@@ -5,6 +5,7 @@ import { QRScanner } from '@/components/partner/QRScanner';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getAuthUser } from '@/lib/authUser';
+import { logDataError } from '@/lib/errorLog';
 import { Check, X, MapPin, QrCode, Loader2, ScanLine } from 'lucide-react';
 import { useSuccessSound } from '@/hooks/useSuccessSound';
 import { useVibration } from '@/hooks/useVibration';
@@ -176,6 +177,7 @@ export default function PartnerScanPage() {
           }
         } catch (err) {
           console.error('Preorder scan error:', err);
+          logDataError('partner-scan', err, 'обработка предзаказа');
           setResult({ success: false, message: 'Ошибка обработки предзаказа' });
         }
         resetProcessing();
@@ -265,6 +267,7 @@ export default function PartnerScanPage() {
       }
     } catch (error) {
       console.error('Scan processing error:', error);
+      logDataError('partner-scan', error, 'списание по QR');
       const isTimeout = error instanceof Error && error.message === 'scan-timeout';
       setResult({
         success: false,

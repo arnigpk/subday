@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { logClientError } from '@/lib/errorLog';
+import { logClientError, handledAsStaleChunk } from '@/lib/errorLog';
 
 interface Props {
   children: ReactNode;
@@ -45,6 +45,13 @@ export class ErrorBoundary extends Component<Props, State> {
       `[ErrorBoundary${this.props.section ? ':' + this.props.section : ''}]`,
       error, info.componentStack,
     );
+
+    // Страницы грузятся лениво, поэтому осечка чанка после выката прилетает сюда,
+    // а не в глобальную ловушку. Раньше проверка стояла только там, и человек
+    // вместо тихой перезагрузки видел экран ошибки. Перезагрузка одна за сессию —
+    // если не помогло, ошибка настоящая и пойдёт в журнал обычным путём.
+    if (handledAsStaleChunk(error?.message)) return;
+
     // Своё логирование в БД (fire-and-forget, не бросает).
     logClientError({
       section: this.props.section || 'app',

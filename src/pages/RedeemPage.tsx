@@ -18,6 +18,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { TT } from '@/components/TT';
 import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
+import { logDataError, isOffline } from '@/lib/errorLog';
 import { haversineDistanceMeters } from '@/utils/haversine';
 import { lazy, Suspense } from 'react';
 const ShopQRScanner = lazy(() => import('@/components/redeem/ShopQRScanner').then(m => ({ default: m.ShopQRScanner })));
@@ -505,7 +506,13 @@ export default function RedeemPage() {
         }
       } catch (error) {
         console.error('Error fetching shops:', error);
-        // Оффлайн-фоллбек: восстанавливаем из кеша
+        // Раньше отсюда уходило только сообщение «нет сети» — при любой причине сбоя
+        // и без единой записи в журнал. Из-за этого настоящая поломка была не видна
+        // ни человеку, ни в админке. Теперь причина сначала попадает в журнал.
+        logDataError('redeem', error, 'загрузка кофеен');
+
+        // Кеш выручает независимо от причины: показать вчерашний список лучше, чем
+        // пустой экран.
         const cached = getCache<any[]>(CACHE_KEYS.shops);
         if (cached?.data?.length) {
           const shopsWithStatus: ShopWithStatus[] = cached.data.map(mapShopRow);
@@ -514,7 +521,11 @@ export default function RedeemPage() {
             const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
             setSelectedShop(firstOpen || shopsWithStatus[0] || null);
           }
-          toast.info('Нет сети — данные могут быть устаревшими');
+          // Про отсутствие сети говорим только когда её действительно нет.
+          // В остальных случаях честнее сказать, что данные могли устареть.
+          toast.info(isOffline()
+            ? 'Нет сети — данные могут быть устаревшими'
+            : 'Показываем сохранённый список кофеен');
         } else {
           toast.error(t('redeem.loadError'));
         }
