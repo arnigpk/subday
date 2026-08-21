@@ -18,7 +18,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { TT } from '@/components/TT';
 import { setCache, getCache, CACHE_KEYS, CACHE_TTL } from '@/utils/offlineCache';
-import { logDataError, isOffline } from '@/lib/errorLog';
+import { logDataError } from '@/lib/errorLog';
 import { haversineDistanceMeters } from '@/utils/haversine';
 import { lazy, Suspense } from 'react';
 const ShopQRScanner = lazy(() => import('@/components/redeem/ShopQRScanner').then(m => ({ default: m.ShopQRScanner })));
@@ -475,11 +475,27 @@ export default function RedeemPage() {
   }, [userId, lastRedemptionId, handleRealtimeRedemption]);
 
   useEffect(() => {
-    const fetchShops = async () => {
-      try {
+    // Запрос с повторами. На холодном старте приложения — особенно на iOS — сеть
+    // бывает ещё не готова, и первый же запрос отваливается по таймауту. Раньше
+    // это сразу выливалось в сообщение пользователю, хотя со второй попытки всё
+    // проходит. Пауза между попытками растёт, чтобы не долбить сервер.
+    const loadShops = async (attempts = 3) => {
+      let lastError: unknown;
+      for (let i = 0; i < attempts; i++) {
         const { data, error } = await supabase
           .from('shops').select('id, name, address, addresses, city, working_hours, is_active, logo_url, supported_types, coordinates').eq('is_active', true).order('name');
-        if (error) throw error;
+        if (!error) return data;
+        lastError = error;
+        if (i < attempts - 1) {
+          await new Promise(r => setTimeout(r, 700 * (i + 1)));
+        }
+      }
+      throw lastError;
+    };
+
+    const fetchShops = async () => {
+      try {
+        const data = await loadShops();
         const shopsWithStatus: ShopWithStatus[] = (data || []).map(mapShopRow);
         shopsWithStatus.sort((a, b) => {
           if (a.isCurrentlyOpen && !b.isCurrentlyOpen) return -1;
@@ -521,11 +537,11 @@ export default function RedeemPage() {
             const firstOpen = shopsWithStatus.find(s => s.isCurrentlyOpen);
             setSelectedShop(firstOpen || shopsWithStatus[0] || null);
           }
-          // Про отсутствие сети говорим только когда её действительно нет.
-          // В остальных случаях честнее сказать, что данные могли устареть.
-          toast.info(isOffline()
-            ? 'Нет сети — данные могут быть устаревшими'
-            : 'Показываем сохранённый список кофеен');
+          // Молча. Список кофеен на экране есть, человек получил ровно то, за чем
+          // пришёл, — сообщать ему о неудавшемся запросе незачем: сделать он с этим
+          // ничего не может, а тревожная плашка на пустом месте портит впечатление.
+          // Причина ушла в журнал строкой выше, и разбираться с ней — наша работа,
+          // а не его. Сообщаем только если показать нечего (ветка ниже).
         } else {
           toast.error(t('redeem.loadError'));
         }

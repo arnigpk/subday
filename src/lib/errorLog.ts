@@ -80,8 +80,32 @@ export function isOffline(): boolean {
  * Ошибки отмены (уход со страницы, размонтирование) отсеиваются самим
  * logClientError, так что вызывать можно свободно, из любого catch.
  */
+/**
+ * Читаемый текст ошибки. Простого String() тут мало: Supabase отдаёт сбой обычным
+ * объектом, а не Error, и в журнал уходило бесполезное «[object Object]» — вместо
+ * причины оставался один факт, что что-то сломалось. Достаём поля, которые
+ * действительно объясняют: сообщение, код, подробности, подсказку.
+ */
+function describeError(error: unknown): string {
+  if (error instanceof Error) return error.message || error.name;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const o = error as Record<string, unknown>;
+    const parts = [o.message, o.code, o.details, o.hint, o.error_description, o.error]
+      .filter(v => typeof v === 'string' && v)
+      .map(v => v as string);
+    if (parts.length) return [...new Set(parts)].join(' | ');
+    try {
+      const json = JSON.stringify(error);
+      if (json && json !== '{}') return json.slice(0, 300);
+    } catch { /* циклическая ссылка — ниже отдадим общий текст */ }
+    return 'объект без текста ошибки';
+  }
+  return String(error ?? 'unknown');
+}
+
 export function logDataError(section: string, error: unknown, what?: string): void {
-  const raw = error instanceof Error ? error.message : String(error ?? 'unknown');
+  const raw = describeError(error);
   // Помечаем обрыв связи прямо в сообщении: в журнале это сразу отделит настоящие
   // поломки от людей в метро.
   const prefix = isOffline() ? '[оффлайн] ' : '';
