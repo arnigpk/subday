@@ -651,7 +651,7 @@ export default function RedeemPage() {
   // и тогда экран забора отрисуется обычным порядком.
   if (openedStraightToScanner && showShopScanner) {
     return (
-      <Suspense fallback={<div className="fixed inset-0 z-50 bg-black" />}>
+      <Suspense fallback={null}>
         <ShopQRScanner
           drinkType={drinkType}
           isGuestCoffee={isGuestCoffee && hasGuestCoffee}
@@ -664,7 +664,11 @@ export default function RedeemPage() {
     );
   }
 
-  if (isLoadingShops) {
+  // Экран загрузки не имеет права перекрывать успех. Кофейни грузятся в фоне
+  // (сканер открывается, не дожидаясь их), и после удачного списания страница
+  // возвращается сюда — если не сделать исключение, вместо анимации успеха
+  // человек увидит крутилку и пропустит начало.
+  if (isLoadingShops && status !== 'success') {
     return (
       <AppLayout hideNav>
         <div className="min-h-screen flex items-center justify-center">
